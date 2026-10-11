@@ -18,8 +18,9 @@ The Flutter code in `apps/` and `packages/` is the earlier approach and is no lo
 
 | Path | Contents |
 |---|---|
-| `apps/customer/` | Flutter customer app: every customer screen C01–C55 and the Android differences, running on sample data |
-| `packages/wheelio_ui/` | Wheelio design system for Flutter: colours, type, spacing and all shared widgets |
+| `ios/` | Current native SwiftUI customer and washer apps, shared assets, and the Xcode project |
+| `apps/customer/` | Legacy Flutter customer app: every customer screen C01–C55 and the Android differences, running on sample data |
+| `packages/wheelio_ui/` | Legacy Flutter design system: colours, type, spacing and all shared widgets |
 | `backend/supabase/` | Database schema with security rules, sample data, and server functions (payment webhook, AI photo check) |
 | `backend/API-CONTRACT.md` | What each app action calls on the server |
 | `backend/whatsapp-templates.md` | Entry-pass bot messages for Meta approval |
