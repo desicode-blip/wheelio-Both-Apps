@@ -2,6 +2,8 @@
 
 Draft, 10 October 2026. The Google Doc copy is in the Wheelio Drive folder. Sources: Business Plan, Product Roadmap, and the design "Read me" page (`designs/Main.dc.html`).
 
+> Platform update, 11 October 2026: current development uses Next.js in `apps/web/` and native SwiftUI Customer/Captain apps in `apps/ios/`. `apps/android/` is reserved for later. The earlier Flutter implementation is preserved under `legacy/`. Flutter-specific stack and build-order choices below are historical; the business decisions and account checklist remain planning references. See the root README for the active structure and commands.
+
 ## 1. Build order
 
 0. **Foundations:** backend, database, auth, payments in test mode, and the design system as Flutter widgets.

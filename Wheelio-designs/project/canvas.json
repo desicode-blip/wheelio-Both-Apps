@@ -1,0 +1,1707 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-09T18:51:54Z"
+ },
+ "title": "Wheelio — App Designs (Customer + Washer)",
+ "launch": {
+  "view": "canvas",
+  "page": "readme"
+ },
+ "pages": [
+  {
+   "id": "readme",
+   "name": "00 · Read me · how to build from this canvas"
+  },
+  {
+   "id": "c-book",
+   "name": "01 · Customer · Book a wash (steps 1–5)"
+  },
+  {
+   "id": "c-live",
+   "name": "02 · Customer · Live order, approve, cancel"
+  },
+  {
+   "id": "c-dispute",
+   "name": "03 · Customer · Problems, disputes, refunds"
+  },
+  {
+   "id": "c-home",
+   "name": "04 · Customer · Home, bookings, account, system states"
+  },
+  {
+   "id": "c-android",
+   "name": "05 · Customer · Android differences"
+  },
+  {
+   "id": "w-signup",
+   "name": "06 · Washer (Android) · Sign-up, documents, training"
+  },
+  {
+   "id": "w-jobs",
+   "name": "07 · Washer (Android) · Home and jobs"
+  },
+  {
+   "id": "w-wash",
+   "name": "08 · Washer (Android) · Wash and photos"
+  },
+  {
+   "id": "w-money",
+   "name": "09 · Washer (Android) · Money, level, account"
+  }
+ ],
+ "boards": {
+  "C01-Splash.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C01 · Splash",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C02-Welcome.dc.html": {
+   "x": 473,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C02 · Welcome",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C05-VehicleType.dc.html": {
+   "x": 0,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C05 · Vehicle type",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C06-VehicleNumber.dc.html": {
+   "x": 473,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C06 · Vehicle number",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C06b-VehicleNumberError.dc.html": {
+   "x": 946,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C06b · Vehicle number – invalid",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C07-Photos.dc.html": {
+   "x": 0,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C07 · Vehicle photos – empty",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C07b-PhotosPartial.dc.html": {
+   "x": 473,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C07b · Vehicle photos – partial, one failed",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C07c-PhotosDone.dc.html": {
+   "x": 946,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C07c · Vehicle photos – all done",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C08-Camera.dc.html": {
+   "x": 1419,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C08 · Camera – guided angle",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C08b-CameraPermission.dc.html": {
+   "x": 1892,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C08b · Camera access needed",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C09-Location.dc.html": {
+   "x": 0,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C09 · Confirm location",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C09b-LocationOff.dc.html": {
+   "x": 473,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C09b · Location is off",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C09c-AddressSearch.dc.html": {
+   "x": 946,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C09c · Search address",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C10-FloorSlot.dc.html": {
+   "x": 1419,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C10 · Floor and slot",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C11-EntryNotes.dc.html": {
+   "x": 1892,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C11 · Notes for the washer",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C12-TimeSlot.dc.html": {
+   "x": 0,
+   "y": 5444,
+   "w": 393,
+   "h": 866,
+   "title": "C12 · Pick a time",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C12b-NoWashers.dc.html": {
+   "x": 473,
+   "y": 5444,
+   "w": 393,
+   "h": 866,
+   "title": "C12b · No washers free today",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C13-Review.dc.html": {
+   "x": 0,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C13 · Review booking",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C14-Login.dc.html": {
+   "x": 473,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C14 · Log in with phone",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C14b-LoginError.dc.html": {
+   "x": 946,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C14b · Phone number – invalid",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C15-Otp.dc.html": {
+   "x": 1419,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C15 · Enter code",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C15b-OtpWrong.dc.html": {
+   "x": 1892,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C15b · Code – wrong",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C15c-OtpExpired.dc.html": {
+   "x": 2365,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C15c · Code – expired",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C16-Name.dc.html": {
+   "x": 2838,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C16 · Your name",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C17-PayMethod.dc.html": {
+   "x": 3311,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C17 · Payment method sheet",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C18-Paying.dc.html": {
+   "x": 3784,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C18 · Payment processing",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C18b-PayFailed.dc.html": {
+   "x": 4257,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C18b · Payment failed",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C18c-PayPending.dc.html": {
+   "x": 4730,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C18c · Payment pending",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C19-Booked.dc.html": {
+   "x": 5203,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C19 · Booked – send entry pass",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C19b-WhatsAppBot.dc.html": {
+   "x": 5676,
+   "y": 6730,
+   "w": 393,
+   "h": 866,
+   "title": "C19b · WhatsApp bot – entry pass (reference)",
+   "page": "c-book",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C20-Searching.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C20 · Finding a washer",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C21-NoWasher.dc.html": {
+   "x": 473,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C21 · No washer found – refunded",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C22-OnTheWay.dc.html": {
+   "x": 0,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C22 · Washer on the way",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C22b-PassMissing.dc.html": {
+   "x": 473,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C22b · Entry pass missing",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C24-RunningLate.dc.html": {
+   "x": 946,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C24 · Washer running late",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C30-WasherStuck.dc.html": {
+   "x": 1419,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C30 · Washer can’t find vehicle",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C23-Washing.dc.html": {
+   "x": 0,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C23 · Washing in progress",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C25-CheckPhotos.dc.html": {
+   "x": 0,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C25 · Wash done – check photos",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C26-PhotoCompare.dc.html": {
+   "x": 473,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C26 · Photo compare – full screen",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C27-Rate.dc.html": {
+   "x": 946,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C27 · Approved – rate washer",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C28-AutoApproved.dc.html": {
+   "x": 1419,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C28 · Auto-approved",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C29-CancelSheet.dc.html": {
+   "x": 0,
+   "y": 5444,
+   "w": 393,
+   "h": 866,
+   "title": "C29 · Cancel booking sheet",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C29c-CancelAfterAccept.dc.html": {
+   "x": 473,
+   "y": 5444,
+   "w": 393,
+   "h": 866,
+   "title": "C29c · Cancel after washer accepted",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C29b-Cancelled.dc.html": {
+   "x": 946,
+   "y": 5444,
+   "w": 393,
+   "h": 866,
+   "title": "C29b · Cancelled – refund started",
+   "page": "c-live",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C31-ReportProblem.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C31 · Report – what happened",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C32-ProblemPhotos.dc.html": {
+   "x": 473,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C32 · Report – add photos",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C33-DisputeSent.dc.html": {
+   "x": 0,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C33 · Report sent – under review",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C34-DisputeUpheld.dc.html": {
+   "x": 473,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C34 · Decision – in your favour",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C35-DisputeRejected.dc.html": {
+   "x": 946,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C35 · Decision – wash looks complete",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C36-DamageReport.dc.html": {
+   "x": 1419,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C36 · Damage reported – serious",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C37-RefundStatus.dc.html": {
+   "x": 1892,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C37 · Refund status",
+   "page": "c-dispute",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C40-HomeEmpty.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C40 · Home – first time",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C41-HomeActive.dc.html": {
+   "x": 473,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C41 · Home – active booking",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C42-HomeCredits.dc.html": {
+   "x": 946,
+   "y": 300,
+   "w": 393,
+   "h": 866,
+   "title": "C42 · Home – free wash credits",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C43-Bookings.dc.html": {
+   "x": 0,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C43 · Bookings – upcoming",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C43c-BookingsPast.dc.html": {
+   "x": 473,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C43c · Bookings – past",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C43b-BookingsEmpty.dc.html": {
+   "x": 946,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C43b · Bookings – empty",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C44-BookingDetail.dc.html": {
+   "x": 1419,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C44 · Booking detail – past",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C45-Repeat.dc.html": {
+   "x": 1892,
+   "y": 1586,
+   "w": 393,
+   "h": 866,
+   "title": "C45 · Repeat booking",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C46-Vehicles.dc.html": {
+   "x": 0,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C46 · Vehicles",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C47-Profile.dc.html": {
+   "x": 473,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C47 · Profile",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C48-Help.dc.html": {
+   "x": 946,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C48 · Help and support",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C53-DeleteAccount.dc.html": {
+   "x": 1419,
+   "y": 2872,
+   "w": 393,
+   "h": 866,
+   "title": "C53 · Delete account dialog",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C49-NotifyAsk.dc.html": {
+   "x": 0,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C49 · Notifications – ask first",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C50-Offline.dc.html": {
+   "x": 473,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C50 · Offline",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C51-Error.dc.html": {
+   "x": 946,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C51 · Something went wrong",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C54-SessionExpired.dc.html": {
+   "x": 1419,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C54 · Session expired",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C55-Loading.dc.html": {
+   "x": 1892,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C55 · Home – loading skeleton",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "C52-LargeText.dc.html": {
+   "x": 2365,
+   "y": 4158,
+   "w": 393,
+   "h": 866,
+   "title": "C52 · Vehicle type at 200% text",
+   "page": "c-home",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "CA1-HomeAndroid.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 412,
+   "h": 915,
+   "title": "CA1 · Android – home",
+   "page": "c-android",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "CA2-LocationAndroid.dc.html": {
+   "x": 492,
+   "y": 300,
+   "w": 412,
+   "h": 915,
+   "title": "CA2 · Android – location permission (system)",
+   "page": "c-android",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "CA3-UpiIntent.dc.html": {
+   "x": 984,
+   "y": 300,
+   "w": 412,
+   "h": 915,
+   "title": "CA3 · Android – UPI app chooser (system)",
+   "page": "c-android",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "CA4-BackAndroid.dc.html": {
+   "x": 1476,
+   "y": 300,
+   "w": 412,
+   "h": 915,
+   "title": "CA4 · Android – back while paying",
+   "page": "c-android",
+   "radius": 28,
+   "is_interactive": true
+  },
+  "W01-Language.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W01 · Choose language",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W02-Phone.dc.html": {
+   "x": 440,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W02 · Phone number",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W03-Otp.dc.html": {
+   "x": 880,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W03 · OTP – auto-read",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W04-Steps.dc.html": {
+   "x": 0,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W04 · Your steps",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W05-Aadhaar.dc.html": {
+   "x": 440,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W05 · Aadhaar via DigiLocker",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W05b-AadhaarUnclear.dc.html": {
+   "x": 880,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W05b · Aadhaar photo unclear",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W06-Selfie.dc.html": {
+   "x": 1320,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W06 · Selfie",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W07-Bank.dc.html": {
+   "x": 1760,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W07 · Bank or UPI",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W08-Training.dc.html": {
+   "x": 0,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W08 · Training videos",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W09-Video.dc.html": {
+   "x": 440,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W09 · Video player",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W10-Quiz.dc.html": {
+   "x": 880,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W10 · Voice quiz",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W11-QuizPassed.dc.html": {
+   "x": 1320,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W11 · Quiz passed",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W11b-QuizFailed.dc.html": {
+   "x": 1760,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W11b · Quiz failed",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W12-Rules.dc.html": {
+   "x": 0,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W12 · Rules – rewards and penalties",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W13-UnderReview.dc.html": {
+   "x": 440,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W13 · Under review – verification call",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W14-Live.dc.html": {
+   "x": 880,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W14 · Approved – probation day 1",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W15-KycProblem.dc.html": {
+   "x": 1320,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W15 · Documents need fixing",
+   "page": "w-signup",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W20-HomeOffline.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W20 · Home – offline",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W21-HomeOnline.dc.html": {
+   "x": 440,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W21 · Home – online, waiting",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W50-HomeLowSignal.dc.html": {
+   "x": 880,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W50 · Home – low battery, no signal",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W22-JobAlert.dc.html": {
+   "x": 0,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W22 · New job alert (15 sec)",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W22b-JobAlertBatched.dc.html": {
+   "x": 440,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W22b · Job alert – next to current job",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W22h-JobAlertHindi.dc.html": {
+   "x": 880,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W22h · Job alert – Hindi",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W22t-JobAlertTelugu.dc.html": {
+   "x": 1320,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W22t · Job alert – Telugu",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W23-JobMissed.dc.html": {
+   "x": 1760,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W23 · Job missed – time ran out",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W24-DailyLimit.dc.html": {
+   "x": 2200,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W24 · Daily limit reached (probation)",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W25-Queue.dc.html": {
+   "x": 0,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W25 · My jobs today",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W26-GoToVehicle.dc.html": {
+   "x": 0,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W26 · Go to vehicle",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W27-GateProblem.dc.html": {
+   "x": 440,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W27 · Stopped at gate",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W28-CantFind.dc.html": {
+   "x": 880,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W28 · Can’t find vehicle",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W29-Cancelled.dc.html": {
+   "x": 1320,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W29 · Customer cancelled",
+   "page": "w-jobs",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W30-FaceCheck.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W30 · Face check before job",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W31-BeforePhotos.dc.html": {
+   "x": 0,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W31 · Before photos",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W32-Camera.dc.html": {
+   "x": 440,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W32 · Camera – angle outline",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W33-PhotoDark.dc.html": {
+   "x": 880,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W33 · Photo too dark",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W34-Washing.dc.html": {
+   "x": 0,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W34 · Washing – timer",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W34b-WashingLate.dc.html": {
+   "x": 440,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W34b · Washing – running late",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W35-AfterPhotos.dc.html": {
+   "x": 0,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W35 · After photos",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W36-AiCheck.dc.html": {
+   "x": 440,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W36 · AI check – missed spot",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W37-Uploading.dc.html": {
+   "x": 880,
+   "y": 3960,
+   "w": 360,
+   "h": 800,
+   "title": "W37 · Uploading – saved offline",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W38-JobDone.dc.html": {
+   "x": 0,
+   "y": 5180,
+   "w": 360,
+   "h": 800,
+   "title": "W38 · Job done – pay pending",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W38b-JobDoneLate.dc.html": {
+   "x": 440,
+   "y": 5180,
+   "w": 360,
+   "h": 800,
+   "title": "W38b · Job done – late penalty",
+   "page": "w-wash",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W40-Earnings.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W40 · Earnings",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W41-PayoutDetail.dc.html": {
+   "x": 440,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W41 · Payout detail",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W42-PayoutHeld.dc.html": {
+   "x": 880,
+   "y": 300,
+   "w": 360,
+   "h": 800,
+   "title": "W42 · Payout held – owner complaint",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W43-Level.dc.html": {
+   "x": 0,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W43 · Ratings and probation",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W44-ProbationExtended.dc.html": {
+   "x": 440,
+   "y": 1520,
+   "w": 360,
+   "h": 800,
+   "title": "W44 · Probation extended",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W45-Refresher.dc.html": {
+   "x": 0,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W45 · Refresher video required",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W46-Blocked.dc.html": {
+   "x": 440,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W46 · Account removed – appeal",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W47-Profile.dc.html": {
+   "x": 880,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W47 · Profile",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "W48-Help.dc.html": {
+   "x": 1320,
+   "y": 2740,
+   "w": 360,
+   "h": 800,
+   "title": "W48 · Help",
+   "page": "w-money",
+   "radius": 22,
+   "is_interactive": true
+  },
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 3600,
+   "title": "Read me · naming, tokens, screen index",
+   "page": "readme",
+   "radius": 12
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "C01-Splash.dc.html",
+  "C02-Welcome.dc.html",
+  "C05-VehicleType.dc.html",
+  "C06-VehicleNumber.dc.html",
+  "C06b-VehicleNumberError.dc.html",
+  "C07-Photos.dc.html",
+  "C07b-PhotosPartial.dc.html",
+  "C07c-PhotosDone.dc.html",
+  "C08-Camera.dc.html",
+  "C08b-CameraPermission.dc.html",
+  "C09-Location.dc.html",
+  "C09b-LocationOff.dc.html",
+  "C09c-AddressSearch.dc.html",
+  "C10-FloorSlot.dc.html",
+  "C11-EntryNotes.dc.html",
+  "C12-TimeSlot.dc.html",
+  "C12b-NoWashers.dc.html",
+  "C13-Review.dc.html",
+  "C14-Login.dc.html",
+  "C14b-LoginError.dc.html",
+  "C15-Otp.dc.html",
+  "C15b-OtpWrong.dc.html",
+  "C15c-OtpExpired.dc.html",
+  "C16-Name.dc.html",
+  "C17-PayMethod.dc.html",
+  "C18-Paying.dc.html",
+  "C18b-PayFailed.dc.html",
+  "C18c-PayPending.dc.html",
+  "C19-Booked.dc.html",
+  "C19b-WhatsAppBot.dc.html",
+  "C20-Searching.dc.html",
+  "C21-NoWasher.dc.html",
+  "C22-OnTheWay.dc.html",
+  "C22b-PassMissing.dc.html",
+  "C24-RunningLate.dc.html",
+  "C30-WasherStuck.dc.html",
+  "C23-Washing.dc.html",
+  "C25-CheckPhotos.dc.html",
+  "C26-PhotoCompare.dc.html",
+  "C27-Rate.dc.html",
+  "C28-AutoApproved.dc.html",
+  "C29-CancelSheet.dc.html",
+  "C29c-CancelAfterAccept.dc.html",
+  "C29b-Cancelled.dc.html",
+  "C31-ReportProblem.dc.html",
+  "C32-ProblemPhotos.dc.html",
+  "C33-DisputeSent.dc.html",
+  "C34-DisputeUpheld.dc.html",
+  "C35-DisputeRejected.dc.html",
+  "C36-DamageReport.dc.html",
+  "C37-RefundStatus.dc.html",
+  "C40-HomeEmpty.dc.html",
+  "C41-HomeActive.dc.html",
+  "C42-HomeCredits.dc.html",
+  "C43-Bookings.dc.html",
+  "C43c-BookingsPast.dc.html",
+  "C43b-BookingsEmpty.dc.html",
+  "C44-BookingDetail.dc.html",
+  "C45-Repeat.dc.html",
+  "C46-Vehicles.dc.html",
+  "C47-Profile.dc.html",
+  "C48-Help.dc.html",
+  "C53-DeleteAccount.dc.html",
+  "C49-NotifyAsk.dc.html",
+  "C50-Offline.dc.html",
+  "C51-Error.dc.html",
+  "C54-SessionExpired.dc.html",
+  "C55-Loading.dc.html",
+  "C52-LargeText.dc.html",
+  "CA1-HomeAndroid.dc.html",
+  "CA2-LocationAndroid.dc.html",
+  "CA3-UpiIntent.dc.html",
+  "CA4-BackAndroid.dc.html",
+  "W01-Language.dc.html",
+  "W02-Phone.dc.html",
+  "W03-Otp.dc.html",
+  "W04-Steps.dc.html",
+  "W05-Aadhaar.dc.html",
+  "W05b-AadhaarUnclear.dc.html",
+  "W06-Selfie.dc.html",
+  "W07-Bank.dc.html",
+  "W08-Training.dc.html",
+  "W09-Video.dc.html",
+  "W10-Quiz.dc.html",
+  "W11-QuizPassed.dc.html",
+  "W11b-QuizFailed.dc.html",
+  "W12-Rules.dc.html",
+  "W13-UnderReview.dc.html",
+  "W14-Live.dc.html",
+  "W15-KycProblem.dc.html",
+  "W20-HomeOffline.dc.html",
+  "W21-HomeOnline.dc.html",
+  "W50-HomeLowSignal.dc.html",
+  "W22-JobAlert.dc.html",
+  "W22b-JobAlertBatched.dc.html",
+  "W22h-JobAlertHindi.dc.html",
+  "W22t-JobAlertTelugu.dc.html",
+  "W23-JobMissed.dc.html",
+  "W24-DailyLimit.dc.html",
+  "W25-Queue.dc.html",
+  "W26-GoToVehicle.dc.html",
+  "W27-GateProblem.dc.html",
+  "W28-CantFind.dc.html",
+  "W29-Cancelled.dc.html",
+  "W30-FaceCheck.dc.html",
+  "W31-BeforePhotos.dc.html",
+  "W32-Camera.dc.html",
+  "W33-PhotoDark.dc.html",
+  "W34-Washing.dc.html",
+  "W34b-WashingLate.dc.html",
+  "W35-AfterPhotos.dc.html",
+  "W36-AiCheck.dc.html",
+  "W37-Uploading.dc.html",
+  "W38-JobDone.dc.html",
+  "W38b-JobDoneLate.dc.html",
+  "W40-Earnings.dc.html",
+  "W41-PayoutDetail.dc.html",
+  "W42-PayoutHeld.dc.html",
+  "W43-Level.dc.html",
+  "W44-ProbationExtended.dc.html",
+  "W45-Refresher.dc.html",
+  "W46-Blocked.dc.html",
+  "W47-Profile.dc.html",
+  "W48-Help.dc.html"
+ ],
+ "notes": {
+  "c-book-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "First open",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "c-book"
+  },
+  "c-book-r1": {
+   "x": 0,
+   "y": 1336,
+   "text": "Step 1 · Vehicle",
+   "kind": "title1",
+   "maxW": 1339,
+   "page": "c-book"
+  },
+  "c-book-r2": {
+   "x": 0,
+   "y": 2622,
+   "text": "Step 2 · Photos",
+   "kind": "title1",
+   "maxW": 2285,
+   "page": "c-book"
+  },
+  "c-book-r3": {
+   "x": 0,
+   "y": 3908,
+   "text": "Step 3 · Place",
+   "kind": "title1",
+   "maxW": 2285,
+   "page": "c-book"
+  },
+  "c-book-r4": {
+   "x": 0,
+   "y": 5194,
+   "text": "Step 4 · Time",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "c-book"
+  },
+  "c-book-r5": {
+   "x": 0,
+   "y": 6480,
+   "text": "Step 5 · Pay",
+   "kind": "title1",
+   "maxW": 6069,
+   "page": "c-book"
+  },
+  "c-live-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Finding a washer",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "c-live"
+  },
+  "c-live-r1": {
+   "x": 0,
+   "y": 1336,
+   "text": "Washer on the way",
+   "kind": "title1",
+   "maxW": 1812,
+   "page": "c-live"
+  },
+  "c-live-r2": {
+   "x": 0,
+   "y": 2622,
+   "text": "Washing",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "c-live"
+  },
+  "c-live-r3": {
+   "x": 0,
+   "y": 3908,
+   "text": "Check and approve",
+   "kind": "title1",
+   "maxW": 1812,
+   "page": "c-live"
+  },
+  "c-live-r4": {
+   "x": 0,
+   "y": 5194,
+   "text": "Cancel",
+   "kind": "title1",
+   "maxW": 1339,
+   "page": "c-live"
+  },
+  "c-dispute-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Report",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "c-dispute"
+  },
+  "c-dispute-r1": {
+   "x": 0,
+   "y": 1336,
+   "text": "Review",
+   "kind": "title1",
+   "maxW": 2285,
+   "page": "c-dispute"
+  },
+  "c-home-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Home",
+   "kind": "title1",
+   "maxW": 1339,
+   "page": "c-home"
+  },
+  "c-home-r1": {
+   "x": 0,
+   "y": 1336,
+   "text": "Bookings",
+   "kind": "title1",
+   "maxW": 2285,
+   "page": "c-home"
+  },
+  "c-home-r2": {
+   "x": 0,
+   "y": 2622,
+   "text": "Account",
+   "kind": "title1",
+   "maxW": 1812,
+   "page": "c-home"
+  },
+  "c-home-r3": {
+   "x": 0,
+   "y": 3908,
+   "text": "System states",
+   "kind": "title1",
+   "maxW": 2758,
+   "page": "c-home"
+  },
+  "c-android-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Android",
+   "kind": "title1",
+   "maxW": 1888,
+   "page": "c-android"
+  },
+  "w-signup-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Language and login",
+   "kind": "title1",
+   "maxW": 1240,
+   "page": "w-signup"
+  },
+  "w-signup-r1": {
+   "x": 0,
+   "y": 1270,
+   "text": "Documents",
+   "kind": "title1",
+   "maxW": 2120,
+   "page": "w-signup"
+  },
+  "w-signup-r2": {
+   "x": 0,
+   "y": 2490,
+   "text": "Training",
+   "kind": "title1",
+   "maxW": 2120,
+   "page": "w-signup"
+  },
+  "w-signup-r3": {
+   "x": 0,
+   "y": 3710,
+   "text": "Rules and approval",
+   "kind": "title1",
+   "maxW": 1680,
+   "page": "w-signup"
+  },
+  "w-jobs-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Home",
+   "kind": "title1",
+   "maxW": 1240,
+   "page": "w-jobs"
+  },
+  "w-jobs-r1": {
+   "x": 0,
+   "y": 1270,
+   "text": "Job alert",
+   "kind": "title1",
+   "maxW": 2560,
+   "page": "w-jobs"
+  },
+  "w-jobs-r2": {
+   "x": 0,
+   "y": 2490,
+   "text": "Jobs",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "w-jobs"
+  },
+  "w-jobs-r3": {
+   "x": 0,
+   "y": 3710,
+   "text": "Reach the vehicle",
+   "kind": "title1",
+   "maxW": 1680,
+   "page": "w-jobs"
+  },
+  "w-wash-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Start",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "w-wash"
+  },
+  "w-wash-r1": {
+   "x": 0,
+   "y": 1270,
+   "text": "Before",
+   "kind": "title1",
+   "maxW": 1240,
+   "page": "w-wash"
+  },
+  "w-wash-r2": {
+   "x": 0,
+   "y": 2490,
+   "text": "Wash",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "w-wash"
+  },
+  "w-wash-r3": {
+   "x": 0,
+   "y": 3710,
+   "text": "After",
+   "kind": "title1",
+   "maxW": 1240,
+   "page": "w-wash"
+  },
+  "w-wash-r4": {
+   "x": 0,
+   "y": 4930,
+   "text": "Done",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "w-wash"
+  },
+  "w-money-r0": {
+   "x": 0,
+   "y": 50,
+   "text": "Money",
+   "kind": "title1",
+   "maxW": 1240,
+   "page": "w-money"
+  },
+  "w-money-r1": {
+   "x": 0,
+   "y": 1270,
+   "text": "Ratings",
+   "kind": "title1",
+   "maxW": 1200,
+   "page": "w-money"
+  },
+  "w-money-r2": {
+   "x": 0,
+   "y": 2490,
+   "text": "Account",
+   "kind": "title1",
+   "maxW": 1680,
+   "page": "w-money"
+  }
+ },
+ "designSystems": []
+}

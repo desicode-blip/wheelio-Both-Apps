@@ -1,34 +1,40 @@
 # Wheelio
 
-Doorstep, photo-verified exterior wash for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name (`BRAND_NAME`).
+Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 
-Build order: 1) customer app iOS → 2) customer app Android (same codebase + CA1–CA4) → 3) washer app Android (separate Flutter app, Hindi/Telugu/English, 360×800).
+## Current layout (11 October 2026)
 
-## Layout
+- `apps/web/` — Next.js App Router website with TypeScript. The current scope is a basic landing page. `src/app/` owns pages, layouts, metadata and CSS; `src/components/` holds reusable UI. Colours and bundled Roboto fonts follow the iOS design system.
+- `apps/ios/` — active native SwiftUI Customer and Captain (washer) apps. Open `apps/ios/Wheelio.xcodeproj`; Customer and Captain are shared schemes. Each app has `App/`, `Data/`, `Screens/` and assets. `Shared/` is used by both targets.
+- `apps/android/` — reserved and empty except `.gitkeep`. Do not generate an Android application until requested.
+- `backend/supabase/` — shared migrations, seed data and edge functions. `backend/API-CONTRACT.md` describes the future service integration.
+- `designs/` — screen design exports. `Main.dc.html` is the design read-me; `wheelio-screens.json` is the navigation map.
+- `docs/` — status, integration checklist, build brief and screen index.
+- `legacy/` — earlier Flutter code, preserved for reference. It contains `apps/customer`, `packages/wheelio_ui` and `tool/bootstrap_customer.sh`. It is not the active app stack.
 
-- `designs/` — export of the Claude Design file (124 `.dc.html` screens). Source of truth for layout and copy. `designs/Main.dc.html` is the design read-me; `designs/wheelio-screens.json` is the navigation map.
-- `packages/wheelio_ui/` — design system (tokens, `W*` widgets). Widget names match design layer names (Button/Primary → `WButton`, Footer bar → `WFooterBar`).
-- `apps/customer/` — Flutter customer app. One route per screen ID (`lib/routes.dart`); letter suffixes are states of the same route via `?state=`.
-  - `lib/data/backend.dart` is the only server boundary. `MockBackend` (sample data) today; `SupabaseBackend` later per `backend/API-CONTRACT.md`.
-  - `lib/services/device.dart` wraps camera/location/notifications; `MockDevice` today.
-  - `/dev` route = screen gallery (mock mode) with switches for every edge case.
-- `backend/supabase/` — migration, seed, edge functions.
-- `docs/` — build brief, connect-later checklist, screen index.
+## Commands
 
-## Rules from the designs
+Use Node.js 24 and pnpm 11. Run these from the repository root:
 
-- One primary action per screen. Green only to pay, approve or accept. Red only for errors and destructive actions.
+```sh
+pnpm install
+pnpm dev
+pnpm typecheck
+pnpm build
+```
+
+Native apps are built and run in Xcode using the Customer or Captain scheme. Simulator build commands are in README.md. The root pnpm workspace contains only `apps/web`; native projects do not need package.json files.
+
+## Design rules
+
+- The active iOS design system is in `apps/ios/Shared/DesignSystem/`. Primary blue is `#3160FF`, heading text `#172231`, and canvas `#F6F9FD`.
+- One primary action per app screen. Green is reserved for pay, approve or accept; red is for errors and destructive actions.
 - One small decision per screen in the booking flow.
-- Every payment screen says the money is held and released only after approval.
-- Call/help bottom-left on task screens. Colour never the only signal: icon + word. Touch targets ≥ 48 px (washer 64).
-- Undecided business values stay as config (`AppConfig`, `app_settings`), shown as `[CANCELLATION FEE]` etc.
+- Payment screens explain that money is held and released after approval.
+- Colour is never the only signal; use an icon and a word. Touch targets are at least 48 px (64 for washer controls).
+- Undecided business values stay as configuration and placeholders, never invented prices or promises.
+- The landing page is prelaunch. Do not imply app downloads or live booking are available before those services exist.
 
-## Commands (after `tool/bootstrap_customer.sh`)
+## Current implementation
 
-```
-cd apps/customer && flutter run            # simulator, mock data
-flutter test                               # logic tests
-flutter run --dart-define-from-file=env/dev.json
-```
-
-Demo login code in mock mode: 123456 (000000 = expired).
+Both iOS apps run on sample data. Demo login code: 123456 (000000 is expired). The in-app Screens gallery exposes designed screens and edge states. Backend wiring is future work; the website currently needs no external accounts or services.

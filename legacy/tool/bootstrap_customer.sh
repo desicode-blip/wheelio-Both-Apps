@@ -3,7 +3,7 @@
 # Generates the ios/ and android/ folders (they are not hand-written), adds
 # the permission texts iOS requires, fetches packages and runs the tests.
 #
-#   bash tool/bootstrap_customer.sh
+#   bash legacy/tool/bootstrap_customer.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -34,4 +34,4 @@ flutter test
 
 echo
 echo "Ready. Run on the iPhone simulator with:"
-echo "  open -a Simulator && cd apps/customer && flutter run"
+echo "  open -a Simulator && cd legacy/apps/customer && flutter run"

@@ -1,0 +1,1395 @@
+{
+ "app": "Wheelio",
+ "brandToken": "brand/name",
+ "generated": "2026-10-10",
+ "frames": {
+  "customer_ios": [
+   393,
+   866
+  ],
+  "customer_android": [
+   412,
+   915
+  ],
+  "washer_android": [
+   360,
+   800
+  ]
+ },
+ "screens": [
+  {
+   "id": "C01-Splash",
+   "file": "C01-Splash.dc.html",
+   "title": "Splash",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "First open",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C02-Welcome",
+   "file": "C02-Welcome.dc.html",
+   "title": "Welcome",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "First open",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C05-VehicleType",
+    "C14-Login"
+   ]
+  },
+  {
+   "id": "C05-VehicleType",
+   "file": "C05-VehicleType.dc.html",
+   "title": "Vehicle type",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 1 · Vehicle",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C06-VehicleNumber"
+   ]
+  },
+  {
+   "id": "C06-VehicleNumber",
+   "file": "C06-VehicleNumber.dc.html",
+   "title": "Vehicle number",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 1 · Vehicle",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C07-Photos"
+   ]
+  },
+  {
+   "id": "C06b-VehicleNumberError",
+   "file": "C06b-VehicleNumberError.dc.html",
+   "title": "Vehicle number – invalid",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 1 · Vehicle",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C07-Photos",
+   "file": "C07-Photos.dc.html",
+   "title": "Vehicle photos – empty",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 2 · Photos",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C08-Camera"
+   ]
+  },
+  {
+   "id": "C07b-PhotosPartial",
+   "file": "C07b-PhotosPartial.dc.html",
+   "title": "Vehicle photos – partial, one failed",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 2 · Photos",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C07c-PhotosDone",
+   "file": "C07c-PhotosDone.dc.html",
+   "title": "Vehicle photos – all done",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 2 · Photos",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C09-Location"
+   ]
+  },
+  {
+   "id": "C08-Camera",
+   "file": "C08-Camera.dc.html",
+   "title": "Camera – guided angle",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 2 · Photos",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C07c-PhotosDone"
+   ]
+  },
+  {
+   "id": "C08b-CameraPermission",
+   "file": "C08b-CameraPermission.dc.html",
+   "title": "Camera access needed",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 2 · Photos",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C09-Location",
+   "file": "C09-Location.dc.html",
+   "title": "Confirm location",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 3 · Place",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C10-FloorSlot"
+   ]
+  },
+  {
+   "id": "C09b-LocationOff",
+   "file": "C09b-LocationOff.dc.html",
+   "title": "Location is off",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 3 · Place",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C09c-AddressSearch",
+   "file": "C09c-AddressSearch.dc.html",
+   "title": "Search address",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 3 · Place",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C10-FloorSlot"
+   ]
+  },
+  {
+   "id": "C10-FloorSlot",
+   "file": "C10-FloorSlot.dc.html",
+   "title": "Floor and slot",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 3 · Place",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C11-EntryNotes"
+   ]
+  },
+  {
+   "id": "C11-EntryNotes",
+   "file": "C11-EntryNotes.dc.html",
+   "title": "Notes for the washer",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 3 · Place",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C12-TimeSlot"
+   ]
+  },
+  {
+   "id": "C12-TimeSlot",
+   "file": "C12-TimeSlot.dc.html",
+   "title": "Pick a time",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 4 · Time",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C13-Review"
+   ]
+  },
+  {
+   "id": "C12b-NoWashers",
+   "file": "C12b-NoWashers.dc.html",
+   "title": "No washers free today",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 4 · Time",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C13-Review",
+   "file": "C13-Review.dc.html",
+   "title": "Review booking",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C14-Login"
+   ]
+  },
+  {
+   "id": "C14-Login",
+   "file": "C14-Login.dc.html",
+   "title": "Log in with phone",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C15-Otp"
+   ]
+  },
+  {
+   "id": "C14b-LoginError",
+   "file": "C14b-LoginError.dc.html",
+   "title": "Phone number – invalid",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C15-Otp",
+   "file": "C15-Otp.dc.html",
+   "title": "Enter code",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C16-Name"
+   ]
+  },
+  {
+   "id": "C15b-OtpWrong",
+   "file": "C15b-OtpWrong.dc.html",
+   "title": "Code – wrong",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C15c-OtpExpired",
+   "file": "C15c-OtpExpired.dc.html",
+   "title": "Code – expired",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C16-Name",
+   "file": "C16-Name.dc.html",
+   "title": "Your name",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C17-PayMethod"
+   ]
+  },
+  {
+   "id": "C17-PayMethod",
+   "file": "C17-PayMethod.dc.html",
+   "title": "Payment method sheet",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C18-Paying"
+   ]
+  },
+  {
+   "id": "C18-Paying",
+   "file": "C18-Paying.dc.html",
+   "title": "Payment processing",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C19-Booked",
+    "C18b-PayFailed"
+   ]
+  },
+  {
+   "id": "C18b-PayFailed",
+   "file": "C18b-PayFailed.dc.html",
+   "title": "Payment failed",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C18c-PayPending",
+   "file": "C18c-PayPending.dc.html",
+   "title": "Payment pending",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C19-Booked",
+   "file": "C19-Booked.dc.html",
+   "title": "Booked – send entry pass",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C19b-WhatsAppBot",
+    "C20-Searching"
+   ]
+  },
+  {
+   "id": "C19b-WhatsAppBot",
+   "file": "C19b-WhatsAppBot.dc.html",
+   "title": "WhatsApp bot – entry pass (reference)",
+   "page": "01 · Customer · Book a wash (steps 1–5)",
+   "flow": "Step 5 · Pay",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C20-Searching",
+   "file": "C20-Searching.dc.html",
+   "title": "Finding a washer",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Finding a washer",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C22-OnTheWay",
+    "C21-NoWasher",
+    "C29-CancelSheet"
+   ]
+  },
+  {
+   "id": "C21-NoWasher",
+   "file": "C21-NoWasher.dc.html",
+   "title": "No washer found – refunded",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Finding a washer",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C22-OnTheWay",
+   "file": "C22-OnTheWay.dc.html",
+   "title": "Washer on the way",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Washer on the way",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C23-Washing"
+   ]
+  },
+  {
+   "id": "C22b-PassMissing",
+   "file": "C22b-PassMissing.dc.html",
+   "title": "Entry pass missing",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Washer on the way",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C24-RunningLate",
+   "file": "C24-RunningLate.dc.html",
+   "title": "Washer running late",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Washer on the way",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C30-WasherStuck",
+   "file": "C30-WasherStuck.dc.html",
+   "title": "Washer can’t find vehicle",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Washer on the way",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C23-Washing",
+   "file": "C23-Washing.dc.html",
+   "title": "Washing in progress",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Washing",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C25-CheckPhotos"
+   ]
+  },
+  {
+   "id": "C25-CheckPhotos",
+   "file": "C25-CheckPhotos.dc.html",
+   "title": "Wash done – check photos",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Check and approve",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C27-Rate",
+    "C31-ReportProblem",
+    "C26-PhotoCompare"
+   ]
+  },
+  {
+   "id": "C26-PhotoCompare",
+   "file": "C26-PhotoCompare.dc.html",
+   "title": "Photo compare – full screen",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Check and approve",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C27-Rate"
+   ]
+  },
+  {
+   "id": "C27-Rate",
+   "file": "C27-Rate.dc.html",
+   "title": "Approved – rate washer",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Check and approve",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C41-HomeActive"
+   ]
+  },
+  {
+   "id": "C28-AutoApproved",
+   "file": "C28-AutoApproved.dc.html",
+   "title": "Auto-approved",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Check and approve",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C29-CancelSheet",
+   "file": "C29-CancelSheet.dc.html",
+   "title": "Cancel booking sheet",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Cancel",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C29b-Cancelled"
+   ]
+  },
+  {
+   "id": "C29c-CancelAfterAccept",
+   "file": "C29c-CancelAfterAccept.dc.html",
+   "title": "Cancel after washer accepted",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Cancel",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C29b-Cancelled",
+   "file": "C29b-Cancelled.dc.html",
+   "title": "Cancelled – refund started",
+   "page": "02 · Customer · Live order, approve, cancel",
+   "flow": "Cancel",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C31-ReportProblem",
+   "file": "C31-ReportProblem.dc.html",
+   "title": "Report – what happened",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Report",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C32-ProblemPhotos"
+   ]
+  },
+  {
+   "id": "C32-ProblemPhotos",
+   "file": "C32-ProblemPhotos.dc.html",
+   "title": "Report – add photos",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Report",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C33-DisputeSent"
+   ]
+  },
+  {
+   "id": "C33-DisputeSent",
+   "file": "C33-DisputeSent.dc.html",
+   "title": "Report sent – under review",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Review",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C34-DisputeUpheld",
+   "file": "C34-DisputeUpheld.dc.html",
+   "title": "Decision – in your favour",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Review",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C35-DisputeRejected",
+   "file": "C35-DisputeRejected.dc.html",
+   "title": "Decision – wash looks complete",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Review",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C36-DamageReport",
+   "file": "C36-DamageReport.dc.html",
+   "title": "Damage reported – serious",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Review",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C37-RefundStatus",
+   "file": "C37-RefundStatus.dc.html",
+   "title": "Refund status",
+   "page": "03 · Customer · Problems, disputes, refunds",
+   "flow": "Review",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C40-HomeEmpty",
+   "file": "C40-HomeEmpty.dc.html",
+   "title": "Home – first time",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Home",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C05-VehicleType"
+   ]
+  },
+  {
+   "id": "C41-HomeActive",
+   "file": "C41-HomeActive.dc.html",
+   "title": "Home – active booking",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Home",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C22-OnTheWay",
+    "C45-Repeat"
+   ]
+  },
+  {
+   "id": "C42-HomeCredits",
+   "file": "C42-HomeCredits.dc.html",
+   "title": "Home – free wash credits",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Home",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C43-Bookings",
+   "file": "C43-Bookings.dc.html",
+   "title": "Bookings – upcoming",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Bookings",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C44-BookingDetail",
+    "C43c-BookingsPast"
+   ]
+  },
+  {
+   "id": "C43c-BookingsPast",
+   "file": "C43c-BookingsPast.dc.html",
+   "title": "Bookings – past",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Bookings",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C44-BookingDetail"
+   ]
+  },
+  {
+   "id": "C43b-BookingsEmpty",
+   "file": "C43b-BookingsEmpty.dc.html",
+   "title": "Bookings – empty",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Bookings",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C44-BookingDetail",
+   "file": "C44-BookingDetail.dc.html",
+   "title": "Booking detail – past",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Bookings",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C45-Repeat"
+   ]
+  },
+  {
+   "id": "C45-Repeat",
+   "file": "C45-Repeat.dc.html",
+   "title": "Repeat booking",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Bookings",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C07-Photos"
+   ]
+  },
+  {
+   "id": "C46-Vehicles",
+   "file": "C46-Vehicles.dc.html",
+   "title": "Vehicles",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Account",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C47-Profile",
+   "file": "C47-Profile.dc.html",
+   "title": "Profile",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Account",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": [
+    "C48-Help",
+    "C53-DeleteAccount"
+   ]
+  },
+  {
+   "id": "C48-Help",
+   "file": "C48-Help.dc.html",
+   "title": "Help and support",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Account",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C53-DeleteAccount",
+   "file": "C53-DeleteAccount.dc.html",
+   "title": "Delete account dialog",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "Account",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C49-NotifyAsk",
+   "file": "C49-NotifyAsk.dc.html",
+   "title": "Notifications – ask first",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C50-Offline",
+   "file": "C50-Offline.dc.html",
+   "title": "Offline",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C51-Error",
+   "file": "C51-Error.dc.html",
+   "title": "Something went wrong",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C54-SessionExpired",
+   "file": "C54-SessionExpired.dc.html",
+   "title": "Session expired",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C55-Loading",
+   "file": "C55-Loading.dc.html",
+   "title": "Home – loading skeleton",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "C52-LargeText",
+   "file": "C52-LargeText.dc.html",
+   "title": "Vehicle type at 200% text",
+   "page": "04 · Customer · Home, bookings, account, system states",
+   "flow": "System states",
+   "app": "customer",
+   "platform": "ios+android",
+   "links_to": []
+  },
+  {
+   "id": "CA1-HomeAndroid",
+   "file": "CA1-HomeAndroid.dc.html",
+   "title": "Android – home",
+   "page": "05 · Customer · Android differences",
+   "flow": "Android",
+   "app": "customer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "CA2-LocationAndroid",
+   "file": "CA2-LocationAndroid.dc.html",
+   "title": "Android – location permission (system)",
+   "page": "05 · Customer · Android differences",
+   "flow": "Android",
+   "app": "customer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "CA3-UpiIntent",
+   "file": "CA3-UpiIntent.dc.html",
+   "title": "Android – UPI app chooser (system)",
+   "page": "05 · Customer · Android differences",
+   "flow": "Android",
+   "app": "customer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "CA4-BackAndroid",
+   "file": "CA4-BackAndroid.dc.html",
+   "title": "Android – back while paying",
+   "page": "05 · Customer · Android differences",
+   "flow": "Android",
+   "app": "customer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W01-Language",
+   "file": "W01-Language.dc.html",
+   "title": "Choose language",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Language and login",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W02-Phone"
+   ]
+  },
+  {
+   "id": "W02-Phone",
+   "file": "W02-Phone.dc.html",
+   "title": "Phone number",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Language and login",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W03-Otp"
+   ]
+  },
+  {
+   "id": "W03-Otp",
+   "file": "W03-Otp.dc.html",
+   "title": "OTP – auto-read",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Language and login",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W04-Steps"
+   ]
+  },
+  {
+   "id": "W04-Steps",
+   "file": "W04-Steps.dc.html",
+   "title": "Your steps",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Documents",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W05-Aadhaar"
+   ]
+  },
+  {
+   "id": "W05-Aadhaar",
+   "file": "W05-Aadhaar.dc.html",
+   "title": "Aadhaar via DigiLocker",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Documents",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W06-Selfie"
+   ]
+  },
+  {
+   "id": "W05b-AadhaarUnclear",
+   "file": "W05b-AadhaarUnclear.dc.html",
+   "title": "Aadhaar photo unclear",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Documents",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W06-Selfie",
+   "file": "W06-Selfie.dc.html",
+   "title": "Selfie",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Documents",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W07-Bank"
+   ]
+  },
+  {
+   "id": "W07-Bank",
+   "file": "W07-Bank.dc.html",
+   "title": "Bank or UPI",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Documents",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W08-Training"
+   ]
+  },
+  {
+   "id": "W08-Training",
+   "file": "W08-Training.dc.html",
+   "title": "Training videos",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Training",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W09-Video"
+   ]
+  },
+  {
+   "id": "W09-Video",
+   "file": "W09-Video.dc.html",
+   "title": "Video player",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Training",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W10-Quiz"
+   ]
+  },
+  {
+   "id": "W10-Quiz",
+   "file": "W10-Quiz.dc.html",
+   "title": "Voice quiz",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Training",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W11-QuizPassed"
+   ]
+  },
+  {
+   "id": "W11-QuizPassed",
+   "file": "W11-QuizPassed.dc.html",
+   "title": "Quiz passed",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Training",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W12-Rules"
+   ]
+  },
+  {
+   "id": "W11b-QuizFailed",
+   "file": "W11b-QuizFailed.dc.html",
+   "title": "Quiz failed",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Training",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W12-Rules",
+   "file": "W12-Rules.dc.html",
+   "title": "Rules – rewards and penalties",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Rules and approval",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W13-UnderReview"
+   ]
+  },
+  {
+   "id": "W13-UnderReview",
+   "file": "W13-UnderReview.dc.html",
+   "title": "Under review – verification call",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Rules and approval",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W14-Live",
+   "file": "W14-Live.dc.html",
+   "title": "Approved – probation day 1",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Rules and approval",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W20-HomeOffline"
+   ]
+  },
+  {
+   "id": "W15-KycProblem",
+   "file": "W15-KycProblem.dc.html",
+   "title": "Documents need fixing",
+   "page": "06 · Washer (Android) · Sign-up, documents, training",
+   "flow": "Rules and approval",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W20-HomeOffline",
+   "file": "W20-HomeOffline.dc.html",
+   "title": "Home – offline",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Home",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W21-HomeOnline"
+   ]
+  },
+  {
+   "id": "W21-HomeOnline",
+   "file": "W21-HomeOnline.dc.html",
+   "title": "Home – online, waiting",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Home",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W22-JobAlert"
+   ]
+  },
+  {
+   "id": "W50-HomeLowSignal",
+   "file": "W50-HomeLowSignal.dc.html",
+   "title": "Home – low battery, no signal",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Home",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W22-JobAlert",
+   "file": "W22-JobAlert.dc.html",
+   "title": "New job alert (15 sec)",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W26-GoToVehicle",
+    "W23-JobMissed"
+   ]
+  },
+  {
+   "id": "W22b-JobAlertBatched",
+   "file": "W22b-JobAlertBatched.dc.html",
+   "title": "Job alert – next to current job",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W22h-JobAlertHindi",
+   "file": "W22h-JobAlertHindi.dc.html",
+   "title": "Job alert – Hindi",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W22t-JobAlertTelugu",
+   "file": "W22t-JobAlertTelugu.dc.html",
+   "title": "Job alert – Telugu",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W23-JobMissed",
+   "file": "W23-JobMissed.dc.html",
+   "title": "Job missed – time ran out",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W24-DailyLimit",
+   "file": "W24-DailyLimit.dc.html",
+   "title": "Daily limit reached (probation)",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Job alert",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W25-Queue",
+   "file": "W25-Queue.dc.html",
+   "title": "My jobs today",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Jobs",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W26-GoToVehicle"
+   ]
+  },
+  {
+   "id": "W26-GoToVehicle",
+   "file": "W26-GoToVehicle.dc.html",
+   "title": "Go to vehicle",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Reach the vehicle",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W30-FaceCheck",
+    "W27-GateProblem",
+    "W28-CantFind"
+   ]
+  },
+  {
+   "id": "W27-GateProblem",
+   "file": "W27-GateProblem.dc.html",
+   "title": "Stopped at gate",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Reach the vehicle",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W28-CantFind",
+   "file": "W28-CantFind.dc.html",
+   "title": "Can’t find vehicle",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Reach the vehicle",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W29-Cancelled",
+   "file": "W29-Cancelled.dc.html",
+   "title": "Customer cancelled",
+   "page": "07 · Washer (Android) · Home and jobs",
+   "flow": "Reach the vehicle",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W30-FaceCheck",
+   "file": "W30-FaceCheck.dc.html",
+   "title": "Face check before job",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Start",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W31-BeforePhotos"
+   ]
+  },
+  {
+   "id": "W31-BeforePhotos",
+   "file": "W31-BeforePhotos.dc.html",
+   "title": "Before photos",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Before",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W32-Camera"
+   ]
+  },
+  {
+   "id": "W32-Camera",
+   "file": "W32-Camera.dc.html",
+   "title": "Camera – angle outline",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Before",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W33-PhotoDark",
+   "file": "W33-PhotoDark.dc.html",
+   "title": "Photo too dark",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Before",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W34-Washing",
+   "file": "W34-Washing.dc.html",
+   "title": "Washing – timer",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Wash",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W35-AfterPhotos"
+   ]
+  },
+  {
+   "id": "W34b-WashingLate",
+   "file": "W34b-WashingLate.dc.html",
+   "title": "Washing – running late",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Wash",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W35-AfterPhotos",
+   "file": "W35-AfterPhotos.dc.html",
+   "title": "After photos",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "After",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W36-AiCheck"
+   ]
+  },
+  {
+   "id": "W36-AiCheck",
+   "file": "W36-AiCheck.dc.html",
+   "title": "AI check – missed spot",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "After",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W38-JobDone"
+   ]
+  },
+  {
+   "id": "W37-Uploading",
+   "file": "W37-Uploading.dc.html",
+   "title": "Uploading – saved offline",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "After",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W38-JobDone",
+   "file": "W38-JobDone.dc.html",
+   "title": "Job done – pay pending",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Done",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W25-Queue"
+   ]
+  },
+  {
+   "id": "W38b-JobDoneLate",
+   "file": "W38b-JobDoneLate.dc.html",
+   "title": "Job done – late penalty",
+   "page": "08 · Washer (Android) · Wash and photos",
+   "flow": "Done",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W40-Earnings",
+   "file": "W40-Earnings.dc.html",
+   "title": "Earnings",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Money",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W41-PayoutDetail"
+   ]
+  },
+  {
+   "id": "W41-PayoutDetail",
+   "file": "W41-PayoutDetail.dc.html",
+   "title": "Payout detail",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Money",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W42-PayoutHeld",
+   "file": "W42-PayoutHeld.dc.html",
+   "title": "Payout held – owner complaint",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Money",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W43-Level",
+   "file": "W43-Level.dc.html",
+   "title": "Ratings and probation",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Ratings",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W44-ProbationExtended",
+   "file": "W44-ProbationExtended.dc.html",
+   "title": "Probation extended",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Ratings",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W45-Refresher",
+   "file": "W45-Refresher.dc.html",
+   "title": "Refresher video required",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Account",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W46-Blocked",
+   "file": "W46-Blocked.dc.html",
+   "title": "Account removed – appeal",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Account",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  },
+  {
+   "id": "W47-Profile",
+   "file": "W47-Profile.dc.html",
+   "title": "Profile",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Account",
+   "app": "washer",
+   "platform": "android",
+   "links_to": [
+    "W48-Help",
+    "W43-Level"
+   ]
+  },
+  {
+   "id": "W48-Help",
+   "file": "W48-Help.dc.html",
+   "title": "Help",
+   "page": "09 · Washer (Android) · Money, level, account",
+   "flow": "Account",
+   "app": "washer",
+   "platform": "android",
+   "links_to": []
+  }
+ ]
+}

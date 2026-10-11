@@ -6,22 +6,32 @@ build/
 pubspec.lock
 *.iml
 .idea/
-ios/Pods/
-ios/.symlinks/
+**/ios/Pods/
+**/ios/.symlinks/
 **/ios/Flutter/Generated.xcconfig
 **/android/local.properties
 
 # Secrets: copy env/dev.example.json to env/dev.json and fill it in
-apps/*/env/*.json
-!apps/*/env/*.example.json
+**/env/*.json
+!**/env/*.example.json
 backend/supabase/.env
 supabase/.temp/
 .DS_Store
 
 # Xcode build output and per-user Xcode state (not source)
-ios/DerivedData/
+**/DerivedData/
+**/.derived-data-log-*
 **/xcuserdata/
 *.xcuserstate
 
 # Local caches
 .cache/
+
+# Next.js / Node
+node_modules/
+.next/
+out/
+.pnpm-store/
+*.tsbuildinfo
+.env*
+!.env.example

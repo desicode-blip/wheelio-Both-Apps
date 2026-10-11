@@ -1,5 +1,7 @@
 # Connecting the real services
 
+> Updated 11 Oct 2026: the active mobile apps are native SwiftUI in `apps/ios/`, the website is Next.js in `apps/web/`, and Android is reserved in `apps/android/`. Both iOS apps currently use sample data. The checklist below was written for the earlier Flutter implementation, now preserved in `legacy/`; its Flutter setup steps and Dart file references are historical. Use the service/account checklist for planning, and implement new integrations in the active platform folders using `backend/API-CONTRACT.md`.
+
 Everything that needs an account, a key or an approval is listed here, in the
 order it unblocks work. Each step says what you do and what Claude does next.
 None of it was done on 10 Oct 2026 because it needs your accounts or approval.
@@ -7,7 +9,7 @@ None of it was done on 10 Oct 2026 because it needs your accounts or approval.
 ## 1. Install Flutter (unblocks: building and testing the app)
 
 **You:** say "install Flutter". It is about 1.5–2 GB from flutter.dev, installed into `~/development/flutter`. Xcode 26.6 and the iPhone 17 simulators are already on this Mac.
-**Claude:** runs `tool/bootstrap_customer.sh`, which generates the `ios/` and `android/` folders, adds the camera, location and microphone permission texts, then runs `flutter analyze` and `flutter test`. Claude fixes any compile errors (the code was written without a compiler), then opens the app in the iPhone simulator and checks every screen through the in-app **Screens** gallery.
+**Claude:** runs `legacy/tool/bootstrap_customer.sh`, which generates the `ios/` and `android/` folders, adds the camera, location and microphone permission texts, then runs `flutter analyze` and `flutter test`. Claude fixes any compile errors (the code was written without a compiler), then opens the app in the iPhone simulator and checks every screen through the in-app **Screens** gallery.
 
 ## 2. Supabase (unblocks: real logins, orders, photos, live status)
 
@@ -15,7 +17,7 @@ None of it was done on 10 Oct 2026 because it needs your accounts or approval.
 **Claude:**
 1. Applies `backend/supabase/migrations/20261010000000_init.sql` and `seed.sql`.
 2. Creates the private storage bucket `order-photos`.
-3. Writes `SupabaseBackend` (`apps/customer/lib/data/supabase_backend.dart`) against `backend/API-CONTRACT.md`.
+3. Writes `SupabaseBackend` (`legacy/apps/customer/lib/data/supabase_backend.dart`) against `backend/API-CONTRACT.md`.
 4. Adds `supabase_flutter` to `pubspec.yaml`.
 5. Switches with `--dart-define=BACKEND=supabase`.
 

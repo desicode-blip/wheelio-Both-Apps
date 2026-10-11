@@ -1,0 +1,15 @@
+{
+  "name": "wheelio",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @wheelio/web dev",
+    "build": "pnpm --filter @wheelio/web build",
+    "start": "pnpm --filter @wheelio/web start",
+    "typecheck": "pnpm --filter @wheelio/web typecheck"
+  }
+}
