@@ -33,16 +33,29 @@ Wheelio/
 
 The native iOS and future Android applications use their own platform tools; they are not JavaScript workspace packages. The earlier Flutter approach is archived under `legacy/` and is not part of active development. `Wheelio-designs/` is an additional design export retained from the original folder.
 
-## Website
+## Website and web backend
 
-Use Node.js 24 and pnpm 11 (`.nvmrc` and `packageManager` record the versions). From the root:
+The Next.js app in `apps/web/` deploys to Cloudflare Workers using OpenNext. Its API Route Handlers and Better Auth endpoint run in the same Worker. The database layer uses Neon Postgres with Drizzle ORM and Better Auth's Drizzle adapter. Use Node.js 24 and pnpm 11 (`.nvmrc` and `packageManager` record the versions).
+
+Copy `apps/web/.env.example` to `apps/web/.env.local` and fill in the Neon `DATABASE_URL`, a `BETTER_AUTH_SECRET` (at least 32 characters), and `BETTER_AUTH_URL`. The local env file is ignored by Git. From the root:
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. These commands also run from the root:
+`pnpm dev` runs Next.js locally; `pnpm preview` builds and serves the app using the Cloudflare Workers runtime. `pnpm deploy` builds and deploys the Worker named `wheelio-web` after Wrangler is connected to the intended Cloudflare account. Set the same values as Worker secrets/environment variables in the Cloudflare dashboard for deployment. More details are in [apps/web/README.md](apps/web/README.md).
+
+Drizzle Kit is ready to generate and apply migrations after Neon credentials are supplied:
+
+```sh
+pnpm db:generate
+pnpm db:migrate
+```
+
+These commands have not been run against a database. The existing Supabase schema and functions remain in `backend/supabase/` and have not been migrated.
+
+These commands also run from the root:
 
 ```sh
 pnpm typecheck
@@ -50,7 +63,7 @@ pnpm build
 pnpm start
 ```
 
-The initial website is a responsive landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing Wheelio colours and bundled Roboto fonts. Booking, app download links, authentication and backend integration can be added later; the page does not collect visitor data.
+The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing Wheelio colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
 
 ## iOS apps / Xcode
 

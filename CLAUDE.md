@@ -4,10 +4,10 @@ Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated s
 
 ## Current layout (11 October 2026)
 
-- `apps/web/` — Next.js App Router website with TypeScript. The current scope is a basic landing page. `src/app/` owns pages, layouts, metadata and CSS; `src/components/` holds reusable UI. Colours and bundled Roboto fonts follow the iOS design system.
+- `apps/web/` — Next.js App Router website with TypeScript, deployable to Cloudflare Workers through OpenNext. API Route Handlers and Better Auth use Neon Postgres through Drizzle. `src/app/` owns pages, layouts, metadata, API routes and CSS; `src/lib/` owns auth and database setup. Colours and bundled Roboto fonts follow the iOS design system.
 - `apps/ios/` — active native SwiftUI Customer and Captain (washer) apps. Open `apps/ios/Wheelio.xcodeproj`; Customer and Captain are shared schemes. Each app has `App/`, `Data/`, `Screens/` and assets. `Shared/` is used by both targets.
 - `apps/android/` — reserved and empty except `.gitkeep`. Do not generate an Android application until requested.
-- `backend/supabase/` — shared migrations, seed data and edge functions. `backend/API-CONTRACT.md` describes the future service integration.
+- `backend/supabase/` — preserved migrations, seed data and edge functions from the initial backend design. The web app's current target is Neon/Drizzle; no Supabase-to-Neon data or application-schema migration has been done. `backend/API-CONTRACT.md` describes the service contract.
 - `designs/` — screen design exports. `Main.dc.html` is the design read-me; `wheelio-screens.json` is the navigation map.
 - `docs/` — status, integration checklist, build brief and screen index.
 - `legacy/` — earlier Flutter code, preserved for reference. It contains `apps/customer`, `packages/wheelio_ui` and `tool/bootstrap_customer.sh`. It is not the active app stack.
@@ -21,7 +21,10 @@ pnpm install
 pnpm dev
 pnpm typecheck
 pnpm build
+pnpm preview
 ```
+
+`pnpm deploy` deploys the web app to Cloudflare Workers. `pnpm db:generate` and `pnpm db:migrate` are ready for use after Neon credentials are configured; do not apply them to a database until the schema is reviewed.
 
 Native apps are built and run in Xcode using the Customer or Captain scheme. Simulator build commands are in README.md. The root pnpm workspace contains only `apps/web`; native projects do not need package.json files.
 
@@ -37,4 +40,4 @@ Native apps are built and run in Xcode using the Customer or Captain scheme. Sim
 
 ## Current implementation
 
-Both iOS apps run on sample data. Demo login code: 123456 (000000 is expired). The in-app Screens gallery exposes designed screens and edge states. Backend wiring is future work; the website currently needs no external accounts or services.
+Both iOS apps run on sample data. Demo login code: 123456 (000000 is expired). The in-app Screens gallery exposes designed screens and edge states. The web auth and database adapters are scaffolded but require Neon and Better Auth environment values before they can handle authenticated database requests.

@@ -1,0 +1,2 @@
+# Select the Next.js development environment when running `pnpm preview`.
+NEXTJS_ENV=development

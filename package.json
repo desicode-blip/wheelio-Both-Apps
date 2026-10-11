@@ -10,6 +10,12 @@
     "dev": "pnpm --filter @wheelio/web dev",
     "build": "pnpm --filter @wheelio/web build",
     "start": "pnpm --filter @wheelio/web start",
-    "typecheck": "pnpm --filter @wheelio/web typecheck"
+    "typecheck": "pnpm --filter @wheelio/web typecheck",
+    "preview": "pnpm --filter @wheelio/web preview",
+    "deploy": "pnpm --filter @wheelio/web deploy",
+    "upload": "pnpm --filter @wheelio/web upload",
+    "cf-typegen": "pnpm --filter @wheelio/web cf-typegen",
+    "db:generate": "pnpm --filter @wheelio/web db:generate",
+    "db:migrate": "pnpm --filter @wheelio/web db:migrate"
   }
 }

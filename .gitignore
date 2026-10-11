@@ -30,8 +30,12 @@ supabase/.temp/
 # Next.js / Node
 node_modules/
 .next/
+.open-next/
+.wrangler/
 out/
 .pnpm-store/
 *.tsbuildinfo
 .env*
 !.env.example
+.dev.vars
+!.dev.vars.example
