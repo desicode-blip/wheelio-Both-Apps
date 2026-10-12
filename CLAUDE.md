@@ -41,3 +41,7 @@ Native apps are built and run in Xcode using the Customer or Captain scheme. Sim
 ## Current implementation
 
 Both iOS apps run on sample data. Demo login code: 123456 (000000 is expired). The in-app Screens gallery exposes designed screens and edge states. Web auth/database adapters require Neon and Better Auth environment values. Full schema migration and local tests are available through `pnpm db:migrate`, `pnpm db:check` and `pnpm db:test`; see `backend/NEON-DATABASE.md`. `/api/health` returns 503 for missing/unavailable database configuration.
+
+## Git
+
+- Commit every change you make before finishing a task, so no work is left uncommitted. Commit on the branch you are working on and do not push unless asked.
