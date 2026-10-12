@@ -65,6 +65,8 @@ pnpm start
 
 The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing Wheelio colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
 
+The web app also carries demo ports of both iOS apps, running on the same sample data: the Customer app at `/app` and the Captain app at `/captain` (not linked from the landing page, and marked noindex). On a laptop each app sits in a phone frame in the middle of the page; on a phone it fills the screen. Every screen, state and demo switch from the iOS Screens gallery is available through the "Screens" tab on the left edge. Demo login code: 123456. The code lives in `apps/web/src/phone/`.
+
 ## iOS apps / Xcode
 
 Open `apps/ios/Wheelio.xcodeproj` in Xcode. Choose the **Customer** or **Captain** scheme, select an iPhone simulator or your connected iPhone, and press Run. Captain is the washer app. Both schemes are shared and tracked so they are available in a fresh checkout.

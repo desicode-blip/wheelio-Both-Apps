@@ -12,6 +12,7 @@
 
 - Active platform roots are `apps/web/`, `apps/ios/` and `apps/android/`.
 - The website is a Next.js App Router landing page with TypeScript, existing Wheelio brand colours, local fonts and responsive layouts. Booking and app downloads are future work.
+- `/app` and `/captain` are web ports of the iOS Customer and Captain apps (same screens, interactions, sample data and Screens gallery), shown in a phone frame on laptops and full screen on phones.
 - Existing SwiftUI Customer and Captain apps moved together to `apps/ios/`. Shared schemes make both targets available in a fresh checkout. They still use sample data.
 - Android is reserved with only `.gitkeep`; no Android implementation has been selected or generated.
 - Earlier Flutter sources and their bootstrap script are preserved under `legacy/`. The entries below describe that earlier implementation and are historical, not the current development instructions.
