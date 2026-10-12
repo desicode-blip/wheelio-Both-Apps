@@ -66,8 +66,13 @@ struct JobPhotosScreen: View {
             WHeader(title: store.current.plate)
         } content: {
             WashStageBar(stage: after ? 2 : 0).padding(.top, 4)
-            Text(after ? store.t("After photos", "बाद की फ़ोटो", "తర్వాతి ఫోటోలు") : store.t("Before photos", "पहले की फ़ोटो", "ముందు ఫోటోలు"))
-                .wTitle().padding(.top, 18)
+            HStack(alignment: .center, spacing: 10) {
+                Text(after ? store.t("After photos", "बाद की फ़ोटो", "తర్వాతి ఫోటోలు") : store.t("Before photos", "पहले की फ़ोटो", "ముందు ఫోటోలు"))
+                    .wTitle()
+                Spacer(minLength: 6)
+                OwnerNoteButton()
+            }
+            .padding(.top, 18)
             Text(after ? store.t("Same 4 sides as before.", "पहले जैसी ही 4 तरफ़।", "ముందు లాగే 4 వైపులు.")
                        : store.t("4 sides. Same as the outline.", "4 तरफ़। आउटलाइन जैसा।", "4 వైపులు. అవుట్‌లైన్ లాగే."))
                 .wBodyBig().padding(.top, 4).padding(.bottom, 16)
@@ -127,11 +132,9 @@ struct JobCameraScreen: View {
             .padding(.horizontal, 8)
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 16).fill(WColor.cameraPanel)
-                CarSideOutline()
-                    .stroke(.white.opacity(0.85), style: StrokeStyle(lineWidth: 2.5, dash: [8, 6]))
-                    .frame(width: 270, height: 100)
+                guide
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                WBadge(text: store.t("At the car", "गाड़ी के पास", "కారు దగ్గర"), tone: .ok, icon: .location).padding(12)
+                WBadge(text: store.t("At the vehicle", "गाड़ी के पास", "వాహనం దగ్గర"), tone: .ok, icon: .location).padding(12)
             }
             .padding(.horizontal, 12).padding(.top, 6)
             HStack {
@@ -150,6 +153,16 @@ struct JobCameraScreen: View {
             .padding(.vertical, 22)
         }
         .background(WColor.camera.ignoresSafeArea())
+    }
+
+    /// Dotted guide matches the side: front and back views, or the side profile.
+    @ViewBuilder var guide: some View {
+        let style = StrokeStyle(lineWidth: 2.5, dash: [8, 6])
+        switch side {
+        case 0: CarFrontOutline().stroke(.white.opacity(0.85), style: style).frame(width: 240, height: 180)
+        case 1: CarBackOutline().stroke(.white.opacity(0.85), style: style).frame(width: 240, height: 180)
+        default: CarSideOutline().stroke(.white.opacity(0.85), style: style).frame(width: 270, height: 100)
+        }
     }
 
     func shoot() {
@@ -182,6 +195,62 @@ struct CarSideOutline: Shape {
         p.closeSubpath()
         p.addEllipse(in: CGRect(x: r.minX + w * 0.15, y: r.minY + h * 0.58, width: h * 0.42, height: h * 0.42))
         p.addEllipse(in: CGRect(x: r.maxX - w * 0.15 - h * 0.42, y: r.minY + h * 0.58, width: h * 0.42, height: h * 0.42))
+        return p
+    }
+}
+
+/// Car seen from the front: cabin, body, headlights, grille, mirrors, wheels.
+struct CarFrontOutline: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let w = r.width, h = r.height
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + w * x, y: r.minY + h * y) }
+        func rc(_ x0: CGFloat, _ y0: CGFloat, _ x1: CGFloat, _ y1: CGFloat) -> CGRect {
+            CGRect(x: r.minX + w * x0, y: r.minY + h * y0, width: w * (x1 - x0), height: h * (y1 - y0))
+        }
+        // Cabin and windscreen
+        p.move(to: pt(0.24, 0.06)); p.addLine(to: pt(0.76, 0.06)); p.addLine(to: pt(0.88, 0.42)); p.addLine(to: pt(0.12, 0.42)); p.closeSubpath()
+        p.move(to: pt(0.28, 0.13)); p.addLine(to: pt(0.72, 0.13)); p.addLine(to: pt(0.80, 0.37)); p.addLine(to: pt(0.20, 0.37)); p.closeSubpath()
+        // Body
+        p.addRoundedRect(in: rc(0.04, 0.42, 0.96, 0.82), cornerSize: CGSize(width: w * 0.06, height: w * 0.06))
+        // Mirrors
+        p.addRoundedRect(in: rc(0.0, 0.33, 0.09, 0.42), cornerSize: CGSize(width: 4, height: 4))
+        p.addRoundedRect(in: rc(0.91, 0.33, 1.0, 0.42), cornerSize: CGSize(width: 4, height: 4))
+        // Headlights and grille
+        p.addEllipse(in: rc(0.09, 0.50, 0.30, 0.62))
+        p.addEllipse(in: rc(0.70, 0.50, 0.91, 0.62))
+        p.addRoundedRect(in: rc(0.36, 0.52, 0.64, 0.64), cornerSize: CGSize(width: 4, height: 4))
+        p.move(to: pt(0.04, 0.72)); p.addLine(to: pt(0.96, 0.72))
+        // Wheels
+        p.addRoundedRect(in: rc(0.10, 0.82, 0.25, 0.97), cornerSize: CGSize(width: 4, height: 4))
+        p.addRoundedRect(in: rc(0.75, 0.82, 0.90, 0.97), cornerSize: CGSize(width: 4, height: 4))
+        return p
+    }
+}
+
+/// Car seen from the back: rear window, body, tail lights, number plate, wheels.
+struct CarBackOutline: Shape {
+    func path(in r: CGRect) -> Path {
+        var p = Path()
+        let w = r.width, h = r.height
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + w * x, y: r.minY + h * y) }
+        func rc(_ x0: CGFloat, _ y0: CGFloat, _ x1: CGFloat, _ y1: CGFloat) -> CGRect {
+            CGRect(x: r.minX + w * x0, y: r.minY + h * y0, width: w * (x1 - x0), height: h * (y1 - y0))
+        }
+        // Roof and rear window
+        p.move(to: pt(0.24, 0.08)); p.addLine(to: pt(0.76, 0.08)); p.addLine(to: pt(0.88, 0.42)); p.addLine(to: pt(0.12, 0.42)); p.closeSubpath()
+        p.move(to: pt(0.29, 0.15)); p.addLine(to: pt(0.71, 0.15)); p.addLine(to: pt(0.78, 0.36)); p.addLine(to: pt(0.22, 0.36)); p.closeSubpath()
+        // Body
+        p.addRoundedRect(in: rc(0.04, 0.42, 0.96, 0.82), cornerSize: CGSize(width: w * 0.05, height: w * 0.05))
+        // Tail lights
+        p.addRoundedRect(in: rc(0.06, 0.48, 0.24, 0.60), cornerSize: CGSize(width: 4, height: 4))
+        p.addRoundedRect(in: rc(0.76, 0.48, 0.94, 0.60), cornerSize: CGSize(width: 4, height: 4))
+        // Number plate and bumper
+        p.addRect(rc(0.35, 0.58, 0.65, 0.69))
+        p.move(to: pt(0.04, 0.74)); p.addLine(to: pt(0.96, 0.74))
+        // Wheels
+        p.addRoundedRect(in: rc(0.10, 0.82, 0.25, 0.97), cornerSize: CGSize(width: 4, height: 4))
+        p.addRoundedRect(in: rc(0.75, 0.82, 0.90, 0.97), cornerSize: CGSize(width: 4, height: 4))
         return p
     }
 }
@@ -232,6 +301,7 @@ struct WashingScreen: View {
             WHeader(title: store.current.plate)
         } content: {
             WashStageBar(stage: 1).padding(.top, 4)
+            HStack { Spacer(); OwnerNoteButton() }.padding(.top, 12)
             VStack(spacing: 8) {
                 Text(late ? store.t("Should have finished 8:55 AM", "8:55 AM तक ख़त्म होना था", "8:55 AM కి పూర్తవ్వాలి")
                           : store.t("Finish by 8:55 AM", "8:55 AM तक ख़त्म करें", "8:55 AM లోపు పూర్తి చేయండి"))
@@ -247,14 +317,21 @@ struct WashingScreen: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 20).padding(.bottom, 22)
+            BookingVisual(job: store.current).padding(.bottom, 22)
             if late {
                 WBanner(tone: .wait, icon: .info, text: store.t("−₹1 for each late minute. Max ₹35 on this job.", "हर लेट मिनट पर −₹1। इस काम पर ज़्यादा से ज़्यादा ₹35।", "ప్రతి ఆలస్య నిమిషానికి −₹1. ఈ పనికి గరిష్టం ₹35."))
             } else {
+                Text(store.t("Steps", "कदम", "దశలు")).wText(.label).padding(.bottom, 8)
                 HStack(spacing: 10) {
-                    step(0, .bucket, store.t("Water", "पानी", "నీళ్ళు"))
+                    if store.current.wash.water {
+                        step(0, .bucket, store.t("Water", "पानी", "నీళ్ళు"))
+                    } else {
+                        step(0, .wipe, store.t("Dust", "धूल झाड़ें", "దుమ్ము దులపండి"))
+                    }
                     step(1, .wipe, store.t("Wipe", "पोंछें", "తుడవండి"))
                     step(2, .sparkle, store.t("Dry", "सुखाएं", "ఆరబెట్టండి"))
                 }
+                .padding(.bottom, 20)
             }
         } footer: {
             WFooter {

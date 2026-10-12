@@ -269,6 +269,7 @@ struct BlockedScreen: View {
 struct MeTab: View {
     @Environment(CaptainStore.self) var store
     @Environment(WRouter.self) var router
+    @State private var showLanguages = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -289,9 +290,10 @@ struct MeTab: View {
                     .buttonStyle(.plain)
                 }
                 VStack(spacing: 0) {
+                    WListRow(icon: .location, title: store.t("Where I work", "मैं कहाँ काम करूँ", "నేను ఎక్కడ పని చేస్తాను"), subtitle: store.workSummary) { router.push(.workArea) }
+                    WDivider(inset: 54)
                     WListRow(icon: .languages, title: store.t("Language", "भाषा", "భాష"), subtitle: store.langName) {
-                        let all = Lang.allCases
-                        store.lang = all[(all.firstIndex(of: store.lang)! + 1) % all.count]
+                        showLanguages = true
                     }
                     if store.registered {
                         WDivider(inset: 54)
@@ -329,6 +331,7 @@ struct MeTab: View {
             .padding(.bottom, 20)
         }
         .background(WColor.canvas)
+        .sheet(isPresented: $showLanguages) { LanguageSheet() }
     }
 
     var profileHeader: some View {
@@ -367,38 +370,80 @@ struct MeTab: View {
 
 struct WHelpScreen: View {
     @Environment(CaptainStore.self) var store
+    @Environment(WRouter.self) var router
     var body: some View {
         WScreen(gutter: WSpace.gutterCaptain) {
             WHeader(title: store.t("Help", "मदद", "సహాయం"), help: false)
         } content: {
-            Text(store.t("Talk to us", "हमसे बात करें", "మాతో మాట్లాడండి")).wTitle().padding(.top, 10)
-            Text("7 AM – 9 PM · Hindi, Telugu, English").wBodyBig().padding(.top, 4).padding(.bottom, 18)
+            Text(store.t("What’s the problem?", "क्या समस्या है?", "సమస్య ఏమిటి?")).wTitle().padding(.top, 10)
+            Text(store.t("Most problems get fixed in a minute.", "ज़्यादातर समस्याएं एक मिनट में ठीक होती हैं।", "చాలా సమస్యలు ఒక్క నిమిషంలో తీరుతాయి."))
+                .wBodyBig().padding(.top, 4).padding(.bottom, 14)
+            HelpLadder(current: 0).padding(.bottom, 18)
             VStack(spacing: 12) {
-                row(.rupee, store.t("Money problem", "पैसे की समस्या", "డబ్బు సమస్య"))
-                row(.car, store.t("Problem at a job", "काम पर समस्या", "పనిలో సమస్య"))
+                ForEach(CaptainHelpTopic.allCases, id: \.self) { t in
+                    row(t.icon, t.title(store)) { router.push(.helpFlow(t)) }
+                }
             }
             Text(store.t("Emergency", "इमरजेंसी", "అత్యవసరం")).wText(.label).padding(.top, 24).padding(.bottom, 8)
-            row(.warning, store.t("Accident, damage or safety", "दुर्घटना, नुकसान या सुरक्षा", "ప్రమాదం, నష్టం లేదా భద్రత"), emergency: true)
-            Text(store.t("Emergency line works 24 hours.", "इमरजेंसी लाइन 24 घंटे चालू।", "అత్యవసర లైన్ 24 గంటలు పనిచేస్తుంది."))
-                .wText(.caption).padding(.top, 8)
-        } footer: {
-            WFooter {
-                WButton(store.t("Call now", "अभी कॉल करें", "ఇప్పుడే కాల్ చేయండి"), icon: .phone, size: .captain) { Support.call() }
-            }
+            row(.warning, store.t("Accident, injury or safety", "दुर्घटना, चोट या सुरक्षा", "ప్రమాదం, గాయం లేదా భద్రత"), emergency: true) { Support.call() }
+            Text(store.t("Only for emergencies. Works 24 hours.", "सिर्फ़ इमरजेंसी के लिए। 24 घंटे चालू।", "అత్యవసరాలకు మాత్రమే. 24 గంటలు."))
+                .wText(.caption).padding(.top, 8).padding(.bottom, 20)
         }
     }
 
-    func row(_ icon: WIcon, _ title: String, emergency: Bool = false) -> some View {
-        Button { Support.call() } label: {
+    func row(_ icon: WIcon, _ title: String, emergency: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 16) {
                 WIconBox(icon: icon, size: 52, tone: emergency ? .error : .info, radius: 12)
                 Text(title).wText(.value, color: emergency ? WColor.destructive : WColor.heading, size: 18)
                 Spacer()
-                if emergency { WIconView(icon: .phone, size: 18, color: WColor.destructive) }
+                WIconView(icon: emergency ? .phone : .chevron, size: emergency ? 18 : 13, color: emergency ? WColor.destructive : WColor.secondary)
             }
-            .padding(.horizontal, 16).frame(height: 84)
+            .padding(.horizontal, 16).frame(height: 80)
             .background(emergency ? WColor.errorTint : .white, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(emergency ? WColor.destructive.opacity(0.4) : WColor.border))
+        }
+        .buttonStyle(WPressStyle())
+    }
+}
+
+// MARK: Language picker (Me → Language)
+
+/// All languages at once; tap one to choose it.
+struct LanguageSheet: View {
+    @Environment(CaptainStore.self) var store
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(store.t("Choose your language", "भाषा चुनें", "భాష ఎంచుకోండి")).wText(.section, weight: .semibold, size: 21)
+                .padding(.top, 24).padding(.bottom, 4)
+            tile(.en, "A", "English")
+            tile(.hi, "अ", "हिन्दी · Hindi")
+            tile(.te, "అ", "తెలుగు · Telugu")
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, WSpace.gutterCaptain)
+        .presentationDetents([.height(380)])
+        .presentationDragIndicator(.visible)
+    }
+
+    func tile(_ l: Lang, _ glyph: String, _ title: String) -> some View {
+        let on = store.lang == l
+        return Button {
+            store.lang = l
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { dismiss() }
+        } label: {
+            HStack(spacing: 18) {
+                Text(glyph).wText(.screen, size: 24).frame(width: 40)
+                Text(title).wText(.value, size: 18)
+                Spacer()
+                WRadio(on: on)
+            }
+            .padding(.horizontal, 18)
+            .frame(height: 72)
+            .background(on ? WColor.primaryTint : .white, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(on ? WColor.primary : WColor.border, lineWidth: on ? 2 : 1))
         }
         .buttonStyle(WPressStyle())
     }

@@ -111,9 +111,9 @@ extension CaptainStore {
         case .ownerCancelled: return t("You get ₹[CANCELLATION FEE] for the trip.", "सफ़र के ₹[CANCELLATION FEE] मिलेंगे।", "ప్రయాణానికి ₹[CANCELLATION FEE] వస్తుంది.")
         case .gatePassReady: return t("Show it at the gate for \(n.plate).", "\(n.plate) के लिए गेट पर दिखाएं।", "\(n.plate) కోసం గేట్ వద్ద చూపించండి.")
         case .runningLate: return t("Reach now. −₹1 for every late minute.", "अभी पहुँचें। हर लेट मिनट पर −₹1।", "ఇప్పుడే చేరుకోండి. ప్రతి ఆలస్య నిమిషానికి −₹1.")
-        case .slotEnded: return t("Tap I’m at the car, or call support. Otherwise the job is cancelled.",
-                                  "‘मैं गाड़ी के पास हूँ’ दबाएं या सपोर्ट को कॉल करें। नहीं तो काम रद्द होगा।",
-                                  "‘నేను కారు దగ్గర ఉన్నాను’ నొక్కండి లేదా సపోర్ట్‌కి కాల్ చేయండి. లేదంటే పని రద్దవుతుంది.")
+        case .slotEnded: return t("Tap I’m at the vehicle, or tell us in Help. Otherwise the job is cancelled.",
+                                  "‘मैं गाड़ी के पास हूँ’ दबाएं या मदद में बताएं। नहीं तो काम रद्द होगा।",
+                                  "‘నేను వాహనం దగ్గర ఉన్నాను’ నొక్కండి లేదా సహాయంలో చెప్పండి. లేదంటే పని రద్దవుతుంది.")
         case .noShowPenalty: return t("You didn’t reach \(n.plate) in time. Owner got a full refund.",
                                       "आप \(n.plate) तक समय पर नहीं पहुँचे। मालिक को पूरे पैसे वापस मिले।",
                                       "మీరు \(n.plate) కి సమయానికి చేరుకోలేదు. యజమానికి పూర్తి డబ్బు తిరిగి వచ్చింది.")
@@ -124,7 +124,7 @@ extension CaptainStore {
         case .levelUp: return t("Keep ratings at 4★ or more.", "रेटिंग 4★ या ज़्यादा रखें।", "రేటింగ్ 4★ లేదా ఎక్కువ ఉంచండి.")
         case .probation: return t("An owner gave 3★. Watch the 30-sec tip.", "एक मालिक ने 3★ दिए। 30 सेकंड की टिप देखें।", "ఒక యజమాని 3★ ఇచ్చారు. 30 సెకన్ల టిప్ చూడండి.")
         case .blocked: return t("Too many low ratings. You can ask us to check.", "बहुत सी कम रेटिंग। हमसे जाँच करवा सकते हैं।", "చాలా తక్కువ రేటింగ్‌లు. మమ్మల్ని తనిఖీ చేయమని అడగవచ్చు.")
-        case .phoneChanged: return t("If this wasn’t you, call support now.", "अगर यह आपने नहीं किया, तो अभी सपोर्ट को कॉल करें।", "ఇది మీరు కాకపోతే, ఇప్పుడే సపోర్ట్‌కి కాల్ చేయండి.")
+        case .phoneChanged: return t("If this wasn’t you, open Help now.", "अगर यह आपने नहीं किया, तो अभी मदद खोलें।", "ఇది మీరు కాకపోతే, ఇప్పుడే సహాయం తెరవండి.")
         }
     }
 
@@ -226,7 +226,7 @@ extension CaptainStore {
     // MARK: No-show (captain accepted but doesn't reach / update the job)
 
     /// Demo: late → slot over, update the job → job cancelled + penalty. Stops if the captain
-    /// taps "I'm at the car" in time.
+    /// taps "I'm at the vehicle" in time.
     func startNoShowDemo(onCancelled: @escaping @MainActor () -> Void) {
         guard noShowTask == nil, !noShowCancelled else { return }
         let job = current

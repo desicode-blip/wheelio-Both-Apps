@@ -45,6 +45,9 @@ enum WRoute: Hashable {
     case changePhone      // W53
     case editUPI          // W54
     case noShowCancelled  // W55
+    case workArea         // W57
+    case ownerNote        // W26n
+    case helpFlow(CaptainHelpTopic) // W48a–d
     case gallery
 }
 
@@ -152,6 +155,9 @@ struct CaptainRoot: View {
         case .changePhone: WChangePhoneScreen()
         case .editUPI: WEditUPIScreen()
         case .noShowCancelled: WNoShowCancelledScreen()
+        case .workArea: WorkAreaScreen()
+        case .ownerNote: OwnerNoteScreen()
+        case .helpFlow(let t): HelpFlowScreen(topic: t)
         case .gallery: WGalleryScreen()
         }
     }

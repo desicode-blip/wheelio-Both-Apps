@@ -1,4 +1,37 @@
 import SwiftUI
+import UIKit
+
+// MARK: Testing shortcut (remove before launch)
+
+/// Testing only: skip the videos, quiz and the rest of onboarding, straight to "You're in".
+/// Turn off by setting `TestFlags.onboardingSkip` to false.
+enum TestFlags { static let onboardingSkip = true }
+
+struct TestSkipButton: View {
+    @Environment(CaptainStore.self) var store
+    @Environment(WRouter.self) var router
+
+    var body: some View {
+        if TestFlags.onboardingSkip {
+            Button {
+                for s in KycStep.allCases { store.complete(s) }
+                store.videosWatched = 3
+                router.replace([.live])
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "forward.end.fill").font(.system(size: 12))
+                    Text("TEST ONLY · Skip onboarding").font(WFont.of(.label, weight: .semibold, size: 13))
+                }
+                .foregroundStyle(Color(hex: 0xB45309))
+                .padding(.horizontal, 14).frame(height: 36)
+                .background(Color(hex: 0xFFF4E0), in: Capsule())
+                .overlay(Capsule().strokeBorder(Color(hex: 0xB45309), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
 
 // MARK: W01 Choose your language
 
@@ -24,9 +57,9 @@ struct LanguageScreen: View {
             Text("Choose your language").wTitle().padding(.top, 8)
             Text("भाषा चुनें · భాష ఎంచుకోండి").wText(.caption).padding(.top, 2).padding(.bottom, 20)
             VStack(spacing: 12) {
+                langTile(.en, "A", "English")
                 langTile(.hi, "अ", "हिन्दी · Hindi")
                 langTile(.te, "అ", "తెలుగు · Telugu")
-                langTile(.en, "A", "English")
             }
         } footer: {
             WFooter {
@@ -187,6 +220,7 @@ struct StepsScreen: View {
                     .accessibilityElement(children: .combine)
                 }
             }
+            if !problem { TestSkipButton().padding(.top, 4) }
         } footer: {
             WFooter {
                 if problem {
@@ -425,6 +459,7 @@ struct TrainingScreen: View {
                     .buttonStyle(WPressStyle())
                 }
             }
+            TestSkipButton().padding(.top, 20)
         } footer: {
             WFooter {
                 if store.videosWatched >= 3 {
@@ -479,6 +514,7 @@ struct VideoScreen: View {
                 point(.close, store.t("Never wipe a dry, dusty bike", "सूखी, धूल भरी बाइक कभी न पोंछें", "పొడి, దుమ్ము బైక్‌ను ఎప్పుడూ తుడవకండి"))
                 Text(store.t("Must watch till the end. You can’t skip.", "आख़िर तक देखना ज़रूरी है। छोड़ नहीं सकते।", "చివరి వరకు చూడాలి. దాటవేయలేరు."))
                     .wText(.caption).padding(.top, 4)
+                TestSkipButton().padding(.top, 8)
             }
             .padding(16)
         } footer: {
@@ -520,7 +556,7 @@ struct QuizScreen: View {
     var questions: [Q] {
         [
             Q(text: ("Where do you take before photos?", "पहले की फ़ोटो कहाँ लेते हैं?", "ముందు ఫోటోలు ఎక్కడ తీస్తారు?"),
-              a: ("At the car", "गाड़ी के पास", "కారు దగ్గర", .car), b: ("At home", "घर पर", "ఇంట్లో", .home), right: 0),
+              a: ("At the vehicle", "गाड़ी के पास", "వాహనం దగ్గర", .car), b: ("At home", "घर पर", "ఇంట్లో", .home), right: 0),
             Q(text: ("The bike is dusty. What do you do first?", "बाइक पर धूल है। पहले क्या करेंगे?", "బైక్ దుమ్ముగా ఉంది. ముందు ఏం చేస్తారు?"),
               a: ("Pour water", "पानी डालें", "నీళ్ళు పోయండి", .drop), b: ("Wipe with dry cloth", "सूखे कपड़े से पोंछें", "పొడి గుడ్డతో తుడవండి", .wipe), right: 0),
             Q(text: ("Can you use soap?", "क्या साबुन लगा सकते हैं?", "సబ్బు వాడవచ్చా?"),
@@ -537,7 +573,7 @@ struct QuizScreen: View {
         WScreen(gutter: WSpace.gutterCaptain) {
             WHeader(title: store.t("Quiz", "क्विज़", "క్విజ్"), subtitle: store.t("Question \(q + 1) of 5", "प्रश्न \(q + 1) / 5", "ప్రశ్న \(q + 1) / 5"))
         } content: {
-            WSegmentBar(filled: 5, total: 5).padding(.top, 6)
+            WSegmentBar(filled: q + 1, total: 5).padding(.top, 6)
             HStack(alignment: .top, spacing: 14) {
                 WIconBox(icon: .refresh, size: 52, radius: 26)
                 Text(store.t(cur.text.0, cur.text.1, cur.text.2)).wText(.section, weight: .semibold, size: 20)
@@ -545,9 +581,11 @@ struct QuizScreen: View {
             }
             .padding(.top, 20).padding(.bottom, 18)
             HStack(spacing: 12) {
-                option(0, cur.a)
-                option(1, cur.b)
+                option(0, cur.a, right: cur.right)
+                option(1, cur.b, right: cur.right)
             }
+            if let p = pick { feedback(p == cur.right, cur) }
+            if pick == nil {
             VStack(spacing: 8) {
                 Button {} label: {
                     WIconView(icon: .mic, size: 30, color: .white).frame(width: 80, height: 80).background(WColor.primary, in: Circle())
@@ -557,6 +595,8 @@ struct QuizScreen: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 16)
+            }
+            TestSkipButton().padding(.top, 20)
         } footer: {
             WFooter {
                 WButton(store.t("Next", "आगे", "తదుపరి"), size: .captain, enabled: pick != nil) {
@@ -571,19 +611,60 @@ struct QuizScreen: View {
         }
     }
 
-    func option(_ i: Int, _ o: (String, String, String, WIcon)) -> some View {
-        let on = pick == i
-        return Button { pick = i } label: {
+    /// Once answered, the choice locks: the right option turns green (with a tick),
+    /// a wrong pick turns red so the captain sees what the correct answer was.
+    func option(_ i: Int, _ o: (String, String, String, WIcon), right: Int) -> some View {
+        let answered = pick != nil
+        let isRight = i == right
+        let picked = pick == i
+        let tone: Color = !answered ? WColor.border : (isRight ? WColor.success : (picked ? WColor.destructive : WColor.border))
+        let fill: Color = !answered ? .white : (isRight ? WColor.successTint : (picked ? WColor.errorTint : .white))
+        return Button {
+            guard pick == nil else { return }
+            withAnimation(.spring(duration: 0.3)) { pick = i }
+            UINotificationFeedbackGenerator().notificationOccurred(isRight ? .success : .error)
+        } label: {
             VStack(spacing: 12) {
                 WIconView(icon: o.3, size: 24, color: WColor.primaryStrong)
-                    .frame(width: 60, height: 60).background(on ? WColor.white : WColor.primaryTint, in: Circle())
+                    .frame(width: 60, height: 60).background(answered ? WColor.white : WColor.primaryTint, in: Circle())
                 Text(store.t(o.0, o.1, o.2)).wText(.title, size: 16).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity).frame(height: 142)
-            .background(on ? WColor.primaryTint : .white, in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(on ? WColor.primary : WColor.border, lineWidth: on ? 3 : 1))
+            .background(fill, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(tone, lineWidth: answered && (isRight || picked) ? 3 : 1))
+            .overlay(alignment: .topTrailing) {
+                if answered && (isRight || picked) {
+                    WIconView(icon: isRight ? .check : .close, size: 13, color: .white, weight: .bold)
+                        .frame(width: 28, height: 28)
+                        .background(isRight ? WColor.success : WColor.destructive, in: Circle())
+                        .padding(10)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .opacity(answered && !isRight && !picked ? 0.55 : 1)
         }
         .buttonStyle(WPressStyle())
+        .disabled(answered && !picked && !isRight)
+    }
+
+    func feedback(_ ok: Bool, _ cur: Q) -> some View {
+        let rightText = cur.right == 0 ? store.t(cur.a.0, cur.a.1, cur.a.2) : store.t(cur.b.0, cur.b.1, cur.b.2)
+        return HStack(alignment: .top, spacing: 12) {
+            WIconView(icon: ok ? .checkCircle : .warning, size: 22, color: ok ? WColor.success : WColor.destructive)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ok ? store.t("Correct!", "सही जवाब!", "సరైన జవాబు!") : store.t("Not quite", "सही नहीं", "సరైనది కాదు"))
+                    .wText(.title, color: ok ? WColor.onSuccess : WColor.destructive, size: 17)
+                if !ok {
+                    Text(store.t("The right answer is: \(rightText)", "सही जवाब है: \(rightText)", "సరైన జవాబు: \(rightText)"))
+                        .wText(.body, color: WColor.heading)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(ok ? WColor.successTint : WColor.errorTint, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.top, 16)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 

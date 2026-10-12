@@ -51,6 +51,10 @@ struct WGalleryScreen: View {
                 E(id: "W21", title: "Home – online (a job rings in 4 s)", prep: { $0.online = true }, tab: 0),
                 E(id: "W50", title: "Home – low battery, no internet", prep: { $0.online = true; $0.lowSignal = true }, tab: 0),
                 E(id: "W22", title: "New job alert", routes: [.jobAlert(batched: false)]),
+                E(id: "W22m", title: "Many jobs: 3 ring, stacked (swipe left to skip)", routes: [.jobAlert(batched: false)]),
+                E(id: "W22s", title: "Single job (no others ring)", prep: { $0.extraOffers = 0 }, routes: [.jobAlert(batched: false)]),
+                E(id: "W57", title: "Where I work (societies, distance, place)", routes: [.workArea]),
+                E(id: "W22o", title: "Job alert – only My Home Avatar", prep: { $0.workMode = .societies; $0.chosenSocieties = ["My Home Avatar"] }, routes: [.jobAlert(batched: false)]),
                 E(id: "W22b", title: "New job alert – batched", routes: [.jobAlert(batched: true)]),
                 E(id: "W22h", title: "New job alert – Hindi", prep: { $0.lang = .hi }, routes: [.jobAlert(batched: false)]),
                 E(id: "W22t", title: "New job alert – Telugu", prep: { $0.lang = .te }, routes: [.jobAlert(batched: false)]),
@@ -59,17 +63,18 @@ struct WGalleryScreen: View {
                 E(id: "W25", title: "Today’s jobs", tab: 1),
                 E(id: "W26", title: "Go to vehicle", routes: [.goToVehicle]),
                 E(id: "W27", title: "Can’t get in (gate pass)", routes: [.goToVehicle, .gateProblem]),
-                E(id: "W28", title: "Can’t find car", routes: [.goToVehicle, .cantFind]),
+                E(id: "W28", title: "Can’t find vehicle", routes: [.goToVehicle, .cantFind]),
+                E(id: "W26o", title: "Owner’s note (plays first, must listen)", routes: [.goToVehicle, .ownerNote]),
                 E(id: "W29", title: "Owner cancelled", routes: [.ownerCancelled]),
                 E(id: "W26n", title: "Didn’t show up: late → slot over → cancelled (≈20 s)", prep: { $0.noShowDemo = true }, routes: [.goToVehicle]),
                 E(id: "W55", title: "Job cancelled: didn’t reach in time", prep: { $0.noShowCancelled = true; $0.noShowPlate = "TS 09 EA 4521" }, routes: [.noShowCancelled]),
             ]),
             ("08 · Wash and photos", [
                 E(id: "W30", title: "Quick face check", routes: [.goToVehicle, .faceCheck]),
-                E(id: "W31", title: "Before photos", prep: { $0.beforeDone = [0, 1] }, routes: [.goToVehicle, .beforePhotos]),
+                E(id: "W31", title: "Before photos", prep: { $0.beforeDone = [0, 1]; $0.ownerNoteHeard = true }, routes: [.goToVehicle, .beforePhotos]),
                 E(id: "W32", title: "Camera – guided side", routes: [.goToVehicle, .beforePhotos, .camera(after: false, side: 2)]),
                 E(id: "W33", title: "Photo too dark", routes: [.goToVehicle, .beforePhotos, .photoDark]),
-                E(id: "W34", title: "Washing – timer", routes: [.goToVehicle, .washing]),
+                E(id: "W34", title: "Washing – timer", prep: { $0.ownerNoteHeard = true }, routes: [.goToVehicle, .washing]),
                 E(id: "W34b", title: "Washing – late", prep: { $0.lateWash = true }, routes: [.goToVehicle, .washing]),
                 E(id: "W35", title: "After photos", prep: { $0.afterDone = [0, 1, 2] }, routes: [.goToVehicle, .afterPhotos]),
                 E(id: "W36", title: "AI photo check", prep: { $0.afterDone = [0, 1, 2, 3] }, routes: [.goToVehicle, .afterPhotos, .aiCheck]),
@@ -86,7 +91,11 @@ struct WGalleryScreen: View {
                 E(id: "W45", title: "Refresher video lock", routes: [.refresher]),
                 E(id: "W46", title: "Account blocked, appeal", routes: [.blocked]),
                 E(id: "W47", title: "Me (profile)", tab: 3),
-                E(id: "W48", title: "Help (with Emergency)", routes: [.help]),
+                E(id: "W48", title: "Help: pick a problem", routes: [.help]),
+                E(id: "W48a", title: "Help · money (check → owner → team)", routes: [.help, .helpFlow(.money)]),
+                E(id: "W48b", title: "Help · problem at a job", routes: [.help, .helpFlow(.job)]),
+                E(id: "W48c", title: "Help · rating or photo check", routes: [.help, .helpFlow(.rating)]),
+                E(id: "W48d", title: "Help · app not working (skips owner)", routes: [.help, .helpFlow(.app)]),
                 E(id: "W51", title: "Notifications", prep: { $0.seedNotifications() }, routes: [.notifications]),
                 E(id: "W51e", title: "Notifications – empty", prep: { $0.notifications = [] }, routes: [.notifications]),
                 E(id: "W51o", title: "Notifications – alerts off", prep: { $0.seedNotifications(); $0.notificationsOn = false }, routes: [.notifications]),
@@ -104,7 +113,7 @@ struct WGalleryScreen: View {
             WAppBar(title: "Screens", subtitle: "Demo mode · sample data", trailing: nil, onLeading: { router.pop() })
         } content: {
             Text("Language").wText(.label).padding(.top, 10).padding(.bottom, 6)
-            WSegmented(options: ["हिन्दी", "తెలుగు", "English"],
+            WSegmented(options: ["English", "हिन्दी", "తెలుగు"],
                        selection: Binding(get: { Lang.allCases.firstIndex(of: store.lang)! }, set: { store.lang = Lang.allCases[$0] }))
             VStack(spacing: 0) {
                 Toggle("Dark photo on left side (W33)", isOn: $store.darkPhoto)

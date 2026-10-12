@@ -582,9 +582,9 @@ struct WNoShowCancelledScreen: View {
                     Spacer(minLength: 0)
                 }
                 .padding(16).background(WTone.error.background, in: RoundedRectangle(cornerRadius: 14))
-                Text(store.t("If you can’t reach a job, call support before the slot ends.",
-                             "अगर काम पर नहीं पहुँच सकते, तो समय खत्म होने से पहले सपोर्ट को कॉल करें।",
-                             "పనికి చేరుకోలేకపోతే, సమయం ముగియక ముందే సపోర్ట్‌కి కాల్ చేయండి."))
+                Text(store.t("If you can’t reach a job, tell us in Help before the slot ends.",
+                             "अगर काम पर नहीं पहुँच सकते, तो समय खत्म होने से पहले मदद में बताएं।",
+                             "పనికి చేరుకోలేకపోతే, సమయం ముగియక ముందే సహాయంలో చెప్పండి."))
                     .wText(.caption).multilineTextAlignment(.center)
                 Spacer()
             }

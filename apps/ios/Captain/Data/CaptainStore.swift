@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Captain app language. Captains pick it on the first screen (W01).
-enum Lang: String, CaseIterable { case hi, te, en }
+enum Lang: String, CaseIterable { case en, hi, te }
 
 struct Job: Identifiable, Hashable {
     let id: String
@@ -20,7 +20,53 @@ struct Job: Identifiable, Hashable {
     var reachBy: String = "8:40 AM"
     var finishBy: String = "8:55 AM"
     var owner: String = "Ananya"
+    var society: String = "My Home Avatar"
+    var wash: WashType = .wetOutside
+    var area: String = "Narsingi"
+
+    /// "Tower 3 · Floor B2 · Slot 41"
+    var spot: String {
+        [tower, "Floor \(floor)", slot.isEmpty ? nil : "Slot \(slot)"].compactMap { $0 }.joined(separator: " · ")
+    }
+    /// Full address for the job card.
+    var fullAddress: String { "\(spot), \(society), \(area), Hyderabad" }
+    /// Distance in km from the "600 m" / "1.2 km" label.
+    var km: Double {
+        let n = Double(distance.filter { "0123456789.".contains($0) }) ?? 0
+        return distance.contains("km") ? n : n / 1000
+    }
 }
+
+/// Gated societies the captain can choose to work in (sample data).
+struct Society: Identifiable, Hashable {
+    let name: String
+    let area: String
+    let km: Double
+    var id: String { name }
+
+    static let all: [Society] = [
+        Society(name: "My Home Avatar", area: "Narsingi", km: 0.6),
+        Society(name: "Lanco Hills", area: "Manikonda", km: 2.1),
+        Society(name: "Aparna Sarovar Zenith", area: "Nallagandla", km: 3.2),
+        Society(name: "Prestige High Fields", area: "Gachibowli", km: 4.5),
+        Society(name: "SMR Vinay Iconia", area: "Kondapur", km: 6.8),
+    ]
+    /// Demo: where the captain's phone is right now.
+    static let current = all[0]
+    static let places = ["Narsingi", "Manikonda", "Nallagandla", "Gachibowli", "Kondapur", "Kokapet", "Madhapur", "Financial District"]
+}
+
+/// What the owner booked (mirrors the customer app's wash choices).
+enum WashType: Hashable {
+    case dryDusting           // bike/car: dusting with a dry cloth, no water
+    case wetOutside           // water wash outside
+    case wetOutsideDryInside  // water wash outside + dry clean inside (cars)
+    var water: Bool { self != .dryDusting }
+    var inside: Bool { self == .wetOutsideDryInside }
+}
+
+/// Which jobs the captain wants to be offered.
+enum WorkMode: String, CaseIterable { case all, radius, societies, place }
 
 enum JobStatus: Hashable { case now, next, done }
 
@@ -33,7 +79,7 @@ enum StepState { case todo, done, problem }
 @MainActor
 @Observable
 final class CaptainStore {
-    var lang: Lang = .hi
+    var lang: Lang = .en
     var phone = "9876543210"
     var name = "Raju Yadav"
     var firstName: String { String(name.split(separator: " ").first ?? "Raju") }
@@ -137,11 +183,63 @@ final class CaptainStore {
 
     static let sides = ["Front", "Back", "Left", "Right"]
 
+    /// Other jobs that can ring while an alert is already open (demo).
+    static let offerPool: [Job] = [
+        Job(id: "o1", plate: "TS 08 HK 1207", type: "Hatchback", isBike: false, pay: 116, tower: "Tower 3", floor: "B2", slot: "27", window: "8–10", time: "8:40", owner: "Ravi"),
+        Job(id: "o2", plate: "TS 07 FK 3390", type: "SUV", isBike: false, pay: 140, tower: "Tower 2", floor: "Open", slot: "12", window: "8–10", time: "8:45", distance: "2.1 km", owner: "Kiran", society: "Lanco Hills", wash: .wetOutsideDryInside, area: "Manikonda"),
+        Job(id: "o3", plate: "TS 10 MB 6614", type: "Scooter", isBike: true, pay: 54, tower: "Tower 5", floor: "B1", slot: "", window: "8–10", time: "9:10", distance: "3.2 km", owner: "Sneha", society: "Aparna Sarovar Zenith", wash: .dryDusting, area: "Nallagandla"),
+    ]
+
+    // Where I work (Me → Where I work, and from the job alert)
+    var workMode: WorkMode = .all
+    var radiusKm = 3
+    var chosenSocieties: Set<String> = []
+    var workPlace = "Narsingi"
+
+    func wantsJob(_ j: Job) -> Bool {
+        switch workMode {
+        case .all: return true
+        case .radius: return j.km <= Double(radiusKm)
+        case .societies: return chosenSocieties.isEmpty || chosenSocieties.contains(j.society)
+        case .place: return j.area == workPlace
+        }
+    }
+
+    var workSummary: String {
+        switch workMode {
+        case .all: return t("All jobs", "सभी काम", "అన్ని పనులు")
+        case .radius: return t("Within \(radiusKm) km", "\(radiusKm) km के अंदर", "\(radiusKm) కి.మీ లోపు")
+        case .societies:
+            let list = Society.all.map(\.name).filter { chosenSocieties.contains($0) }
+            guard let first = list.first else { return t("All jobs", "सभी काम", "అన్ని పనులు") }
+            return list.count > 1 ? "\(first) +\(list.count - 1)" : first
+        case .place: return workPlace
+        }
+    }
+
+    /// How many more jobs ring while the alert is open (demo; 0 = single job).
+    var extraOffers = 2
+    /// The owner's voice note was played for the current job (then a replay pill stays on screen).
+    var ownerNoteHeard = false
+
+    /// Accept a job from the alert stack: it joins today's jobs (now if nothing is
+    /// in progress, otherwise next in line) and shows on Home.
+    func acceptOffer(_ j: Job) {
+        guard !queue.contains(where: { $0.id == j.id }) else { return }
+        var nj = j
+        nj.status = queue.contains(where: { $0.status == .now }) ? .next : .now
+        let insertAt = queue.lastIndex(where: { $0.status != .done }).map { $0 + 1 } ?? 0
+        queue.insert(nj, at: insertAt)
+        acceptedToday += 1
+    }
+    var acceptedToday = 0
+    var upNext: [Job] { queue.filter { $0.status != .done } }
+
     static let sampleQueue: [Job] = [
         Job(id: "j1", plate: "TS 09 EA 4521", type: "Hatchback", isBike: false, pay: 116, tower: "Tower 3", floor: "B2", slot: "41", window: "8–10", time: "8:30", status: .now),
-        Job(id: "j2", plate: "TS 09 HB 0731", type: "Scooter", isBike: true, pay: 54, tower: "Tower 3", floor: "B1", slot: "", window: "8–10", time: "9:00", status: .next),
-        Job(id: "j3", plate: "TS 08 GK 2210", type: "Sedan", isBike: false, pay: 140, tower: "Tower 1", floor: "B1", slot: "", window: "6–8", time: "7:40", status: .done),
-        Job(id: "j4", plate: "AP 28 BQ 9911", type: "Scooter", isBike: true, pay: 54, tower: "Tower 1", floor: "Open", slot: "", window: "6–8", time: "7:05", status: .done),
+        Job(id: "j2", plate: "TS 09 HB 0731", type: "Scooter", isBike: true, pay: 54, tower: "Tower 3", floor: "B1", slot: "", window: "8–10", time: "9:00", status: .next, wash: .wetOutside),
+        Job(id: "j3", plate: "TS 08 GK 2210", type: "Sedan", isBike: false, pay: 140, tower: "Tower 1", floor: "B1", slot: "", window: "6–8", time: "7:40", status: .done, society: "Lanco Hills", area: "Manikonda"),
+        Job(id: "j4", plate: "AP 28 BQ 9911", type: "Scooter", isBike: true, pay: 54, tower: "Tower 1", floor: "Open", slot: "", window: "6–8", time: "7:05", status: .done, society: "Lanco Hills", wash: .dryDusting, area: "Manikonda"),
     ]
 
     /// Inline translation: English, Hindi, Telugu.
@@ -176,7 +274,15 @@ final class CaptainStore {
         afterDone = []
     }
 
+    /// The captain picked a different job to do first: it becomes the current one.
+    func startJob(_ id: String) {
+        guard let i = queue.firstIndex(where: { $0.id == id }), queue[i].status == .next else { return }
+        if let n = queue.firstIndex(where: { $0.status == .now }) { queue[n].status = .next }
+        queue[i].status = .now
+    }
+
     func finishJob() {
+        ownerNoteHeard = false
         if let i = queue.firstIndex(where: { $0.status == .now }) {
             queue[i].status = .done
             jobsToday += 1
@@ -209,6 +315,10 @@ final class CaptainStore {
 
     func resetDemo() {
         captainArrived()
+        extraOffers = 2
+        acceptedToday = 0
+        workMode = .all
+        chosenSocieties = []
         kycFromJob = false
         onlineAfterSignUp = false
         noShowCancelled = false
