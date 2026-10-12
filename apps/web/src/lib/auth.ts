@@ -3,7 +3,7 @@ import { betterAuth } from "better-auth/minimal";
 import { createDb } from "./db";
 import * as schema from "./db/schema";
 
-export function createAuth() {
+export function createAuth(database?: Parameters<typeof drizzleAdapter>[0]) {
   const secret = process.env.BETTER_AUTH_SECRET;
   const baseURL = process.env.BETTER_AUTH_URL;
 
@@ -18,7 +18,7 @@ export function createAuth() {
   return betterAuth({
     secret,
     baseURL,
-    database: drizzleAdapter(createDb(), {
+    database: drizzleAdapter(database ?? createDb(), {
       provider: "pg",
       schema,
     }),

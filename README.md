@@ -46,14 +46,14 @@ pnpm dev
 
 `pnpm dev` runs Next.js locally; `pnpm preview` builds and serves the app using the Cloudflare Workers runtime. `pnpm deploy` builds and deploys the Worker named `wheelio-web` after Wrangler is connected to the intended Cloudflare account. Set the same values as Worker secrets/environment variables in the Cloudflare dashboard for deployment. More details are in [apps/web/README.md](apps/web/README.md).
 
-Drizzle Kit is ready to generate and apply migrations after Neon credentials are supplied:
+The full Neon schema migration has been applied and verified. To apply future migrations or inspect the database:
 
 ```sh
-pnpm db:generate
 pnpm db:migrate
+pnpm db:check
 ```
 
-These commands have not been run against a database. The existing Supabase schema and functions remain in `backend/supabase/` and have not been migrated.
+The 27-table schema, customer action functions, access policies and configuration passed migrations and behavior tests in a disposable PostgreSQL/PostGIS database. The live Neon migration and web API authentication checks passed on 12 October 2026. See [backend/NEON-DATABASE.md](backend/NEON-DATABASE.md) for details and remaining integrations. Original Supabase files are preserved; existing data and edge functions have not been transferred.
 
 These commands also run from the root:
 

@@ -16,6 +16,9 @@
     "upload": "pnpm --filter @wheelio/web upload",
     "cf-typegen": "pnpm --filter @wheelio/web cf-typegen",
     "db:generate": "pnpm --filter @wheelio/web db:generate",
-    "db:migrate": "pnpm --filter @wheelio/web db:migrate"
+    "db:migrate": "pnpm --filter @wheelio/web db:migrate",
+    "db:check": "pnpm --filter @wheelio/web db:check",
+    "db:test": "pnpm --filter @wheelio/web db:test",
+    "db:auth-check": "pnpm --filter @wheelio/web db:auth-check"
   }
 }

@@ -1,5 +1,7 @@
 # Customer app ↔ backend contract
 
+> Historical Supabase contract. The active database schema is now ported to Neon/Better Auth; see [NEON-DATABASE.md](NEON-DATABASE.md). The SwiftUI apps still use demo stores, and the calls below are not active Neon API routes.
+
 The app talks to the server only through the `Backend` interface in
 `apps/customer/lib/data/backend.dart`. Today `MockBackend` implements it with
 sample data. `SupabaseBackend` will implement the same methods with the calls below,

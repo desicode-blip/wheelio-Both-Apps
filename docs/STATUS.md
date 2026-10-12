@@ -1,5 +1,13 @@
 # Wheelio build status
 
+## 12 Oct 2026: live database migrated and web backend verified
+
+- Ported the original application schema to Neon/Drizzle alongside Better Auth: 27 tables, four versioned migrations, PostGIS, constraints/indexes, policies, customer actions and initial configuration.
+- Corrected free-credit reservation/return, low-rating update flags, live-society filtering and account deletion that previously violated vehicle/order foreign keys.
+- Added migration hash/order verification, a read-only database integrity command, disposable-database integration tests, and database readiness checks in `/api/health`.
+- Verified migration application and repeat runs on PostgreSQL 17/PostGIS; authentication, booking/credit/refund, ownership/RLS, payout/dispute and account-deletion tests passed. TypeScript and the production web build passed.
+- Generated the missing local Better Auth secret, then applied all four migrations to the configured Neon database after credentials were supplied. Re-running migrations and the read-only integrity check passed. HTTP readiness returned 200, and registration/login/session/logout passed against live Neon; the test account was removed. No pre-existing Supabase data was transferred. Both iOS apps and external services remain unconnected. See [the migration guide](../backend/NEON-DATABASE.md).
+
 ## 11 Oct 2026: platform folders and website
 
 - Active platform roots are `apps/web/`, `apps/ios/` and `apps/android/`.

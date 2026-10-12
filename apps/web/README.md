@@ -13,7 +13,7 @@ pnpm install
 pnpm dev
 ```
 
-`pnpm dev` runs the regular Next.js development server. To preview through the Workers runtime instead, run `pnpm preview`. Authentication and database requests need a real Neon URL and Better Auth secret; the landing page and `/api/health` do not.
+`pnpm dev` runs the regular Next.js development server. To preview through the Workers runtime instead, run `pnpm preview`. Authentication and database requests need a real Neon URL and Better Auth secret. The landing page works without them; `/api/health` reports HTTP 503 until database readiness and auth configuration checks pass.
 
 ## Cloudflare deployment
 
@@ -27,6 +27,6 @@ For Cloudflare Workers Builds, provide those values under Build variables and se
 
 ## Database and authentication
 
-`src/lib/db/schema.ts` declares Better Auth’s PostgreSQL tables. `drizzle.config.ts` points Drizzle Kit at that schema. Once the Neon credentials are available, generate a migration with `pnpm db:generate`, review it, and apply it with `pnpm db:migrate`. These commands have not been run against a database.
+`src/lib/db/schema.ts` exports four Better Auth tables and 23 application tables. Four reviewed migrations under `drizzle/` include PostGIS, indexes, constraints, identity-aware policies, customer action functions and initial configuration/catalogue data. Apply them with `pnpm db:migrate`, then run the read-only `pnpm db:check`. Migration/check commands prefer `DIRECT_URL` when supplied. The migrations and behavior tests passed in a disposable PostgreSQL/PostGIS database; all migrations were then applied to live Neon, and the HTTP web backend authentication/readiness checks passed. See [the migration guide](../../backend/NEON-DATABASE.md) for commands, identity handling, test coverage and remaining integrations.
 
-The auth endpoint is `/api/auth/*`; a basic health endpoint is `/api/health`. The current site has no sign-in UI yet. The existing Supabase migrations and edge functions under `backend/supabase/` are preserved; this setup does not migrate their application schema or data.
+The auth endpoint is `/api/auth/*`; `/api/health` checks database readiness. The current site has no sign-in UI yet. Original Supabase files remain under `backend/supabase/`; their application schema has been ported, while existing data and edge-function integrations have not been transferred.
