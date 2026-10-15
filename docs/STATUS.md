@@ -1,5 +1,13 @@
 # Wheelio build status
 
+## 15 Oct 2026: Customer and Captain apps converted to Flutter
+
+- Both apps are now Flutter apps in `apps/flutter/` (`customer/`, `captain/`, and the shared `packages/wheelio_ui`). Web is the first target, then iOS, then Android, all from the same code.
+- They were ported screen by screen from the SwiftUI apps: every screen and state, the interactions, the sample data, the Screens gallery, and English/Hindi/Telugu copy in Captain.
+- Decision: no large-screen redesign. On laptops, the phone screen is centred and the sides are grey; on phones, it fills the screen. On the web, swipes become visible controls (See next job, ‹ › arrows, ⋯ menus, × to dismiss). See [FLUTTER.md](FLUTTER.md).
+- Verified: `flutter analyze` reports no issues and `flutter build web` succeeds for both apps. Captain and Customer were checked in the browser at laptop and phone sizes: the job alert stack, day plan, wash flow, booking and payment sheet. A layout fix keeps job-alert actions visible on short laptop screens.
+- Not done: no deployment, no backend connection (sample data only), and no iOS/Android platform folders yet. The React ports at `/app` and `/captain` are superseded.
+
 ## 12 Oct 2026: live database migrated and web backend verified
 
 - Ported the original application schema to Neon/Drizzle alongside Better Auth: 27 tables, four versioned migrations, PostGIS, constraints/indexes, policies, customer actions and initial configuration.

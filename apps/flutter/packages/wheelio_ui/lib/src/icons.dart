@@ -1,0 +1,131 @@
+// Icon names from the design layers ("Icon/left", "Icon/help" …), mirroring WIcon in Icons.swift.
+// SF Symbols map to the closest Material Symbols (outlined / rounded) that ship with Flutter.
+
+import 'package:flutter/material.dart';
+import 'tokens.dart';
+
+enum WIcon {
+  left(Icons.arrow_back_ios_new_rounded),
+  close(Icons.close_rounded),
+  help(Icons.help_outline_rounded),
+  phone(Icons.call_outlined),
+  chevron(Icons.chevron_right_rounded),
+  check(Icons.check_rounded),
+  checkCircle(Icons.check_circle_rounded),
+  plus(Icons.add_rounded),
+  minus(Icons.remove_rounded),
+  bike(Icons.two_wheeler_rounded),
+  car(Icons.directions_car_outlined),
+  carFill(Icons.directions_car_filled_rounded),
+  suv(Icons.airport_shuttle_outlined),
+  camera(Icons.photo_camera_outlined),
+  video(Icons.videocam_outlined),
+  mic(Icons.mic_none_rounded),
+  play(Icons.play_arrow_rounded),
+  pause(Icons.pause_rounded),
+  stop(Icons.stop_rounded),
+  replay(Icons.replay_rounded),
+  trash(Icons.delete_outline_rounded),
+  image(Icons.image_outlined),
+  photos(Icons.photo_library_outlined),
+  location(Icons.location_on_outlined),
+  locate(Icons.near_me_outlined),
+  search(Icons.search_rounded),
+  home(Icons.home_outlined),
+  homeFill(Icons.home_rounded),
+  calendar(Icons.calendar_today_outlined),
+  clock(Icons.schedule_rounded),
+  shield(Icons.verified_user_outlined),
+  rupee(Icons.currency_rupee_rounded),
+  gift(Icons.card_giftcard_rounded),
+  star(Icons.star_border_rounded),
+  starFill(Icons.star_rounded),
+  bell(Icons.notifications_none_rounded),
+  bellSlash(Icons.notifications_off_outlined),
+  gear(Icons.settings_outlined),
+  moon(Icons.dark_mode_rounded),
+  speakerOff(Icons.volume_off_outlined),
+  speaker(Icons.volume_up_rounded),
+  megaphone(Icons.campaign_outlined),
+  user(Icons.person_outline_rounded),
+  logout(Icons.logout_rounded),
+  edit(Icons.edit_outlined),
+  doc(Icons.description_outlined),
+  receipt(Icons.receipt_long_outlined),
+  flag(Icons.flag_outlined),
+  zoom(Icons.zoom_in_rounded),
+  info(Icons.info_outline_rounded),
+  warning(Icons.warning_amber_rounded),
+  wifiOff(Icons.wifi_off_rounded),
+  lock(Icons.lock_outline_rounded),
+  drop(Icons.water_drop_outlined),
+  dropFill(Icons.water_drop_rounded),
+  sparkle(Icons.auto_awesome_outlined),
+  sparkleFill(Icons.auto_awesome_rounded),
+  refresh(Icons.refresh_rounded),
+  arrowRight(Icons.arrow_forward_rounded),
+  arrowLeft(Icons.arrow_back_rounded),
+  arrowUp(Icons.arrow_upward_rounded),
+  layers(Icons.layers_outlined),
+  parking(Icons.local_parking_rounded),
+  door(Icons.door_front_door_outlined),
+  whatsapp(Icons.chat_bubble_outline_rounded),
+  chat(Icons.chat_bubble_outline_rounded),
+  bucket(Icons.format_color_fill_rounded),
+  wipe(Icons.back_hand_outlined),
+  wind(Icons.air_rounded),
+  seat(Icons.event_seat_outlined),
+  power(Icons.power_settings_new_rounded),
+  list(Icons.format_list_bulleted_rounded),
+  translate(Icons.translate_rounded),
+  languages(Icons.g_translate_rounded),
+  bank(Icons.account_balance_outlined),
+  idCard(Icons.badge_outlined),
+  face(Icons.face_retouching_natural_outlined),
+  sun(Icons.wb_sunny_outlined),
+  battery(Icons.battery_2_bar_rounded),
+  eye(Icons.visibility_outlined),
+  ban(Icons.block_rounded),
+  stopwatch(Icons.timer_outlined),
+  flash(Icons.flash_on_outlined),
+  upload(Icons.ios_share_rounded),
+  scratch(Icons.gesture_rounded),
+  download(Icons.download_rounded),
+  building(Icons.apartment_rounded),
+  bird(Icons.flutter_dash),
+  figure(Icons.accessibility_new_rounded),
+  walk(Icons.directions_walk_rounded),
+  family(Icons.family_restroom_rounded),
+  tree(Icons.park_rounded),
+  cloud(Icons.cloud_rounded),
+  square(Icons.check_box_outline_blank_rounded),
+  squareCheck(Icons.check_box_rounded),
+  expand(Icons.open_in_full_rounded),
+  more(Icons.more_horiz_rounded),
+  skip(Icons.fast_forward_rounded),
+  swipe(Icons.swipe_left_outlined),
+  mail(Icons.mark_email_unread_outlined),
+  mailOpen(Icons.drafts_outlined);
+
+  const WIcon(this.data);
+  final IconData data;
+}
+
+/// An icon at a size and colour. [weight] makes the glyph slightly bolder for emphasis.
+class WIconView extends StatelessWidget {
+  const WIconView(this.icon, {super.key, this.size = 20, this.color = WColor.heading, this.weight = FontWeight.w400});
+  final WIcon icon;
+  final double size;
+  final Color color;
+  final FontWeight weight;
+
+  @override
+  Widget build(BuildContext context) => Icon(
+        icon.data,
+        size: size * 1.12,
+        color: color,
+        weight: weight.value.toDouble(),
+        shadows: weight.value >= 600 ? [Shadow(color: color, blurRadius: 0.3)] : null,
+        semanticLabel: null,
+      );
+}

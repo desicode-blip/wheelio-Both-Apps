@@ -7,6 +7,20 @@
       "runtimeArgs": ["dev"],
       "port": 3000,
       "url": "http://127.0.0.1:3000"
+    },
+    {
+      "name": "flutter-customer",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps/flutter/tool/serve.mjs", "apps/flutter/customer/build/web", "8081"],
+      "port": 8081,
+      "url": "http://127.0.0.1:8081"
+    },
+    {
+      "name": "flutter-captain",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps/flutter/tool/serve.mjs", "apps/flutter/captain/build/web", "8082"],
+      "port": 8082,
+      "url": "http://127.0.0.1:8082"
     }
   ]
 }

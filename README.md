@@ -13,7 +13,12 @@ Wheelio/
 │   │   ├── src/app/            # Landing page, layout, styles and metadata
 │   │   ├── src/components/     # Reusable website components
 │   │   └── public/             # Future static assets
-│   ├── ios/                    # Existing native SwiftUI apps
+│   ├── flutter/                # Active Customer and Captain apps (web first, then iOS, Android)
+│   │   ├── customer/           # Customer app
+│   │   ├── captain/            # Captain (washer) app
+│   │   ├── packages/wheelio_ui/ # Shared design system, navigation and phone frame
+│   │   └── tool/serve.mjs      # Local preview server for web builds
+│   ├── ios/                    # Native SwiftUI apps (reference for the Flutter port)
 │   │   ├── Wheelio.xcodeproj/  # Customer and Captain shared schemes
 │   │   ├── Customer/           # App, Data, Screens and Assets
 │   │   ├── Captain/            # App, Data, Screens and Assets
@@ -31,7 +36,7 @@ Wheelio/
 └── pnpm-lock.yaml              # Reproducible web dependencies
 ```
 
-The native iOS and future Android applications use their own platform tools; they are not JavaScript workspace packages. The earlier Flutter approach is archived under `legacy/` and is not part of active development. `Wheelio-designs/` is an additional design export retained from the original folder.
+The Flutter apps and the native iOS apps use their own tools; they are not JavaScript workspace packages. `legacy/` holds an older, unfinished Flutter customer app from before the iOS apps; the active Flutter code in `apps/flutter/` does not use it. `Wheelio-designs/` is an additional design export retained from the original folder.
 
 ## Website and web backend
 
@@ -65,9 +70,19 @@ pnpm start
 
 The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing Wheelio colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
 
-The web app also carries demo ports of both iOS apps, running on the same sample data: the Customer app at `/app` and the Captain app at `/captain` (not linked from the landing page, and marked noindex). On a laptop each app sits in a phone frame in the middle of the page; on a phone it fills the screen. Every screen, state and demo switch from the iOS Screens gallery is available through the "Screens" tab on the left edge. Demo login code: 123456. The code lives in `apps/web/src/phone/`.
+The web app also carries earlier React demo ports of both iOS apps, now superseded by the Flutter apps, running on the same sample data: the Customer app at `/app` and the Captain app at `/captain` (not linked from the landing page, and marked noindex). On a laptop each app sits in a phone frame in the middle of the page; on a phone it fills the screen. Every screen, state and demo switch from the iOS Screens gallery is available through the "Screens" tab on the left edge. Demo login code: 123456. The code lives in `apps/web/src/phone/`.
 
-## iOS apps / Xcode
+## Flutter apps (Customer and Captain)
+
+Both apps are now built in Flutter from one codebase in `apps/flutter/`. The web app is the first launch target, followed by iOS and then Android. They are screen-by-screen ports of the SwiftUI apps, running on the same sample data with the same Screens gallery. On a laptop, the phone screen sits in the middle of the window with grey on both sides; on a phone, it fills the screen. Swipes become visible buttons on the web. The decisions, structure and commands are in [docs/FLUTTER.md](docs/FLUTTER.md).
+
+```sh
+cd apps/flutter/captain
+flutter build web --release --pwa-strategy=none
+node ../tool/serve.mjs build/web 8082
+```
+
+## iOS apps / Xcode (reference)
 
 Open `apps/ios/Wheelio.xcodeproj` in Xcode. Choose the **Customer** or **Captain** scheme, select an iPhone simulator or your connected iPhone, and press Run. Captain is the washer app. Both schemes are shared and tracked so they are available in a fresh checkout.
 
@@ -92,6 +107,7 @@ xcodebuild -project apps/ios/Wheelio.xcodeproj -scheme Captain -sdk iphonesimula
 | `backend/API-CONTRACT.md` | Server actions needed by the apps |
 | `backend/whatsapp-templates.md` | Entry-pass bot messages for Meta approval |
 | `designs/` | 124 exported screens plus the design read-me |
+| `docs/FLUTTER.md` | Flutter app structure, the phone-frame and web-swipe decisions, and commands |
 | `docs/STATUS.md` | Current platform structure and historical build progress |
 | `docs/CONNECT-LATER.md` | Service integration checklist and historical Flutter notes |
 | `docs/BUILD-BRIEF.md` | Build plan, accounts and open business decisions |
