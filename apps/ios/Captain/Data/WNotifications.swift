@@ -12,6 +12,7 @@ enum WNotifCategory: String, CaseIterable, Hashable {
 
 enum WNotifKind: String, CaseIterable, Hashable {
     case newJob, jobTaken, ownerCancelled, gatePassReady, runningLate, slotEnded, noShowPenalty
+    case windowOpen, finishSoon
     case washApproved, problemReported, payoutSent, upiChanged
     case levelUp, probation, blocked, phoneChanged
 
@@ -31,6 +32,7 @@ enum WNotifKind: String, CaseIterable, Hashable {
         case .ownerCancelled: return .close
         case .gatePassReady: return .door
         case .runningLate: return .clock
+        case .windowOpen, .finishSoon: return .timer
         case .slotEnded: return .warning
         case .noShowPenalty: return .ban
         case .washApproved: return .check
@@ -47,7 +49,7 @@ enum WNotifKind: String, CaseIterable, Hashable {
     var tone: WTone {
         switch self {
         case .slotEnded, .noShowPenalty, .blocked, .phoneChanged: return .error
-        case .runningLate, .problemReported, .probation, .jobTaken: return .wait
+        case .runningLate, .finishSoon, .problemReported, .probation, .jobTaken: return .wait
         case .washApproved, .payoutSent, .levelUp, .gatePassReady: return .ok
         default: return .info
         }
@@ -90,6 +92,8 @@ extension CaptainStore {
         case .ownerCancelled: return t("Owner cancelled the job", "मालिक ने काम रद्द किया", "యజమాని పని రద్దు చేశారు")
         case .gatePassReady: return t("Gate pass is ready", "गेट पास तैयार है", "గేట్ పాస్ సిద్ధం")
         case .runningLate: return t("You’re late for \(n.plate)", "आप \(n.plate) के लिए लेट हैं", "\(n.plate) కి మీరు ఆలస్యం")
+        case .windowOpen: return t("Time to start: \(n.plate)", "शुरू करने का समय: \(n.plate)", "మొదలుపెట్టే సమయం: \(n.plate)")
+        case .finishSoon: return t("25 min left for \(n.plate)", "\(n.plate) के लिए 25 मिनट बचे", "\(n.plate) కి 25 నిమిషాలే ఉన్నాయి")
         case .slotEnded: return t("Slot is over. Update the job", "समय खत्म। काम अपडेट करें", "సమయం ముగిసింది. పని అప్‌డేట్ చేయండి")
         case .noShowPenalty: return t("Job cancelled: penalty applied", "काम रद्द: जुर्माना लगा", "పని రద్దు: జరిమానా విధించబడింది")
         case .washApproved: return t("Owner approved your wash", "मालिक ने धुलाई मंज़ूर की", "యజమాని మీ వాష్ ఆమోదించారు")
@@ -111,6 +115,8 @@ extension CaptainStore {
         case .ownerCancelled: return t("You get ₹[CANCELLATION FEE] for the trip.", "सफ़र के ₹[CANCELLATION FEE] मिलेंगे।", "ప్రయాణానికి ₹[CANCELLATION FEE] వస్తుంది.")
         case .gatePassReady: return t("Show it at the gate for \(n.plate).", "\(n.plate) के लिए गेट पर दिखाएं।", "\(n.plate) కోసం గేట్ వద్ద చూపించండి.")
         case .runningLate: return t("Reach now. −₹1 for every late minute.", "अभी पहुँचें। हर लेट मिनट पर −₹1।", "ఇప్పుడే చేరుకోండి. ప్రతి ఆలస్య నిమిషానికి −₹1.")
+        case .windowOpen: return t("Its time window has started. The timer is on.", "इसका समय शुरू हो गया है। टाइमर चालू है।", "దీని సమయం మొదలైంది. టైమర్ ఆన్‌లో ఉంది.")
+        case .finishSoon: return t("You haven’t started yet. Go now to finish on time.", "आपने अभी शुरू नहीं किया। समय पर पूरा करने के लिए अभी जाएं।", "మీరు ఇంకా మొదలుపెట్టలేదు. సమయానికి పూర్తి చేయడానికి ఇప్పుడే వెళ్ళండి.")
         case .slotEnded: return t("Tap I’m at the vehicle, or tell us in Help. Otherwise the job is cancelled.",
                                   "‘मैं गाड़ी के पास हूँ’ दबाएं या मदद में बताएं। नहीं तो काम रद्द होगा।",
                                   "‘నేను వాహనం దగ్గర ఉన్నాను’ నొక్కండి లేదా సహాయంలో చెప్పండి. లేదంటే పని రద్దవుతుంది.")
@@ -263,6 +269,16 @@ extension CaptainStore {
 /// Where a tapped notification goes, with the "moved on" / "gone" edge cases.
 @MainActor
 enum WNotifOpener {
+    /// Plan alerts: open that job (it becomes the current one if it wasn't).
+    static func openPlanJob(_ n: WNotif, store: CaptainStore, router: WRouter) -> String? {
+        guard let id = n.jobId, let j = store.queue.first(where: { $0.id == id }), j.status != .done else {
+            return store.t("This job has moved on.", "यह काम आगे बढ़ चुका है।", "ఈ పని ముందుకు వెళ్ళింది.")
+        }
+        if j.status == .next { store.startJob(id) }
+        router.push(.goToVehicle)
+        return nil
+    }
+
     static func open(_ n: WNotif, store: CaptainStore, router: WRouter) -> String? {
         store.markRead(n.id)
         withAnimation { store.liveBanner = nil }
@@ -277,6 +293,10 @@ enum WNotifOpener {
             return nil
         case .ownerCancelled:
             router.push(.ownerCancelled)
+        case .windowOpen, .finishSoon:
+            return openPlanJob(n, store: store, router: router)
+        case .runningLate where !isCurrent:
+            return openPlanJob(n, store: store, router: router)
         case .gatePassReady, .runningLate, .slotEnded:
             guard isCurrent, !store.noShowCancelled || n.kind == .gatePassReady else {
                 return store.t("This job has moved on.", "यह काम आगे बढ़ चुका है।", "ఈ పని ముందుకు వెళ్ళింది.")

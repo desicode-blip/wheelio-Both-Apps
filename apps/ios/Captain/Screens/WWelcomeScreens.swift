@@ -256,6 +256,12 @@ struct SignUpScreen: View {
                     .padding(.bottom, 16)
             }
             WPhoneField(number: $number, large: true, focusOnAppear: login, focusTrigger: focusNumber)
+                .onAppear {
+                    // Came back from the code screen to fix the number: open the number keypad.
+                    guard store.editPhoneRequested else { return }
+                    store.editPhoneRequested = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { focusNumber = false; DispatchQueue.main.async { focusNumber = true } }
+                }
             Text(store.t("We send a code by SMS.", "हम SMS से कोड भेजेंगे।", "మేము SMS ద్వారా కోడ్ పంపుతాము.")).wText(.caption).padding(.top, 12)
         } footer: {
             WFooter {

@@ -8,13 +8,17 @@ struct BookingHeader: View {
     let label: String
     var title = "Book a wash"
     var fraction: Double? = nil
+    var showBack = true
+    var showProgress = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            WAppBar(title: title, onLeading: { router.pop() }, onTrailing: { router.push(.help) })
+            WAppBar(title: title, leading: showBack ? .left : nil, onLeading: { router.pop() }, onTrailing: { router.push(.help) })
                 .padding(.horizontal, 14)
-            WProgress(step: Int(((fraction ?? Double(step) / Double(total)) * 100).rounded()), of: 100, label: "Step \(step) of \(total) · \(label)")
-                .padding(.horizontal, WSpace.gutter)
+            if showProgress {
+                WProgress(step: Int(((fraction ?? Double(step) / Double(total)) * 100).rounded()), of: 100, label: "Step \(step) of \(total) · \(label)")
+                    .padding(.horizontal, WSpace.gutter)
+            }
         }
         .padding(.top, 4)
     }
@@ -26,10 +30,12 @@ struct VehicleTypeScreen: View {
     @Environment(AppStore.self) var store
     @Environment(Router.self) var router
     var largeText = false
+    /// Shown in place of the hidden first-time Home (no back button there).
+    var asRoot = false
 
     var body: some View {
         WScreen {
-            BookingHeader(step: 1, label: "Vehicle", fraction: 0.2)
+            BookingHeader(step: 1, label: "Vehicle", fraction: 0.2, showBack: !asRoot, showProgress: DesignFlags.firstStepProgress)
         } content: {
             WTitleBlock(title: "What are we washing?", subtitle: largeText ? nil : "Pick your vehicle. You choose the wash next.")
             VStack(spacing: 12) {
@@ -252,16 +258,28 @@ struct PhotosScreen: View {
                 .background(WColor.canvas, in: Capsule())
                 .padding(.top, 20)
             } else if !d.hasFailedPhoto {
+                // Optional extra: same look as the photo slots, plus an "Optional" tab on its edge.
                 Button { store.draft.videoSeconds = 14 } label: {
                     HStack(spacing: 10) {
                         WIconView(icon: .video, size: 17, color: WColor.primaryStrong)
-                        Text("Walk-around video · optional, 15 sec").wText(.bodyStrong, color: WColor.primaryStrong, weight: .medium)
+                        Text("Walk-around video (15 sec)").wText(.bodyStrong, color: WColor.primaryStrong, weight: .medium)
                     }
                     .frame(maxWidth: .infinity).frame(height: 62)
                     .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(WColor.dashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .overlay(alignment: .topLeading) {
+                        Text("OPTIONAL")
+                            .font(WFont.of(.small, weight: .semibold, size: 10.5)).tracking(0.8)
+                            .foregroundStyle(WColor.secondary)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(WColor.canvas, in: Capsule())
+                            .overlay(Capsule().strokeBorder(WColor.border))
+                            .offset(x: 14, y: -10)
+                    }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 20)
+                .accessibilityLabel("Optional: walk-around video, 15 seconds")
+                .padding(.top, 30)
             }
         } footer: {
             WFooterBar(showCall: false) {
@@ -572,65 +590,160 @@ struct FloorSlotScreen: View {
 
 // MARK: C11 Notes for the captain
 
+/// Video or voice note (one of the two, same priority), and a text message that can go
+/// along with either. Nothing is recorded by default.
 struct EntryNotesScreen: View {
     @Environment(AppStore.self) var store
     @Environment(Router.self) var router
     @State var text = ""
     @State var voice: Int? = nil
+    @State var video: Int? = nil
     @State var playing = false
+    @State var recording: String? = nil
+
+    private var hasRecording: Bool { voice != nil || video != nil }
 
     var body: some View {
         WScreen {
             BookingHeader(step: 3, label: "Place", fraction: 0.8)
         } content: {
-            WTitleBlock(title: "Anything the captain should know?", subtitle: "Optional. Gate, lift, landmarks.")
-            WTextArea(text: $text, placeholder: "Example: use the B2 ramp near the gym, white car next to the pillar")
-            Text("Or record it").wText(.label).padding(.top, 22).padding(.bottom, 8)
-            HStack(spacing: 12) {
-                recordButton(.mic, "Voice note") { voice = 12 }
-                recordButton(.video, "Video") { store.draft.note.videoSeconds = 10 }
-            }
-            if let v = voice {
-                HStack(spacing: 12) {
-                    Button { playing.toggle() } label: {
-                        WIconView(icon: playing ? .pause : .play, size: 15, color: WColor.primaryStrong)
-                            .frame(width: 40, height: 40).background(WColor.primaryTint, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    Capsule().fill(WColor.border).frame(height: 3)
-                    Text(Fmt.clock(v)).wText(.caption).wMoney()
-                    Button { voice = nil } label: { WIconView(icon: .trash, size: 17, color: WColor.destructive) }
-                        .buttonStyle(.plain).accessibilityLabel("Delete voice note")
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Additional message").wText(.screen)
+                    Text("(Optional)*").wText(.body, color: WColor.secondary, size: 15)
                 }
-                .padding(.horizontal, 14).frame(height: 62)
-                .background(WColor.canvas, in: RoundedRectangle(cornerRadius: 16))
-                .padding(.top, 20)
+                Text("Like gate, lift, landmark or parking spot.")
+                    .wText(.body).lineLimit(1).minimumScaleFactor(0.85)
             }
+            .padding(.top, 20).padding(.bottom, 20)
+
+            if let v = video {
+                recordedVideo(v)
+            } else if let v = voice {
+                recordedVoice(v)
+            } else {
+                // 1 · Video  2 · Voice note: same weight, pick one.
+                HStack(spacing: 12) {
+                    recordTile(.video, "Record video", busy: recording == "video") { record("video") }
+                    recordTile(.mic, "Record voice note", busy: recording == "voice") { record("voice") }
+                }
+            }
+            if hasRecording {
+                Text("One recording per booking. Delete it to record again.")
+                    .wText(.small, color: WColor.muted).padding(.top, 8)
+            }
+
+            // 3 · Text: goes along with either recording.
+            HStack(spacing: 8) {
+                Text(hasRecording ? "Add a text message too" : "Or write a message").wText(.label)
+                Spacer()
+            }
+            .padding(.top, 26).padding(.bottom, 8)
+            WTextArea(text: $text, placeholder: "Example: use the B2 ramp near the gym, white car next to the pillar", height: 96)
         } footer: {
             WFooterBar(showCall: false) {
                 WButton("Next") {
                     store.draft.note.text = text
                     store.draft.note.voiceSeconds = voice
+                    store.draft.note.videoSeconds = video
                     router.push(.timeSlot)
                 }
             }
         }
         .onAppear {
             text = store.draft.note.text
-            voice = store.draft.note.voiceSeconds ?? 12
+            voice = store.draft.note.voiceSeconds
+            video = store.draft.note.videoSeconds
         }
     }
 
-    private func recordButton(_ icon: WIcon, _ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                WIconView(icon: icon, size: 16, color: WColor.heading)
-                Text(title).wText(.bodyStrong, color: WColor.heading, weight: .medium)
+    /// Demo: a short "recording" then the clip appears. BACKEND: real camera / mic capture.
+    private func record(_ kind: String) {
+        guard recording == nil else { return }
+        withAnimation { recording = kind }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation {
+                if kind == "video" { video = 15; voice = nil } else { voice = 12; video = nil }
+                recording = nil
             }
-            .frame(maxWidth: .infinity).frame(height: 48)
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(WColor.border))
+        }
+    }
+
+    private func recordTile(_ icon: WIcon, _ title: String, busy: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(busy ? WColor.destructive : WColor.primaryTint).frame(width: 56, height: 56)
+                    if busy {
+                        RoundedRectangle(cornerRadius: 4).fill(.white).frame(width: 18, height: 18)
+                    } else {
+                        WIconView(icon: icon, size: 22, color: WColor.primaryStrong)
+                    }
+                }
+                Text(busy ? "Recording…" : title).wText(.bodyStrong, color: busy ? WColor.destructive : WColor.primaryStrong, weight: .medium)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity).frame(height: 132)
+            .background(.white, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(busy ? WColor.destructive : WColor.border, lineWidth: busy ? 2 : 1))
         }
         .buttonStyle(WPressStyle())
+        .disabled(recording != nil && !busy)
+    }
+
+    private func recordedVideo(_ secs: Int) -> some View {
+        HStack(spacing: 14) {
+            Button { playing.toggle() } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12).fill(LinearGradient(colors: [Color(hex: 0x2A3445), Color(hex: 0x4A5568)], startPoint: .top, endPoint: .bottom))
+                    Image(systemName: "car.side.fill").font(.system(size: 26)).foregroundStyle(.white.opacity(0.35))
+                    Image(systemName: playing ? "pause.fill" : "play.fill").font(.system(size: 18)).foregroundStyle(.white)
+                        .frame(width: 38, height: 38).background(.white.opacity(0.22), in: Circle())
+                }
+                .frame(width: 96, height: 72)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(playing ? "Pause video" : "Play video")
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    WIconView(icon: .video, size: 14, color: WColor.primaryStrong)
+                    Text("Video message").wText(.bodyStrong)
+                }
+                Text(Fmt.clock(secs)).wText(.caption).wMoney()
+            }
+            Spacer()
+            deleteButton { video = nil; playing = false }
+        }
+        .padding(12)
+        .background(WColor.canvas, in: RoundedRectangle(cornerRadius: 16))
+        .transition(.opacity)
+    }
+
+    private func recordedVoice(_ secs: Int) -> some View {
+        HStack(spacing: 12) {
+            Button { playing.toggle() } label: {
+                WIconView(icon: playing ? .pause : .play, size: 15, color: WColor.primaryStrong)
+                    .frame(width: 40, height: 40).background(WColor.primaryTint, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(playing ? "Pause voice note" : "Play voice note")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Voice note").wText(.small, color: WColor.secondary)
+                Capsule().fill(WColor.border).frame(height: 3)
+            }
+            Text(Fmt.clock(secs)).wText(.caption).wMoney()
+            deleteButton { voice = nil; playing = false }
+        }
+        .padding(.horizontal, 14).frame(height: 68)
+        .background(WColor.canvas, in: RoundedRectangle(cornerRadius: 16))
+        .transition(.opacity)
+    }
+
+    private func deleteButton(_ action: @escaping () -> Void) -> some View {
+        Button { withAnimation { action() } } label: {
+            WIconView(icon: .trash, size: 17, color: WColor.destructive).frame(width: 44, height: 44)
+        }
+        .buttonStyle(.plain).accessibilityLabel("Delete recording")
     }
 }
 

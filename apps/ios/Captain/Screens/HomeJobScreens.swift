@@ -343,28 +343,104 @@ struct DayPlan: View {
     }
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { _ in content(now: store.planNow) }
+            .task { while !Task.isCancelled { checkAlerts(); try? await Task.sleep(nanoseconds: 1_000_000_000) } }
+            .sheet(item: $doneDetail) { j in DoneJobSheet(job: j) }
+    }
+
+    static let clockFmt: DateFormatter = { let f = DateFormatter(); f.dateFormat = "h:mm a"; return f }()
+
+    func content(now: Date) -> some View {
         let done = store.queue.filter { $0.status == .done }.count
-        VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(store.t("Today’s plan", "आज का प्लान", "ఈరోజు ప్లాన్")).wText(.section, weight: .semibold, size: 21)
-                    Text(Fmt.day(Date()) + " · " + store.t("\(done) of \(store.queue.count) done", "\(store.queue.count) में से \(done) पूरे", "\(store.queue.count) లో \(done) పూర్తి"))
-                        .wText(.caption)
+                    Text(Self.clockFmt.string(from: now) + " · " + store.t("\(done) of \(store.queue.count) done", "\(store.queue.count) में से \(done) पूरे", "\(store.queue.count) లో \(done) పూర్తి"))
+                        .wText(.caption).monospacedDigit()
                 }
                 Spacer()
+                if TestFlags.planClock {
+                    // TEST ONLY: jump the plan clock ahead to see the timer states.
+                    Button { store.planSkip += 5 * 60 } label: {
+                        Text("TEST +5 min").wText(.small, color: WColor.destructive, weight: .semibold)
+                            .padding(.horizontal, 8).frame(height: 26)
+                            .overlay(Capsule().strokeBorder(WColor.destructive.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                    }
+                    .buttonStyle(.plain)
+                }
                 WIconView(icon: .calendar, size: 18, color: WColor.primaryStrong)
                     .frame(width: 36, height: 36).background(WColor.primaryTint, in: Circle())
             }
             VStack(spacing: 0) {
                 ForEach(Array(jobs.enumerated()), id: \.element.id) { i, j in
-                    row(j, last: i == jobs.count - 1)
+                    row(j, last: i == jobs.count - 1, now: now)
                 }
             }
         }
-        .sheet(item: $doneDetail) { j in DoneJobSheet(job: j) }
     }
 
-    func row(_ j: Job, last: Bool) -> some View {
+    // MARK: Time window
+
+    /// Start and end of a job's window ("8–10", "9:30–11:30") on the plan's day.
+    static func window(_ j: Job, day: Date) -> (start: Date, end: Date)? {
+        let parts = j.window.components(separatedBy: "–")
+        guard parts.count == 2 else { return nil }
+        let d0 = Calendar.current.startOfDay(for: day)
+        return (d0.addingTimeInterval(Double(minutes(parts[0]) * 60)), d0.addingTimeInterval(Double(minutes(parts[1]) * 60)))
+    }
+
+    enum Phase: Equatable {
+        case none                       // done, or the window hasn't opened yet
+        case open(left: Int, frac: Double)   // inside the window, more than 30 min left
+        case soon(left: Int, frac: Double)   // 30 min or less left
+        case late(over: Int)            // window is over, job not done
+        var level: Int {
+            switch self {
+            case .none: return 0
+            case .open: return 1
+            case .soon: return 2
+            case .late: return 3
+            }
+        }
+    }
+
+    func phase(_ j: Job, now: Date) -> Phase {
+        guard j.status != .done, let w = Self.window(j, day: now), now >= w.start else { return .none }
+        let left = Int(w.end.timeIntervalSince(now).rounded(.up))
+        let frac = min(1, max(0, now.timeIntervalSince(w.start) / w.end.timeIntervalSince(w.start)))
+        if left <= 0 { return .late(over: -left) }
+        return left <= 30 * 60 ? .soon(left: left, frac: frac) : .open(left: left, frac: frac)
+    }
+
+    /// The captain has reached the vehicle and started this job.
+    func started(_ j: Job) -> Bool { j.status == .now && store.ownerNoteHeard }
+
+    /// Window opened → "time to start"; 25 min left and not started → reminder; window over → late.
+    func checkAlerts() {
+        let now = store.planNow
+        for j in store.queue where j.status != .done {
+            guard let w = Self.window(j, day: now), now >= w.start else { continue }
+            let left = w.end.timeIntervalSince(now)
+            if !store.planAlerts.contains("open-\(j.id)") {
+                store.planAlerts.insert("open-\(j.id)")
+                // Only announce a window that opened just now (not ones already running at launch).
+                if now.timeIntervalSince(w.start) < 120 && !started(j) { store.notify(.windowOpen, job: j) }
+            }
+            if left <= 0 {
+                if !store.planAlerts.contains("late-\(j.id)") {
+                    store.planAlerts.insert("late-\(j.id)")
+                    if !started(j) { store.notify(.runningLate, job: j) }
+                }
+            } else if left <= 25 * 60, !store.planAlerts.contains("soon-\(j.id)") {
+                store.planAlerts.insert("soon-\(j.id)")
+                if !started(j) { store.notify(.finishSoon, job: j) }
+            }
+        }
+    }
+
+    func row(_ j: Job, last: Bool, now: Date) -> some View {
+        let ph = phase(j, now: now)
         let m = Self.minutes(j.time)
         let h = m / 60, mm = m % 60
         let clock = "\(h % 12 == 0 ? 12 : h % 12):\(String(format: "%02d", mm))"
@@ -376,14 +452,15 @@ struct DayPlan: View {
             .frame(width: 46, alignment: .trailing)
             .padding(.top, 12)
             VStack(spacing: 0) {
-                dot(j.status).padding(.top, 12)
+                dot(j.status).overlay { if ph.level >= 2 { AlertRing(color: ph.level == 3 ? WColor.destructive : Self.amber) } }
+                    .padding(.top, 12)
                 if !last {
                     Rectangle().fill(j.status == .done ? WColor.success : WColor.border)
                         .frame(width: 3).frame(maxHeight: .infinity)
                 }
             }
             .frame(width: 26)
-            card(j).padding(.bottom, last ? 0 : 10)
+            card(j, ph).padding(.bottom, last ? 0 : 10)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -403,8 +480,12 @@ struct DayPlan: View {
     }
 
     /// Compact card: society + pay on top, then vehicle, plate and spot. Whole card is tappable.
-    func card(_ j: Job) -> some View {
+    static let amber = Color(hex: 0xE8890C)
+
+    func card(_ j: Job, _ ph: Phase) -> some View {
         let now = j.status == .now, done = j.status == .done
+        let edge: Color = ph.level == 3 ? WColor.destructive : (ph.level == 2 ? Self.amber : (now ? WColor.primary : WColor.border))
+        let fill: Color = ph.level == 3 ? WColor.errorTint : (ph.level == 2 ? WColor.waitTint : (now ? WColor.primaryTint : (done ? WColor.canvas : .white)))
         return Button { open(j) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -428,15 +509,33 @@ struct DayPlan: View {
                         WIconView(icon: .chevron, size: 11, color: now ? WColor.primaryStrong : WColor.muted)
                     }
                 }
+                // Timer appears as soon as the job's time window starts.
+                if ph != .none {
+                    WindowTimerRow(phase: ph, started: started(j), windowEnd: Self.window(j, day: store.planNow).map { Self.clockFmt.string(from: $0.end) } ?? "")
+                        .padding(.top, 4)
+                        .transition(.asymmetric(insertion: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 0.9, anchor: .topLeading)),
+                                                removal: .opacity))
+                }
             }
             .padding(.horizontal, 12).padding(.vertical, 11)
-            .background(now ? WColor.primaryTint : (done ? WColor.canvas : .white), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(now ? WColor.primary : WColor.border, lineWidth: now ? 2 : 1))
+            .background(fill, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(edge, lineWidth: now || ph.level >= 2 ? 2 : 1))
+            .animation(.spring(duration: 0.5, bounce: 0.3), value: ph.level)
+            // A short shake when it turns urgent (30 min left, 25 min reminder, late).
+            .phaseAnimator([0.0, -7, 7, -5, 5, -2, 0], trigger: shakeKey(j, ph)) { v, x in v.offset(x: x) } animation: { _ in .linear(duration: 0.06) }
             .opacity(done ? 0.8 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 14))
         }
         .buttonStyle(WPressStyle())
         .accessibilityHint(done ? "Shows a summary" : "Opens the job")
+    }
+
+    func shakeKey(_ j: Job, _ ph: Phase) -> Int {
+        switch ph {
+        case .soon(let l, _): return l <= 25 * 60 && !started(j) ? 3 : 2
+        case .late: return 4
+        default: return ph.level
+        }
     }
 
     func open(_ j: Job) {
@@ -448,6 +547,105 @@ struct DayPlan: View {
             store.startJob(j.id)
             router.push(.goToVehicle)
         }
+    }
+}
+
+/// Live countdown inside a plan card: blue while there's time, amber at 30 min left
+/// (gently breathing), red and counting up once late. A thin bar shows how much of the window is used.
+struct WindowTimerRow: View {
+    @Environment(CaptainStore.self) var store
+    let phase: DayPlan.Phase
+    let started: Bool
+    let windowEnd: String
+    @State private var breathe = false
+
+    var tint: Color {
+        switch phase {
+        case .late: return WColor.destructive
+        case .soon: return DayPlan.amber
+        default: return WColor.primaryStrong
+        }
+    }
+    var urgent: Bool { phase.level >= 2 }
+
+    static func mmss(_ s: Int) -> String {
+        s >= 3600 ? "\(s / 3600)h \(String(format: "%02d", (s % 3600) / 60))m" : String(format: "%02d:%02d", s / 60, s % 60)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                HStack(spacing: 5) {
+                    Circle().fill(tint).frame(width: 6, height: 6)
+                        .opacity(breathe ? 0.25 : 1)
+                    WIconView(icon: .timer, size: 12, color: tint, weight: .semibold)
+                    Text(label).font(WFont.of(.label, weight: .bold, size: 13)).foregroundStyle(tint)
+                        .monospacedDigit()
+                        .contentTransition(.numericText(countsDown: phase.level < 3))
+                }
+                .padding(.horizontal, 9).frame(height: 26)
+                .background(tint.opacity(0.12), in: Capsule())
+                .overlay(Capsule().strokeBorder(tint.opacity(urgent ? 0.6 : 0.25), lineWidth: 1))
+                .scaleEffect(urgent && breathe ? 1.05 : 1, anchor: .leading)
+                Spacer(minLength: 4)
+                Text(note).wText(.small, color: urgent ? tint : WColor.secondary, weight: urgent ? .semibold : .regular)
+                    .lineLimit(1).minimumScaleFactor(0.85)
+            }
+            if case .late = phase {} else {
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(tint.opacity(0.15))
+                        Capsule().fill(tint).frame(width: g.size.width * frac)
+                    }
+                }
+                .frame(height: 4)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: phase)
+        .onAppear { withAnimation(.easeInOut(duration: urgent ? 0.7 : 1.2).repeatForever(autoreverses: true)) { breathe = true } }
+        .accessibilityElement(children: .combine)
+    }
+
+    var frac: Double {
+        switch phase {
+        case .open(_, let f), .soon(_, let f): return f
+        default: return 1
+        }
+    }
+
+    var label: String {
+        switch phase {
+        case .open(let l, _), .soon(let l, _): return Self.mmss(l) + " " + store.t("left", "बाकी", "మిగిలింది")
+        case .late(let o): return store.t("Late", "लेट", "ఆలస్యం") + " " + Self.mmss(o)
+        case .none: return ""
+        }
+    }
+
+    var note: String {
+        switch phase {
+        case .open:
+            return started ? store.t("In progress", "चल रहा है", "జరుగుతోంది") : store.t("Finish by \(windowEnd)", "\(windowEnd) तक पूरा करें", "\(windowEnd) లోపు పూర్తి చేయండి")
+        case .soon(let l, _):
+            if started { return store.t("Finish soon", "जल्दी पूरा करें", "త్వరగా పూర్తి చేయండి") }
+            return l <= 25 * 60 ? store.t("Not started! Go now", "शुरू नहीं किया! अभी जाएं", "మొదలుపెట్టలేదు! ఇప్పుడే వెళ్ళండి")
+                                : store.t("Hurry up", "जल्दी करें", "త్వరపడండి")
+        case .late: return store.t("−₹1 every late minute", "हर लेट मिनट −₹1", "ప్రతి ఆలస్య నిమిషం −₹1")
+        case .none: return ""
+        }
+    }
+}
+
+/// Ripple around a timeline dot when a job is running out of time.
+struct AlertRing: View {
+    let color: Color
+    @State private var go = false
+    var body: some View {
+        Circle().strokeBorder(color, lineWidth: 2)
+            .frame(width: 24, height: 24)
+            .scaleEffect(go ? 1.9 : 1)
+            .opacity(go ? 0 : 0.8)
+            .onAppear { withAnimation(.easeOut(duration: 1.3).repeatForever(autoreverses: false)) { go = true } }
+            .allowsHitTesting(false)
     }
 }
 
@@ -523,16 +721,19 @@ struct SearchPulseW: View {
 
 // MARK: W22 New job alert: a stack of offers (W22b batched, W22h Hindi, W22t Telugu, W22m many)
 
-/// Every job that rings gets its own 30-second timer. New jobs arriving while the alert is open
-/// slide in behind the top card (with a sound and a buzz). Reject (or swipe left) sends the top
-/// card to the back of the stack; Accept adds it to today's jobs on Home and shows the next one.
-/// When a timer runs out, that job goes to someone else.
+/// Every job that rings gets its own 60-second timer, shown inside its card. New jobs arriving
+/// while the alert is open slide in behind the top card (with a sound and a buzz). Reject (or a
+/// swipe either way) slides the top card behind the stack; Accept adds it to today's jobs on Home.
+/// When a timer runs out the card stays, greyed out with an "Opportunity missed" band, for
+/// 30 more seconds, then leaves the stack.
 struct JobAlertScreen: View {
     @Environment(CaptainStore.self) var store
     @Environment(WRouter.self) var router
     var batched = false
 
-    static let seconds: Double = 30
+    static let seconds: Double = 60
+    /// How long a missed card stays in the stack before it disappears.
+    static let missedLinger: Double = 30
 
     struct Offer: Identifiable, Equatable {
         let job: Job
@@ -549,15 +750,15 @@ struct JobAlertScreen: View {
     @State private var handled = false
     @State private var acceptedHere = 0
     @State private var flyRight = false
+    @State private var missedSeen: Set<String> = []
 
     private func left(_ o: Offer) -> Double { max(0, Self.seconds - now.timeIntervalSince(o.arrived)) }
+    private func isMissed(_ o: Offer) -> Bool { left(o) <= 0 }
+    private var topMissed: Bool { offers.first.map(isMissed) ?? false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-            if let top = offers.first {
-                progress(left(top) / Self.seconds).padding(.top, 12).padding(.bottom, 16)
-            }
+            header.padding(.bottom, 22)
             ZStack(alignment: .top) {
                 ForEach(Array(offers.enumerated()).reversed(), id: \.element.id) { i, o in
                     if i < 3 { card(o, index: i) }
@@ -575,7 +776,7 @@ struct JobAlertScreen: View {
             if offers.count > 1 {
                 HStack(spacing: 6) {
                     Image(systemName: "hand.draw").font(.system(size: 14))
-                    Text(store.t("Swipe left to see the next job", "अगला काम देखने के लिए बाएँ स्वाइप करें", "తదుపరి పని చూడటానికి ఎడమకు స్వైప్ చేయండి"))
+                    Text(store.t("Swipe to see the next job", "अगला काम देखने के लिए स्वाइप करें", "తదుపరి పని చూడటానికి స్వైప్ చేయండి"))
                         .wText(.caption, color: .white.opacity(0.9))
                 }
                 .foregroundStyle(.white.opacity(0.9))
@@ -610,7 +811,8 @@ struct JobAlertScreen: View {
                 WButton(store.t("Accept", "स्वीकार करें", "అంగీకరించండి"), icon: .check, kind: .success, size: .accept) {
                     if let top = offers.first { accept(top) }
                 }
-                .disabled(offers.isEmpty)
+                .disabled(offers.isEmpty || topMissed)
+                .opacity(topMissed ? 0.45 : 1)
             }
             .padding(.bottom, 12)
         }
@@ -636,30 +838,56 @@ struct JobAlertScreen: View {
                     .background(.white, in: Capsule())
                     .contentTransition(.numericText())
             }
-            Spacer()
-            if let top = offers.first {
-                Text("0:\(String(format: "%02d", Int(left(top).rounded(.up))))")
-                    .wText(.screen, color: .white, size: 23).wMoney()
-                    .contentTransition(.numericText())
+            Spacer(minLength: 6)
+            // Small "Go offline": stops new jobs and closes the alert.
+            Button { goOffline() } label: {
+                HStack(spacing: 5) {
+                    WIconView(icon: .power, size: 13, color: .white, weight: .semibold)
+                    Text(store.t("Go offline", "ऑफ़लाइन", "ఆఫ్‌లైన్")).wText(.label, color: .white).lineLimit(1)
+                }
+                .padding(.horizontal, 12).frame(height: 34)
+                .background(.white.opacity(0.16), in: Capsule())
+                .overlay(Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1))
+                .contentShape(Capsule())
+                .fixedSize()
             }
+            .buttonStyle(.plain)
         }
         .padding(.top, 14)
     }
 
-    func progress(_ f: Double) -> some View {
-        GeometryReader { g in
-            ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.35))
-                Capsule().fill(f < 0.25 ? Color(hex: 0xFFD27A) : .white).frame(width: g.size.width * f)
+    /// Time to decide, inside the card.
+    func timeBar(_ o: Offer) -> some View {
+        let l = left(o)
+        let f = l / Self.seconds
+        let low = f < 0.25
+        let tint = low ? Color(hex: 0xE8890C) : WColor.primaryStrong
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                WIconView(icon: .timer, size: 14, color: tint, weight: .semibold)
+                Text(store.t("Decide in", "फ़ैसला करें", "నిర్ణయించండి")).wText(.caption, color: WColor.secondary)
+                Spacer()
+                Text("\(Int(l.rounded(.up)) / 60):\(String(format: "%02d", Int(l.rounded(.up)) % 60))")
+                    .wText(.title, color: tint, size: 17).wMoney()
+                    .contentTransition(.numericText())
             }
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(WColor.primaryTint)
+                    Capsule().fill(tint).frame(width: g.size.width * f)
+                }
+            }
+            .frame(height: 6)
         }
-        .frame(height: 8)
+        .padding(.horizontal, 2).padding(.bottom, 4)
     }
 
     @ViewBuilder func card(_ o: Offer, index i: Int) -> some View {
         let j = o.job
         let isTop = i == 0
+        let missed = isMissed(o)
         VStack(alignment: .leading, spacing: 14) {
+            timeBar(o)
             HStack(spacing: 16) {
                 WIconBox(icon: j.isBike ? .bike : .car, size: 72, radius: 16, iconSize: 32)
                 VStack(alignment: .leading, spacing: 0) {
@@ -667,9 +895,6 @@ struct JobAlertScreen: View {
                     Text(Fmt.rupees(j.pay)).wText(.bigMoney).wMoney()
                 }
                 Spacer(minLength: 0)
-                if !isTop {
-                    Text("0:\(String(format: "%02d", Int(left(o).rounded(.up))))").wText(.label, color: WColor.secondary).wMoney()
-                }
             }
             HStack(spacing: 8) {
                 fact(.location, j.distance, store.t("away", "दूर", "దూరం"))
@@ -704,31 +929,26 @@ struct JobAlertScreen: View {
             }
         }
         .padding(18)
+        // Missed: greyed out, still in the stack for a while.
+        .grayscale(missed ? 1 : 0)
+        .opacity(missed ? 0.55 : 1)
         .background(.white, in: RoundedRectangle(cornerRadius: 22))
+        .overlay { if missed { MissedBand(text: store.t("Opportunity missed", "मौका चूक गया", "అవకాశం తప్పింది")) } }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
         .shadow(color: .black.opacity(isTop ? 0.12 : 0.06), radius: 12, y: 4)
         // Cards behind peek out below the top one.
         .scaleEffect(1 - CGFloat(i) * 0.05, anchor: .bottom)
         .offset(y: CGFloat(i) * 14)
         .opacity(i == 0 ? 1 : (i == 1 ? 0.85 : 0.6))
+        // Swipe either way: the card slides sideways like a carousel, then tucks behind the stack.
         .offset(x: isTop ? drag : 0)
-        .rotationEffect(.degrees(isTop ? Double(drag / 22) : 0), anchor: .bottom)
-        .overlay(alignment: .topTrailing) {
-            if isTop && drag < -30 {
-                Text(store.t("LATER", "बाद में", "తర్వాత")).wText(.label, color: WColor.destructive, weight: .bold)
-                    .padding(.horizontal, 12).frame(height: 30)
-                    .overlay(Capsule().strokeBorder(WColor.destructive, lineWidth: 2))
-                    .rotationEffect(.degrees(12))
-                    .padding(18)
-                    .opacity(min(1, Double(-drag - 30) / 60))
-            }
-        }
         .gesture(DragGesture(minimumDistance: 12)
-            .onChanged { v in if isTop { drag = min(40, v.translation.width) } }
+            .onChanged { v in if isTop && offers.count > 1 { drag = v.translation.width } }
             .onEnded { v in
                 guard isTop else { return }
-                if v.translation.width < -110 || v.predictedEndTranslation.width < -220 {
-                    withAnimation(.easeIn(duration: 0.22)) { drag = -600 }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) { drag = 0; reject() }
+                let w = v.translation.width, p = v.predictedEndTranslation.width
+                if abs(w) > 90 || abs(p) > 200 {
+                    sendBack(direction: (w + p) < 0 ? -1 : 1)
                 } else {
                     withAnimation(.spring(duration: 0.3)) { drag = 0 }
                 }
@@ -778,8 +998,13 @@ struct JobAlertScreen: View {
                 nextArrival += 1
                 if let j = pool.next() { arrive(j) }
             }
-            // Jobs whose 30 seconds ran out go to someone else.
-            for o in offers where left(o) <= 0 { remove(o, skipped: false) }
+            // Time over: the job goes to someone else. The card stays greyed for 30 s, then leaves.
+            for o in offers where isMissed(o) && !missedSeen.contains(o.id) {
+                missedSeen.insert(o.id)
+                store.notify(.jobTaken, job: o.job, deliver: false)
+                UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            }
+            for o in offers where now.timeIntervalSince(o.arrived) >= Self.seconds + Self.missedLinger { remove(o, skipped: true) }
         }
     }
 
@@ -796,8 +1021,28 @@ struct JobAlertScreen: View {
     func reject() {
         guard !handled, !offers.isEmpty else { return }
         guard offers.count > 1 else { leave(); return }
+        sendBack(direction: -1)
+    }
+
+    /// Carousel move: slide the top card out sideways, then let it settle in behind the others.
+    func sendBack(direction: CGFloat) {
+        guard offers.count > 1 else { withAnimation(.spring(duration: 0.3)) { drag = 0 }; return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        withAnimation(.spring(duration: 0.4)) { offers.append(offers.removeFirst()) }
+        withAnimation(.easeOut(duration: 0.2)) { drag = direction * 340 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(.spring(duration: 0.45, bounce: 0.15)) {
+                offers.append(offers.removeFirst())
+                drag = 0
+            }
+        }
+    }
+
+    func goOffline() {
+        guard !handled else { return }
+        handled = true
+        store.online = false
+        store.toast = store.t("You're offline. No new jobs.", "आप ऑफ़लाइन हैं। नए काम नहीं आएंगे।", "మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. కొత్త పనులు రావు.")
+        router.home()
     }
 
     func leave() {
@@ -809,10 +1054,9 @@ struct JobAlertScreen: View {
     func remove(_ o: Offer, skipped: Bool) {
         guard !handled, offers.contains(o) else { return }
         offers.removeAll { $0 == o }
-        if !skipped { store.notify(.jobTaken, job: o.job, deliver: false) }
         guard offers.isEmpty else { return }
         handled = true
-        if acceptedHere > 0 || skipped { router.home() } else { router.replace([.jobMissed]) }
+        if acceptedHere > 0 { router.home() } else { router.replace([.jobMissed]) }
     }
 
     /// Accept: the job moves to Home (today's jobs) and the next offer shows.
@@ -838,6 +1082,25 @@ struct JobAlertScreen: View {
             store.toast = store.t("Added to your jobs", "आपके कामों में जोड़ा गया", "మీ పనుల్లో చేర్చబడింది")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { router.home() }
         }
+    }
+}
+
+/// Diagonal "Opportunity missed" band across a timed-out job card.
+struct MissedBand: View {
+    let text: String
+    var body: some View {
+        GeometryReader { g in
+            Text(text.uppercased())
+                .wText(.label, color: .white, weight: .bold)
+                .tracking(1.2)
+                .frame(width: hypot(g.size.width, g.size.height) + 40, height: 44)
+                .background(WColor.destructive.opacity(0.92))
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+                .rotationEffect(.radians(-atan2(g.size.height, g.size.width)))
+                .position(x: g.size.width / 2, y: g.size.height / 2)
+        }
+        .allowsHitTesting(false)
+        .accessibilityLabel(text)
     }
 }
 

@@ -5,7 +5,11 @@ import UIKit
 
 /// Testing only: skip the videos, quiz and the rest of onboarding, straight to "You're in".
 /// Turn off by setting `TestFlags.onboardingSkip` to false.
-enum TestFlags { static let onboardingSkip = true }
+enum TestFlags {
+    static let onboardingSkip = true
+    /// "TEST +5 min" on Today's plan, to fast-forward the job timers.
+    static let planClock = true
+}
 
 struct TestSkipButton: View {
     @Environment(CaptainStore.self) var store
@@ -94,6 +98,13 @@ struct WOtpScreen: View {
     var login = false
     @State var code = ""
     @State var reading = true
+    /// Resend: locked for 15 s, then active. Max 3 resends, then wait.
+    static let wait = 15
+    static let maxResends = 3
+    @State private var secondsLeft = WOtpScreen.wait
+    @State private var resends = 0
+    @State private var sending = false
+    @State private var round = 0
 
     var body: some View {
         WScreen(gutter: WSpace.gutterCaptain) {
@@ -101,7 +112,20 @@ struct WOtpScreen: View {
         } content: {
             WIconView(icon: .chat, size: 24, color: WColor.primaryStrong).padding(.top, 14)
             Text(store.t("Enter the code", "कोड डालें", "కోడ్ నమోదు చేయండి")).wTitle().padding(.top, 8)
-            Text(store.t("Sent to", "भेजा गया", "పంపబడింది") + " " + Fmt.phoneShort(store.phone)).wBodyBig().padding(.top, 4).padding(.bottom, 20)
+            // Number with a small edit button: goes back to the number, keypad open.
+            HStack(spacing: 4) {
+                Text(store.t("Sent to", "भेजा गया", "పంపబడింది") + " " + Fmt.phoneShort(store.phone)).wBodyBig()
+                Button {
+                    store.editPhoneRequested = true
+                    router.pop()
+                } label: {
+                    WIconView(icon: .edit, size: 15, color: WColor.primaryStrong)
+                        .frame(width: 40, height: 40).contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(store.t("Change number", "नंबर बदलें", "నంబర్ మార్చండి"))
+            }
+            .padding(.top, 0).padding(.bottom, 10)
             WOtpField(code: $code, boxSize: 46, autoFocus: false)
             if reading {
                 HStack(spacing: 10) {
@@ -113,6 +137,7 @@ struct WOtpScreen: View {
                 .background(WColor.primaryTint, in: RoundedRectangle(cornerRadius: 12))
                 .padding(.top, 20)
             }
+            resendRow.padding(.top, 22)
         } footer: {
             WFooter {
                 WButton(store.t("Next", "आगे", "తదుపరి"), size: .captain, enabled: code.count == 6) {
@@ -123,13 +148,79 @@ struct WOtpScreen: View {
                 }
             }
         }
-        .task {
+        .task(id: round) {
             // Demo: auto-read the SMS code like Android's SMS Retriever.
+            reading = true
+            try? await Task.sleep(nanoseconds: round == 0 ? 0 : 1_500_000_000)
             for d in "381624" {
                 try? await Task.sleep(nanoseconds: 450_000_000)
+                if Task.isCancelled { return }
                 code.append(d)
             }
             reading = false
+        }
+        .task(id: "timer\(round)") {
+            // 15-second countdown before Resend unlocks.
+            secondsLeft = Self.wait
+            while secondsLeft > 0 {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+                secondsLeft -= 1
+            }
+        }
+    }
+
+    @ViewBuilder var resendRow: some View {
+        let left = Self.maxResends - resends
+        if left <= 0 {
+            HStack(spacing: 8) {
+                WIconView(icon: .clock, size: 15, color: WColor.waitText)
+                Text(store.t("Too many tries. Please try again after 10 minutes.", "बहुत बार कोशिश हुई। 10 मिनट बाद फिर कोशिश करें।", "చాలా సార్లు ప్రయత్నించారు. 10 నిమిషాల తర్వాత మళ్ళీ ప్రయత్నించండి."))
+                    .wText(.caption, color: WColor.waitText)
+                Spacer(minLength: 0)
+            }
+            .padding(14).background(WColor.waitTint, in: RoundedRectangle(cornerRadius: 12))
+        } else if sending {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text(store.t("Sending a new code…", "नया कोड भेज रहे हैं…", "కొత్త కోడ్ పంపుతున్నాం…")).wText(.body, color: WColor.secondary)
+            }
+        } else if secondsLeft > 0 {
+            HStack(spacing: 6) {
+                Text(store.t("Didn’t get it?", "कोड नहीं मिला?", "కోడ్ రాలేదా?")).wText(.body, color: WColor.secondary)
+                Text(store.t("Resend in", "फिर भेजें", "మళ్ళీ పంపండి") + " 0:" + String(format: "%02d", secondsLeft))
+                    .wText(.body, color: WColor.muted, weight: .semibold).monospacedDigit()
+            }
+            .accessibilityElement(children: .combine)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(store.t("Didn’t get it?", "कोड नहीं मिला?", "కోడ్ రాలేదా?")).wText(.body, color: WColor.secondary)
+                    Button { resend() } label: {
+                        HStack(spacing: 5) {
+                            WIconView(icon: .refresh, size: 14, color: WColor.primaryStrong, weight: .semibold)
+                            Text(store.t("Resend code", "कोड फिर भेजें", "కోడ్ మళ్ళీ పంపండి")).wText(.body, color: WColor.primaryStrong, weight: .semibold)
+                        }
+                        .frame(minHeight: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                if resends > 0 {
+                    Text(store.t("\(left) more tries", "\(left) बार और", "ఇంకా \(left) సార్లు")).wText(.small, color: WColor.muted)
+                }
+            }
+        }
+    }
+
+    /// BACKEND: ask for a fresh SMS code. Clears the boxes and restarts the 15 s timer.
+    func resend() {
+        sending = true
+        code = ""
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+            sending = false
+            resends += 1
+            store.toast = store.t("New code sent to \(Fmt.phoneShort(store.phone))", "\(Fmt.phoneShort(store.phone)) पर नया कोड भेजा", "\(Fmt.phoneShort(store.phone)) కి కొత్త కోడ్ పంపాము")
+            round += 1
         }
     }
 }

@@ -2,6 +2,8 @@
 
 > Updated 11 Oct 2026: the active mobile apps are native SwiftUI in `apps/ios/`, the website is Next.js in `apps/web/`, and Android is reserved in `apps/android/`. Both iOS apps currently use sample data. The checklist below was written for the earlier Flutter implementation, now preserved in `legacy/`; its Flutter setup steps and Dart file references are historical. Use the service/account checklist for planning, and implement new integrations in the active platform folders using `backend/API-CONTRACT.md`.
 
+**App-side list:** everything the apps fake today (demo data, test buttons, timers) is in `BACKEND-HOOKUP.md`. Go through it when connecting each service.
+
 Everything that needs an account, a key or an approval is listed here, in the
 order it unblocks work. Each step says what you do and what Claude does next.
 None of it was done on 10 Oct 2026 because it needs your accounts or approval.

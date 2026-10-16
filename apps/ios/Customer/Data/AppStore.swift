@@ -89,6 +89,8 @@ final class AppStore {
     var returningCustomer = false
     var payMethodId = "gpay"
     var hasSeenWelcome = false
+    /// Hidden design switch (DesignFlags.firstWashHome); the Screens gallery can turn it on.
+    var showFirstWashHome = DesignFlags.firstWashHome
 
     private var otpTries = 0
     private var refCounter = 20914
@@ -529,6 +531,7 @@ final class AppStore {
     }
 
     func resetDemo() {
+        showFirstWashHome = DesignFlags.firstWashHome
         for t in lifecycleTasks.values { t.cancel() }
         lifecycleTasks = [:]
         demo = DemoScenario()

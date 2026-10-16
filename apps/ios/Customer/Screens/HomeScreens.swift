@@ -37,7 +37,20 @@ struct HomeTab: View {
     @Environment(Router.self) var router
     @State var loading = true
 
+    /// First-time customer (no bookings yet).
+    var firstTime: Bool { store.customer == nil || (store.pastOrders.isEmpty && store.activeOrder == nil) }
+
     var body: some View {
+        if firstTime && !store.showFirstWashHome {
+            // Hidden design (DesignFlags.firstWashHome): go straight to the first booking step.
+            VehicleTypeScreen(asRoot: true)
+                .onAppear { if store.draft.place == nil && store.draft.slot == nil { store.startNewBooking() } }
+        } else {
+            homeScroll
+        }
+    }
+
+    var homeScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {

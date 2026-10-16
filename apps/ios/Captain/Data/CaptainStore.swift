@@ -219,6 +219,20 @@ final class CaptainStore {
 
     /// How many more jobs ring while the alert is open (demo; 0 = single job).
     var extraOffers = 2
+    /// Set when the captain taps edit next to the number on the code screen.
+    var editPhoneRequested = false
+
+    // MARK: Plan clock (demo)
+    /// BACKEND: use the real clock. For the demo the day starts at 9:29:20 AM, so the current job
+    /// is ~30 min from the end of its window and the next job's window opens in ~40 s.
+    let planRealStart = Date()
+    var planSkip: TimeInterval = 0
+    var planNow: Date {
+        Calendar.current.startOfDay(for: Date()).addingTimeInterval(9 * 3600 + 29 * 60 + 20)
+            .addingTimeInterval(Date().timeIntervalSince(planRealStart) + planSkip)
+    }
+    /// Plan alerts already sent ("open-j2", "soon-j1", "late-j1").
+    var planAlerts: Set<String> = []
     /// The owner's voice note was played for the current job (then a replay pill stays on screen).
     var ownerNoteHeard = false
 
@@ -237,7 +251,7 @@ final class CaptainStore {
 
     static let sampleQueue: [Job] = [
         Job(id: "j1", plate: "TS 09 EA 4521", type: "Hatchback", isBike: false, pay: 116, tower: "Tower 3", floor: "B2", slot: "41", window: "8–10", time: "8:30", status: .now),
-        Job(id: "j2", plate: "TS 09 HB 0731", type: "Scooter", isBike: true, pay: 54, tower: "Tower 3", floor: "B1", slot: "", window: "8–10", time: "9:00", status: .next, wash: .wetOutside),
+        Job(id: "j2", plate: "TS 09 HB 0731", type: "Scooter", isBike: true, pay: 54, tower: "Tower 3", floor: "B1", slot: "", window: "9:30–11:30", time: "9:30", status: .next, wash: .wetOutside),
         Job(id: "j3", plate: "TS 08 GK 2210", type: "Sedan", isBike: false, pay: 140, tower: "Tower 1", floor: "B1", slot: "", window: "6–8", time: "7:40", status: .done, society: "Lanco Hills", area: "Manikonda"),
         Job(id: "j4", plate: "AP 28 BQ 9911", type: "Scooter", isBike: true, pay: 54, tower: "Tower 1", floor: "Open", slot: "", window: "6–8", time: "7:05", status: .done, society: "Lanco Hills", wash: .dryDusting, area: "Manikonda"),
     ]

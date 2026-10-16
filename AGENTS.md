@@ -4,6 +4,10 @@ Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated s
 
 These instructions apply to all coding agents, including Codex and Claude Code. `CLAUDE.md` holds the same project context in more detail.
 
+## Connecting the backend
+
+- Before connecting any backend service, read `docs/BACKEND-HOOKUP.md` and show it to the owner. Add a line there whenever a new screen fakes data, a timer or a test button.
+
 ## Git
 
 - Commit every change you make before finishing a task, so no work is left uncommitted. Commit on the branch you are working on and do not push unless asked.
