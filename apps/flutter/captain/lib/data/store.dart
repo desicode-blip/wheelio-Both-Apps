@@ -94,7 +94,7 @@ enum KycState { todo, done, problem }
 
 List<Job> sampleQueue() => [
       Job(id: 'j1', plate: 'TS 09 EA 4521', type: 'Hatchback', isBike: false, pay: 116, tower: 'Tower 3', floor: 'B2', slot: '41', window: '8–10', time: '8:30', status: JobStatus.now),
-      Job(id: 'j2', plate: 'TS 09 HB 0731', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 3', floor: 'B1', slot: '', window: '8–10', time: '9:00'),
+      Job(id: 'j2', plate: 'TS 09 HB 0731', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 3', floor: 'B1', slot: '', window: '9:30–11:30', time: '9:30'),
       Job(id: 'j3', plate: 'TS 08 GK 2210', type: 'Sedan', isBike: false, pay: 140, tower: 'Tower 1', floor: 'B1', slot: '', window: '6–8', time: '7:40', status: JobStatus.done, society: 'Lanco Hills', area: 'Manikonda'),
       Job(id: 'j4', plate: 'AP 28 BQ 9911', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 1', floor: 'Open', slot: '', window: '6–8', time: '7:05', status: JobStatus.done, society: 'Lanco Hills', wash: WashType.dryDusting, area: 'Manikonda'),
     ];
@@ -154,7 +154,7 @@ class WRouterC extends WRouter<R> {
 enum WNotifCategory { jobs, money, level, account }
 
 enum WNotifKind {
-  newJob, jobTaken, ownerCancelled, gatePassReady, runningLate, slotEnded, noShowPenalty, washApproved, problemReported, payoutSent, upiChanged,
+  newJob, jobTaken, ownerCancelled, gatePassReady, runningLate, slotEnded, noShowPenalty, windowOpen, finishSoon, washApproved, problemReported, payoutSent, upiChanged,
   levelUp, probation, blocked, phoneChanged;
 
   WNotifCategory get category => switch (this) {
@@ -167,6 +167,7 @@ enum WNotifKind {
   WIcon get icon => switch (this) {
         newJob => WIcon.bell,
         jobTaken || runningLate => WIcon.clock,
+        windowOpen || finishSoon => WIcon.timer,
         ownerCancelled => WIcon.close,
         gatePassReady => WIcon.door,
         slotEnded => WIcon.warning,
@@ -180,7 +181,7 @@ enum WNotifKind {
 
   Tone get tone => switch (this) {
         slotEnded || noShowPenalty || blocked || phoneChanged => Tone.error,
-        runningLate || problemReported || probation || jobTaken => Tone.wait,
+        runningLate || finishSoon || problemReported || probation || jobTaken => Tone.wait,
         washApproved || payoutSent || levelUp || gatePassReady => Tone.ok,
         _ => Tone.info,
       };
@@ -286,6 +287,22 @@ class CaptainStore extends ChangeNotifier {
 
   /// How many more jobs ring while the alert is open (demo; 0 = single job).
   int extraOffers = 2;
+
+  /// Set when the captain taps edit next to the number on the code screen.
+  bool editPhoneRequested = false;
+
+  // Plan clock (demo)
+  /// BACKEND: use the real clock. For the demo the day starts at 9:29:20 AM, so the current job
+  /// is ~30 min from the end of its window and the next job's window opens in ~40 s.
+  final DateTime planRealStart = DateTime.now();
+  int planSkipSeconds = 0;
+  DateTime get planNow => startOfDay(DateTime.now())
+      .add(const Duration(hours: 9, minutes: 29, seconds: 20))
+      .add(DateTime.now().difference(planRealStart))
+      .add(Duration(seconds: planSkipSeconds));
+
+  /// Plan alerts already sent ("open-j2", "soon-j1", "late-j1").
+  Set<String> planAlerts = {};
 
   /// The owner's voice note was played for the current job.
   bool ownerNoteHeard = false;
@@ -480,6 +497,8 @@ class CaptainStore extends ChangeNotifier {
       WNotifKind.ownerCancelled => t('Owner cancelled the job', 'मालिक ने काम रद्द किया', 'యజమాని పని రద్దు చేశారు'),
       WNotifKind.gatePassReady => t('Gate pass is ready', 'गेट पास तैयार है', 'గేట్ పాస్ సిద్ధం'),
       WNotifKind.runningLate => t('You’re late for ${n.plate}', 'आप ${n.plate} के लिए लेट हैं', '${n.plate} కి మీరు ఆలస్యం'),
+      WNotifKind.windowOpen => t('Time to start: ${n.plate}', 'शुरू करने का समय: ${n.plate}', 'మొదలుపెట్టే సమయం: ${n.plate}'),
+      WNotifKind.finishSoon => t('25 min left for ${n.plate}', '${n.plate} के लिए 25 मिनट बचे', '${n.plate} కి 25 నిమిషాలే ఉన్నాయి'),
       WNotifKind.slotEnded => t('Slot is over. Update the job', 'समय खत्म। काम अपडेट करें', 'సమయం ముగిసింది. పని అప్‌డేట్ చేయండి'),
       WNotifKind.noShowPenalty => t('Job cancelled: penalty applied', 'काम रद्द: जुर्माना लगा', 'పని రద్దు: జరిమానా విధించబడింది'),
       WNotifKind.washApproved => t('Owner approved your wash', 'मालिक ने धुलाई मंज़ूर की', 'యజమాని మీ వాష్ ఆమోదించారు'),
@@ -501,6 +520,8 @@ class CaptainStore extends ChangeNotifier {
       WNotifKind.ownerCancelled => t('You get ₹[CANCELLATION FEE] for the trip.', 'सफ़र के ₹[CANCELLATION FEE] मिलेंगे।', 'ప్రయాణానికి ₹[CANCELLATION FEE] వస్తుంది.'),
       WNotifKind.gatePassReady => t('Show it at the gate for ${n.plate}.', '${n.plate} के लिए गेट पर दिखाएं।', '${n.plate} కోసం గేట్ వద్ద చూపించండి.'),
       WNotifKind.runningLate => t('Reach now. −₹1 for every late minute.', 'अभी पहुँचें। हर लेट मिनट पर −₹1।', 'ఇప్పుడే చేరుకోండి. ప్రతి ఆలస్య నిమిషానికి −₹1.'),
+      WNotifKind.windowOpen => t('Its time window has started. The timer is on.', 'इसका समय शुरू हो गया है। टाइमर चालू है।', 'దీని సమయం మొదలైంది. టైమర్ ఆన్‌లో ఉంది.'),
+      WNotifKind.finishSoon => t('You haven’t started yet. Go now to finish on time.', 'आपने अभी शुरू नहीं किया। समय पर पूरा करने के लिए अभी जाएं।', 'మీరు ఇంకా మొదలుపెట్టలేదు. సమయానికి పూర్తి చేయడానికి ఇప్పుడే వెళ్ళండి.'),
       WNotifKind.slotEnded => t('Tap I’m at the vehicle, or tell us in Help. Otherwise the job is cancelled.', '‘मैं गाड़ी के पास हूँ’ दबाएं या मदद में बताएं। नहीं तो काम रद्द होगा।',
           '‘నేను వాహనం దగ్గర ఉన్నాను’ నొక్కండి లేదా సహాయంలో చెప్పండి. లేదంటే పని రద్దవుతుంది.'),
       WNotifKind.noShowPenalty => t('You didn’t reach ${n.plate} in time. Owner got a full refund.', 'आप ${n.plate} तक समय पर नहीं पहुँचे। मालिक को पूरे पैसे वापस मिले।',
@@ -632,6 +653,15 @@ class CaptainStore extends ChangeNotifier {
   }
 }
 
+/// Plan alerts: open that job (it becomes the current one if it wasn't).
+String? _openPlanJob(WNotif n, CaptainStore store, WRouterC router) {
+  final j = store.queue.where((x) => x.id == n.jobId).firstOrNull;
+  if (j == null || j.status == JobStatus.done) return store.t('This job has moved on.', 'यह काम आगे बढ़ चुका है।', 'ఈ పని ముందుకు వెళ్ళింది.');
+  if (j.status == JobStatus.next) store.startJob(j.id);
+  router.go(N.goToVehicle);
+  return null;
+}
+
 /// Where a tapped notification goes, with the "moved on" / "gone" edge cases. Returns an info message, if any.
 String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
   store.markRead(n.id);
@@ -647,6 +677,10 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
       return null;
     case WNotifKind.ownerCancelled:
       router.go(N.ownerCancelled);
+    case WNotifKind.windowOpen || WNotifKind.finishSoon:
+      return _openPlanJob(n, store, router);
+    case WNotifKind.runningLate when !isCurrent:
+      return _openPlanJob(n, store, router);
     case WNotifKind.gatePassReady || WNotifKind.runningLate || WNotifKind.slotEnded:
       if (!isCurrent || (store.noShowCancelled && n.kind != WNotifKind.gatePassReady)) {
         return store.t('This job has moved on.', 'यह काम आगे बढ़ चुका है।', 'ఈ పని ముందుకు వెళ్ళింది.');

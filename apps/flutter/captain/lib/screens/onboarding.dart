@@ -12,6 +12,9 @@ import 'parts.dart';
 /// Turn off by setting this to false.
 const onboardingSkip = true;
 
+/// Testing only: "TEST +5 min" on Today's plan, to fast-forward the job timers.
+const planClockTest = true;
+
 class TestSkipButton extends StatelessWidget {
   const TestSkipButton({super.key, this.top = 0});
   final double top;

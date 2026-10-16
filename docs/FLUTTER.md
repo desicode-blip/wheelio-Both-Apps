@@ -6,7 +6,9 @@ Decided on 15 October 2026: both Wheelio apps, Customer and Captain (washer), ar
 2. **iOS**: later, from the same code.
 3. **Android**: after iOS, from the same code.
 
-The Flutter apps are ports of the SwiftUI apps in `apps/ios/`. They have the same screens, states, copy (English, Hindi and Telugu for Captain), interactions, sample data and Screens gallery. The SwiftUI apps remain the design reference until the Flutter apps ship on iOS.
+**All development happens in Flutter.** The Flutter apps are ports of the SwiftUI apps in `apps/ios/`. They have the same screens, states, copy (English, Hindi and Telugu for Captain), interactions, sample data and Screens gallery. The SwiftUI apps remain the design reference until the Flutter apps ship on iOS.
+
+**Keeping them consistent:** every app change lands in Flutter in the same task. If something is changed in the SwiftUI reference first, it is ported to Flutter before it is committed. Anything a screen fakes (demo data, timers, test buttons) goes on the list in [BACKEND-HOOKUP.md](BACKEND-HOOKUP.md).
 
 ## Where the code lives
 
@@ -55,7 +57,7 @@ A mouse can't swipe comfortably, so each swipe has a visible control on the web 
 
 | Where | Phone gesture (iOS / future native) | Web replacement |
 |---|---|---|
-| Captain · new job alert (W22) | Swipe the top job left to see the next one | **See next job →** button under the stack. Reject does the same, and the hint text changes to match. |
+| Captain · new job alert (W22) | Swipe the top job either way to see the next one | **See next job →** button under the stack. Reject does the same, and the hint text changes to match. |
 | Captain · owner's vehicle photos | Swipe between photos | ‹ › arrows on the photo and tappable dots |
 | Customer · before/after photo compare (C26) | Swipe between photos | ‹ › arrows and tappable dots |
 | Both · notification list | Press and hold a message for Mark read/unread and Delete | **⋯** button on each message opens the same menu. Right-click also works. The help line under the list says "Use ⋯…" |
@@ -106,9 +108,26 @@ flutter create --platforms ios,android --org <reverse-domain> .
 
 This adds `ios/` and `android/` without touching `lib/`. iOS builds also need Xcode and CocoaPods, which is not installed yet. Native code paths are already in place: `device_stub.dart` is used off the web, and the swipes come back automatically because `kIsWeb` is false. The remaining native work is real phone services: push notifications, haptics, the camera and the owner's recorded audio.
 
+## Features added on 16 October 2026
+
+These were built in the SwiftUI reference and then ported to Flutter, so both apps match:
+
+**Captain**
+- **Today's plan countdowns.** As soon as a job's time window opens, its card shows a live timer chip and a progress bar: blue with "Finish by …" while there's time, amber with "Hurry up" at 30 minutes left, "Not started! Go now" at 25 minutes left (if the captain hasn't started), and red "Late mm:ss · −₹1 every late minute" once the window is over. Urgent cards shake once, and the timeline dot gets a ripple.
+- **Plan alerts.** Window opened ("Time to start"), 25 minutes left and not started, and running late are sent as notifications (in-app banner or browser notification). Tapping one opens that job.
+- **Demo plan clock.** The demo day starts at 9:29:20 AM, so the current job is about 30 minutes from its end and the next job's window opens about 40 seconds after launch. A **TEST +5 min** button (test only, `planClockTest`) jumps ahead to show each state.
+- **Job alert.** 60 seconds to decide, shown as a "Decide in" bar inside each card. When time runs out, the card stays greyed out with an "Opportunity missed" band for 30 seconds, and Accept is disabled. A **Go offline** pill in the header stops new jobs.
+- **Code screen.** A pencil next to the number goes back to fix it (the number keypad opens). Resend unlocks after 15 seconds, with at most 3 resends, then "try again after 10 minutes".
+
+**Customer**
+- **First-time Home hidden.** New customers go straight to "What are we washing?". The old first-time Home is kept behind `DesignFlags.firstWashHome` (see [hidden-designs.md](hidden-designs.md)), and gallery **C40h** previews it.
+- **Message for the captain (C11) redesigned.** Record a video or a voice note (one of the two), and optionally write text as well. Gallery entries C11, C11v and C11d show each state.
+- **Walk-around video** tile now carries an "OPTIONAL" tag.
+- **Welcome:** three timed slides ("Wake up to a clean car", "See it, then pay", "Your weekend is yours").
+
 ## Status
 
-- Customer and Captain both pass `flutter analyze` with no issues and build for the web.
+- 16 Oct 2026: Customer and Captain both pass `flutter analyze` with no issues and build for the web. The features above were checked in the browser: plan timers in every state with their alerts, and the job alert's missed state.
 - Both run on sample data, as the iOS apps do. Demo login code: 123456 (000000 is expired). The **Screens** tab on the left edge opens every designed screen and edge state. In Captain, **Step through all screens** walks the gallery with ‹ › controls.
 - Checked in the browser at laptop size (phone frame) and 375 px (full screen):
   - Captain: language → welcome → guest Home, a stacked job alert with See next job and Accept, the day plan, Go to vehicle, the owner's note, face check, the guided camera and washing.

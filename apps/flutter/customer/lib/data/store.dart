@@ -10,6 +10,7 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 
+import '../app/design_flags.dart';
 import 'models.dart';
 
 // MARK: Routes
@@ -286,6 +287,9 @@ class AppStore extends ChangeNotifier {
   bool returningCustomer = false;
   String payMethodId = 'gpay';
   bool hasSeenWelcome = false;
+
+  /// Hidden design switch (DesignFlags.firstWashHome); the Screens gallery can turn it on.
+  bool showFirstWashHome = DesignFlags.firstWashHome;
 
   /// Profile photo picked from the library (kept on the device for now).
   Uint8List? profilePhoto;
@@ -759,6 +763,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void resetDemo() {
+    showFirstWashHome = DesignFlags.firstWashHome;
     for (final t in _tasks.values) {
       t.cancel();
     }

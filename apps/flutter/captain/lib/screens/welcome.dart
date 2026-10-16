@@ -28,12 +28,14 @@ class LangTile extends StatelessWidget {
         height: height,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: outlinedDecoration(radius: 16, fill: on ? WColor.primaryTint : WColor.white, stroke: on ? WColor.primary : WColor.border, width: on ? 2 : 1),
-        child: Row(children: [
-          SizedBox(width: 40, child: WText(glyph, WType.screen, size: 24, align: TextAlign.center)),
-          const SizedBox(width: 18),
-          Expanded(child: WText(title, WType.value, size: 18)),
-          WRadio(on: on),
-        ]),
+        child: Row(
+          children: [
+            SizedBox(width: 40, child: WText(glyph, WType.screen, size: 24, align: TextAlign.center)),
+            const SizedBox(width: 18),
+            Expanded(child: WText(title, WType.value, size: 18)),
+            WRadio(on: on),
+          ],
+        ),
       ),
     );
   }
@@ -46,28 +48,42 @@ class LanguageScreen extends StatelessWidget {
     final store = context.store;
     return WScreen(
       gutter: WSpace.gutterCaptain,
-      footer: WFooter(child: WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, onTap: () => context.router.go(N.welcome))),
+      footer: WFooter(
+        child: WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, onTap: () => context.router.go(N.welcome)),
+      ),
       children: [
         const SizedBox(height: 24),
-        Row(children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(8)),
-            alignment: Alignment.center,
-            child: Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: WColor.white, width: 3)),
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(8)),
               alignment: Alignment.center,
-              child: Container(width: 6, height: 6, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: WColor.white, width: 3),
+                ),
+                alignment: Alignment.center,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          const WText(Brand.name, WType.screen, size: 25),
-        ]),
+            const SizedBox(width: 10),
+            const WText(Brand.name, WType.screen, size: 25),
+          ],
+        ),
         const SizedBox(height: 26),
-        const Align(alignment: Alignment.centerLeft, child: WIconView(WIcon.translate, size: 24, color: WColor.primaryStrong)),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: WIconView(WIcon.translate, size: 24, color: WColor.primaryStrong),
+        ),
         const WTitle('Choose your language', top: 8),
         const Padding(padding: EdgeInsets.only(top: 2, bottom: 20), child: WText('भाषा चुनें · భాష ఎంచుకోండి', WType.caption)),
         const LangTile(lang: Lang.en, glyph: 'A', title: 'English'),
@@ -137,9 +153,21 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   Widget build(BuildContext context) {
     final store = context.store;
     final slides = [
-      (WelcomeArtKind.freedom, store.t('Work when you want', 'जब चाहें, काम करें', 'మీకు నచ్చినప్పుడు పని'), store.t('Morning, evening or both. You decide.', 'सुबह, शाम या दोनों। आप तय करें।', 'ఉదయం, సాయంత్రం లేదా రెండూ. మీ ఇష్టం.')),
-      (WelcomeArtKind.nearHome, store.t('Jobs near your home', 'घर के पास काम', 'ఇంటి దగ్గరే పని'), store.t('Cars parked in buildings close to you.', 'आपके पास की बिल्डिंग में खड़ी गाड़ियाँ।', 'మీ దగ్గరి భవనాల్లో పార్క్ చేసిన కార్లు.')),
-      (WelcomeArtKind.evening, store.t('Paid every night', 'हर रात पैसे', 'ప్రతి రాత్రి డబ్బు'), store.t('Straight to your UPI. No waiting.', 'सीधे आपके UPI में। कोई इंतज़ार नहीं।', 'నేరుగా మీ UPI కి. ఎదురుచూపు లేదు.')),
+      (
+        WelcomeArtKind.freedom,
+        store.t('Work when you want', 'जब चाहें, काम करें', 'మీకు నచ్చినప్పుడు పని'),
+        store.t('Morning, evening or both. You decide.', 'सुबह, शाम या दोनों। आप तय करें।', 'ఉదయం, సాయంత్రం లేదా రెండూ. మీ ఇష్టం.'),
+      ),
+      (
+        WelcomeArtKind.nearHome,
+        store.t('Jobs near your home', 'घर के पास काम', 'ఇంటి దగ్గరే పని'),
+        store.t('Cars parked in buildings close to you.', 'आपके पास की बिल्डिंग में खड़ी गाड़ियाँ।', 'మీ దగ్గరి భవనాల్లో పార్క్ చేసిన కార్లు.'),
+      ),
+      (
+        WelcomeArtKind.evening,
+        store.t('Paid every night', 'हर रात पैसे', 'ప్రతి రాత్రి డబ్బు'),
+        store.t('Straight to your UPI. No waiting.', 'सीधे आपके UPI में। कोई इंतज़ार नहीं।', 'నేరుగా మీ UPI కి. ఎదురుచూపు లేదు.'),
+      ),
     ];
     final s = slides[index];
     final pad = MediaQuery.paddingOf(context);
@@ -147,68 +175,101 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
       color: WColor.white,
       child: Padding(
         padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom + 12),
-        child: Column(children: [
-          SizedBox(
-            height: 44,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: WSpace.gutterCaptain),
-              child: Row(children: [
-                AnimatedOpacity(
-                  duration: const Duration(milliseconds: 250),
-                  opacity: index > 0 ? 1 : 0,
-                  child: Pressable(
-                    enabled: index > 0,
-                    onTap: () => _go(index - 1),
-                    child: SizedBox(height: 44, child: Row(children: [const WIconView(WIcon.left, size: 15, weight: semibold), const SizedBox(width: 4), WText(store.t('Back', 'पीछे', 'వెనక్కి'), WType.body, color: WColor.heading)])),
-                  ),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 44,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: WSpace.gutterCaptain),
+                child: Row(
+                  children: [
+                    AnimatedOpacity(
+                      duration: const Duration(milliseconds: 250),
+                      opacity: index > 0 ? 1 : 0,
+                      child: Pressable(
+                        enabled: index > 0,
+                        onTap: () => _go(index - 1),
+                        child: SizedBox(
+                          height: 44,
+                          child: Row(
+                            children: [
+                              const WIconView(WIcon.left, size: 15, weight: semibold),
+                              const SizedBox(width: 4),
+                              WText(store.t('Back', 'पीछे', 'వెనక్కి'), WType.body, color: WColor.heading),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
+              ),
             ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 8, WSpace.gutterCaptain, 0),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 8, WSpace.gutterCaptain, 0),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  transitionBuilder: (child, a) => FadeTransition(
+                    opacity: a,
+                    child: SlideTransition(
+                      position: Tween(begin: const Offset(0.15, 0), end: Offset.zero).animate(a),
+                      child: child,
+                    ),
+                  ),
+                  child: WelcomeArt(key: ValueKey(index), kind: s.$1),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 28, WSpace.gutterCaptain, 0),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 400),
-                transitionBuilder: (child, a) => FadeTransition(opacity: a, child: SlideTransition(position: Tween(begin: const Offset(0.15, 0), end: Offset.zero).animate(a), child: child)),
-                child: WelcomeArt(key: ValueKey(index), kind: s.$1),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 28, WSpace.gutterCaptain, 0),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: Column(key: ValueKey('t$index'), children: [
-                WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
-                const SizedBox(height: 10),
-                WText(s.$3, WType.body, size: 17, color: WColor.secondary, align: TextAlign.center),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 26),
-          TimerDots(count: 3, index: index, progress: progress),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 26, WSpace.gutterCaptain, 0),
-            child: Row(children: [
-              Pressable(onTap: _enterApp, child: SizedBox(height: 48, child: Center(child: WText(store.t('Skip', 'छोड़ें', 'దాటవేయి'), WType.body, color: WColor.secondary)))),
-              const Spacer(),
-              Pressable(
-                onTap: () => index < 2 ? _go(index + 1) : _enterApp(),
-                child: Container(
-                  height: 52,
-                  padding: const EdgeInsets.symmetric(horizontal: 26),
-                  decoration: const ShapeDecoration(color: WColor.primaryTint, shape: StadiumBorder()),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    WText(store.t('Next', 'आगे', 'తదుపరి'), WType.title, color: WColor.primaryStrong, size: 17),
-                    const SizedBox(width: 8),
-                    const WIconView(WIcon.arrowRight, size: 15, color: WColor.primaryStrong, weight: semibold),
-                  ]),
+                child: Column(
+                  key: ValueKey('t$index'),
+                  children: [
+                    WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
+                    const SizedBox(height: 10),
+                    WText(s.$3, WType.body, size: 17, color: WColor.secondary, align: TextAlign.center),
+                  ],
                 ),
               ),
-            ]),
-          ),
-        ]),
+            ),
+            const SizedBox(height: 26),
+            TimerDots(count: 3, index: index, progress: progress),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 26, WSpace.gutterCaptain, 0),
+              child: Row(
+                children: [
+                  Pressable(
+                    onTap: _enterApp,
+                    child: SizedBox(
+                      height: 48,
+                      child: Center(child: WText(store.t('Skip', 'छोड़ें', 'దాటవేయి'), WType.body, color: WColor.secondary)),
+                    ),
+                  ),
+                  const Spacer(),
+                  Pressable(
+                    onTap: () => index < 2 ? _go(index + 1) : _enterApp(),
+                    child: Container(
+                      height: 52,
+                      padding: const EdgeInsets.symmetric(horizontal: 26),
+                      decoration: const ShapeDecoration(color: WColor.primaryTint, shape: StadiumBorder()),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          WText(store.t('Next', 'आगे', 'తదుపరి'), WType.title, color: WColor.primaryStrong, size: 17),
+                          const SizedBox(width: 8),
+                          const WIconView(WIcon.arrowRight, size: 15, color: WColor.primaryStrong, weight: semibold),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -229,55 +290,143 @@ class WelcomeArt extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(32),
       child: DecoratedBox(
-        decoration: BoxDecoration(gradient: LinearGradient(colors: bg, begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-        child: LayoutBuilder(builder: (c, box) {
-          final w = box.maxWidth, h = box.maxHeight;
-          Widget at(double x, double y, Widget child) => Positioned(left: w * x, top: h * y, child: FractionalTranslation(translation: const Offset(-0.5, -0.5), child: child));
-          Widget hill(double left, double width, double bottom, double height, Color color) =>
-              Positioned(left: w * left, width: w * width, bottom: -h * bottom, height: h * height, child: Container(decoration: BoxDecoration(color: color, borderRadius: BorderRadius.all(Radius.elliptical(w * width / 2, h * height / 2)))));
-          return Pulse(
-            duration: const Duration(milliseconds: 2400),
-            builder: (c, on) => Stack(children: switch (kind) {
-              // A man with open arms on a hill at sunrise, birds drifting.
-              WelcomeArtKind.freedom => [
-                  at(0.72, 0.28, Transform.scale(scale: 0.94 + 0.14 * on, child: Container(width: w * 0.54, height: w * 0.54, decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFFD27A).withValues(alpha: 0.35))))),
-                  at(0.72, 0.28, Transform.scale(scale: 0.96 + 0.1 * on, child: Container(width: w * 0.36, height: w * 0.36, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFFD27A))))),
-                  at(0.24 + 0.06 * on, 0.22 - 0.04 * on, const WIconView(WIcon.bird, size: 22, color: Color(0xFF5E7087))),
-                  at(0.38 + 0.06 * on, 0.15 - 0.03 * on, WIconView(WIcon.bird, size: 15, color: const Color(0xFF5E7087).withValues(alpha: 0.7))),
-                  hill(-0.25, 1.5, 0.23, 0.5, const Color(0xFF8FD3A7)),
-                  hill(-0.4, 1.1, 0.22, 0.36, const Color(0xFF6CC28F)),
-                  at(0.48, 0.62, Transform.translate(offset: Offset(0, 4 - 8 * on), child: WIconView(WIcon.figure, size: h * 0.36, color: WColor.primaryStrong))),
-                ],
-              // A man walking a short path from home to the building next door.
-              WelcomeArtKind.nearHome => [
-                  at(0.76, 0.50, WIconView(WIcon.building, size: h * 0.34, color: const Color(0xFF9CC9B5))),
-                  at(0.20, 0.58, WIconView(WIcon.homeFill, size: h * 0.20, color: const Color(0xFF6FB596))),
-                  Positioned(left: 0, right: 0, bottom: 0, height: h * 0.25, child: const ColoredBox(color: Color(0xFFCBE9DA))),
-                  Positioned.fill(child: CustomPaint(painter: _PathPainter())),
-                  at(0.76, 0.20 - 0.03 * on, const WIconView(WIcon.location, size: 30, color: WColor.primary, weight: bold)),
-                  at(0.42 + 0.14 * on, 0.64, WIconView(WIcon.walk, size: h * 0.26, color: WColor.primaryStrong)),
-                ],
-              // Home at night with family; the day's work is done.
-              WelcomeArtKind.evening => [
-                  at(0.78, 0.18, Transform.rotate(angle: -0.35, child: WIconView(WIcon.moon, size: h * 0.12, color: const Color(0xFFFFE6A8)))),
-                  for (final (i, p) in const [(0.14, 0.14), (0.32, 0.26), (0.52, 0.10), (0.62, 0.30), (0.22, 0.38), (0.90, 0.40)].indexed)
-                    at(p.$1, p.$2, Opacity(opacity: (i.isEven ? on : 1 - on) * 0.6 + 0.35, child: WIconView(WIcon.sparkleFill, size: i.isEven ? 14 : 10, color: WColor.white))),
-                  hill(-0.2, 1.4, 0.21, 0.42, const Color(0xFF3D3A7E)),
-                  at(0.46, 0.64, Transform.translate(offset: Offset(0, 2 - 4 * on), child: WIconView(WIcon.family, size: h * 0.34, color: WColor.white))),
-                  // A soft "done" notification: the day's money has arrived (no amount shown).
-                  at(0.24, 0.24, Transform.scale(
-                    scale: 0.94 + 0.06 * on,
-                    child: Container(
-                      height: 34,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: const ShapeDecoration(color: WColor.white, shape: StadiumBorder(), shadows: [BoxShadow(color: Color(0x2E000000), blurRadius: 10, offset: Offset(0, 4))]),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [WIconView(WIcon.checkCircle, size: 16, color: WColor.success), SizedBox(width: 8), WText('UPI', WType.label, size: 13, color: WColor.heading)]),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: bg, begin: Alignment.topCenter, end: Alignment.bottomCenter),
+        ),
+        child: LayoutBuilder(
+          builder: (c, box) {
+            final w = box.maxWidth, h = box.maxHeight;
+            Widget at(double x, double y, Widget child) => Positioned(
+              left: w * x,
+              top: h * y,
+              child: FractionalTranslation(translation: const Offset(-0.5, -0.5), child: child),
+            );
+            Widget hill(double left, double width, double bottom, double height, Color color) => Positioned(
+              left: w * left,
+              width: w * width,
+              bottom: -h * bottom,
+              height: h * height,
+              child: Container(
+                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.all(Radius.elliptical(w * width / 2, h * height / 2))),
+              ),
+            );
+            return Pulse(
+              duration: const Duration(milliseconds: 2400),
+              builder: (c, on) => Stack(
+                children: switch (kind) {
+                  // A man with open arms on a hill at sunrise, birds drifting.
+                  WelcomeArtKind.freedom => [
+                    at(
+                      0.72,
+                      0.28,
+                      Transform.scale(
+                        scale: 0.94 + 0.14 * on,
+                        child: Container(
+                          width: w * 0.54,
+                          height: w * 0.54,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFFD27A).withValues(alpha: 0.35)),
+                        ),
+                      ),
                     ),
-                  )),
-                ],
-            }),
-          );
-        }),
+                    at(
+                      0.72,
+                      0.28,
+                      Transform.scale(
+                        scale: 0.96 + 0.1 * on,
+                        child: Container(
+                          width: w * 0.36,
+                          height: w * 0.36,
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFFFD27A)),
+                        ),
+                      ),
+                    ),
+                    at(0.24 + 0.06 * on, 0.22 - 0.04 * on, const WIconView(WIcon.bird, size: 22, color: Color(0xFF5E7087))),
+                    at(0.38 + 0.06 * on, 0.15 - 0.03 * on, WIconView(WIcon.bird, size: 15, color: const Color(0xFF5E7087).withValues(alpha: 0.7))),
+                    hill(-0.25, 1.5, 0.23, 0.5, const Color(0xFF8FD3A7)),
+                    hill(-0.4, 1.1, 0.22, 0.36, const Color(0xFF6CC28F)),
+                    at(
+                      0.48,
+                      0.62,
+                      Transform.translate(
+                        offset: Offset(0, 4 - 8 * on),
+                        child: WIconView(WIcon.figure, size: h * 0.36, color: WColor.primaryStrong),
+                      ),
+                    ),
+                  ],
+                  // A man walking a short path from home to the building next door.
+                  WelcomeArtKind.nearHome => [
+                    at(0.76, 0.50, WIconView(WIcon.building, size: h * 0.34, color: const Color(0xFF9CC9B5))),
+                    at(0.20, 0.58, WIconView(WIcon.homeFill, size: h * 0.20, color: const Color(0xFF6FB596))),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: h * 0.25,
+                      child: const ColoredBox(color: Color(0xFFCBE9DA)),
+                    ),
+                    Positioned.fill(child: CustomPaint(painter: _PathPainter())),
+                    at(0.76, 0.20 - 0.03 * on, const WIconView(WIcon.location, size: 30, color: WColor.primary, weight: bold)),
+                    at(0.42 + 0.14 * on, 0.64, WIconView(WIcon.walk, size: h * 0.26, color: WColor.primaryStrong)),
+                  ],
+                  // Home at night with family; the day's work is done.
+                  WelcomeArtKind.evening => [
+                    at(
+                      0.78,
+                      0.18,
+                      Transform.rotate(
+                        angle: -0.35,
+                        child: WIconView(WIcon.moon, size: h * 0.12, color: const Color(0xFFFFE6A8)),
+                      ),
+                    ),
+                    for (final (i, p) in const [(0.14, 0.14), (0.32, 0.26), (0.52, 0.10), (0.62, 0.30), (0.22, 0.38), (0.90, 0.40)].indexed)
+                      at(
+                        p.$1,
+                        p.$2,
+                        Opacity(
+                          opacity: (i.isEven ? on : 1 - on) * 0.6 + 0.35,
+                          child: WIconView(WIcon.sparkleFill, size: i.isEven ? 14 : 10, color: WColor.white),
+                        ),
+                      ),
+                    hill(-0.2, 1.4, 0.21, 0.42, const Color(0xFF3D3A7E)),
+                    at(
+                      0.46,
+                      0.64,
+                      Transform.translate(
+                        offset: Offset(0, 2 - 4 * on),
+                        child: WIconView(WIcon.family, size: h * 0.34, color: WColor.white),
+                      ),
+                    ),
+                    // A soft "done" notification: the day's money has arrived (no amount shown).
+                    at(
+                      0.24,
+                      0.24,
+                      Transform.scale(
+                        scale: 0.94 + 0.06 * on,
+                        child: Container(
+                          height: 34,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: const ShapeDecoration(
+                            color: WColor.white,
+                            shape: StadiumBorder(),
+                            shadows: [BoxShadow(color: Color(0x2E000000), blurRadius: 10, offset: Offset(0, 4))],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              WIconView(WIcon.checkCircle, size: 16, color: WColor.success),
+                              SizedBox(width: 8),
+                              WText('UPI', WType.label, size: 13, color: WColor.heading),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                },
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -325,46 +474,64 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final store = context.store;
     final login = widget.login;
     final valid = Validators.isValidMobile(number) && (login || Validators.isValidName(name));
-    return WScreen(
-      gutter: WSpace.gutterCaptain,
-      header: WHeader(title: login ? store.t('Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
-      footer: WFooter(
-        child: WButton(store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'), size: ButtonSize.captain, enabled: valid, onTap: () {
-          store.set(() {
-            if (!login) store.name = name.trim();
-            store.phone = Validators.digitsOnly(number);
-          });
-          context.router.push(R(N.otp, flag: login));
-        }),
-      ),
-      children: [
-        WTitle(login ? store.t('Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
-        WBody(
-          login
-              ? store.t('Enter your number. We send a code by SMS.', 'अपना नंबर डालें। हम SMS से कोड भेजेंगे।', 'మీ నంబర్ ఇవ్వండి. SMS ద్వారా కోడ్ పంపుతాము.')
-              : store.t('Just your name and number for now. Documents come later, only when you take your first job.', 'अभी सिर्फ़ नाम और नंबर। कागज़ बाद में, जब आप पहला काम लेंगे।',
-                  'ఇప్పుడు పేరు, నంబర్ మాత్రమే. పత్రాలు తర్వాత, మొదటి పని తీసుకున్నప్పుడు.'),
-          top: 6,
-          bottom: 22,
-        ),
-        if (!login) ...[
-          // Name first (keyboard opens here), then Next moves to the number.
-          WTextField(
-            label: store.t('Your name', 'आपका नाम', 'మీ పేరు'),
-            value: name,
-            placeholder: 'Raju Yadav',
-            caps: TextCapitalization.words,
-            large: true,
-            autofocus: true,
-            action: TextInputAction.next,
-            onSubmit: () => setState(() => focusNumber++),
-            onChanged: (v) => setState(() => name = v),
+    return OnAppear(
+      onAppear: () {
+        // Came back from the code screen to fix the number: open the number keypad.
+        if (!store.editPhoneRequested) return;
+        store.editPhoneRequested = false;
+        Future.delayed(const Duration(milliseconds: 550), () {
+          if (mounted) setState(() => focusNumber++);
+        });
+      },
+      child: WScreen(
+        gutter: WSpace.gutterCaptain,
+        header: WHeader(title: login ? store.t('Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
+        footer: WFooter(
+          child: WButton(
+            store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
+            size: ButtonSize.captain,
+            enabled: valid,
+            onTap: () {
+              store.set(() {
+                if (!login) store.name = name.trim();
+                store.phone = Validators.digitsOnly(number);
+              });
+              context.router.push(R(N.otp, flag: login));
+            },
           ),
-          const SizedBox(height: 16),
+        ),
+        children: [
+          WTitle(login ? store.t('Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
+          WBody(
+            login
+                ? store.t('Enter your number. We send a code by SMS.', 'अपना नंबर डालें। हम SMS से कोड भेजेंगे।', 'మీ నంబర్ ఇవ్వండి. SMS ద్వారా కోడ్ పంపుతాము.')
+                : store.t(
+                    'Just your name and number for now. Documents come later, only when you take your first job.',
+                    'अभी सिर्फ़ नाम और नंबर। कागज़ बाद में, जब आप पहला काम लेंगे।',
+                    'ఇప్పుడు పేరు, నంబర్ మాత్రమే. పత్రాలు తర్వాత, మొదటి పని తీసుకున్నప్పుడు.',
+                  ),
+            top: 6,
+            bottom: 22,
+          ),
+          if (!login) ...[
+            // Name first (keyboard opens here), then Next moves to the number.
+            WTextField(
+              label: store.t('Your name', 'आपका नाम', 'మీ పేరు'),
+              value: name,
+              placeholder: 'Raju Yadav',
+              caps: TextCapitalization.words,
+              large: true,
+              autofocus: true,
+              action: TextInputAction.next,
+              onSubmit: () => setState(() => focusNumber++),
+              onChanged: (v) => setState(() => name = v),
+            ),
+            const SizedBox(height: 16),
+          ],
+          WPhoneField(number: number, large: true, autofocus: login, focusTrigger: focusNumber, onChanged: (v) => setState(() => number = v)),
+          Padding(padding: const EdgeInsets.only(top: 12), child: WText(store.t('We send a code by SMS.', 'हम SMS से कोड भेजेंगे।', 'మేము SMS ద్వారా కోడ్ పంపుతాము.'), WType.caption)),
         ],
-        WPhoneField(number: number, large: true, autofocus: login, focusTrigger: focusNumber, onChanged: (v) => setState(() => number = v)),
-        Padding(padding: const EdgeInsets.only(top: 12), child: WText(store.t('We send a code by SMS.', 'हम SMS से कोड भेजेंगे।', 'మేము SMS ద్వారా కోడ్ పంపుతాము.'), WType.caption)),
-      ],
+      ),
     );
   }
 }
@@ -379,62 +546,212 @@ class WOtpScreen extends StatefulWidget {
 }
 
 class _WOtpScreenState extends State<WOtpScreen> {
+  /// Resend: locked for 15 s, then active. Max 3 resends, then wait.
+  static const wait = 15;
+  static const maxResends = 3;
+
   String code = '';
   bool reading = true;
-  Timer? _t;
+  int secondsLeft = wait;
+  int resends = 0;
+  bool sending = false;
+  WTask? _read;
+  Timer? _countdown;
 
   @override
   void initState() {
     super.initState();
-    // Demo: auto-read the SMS code like Android's SMS Retriever.
-    var i = 0;
-    _t = Timer.periodic(const Duration(milliseconds: 450), (t) {
-      i++;
-      setState(() => code = '381624'.substring(0, i));
-      if (i >= 6) {
-        t.cancel();
-        setState(() => reading = false);
+    _startRound(first: true);
+  }
+
+  /// Demo: auto-read the SMS code like Android's SMS Retriever, and start the 15 s resend timer.
+  void _startRound({bool first = false}) {
+    _read?.cancel();
+    _countdown?.cancel();
+    // No setState here: this also runs from initState.
+    reading = true;
+    secondsLeft = wait;
+    _read = runTask((task) async {
+      if (!first) await sleepMs(1500);
+      for (final d in '381624'.split('')) {
+        await sleepMs(450);
+        if (task.cancelled || !mounted) return;
+        setState(() => code += d);
       }
+      if (mounted) setState(() => reading = false);
+    });
+    _countdown = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      setState(() => secondsLeft--);
+      if (secondsLeft <= 0) t.cancel();
+    });
+  }
+
+  /// BACKEND: ask for a fresh SMS code. Clears the boxes and restarts the 15 s timer.
+  void _resend() {
+    final store = context.store;
+    _read?.cancel();
+    setState(() {
+      sending = true;
+      code = '';
+    });
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted) return;
+      setState(() {
+        sending = false;
+        resends++;
+      });
+      store.set(
+        () => store.toast = store.t('New code sent to ${Fmt.phoneShort(store.phone)}', '${Fmt.phoneShort(store.phone)} पर नया कोड भेजा', '${Fmt.phoneShort(store.phone)} కి కొత్త కోడ్ పంపాము'),
+      );
+      setState(_startRound);
     });
   }
 
   @override
   void dispose() {
-    _t?.cancel();
+    _read?.cancel();
+    _countdown?.cancel();
     super.dispose();
+  }
+
+  Widget _resendRow() {
+    final store = context.store;
+    final left = maxResends - resends;
+    final didnt = WText(store.t('Didn’t get it?', 'कोड नहीं मिला?', 'కోడ్ రాలేదా?'), WType.body, color: WColor.secondary);
+    if (left <= 0) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: WColor.waitTint, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            const WIconView(WIcon.clock, size: 15, color: WColor.waitText),
+            const SizedBox(width: 8),
+            Expanded(
+              child: WText(
+                store.t('Too many tries. Please try again after 10 minutes.', 'बहुत बार कोशिश हुई। 10 मिनट बाद फिर कोशिश करें।', 'చాలా సార్లు ప్రయత్నించారు. 10 నిమిషాల తర్వాత మళ్ళీ ప్రయత్నించండి.'),
+                WType.caption,
+                color: WColor.waitText,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (sending) {
+      return Row(
+        children: [
+          const WSpinner(size: 16),
+          const SizedBox(width: 8),
+          WText(store.t('Sending a new code…', 'नया कोड भेज रहे हैं…', 'కొత్త కోడ్ పంపుతున్నాం…'), WType.body, color: WColor.secondary),
+        ],
+      );
+    }
+    if (secondsLeft > 0) {
+      return Row(
+        children: [
+          didnt,
+          const SizedBox(width: 6),
+          WText('${store.t('Resend in', 'फिर भेजें', 'మళ్ళీ పంపండి')} 0:${secondsLeft.toString().padLeft(2, '0')}', WType.body, color: WColor.muted, weight: semibold, mono: true),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            didnt,
+            const SizedBox(width: 6),
+            Pressable(
+              onTap: _resend,
+              child: SizedBox(
+                height: 44,
+                child: Row(
+                  children: [
+                    const WIconView(WIcon.refresh, size: 14, color: WColor.primaryStrong, weight: semibold),
+                    const SizedBox(width: 5),
+                    WText(store.t('Resend code', 'कोड फिर भेजें', 'కోడ్ మళ్ళీ పంపండి'), WType.body, color: WColor.primaryStrong, weight: semibold),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (resends > 0) WText(store.t('$left more tries', '$left बार और', 'ఇంకా $left సార్లు'), WType.small, color: WColor.muted),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final store = context.store;
+    final store = context.store, router = context.router;
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: widget.login ? store.t('Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
       footer: WFooter(
-        child: WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: code.length == 6, onTap: () {
-          // Demo: a returning captain has already done KYC.
-          if (widget.login) store.signedUp = true;
-          store.finishRegistration();
-          context.router.home();
-        }),
+        child: WButton(
+          store.t('Next', 'आगे', 'తదుపరి'),
+          size: ButtonSize.captain,
+          enabled: code.length == 6,
+          onTap: () {
+            // Demo: a returning captain has already done KYC.
+            if (widget.login) store.signedUp = true;
+            store.finishRegistration();
+            router.home();
+          },
+        ),
       ),
       children: [
-        const Padding(padding: EdgeInsets.only(top: 14), child: Align(alignment: Alignment.centerLeft, child: WIconView(WIcon.chat, size: 24, color: WColor.primaryStrong))),
+        const Padding(
+          padding: EdgeInsets.only(top: 14),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: WIconView(WIcon.chat, size: 24, color: WColor.primaryStrong),
+          ),
+        ),
         WTitle(store.t('Enter the code', 'कोड डालें', 'కోడ్ నమోదు చేయండి'), top: 8),
-        WBody('${store.t('Sent to', 'भेजा गया', 'పంపబడింది')} ${Fmt.phoneShort(store.phone)}', top: 4, bottom: 20),
-        Align(alignment: Alignment.centerLeft, child: WOtpField(code: code, onChanged: (v) => setState(() => code = v), boxSize: 46, autofocus: false)),
+        // Number with a small edit button: goes back to the number, keypad open.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(
+            children: [
+              Flexible(child: WBody('${store.t('Sent to', 'भेजा गया', 'పంపబడింది')} ${Fmt.phoneShort(store.phone)}')),
+              const SizedBox(width: 4),
+              Pressable(
+                label: store.t('Change number', 'नंबर बदलें', 'నంబర్ మార్చండి'),
+                onTap: () {
+                  store.editPhoneRequested = true;
+                  router.pop();
+                },
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(child: WIconView(WIcon.edit, size: 15, color: WColor.primaryStrong)),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: WOtpField(code: code, onChanged: (v) => setState(() => code = v), boxSize: 46, autofocus: false),
+        ),
         if (reading)
           Container(
             margin: const EdgeInsets.only(top: 20),
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(color: WColor.primaryTint, borderRadius: BorderRadius.circular(12)),
-            child: Row(children: [
-              const WIconView(WIcon.check, size: 15),
-              const SizedBox(width: 10),
-              WText(store.t('Reading the code from SMS…', 'SMS से कोड पढ़ रहे हैं…', 'SMS నుండి కోడ్ చదువుతోంది…'), WType.caption, color: WColor.heading),
-            ]),
+            child: Row(
+              children: [
+                const WIconView(WIcon.check, size: 15),
+                const SizedBox(width: 10),
+                WText(store.t('Reading the code from SMS…', 'SMS से कोड पढ़ रहे हैं…', 'SMS నుండి కోడ్ చదువుతోంది…'), WType.caption, color: WColor.heading),
+              ],
+            ),
           ),
+        Padding(padding: const EdgeInsets.only(top: 22), child: _resendRow()),
       ],
     );
   }
@@ -447,19 +764,32 @@ class SignUpNudge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    return Column(children: [
-      const SizedBox(height: 12),
-      const WStateCircle(WIcon.sparkle, tone: Tone.ok, size: 84),
-      const SizedBox(height: 14),
-      WText(store.t('Like what you see?', 'पसंद आया?', 'నచ్చిందా?'), WType.section, weight: semibold, size: 22),
-      const SizedBox(height: 14),
-      WBody(store.t('Add your name and number to save your spot. It takes 30 seconds.', 'अपनी जगह पक्की करने के लिए नाम और नंबर डालें। 30 सेकंड लगेंगे।', 'మీ స్థానం ఖాయం చేసుకోవడానికి పేరు, నంబర్ ఇవ్వండి. 30 సెకన్లు చాలు.'), center: true),
-      const Spacer(),
-      WButton(store.t('Sign up', 'साइन अप करें', 'సైన్ అప్'), size: ButtonSize.captain, onTap: () {
-        Navigator.of(context).pop();
-        context.router.push(const R(N.signUp));
-      }),
-      WButton(store.t('Later', 'बाद में', 'తర్వాత'), kind: ButtonKind.text, onTap: () => Navigator.of(context).pop()),
-    ]);
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        const WStateCircle(WIcon.sparkle, tone: Tone.ok, size: 84),
+        const SizedBox(height: 14),
+        WText(store.t('Like what you see?', 'पसंद आया?', 'నచ్చిందా?'), WType.section, weight: semibold, size: 22),
+        const SizedBox(height: 14),
+        WBody(
+          store.t(
+            'Add your name and number to save your spot. It takes 30 seconds.',
+            'अपनी जगह पक्की करने के लिए नाम और नंबर डालें। 30 सेकंड लगेंगे।',
+            'మీ స్థానం ఖాయం చేసుకోవడానికి పేరు, నంబర్ ఇవ్వండి. 30 సెకన్లు చాలు.',
+          ),
+          center: true,
+        ),
+        const Spacer(),
+        WButton(
+          store.t('Sign up', 'साइन अप करें', 'సైన్ అప్'),
+          size: ButtonSize.captain,
+          onTap: () {
+            Navigator.of(context).pop();
+            context.router.push(const R(N.signUp));
+          },
+        ),
+        WButton(store.t('Later', 'बाद में', 'తర్వాత'), kind: ButtonKind.text, onTap: () => Navigator.of(context).pop()),
+      ],
+    );
   }
 }

@@ -5,6 +5,7 @@ import 'package:wheelio_ui/wheelio_ui.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
+import 'booking.dart';
 import 'common.dart';
 
 // MARK: Tabs
@@ -157,6 +158,16 @@ class _HomeTabState extends State<HomeTab> {
     final store = context.store, router = context.router;
     final c = store.customer;
     final hasHistory = store.pastOrders.isNotEmpty || store.activeOrder != null;
+    // First-time customer and the first-wash Home is hidden (DesignFlags.firstWashHome):
+    // go straight to the first booking step.
+    if ((c == null || !hasHistory) && !store.showFirstWashHome) {
+      return OnAppear(
+        onAppear: () {
+          if (store.draft.place == null && store.draft.slot == null) store.startNewBooking();
+        },
+        child: const VehicleTypeScreen(asRoot: true),
+      );
+    }
     final a = store.activeOrder;
     final entries = _entries(store);
     return TabScroll(children: [

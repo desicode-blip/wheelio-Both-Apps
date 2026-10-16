@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:wheelio_ui/wheelio_ui.dart';
 
 import '../data/store.dart';
 import 'money.dart';
+import 'onboarding.dart';
 import 'parts.dart';
 import 'welcome.dart';
 
@@ -520,63 +522,207 @@ int _minutes(String t) {
   return (p.isNotEmpty ? p[0] ?? 0 : 0) * 60 + (p.length > 1 ? p[1] ?? 0 : 0);
 }
 
+/// Where a job is in its time window.
+enum _PhaseKind { none, open, soon, late }
+
+class _Phase {
+  const _Phase(this.kind, {this.left = 0, this.over = 0, this.frac = 0});
+  static const none = _Phase(_PhaseKind.none);
+
+  /// none: done, or the window hasn't opened · open: more than 30 min left ·
+  /// soon: 30 min or less left · late: window is over, job not done.
+  final _PhaseKind kind;
+  final int left;
+  final int over;
+  final double frac;
+  int get level => kind.index;
+}
+
+const _amber = Color(0xFFE8890C);
+
 /// A simple day calendar: time on the left, a line with dots, and each job as a compact card.
-/// A done job shows a small summary; any other job opens "Go to vehicle".
-class DayPlan extends StatelessWidget {
+/// A done job shows a small summary; any other job opens "Go to vehicle". As soon as a job's
+/// time window opens its card shows a live countdown: blue while there's time, amber at 30 min
+/// left, red and counting up once late. Window opens / 25 min left / late send notifications.
+class DayPlan extends StatefulWidget {
   const DayPlan({super.key});
+  @override
+  State<DayPlan> createState() => _DayPlanState();
+}
+
+class _DayPlanState extends State<DayPlan> {
+  late final Timer _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _checkAlerts();
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  /// Start and end of a job's window ("8–10", "9:30–11:30") on the plan's day.
+  static (DateTime, DateTime)? window(Job j, DateTime day) {
+    final parts = j.window.split('–');
+    if (parts.length != 2) return null;
+    final d0 = startOfDay(day);
+    return (d0.add(Duration(minutes: _minutes(parts[0]))), d0.add(Duration(minutes: _minutes(parts[1]))));
+  }
+
+  _Phase _phase(Job j, DateTime now) {
+    final w = window(j, now);
+    if (j.status == JobStatus.done || w == null || now.isBefore(w.$1)) return _Phase.none;
+    final left = (w.$2.difference(now).inMilliseconds / 1000).ceil();
+    final frac = (now.difference(w.$1).inMilliseconds / w.$2.difference(w.$1).inMilliseconds).clamp(0.0, 1.0);
+    if (left <= 0) return _Phase(_PhaseKind.late, over: -left);
+    return _Phase(left <= 30 * 60 ? _PhaseKind.soon : _PhaseKind.open, left: left, frac: frac);
+  }
+
+  /// The captain has reached the vehicle and started this job.
+  bool _started(Job j) => j.status == JobStatus.now && context.store.ownerNoteHeard;
+
+  /// Window opened → "time to start"; 25 min left and not started → reminder; window over → late.
+  void _checkAlerts() {
+    final store = context.store;
+    final now = store.planNow;
+    for (final j in store.queue.where((j) => j.status != JobStatus.done).toList()) {
+      final w = window(j, now);
+      if (w == null || now.isBefore(w.$1)) continue;
+      final left = w.$2.difference(now).inSeconds;
+      if (store.planAlerts.add('open-${j.id}')) {
+        // Only announce a window that opened just now (not ones already running at launch).
+        if (now.difference(w.$1).inSeconds < 120 && !_started(j)) store.notify(WNotifKind.windowOpen, job: j);
+      }
+      if (left <= 0) {
+        if (store.planAlerts.add('late-${j.id}') && !_started(j)) store.notify(WNotifKind.runningLate, job: j);
+      } else if (left <= 25 * 60 && store.planAlerts.add('soon-${j.id}') && !_started(j)) {
+        store.notify(WNotifKind.finishSoon, job: j);
+      }
+    }
+  }
+
+  int _shakeKey(Job j, _Phase ph) => switch (ph.kind) {
+    _PhaseKind.soon => ph.left <= 25 * 60 && !_started(j) ? 3 : 2,
+    _PhaseKind.late => 4,
+    _ => ph.level,
+  };
+
+  void _open(Job j) {
+    final store = context.store, router = context.router;
+    switch (j.status) {
+      case JobStatus.done:
+        showWSheet<void>(context, height: 330, gutter: 20, builder: (_) => _DoneJobSheet(job: j));
+      case JobStatus.now:
+        router.go(N.goToVehicle);
+      case JobStatus.next:
+        // Captain chose to do this one first: it becomes the current job.
+        store.startJob(j.id);
+        router.go(N.goToVehicle);
+    }
+  }
+
+  static String _clock(DateTime d) {
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    return '$h:${d.minute.toString().padLeft(2, '0')} ${d.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  Widget _dot(JobStatus s) => switch (s) {
+    JobStatus.done => Container(
+      width: 24,
+      height: 24,
+      decoration: const BoxDecoration(color: WColor.success, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: const WIconView(WIcon.check, size: 11, color: WColor.onSuccess, weight: bold),
+    ),
+    JobStatus.now => Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(color: WColor.primary, shape: BoxShape.circle, boxShadow: [BoxShadow(color: WColor.primary.withValues(alpha: 0.25), spreadRadius: 5)]),
+      alignment: Alignment.center,
+      child: Container(width: 9, height: 9, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
+    ),
+    JobStatus.next => Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(color: WColor.white, shape: BoxShape.circle, border: Border.all(color: WColor.muted, width: 2.5)),
+    ),
+  };
+
+  Widget _card(Job j, _Phase ph, DateTime now) {
+    final store = context.store;
+    final isNow = j.status == JobStatus.now, done = j.status == JobStatus.done;
+    final edge = ph.level == 3 ? WColor.destructive : (ph.level == 2 ? _amber : (isNow ? WColor.primary : WColor.border));
+    final fill = ph.level == 3 ? WColor.errorTint : (ph.level == 2 ? WColor.waitTint : (isNow ? WColor.primaryTint : (done ? WColor.canvas : WColor.white)));
+    final w = window(j, now);
+    return Pressable(
+      onTap: () => _open(j),
+      // A short shake when it turns urgent (30 min left, 25 min reminder, late).
+      child: _ShakeOnChange(
+        trigger: _shakeKey(j, ph),
+        child: Opacity(
+          opacity: done ? 0.8 : 1,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeOutBack,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: outlinedDecoration(radius: 14, fill: fill, stroke: edge, width: isNow || ph.level >= 2 ? 2 : 1),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    WIconView(WIcon.location, size: 13, color: done ? WColor.muted : WColor.primaryStrong),
+                    const SizedBox(width: 6),
+                    Expanded(child: WText(j.society, WType.title, size: 16, maxLines: 1, color: done ? WColor.secondary : WColor.heading)),
+                    WText(Fmt.rupees(j.pay), WType.title, size: 16, mono: true, color: done ? WColor.secondary : WColor.heading),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    WIconView(j.isBike ? WIcon.bike : WIcon.carFill, size: 13, color: done ? WColor.muted : WColor.secondary),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(5), border: Border.all(color: done ? WColor.border : WColor.heading, width: 1.2)),
+                      child: Text(j.plate, style: wStyle(WType.label, weight: semibold, size: 13, color: done ? WColor.secondary : WColor.heading).copyWith(letterSpacing: 1)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: WText('${j.tower} · ${j.floor}', WType.caption, size: 13.5, maxLines: 1)),
+                    if (done)
+                      WText(store.t('Done', 'पूरा', 'పూర్తి'), WType.small, color: WColor.onSuccess, weight: semibold)
+                    else
+                      WIconView(WIcon.chevron, size: 11, color: isNow ? WColor.primaryStrong : WColor.muted),
+                  ],
+                ),
+                // Timer appears as soon as the job's time window starts.
+                if (ph.kind != _PhaseKind.none)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: FadeIn(offset: -8, child: _WindowTimerRow(phase: ph, started: _started(j), windowEnd: w == null ? '' : _clock(w.$2))),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final store = context.store, router = context.router;
+    final store = context.store;
+    final now = store.planNow;
     final jobs = [...store.queue]..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)));
     final done = store.queue.where((j) => j.status == JobStatus.done).length;
-    void open(Job j) {
-      switch (j.status) {
-        case JobStatus.done:
-          showWSheet<void>(context, height: 330, gutter: 20, builder: (_) => _DoneJobSheet(job: j));
-        case JobStatus.now:
-          router.go(N.goToVehicle);
-        case JobStatus.next:
-          // Captain chose to do this one first: it becomes the current job.
-          store.startJob(j.id);
-          router.go(N.goToVehicle);
-      }
-    }
-
-    Widget dot(JobStatus s) => switch (s) {
-      JobStatus.done => Container(
-        width: 24,
-        height: 24,
-        decoration: const BoxDecoration(color: WColor.success, shape: BoxShape.circle),
-        alignment: Alignment.center,
-        child: const WIconView(WIcon.check, size: 11, color: WColor.onSuccess, weight: bold),
-      ),
-      JobStatus.now => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          color: WColor.primary,
-          shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: WColor.primary.withValues(alpha: 0.25), spreadRadius: 5)],
-        ),
-        alignment: Alignment.center,
-        child: Container(
-          width: 9,
-          height: 9,
-          decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
-        ),
-      ),
-      JobStatus.next => Container(
-        width: 24,
-        height: 24,
-        decoration: BoxDecoration(
-          color: WColor.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: WColor.muted, width: 2.5),
-        ),
-      ),
-    };
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -588,13 +734,23 @@ class DayPlan extends StatelessWidget {
                 children: [
                   WText(store.t('Today’s plan', 'आज का प्लान', 'ఈరోజు ప్లాన్'), WType.section, weight: semibold, size: 21),
                   const SizedBox(height: 2),
-                  WText(
-                    '${Fmt.day(DateTime.now())} · ${store.t('$done of ${store.queue.length} done', '${store.queue.length} में से $done पूरे', '${store.queue.length} లో $done పూర్తి')}',
-                    WType.caption,
-                  ),
+                  WText('${_clock(now)} · ${store.t('$done of ${store.queue.length} done', '${store.queue.length} में से $done पूरे', '${store.queue.length} లో $done పూర్తి')}', WType.caption, mono: true),
                 ],
               ),
             ),
+            if (planClockTest)
+              // TEST ONLY: jump the plan clock ahead to see the timer states.
+              Pressable(
+                onTap: () => store.set(() => store.planSkipSeconds += 5 * 60),
+                child: Container(
+                  height: 26,
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: ShapeDecoration(shape: StadiumBorder(side: BorderSide(color: WColor.destructive.withValues(alpha: 0.5)))),
+                  alignment: Alignment.center,
+                  child: const WText('TEST +5 min', WType.small, color: WColor.destructive, weight: semibold),
+                ),
+              ),
             Container(
               width: 36,
               height: 36,
@@ -606,111 +762,194 @@ class DayPlan extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         for (final (i, j) in jobs.indexed)
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 46,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        WText(
-                          () {
-                            final m = _minutes(j.time), h = m ~/ 60;
-                            return '${h % 12 == 0 ? 12 : h % 12}:${(m % 60).toString().padLeft(2, '0')}';
-                          }(),
-                          WType.title,
-                          size: 17,
-                          mono: true,
-                          color: j.status == JobStatus.done ? WColor.secondary : WColor.heading,
-                        ),
-                        WText(_minutes(j.time) ~/ 60 < 12 ? 'AM' : 'PM', WType.small),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  width: 26,
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 12),
-                      dot(j.status),
-                      if (i < jobs.length - 1) Expanded(child: Container(width: 3, color: j.status == JobStatus.done ? WColor.success : WColor.border)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: i == jobs.length - 1 ? 0 : 10),
-                    child: Pressable(
-                      onTap: () => open(j),
-                      child: Opacity(
-                        opacity: j.status == JobStatus.done ? 0.8 : 1,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                          decoration: outlinedDecoration(
-                            radius: 14,
-                            fill: j.status == JobStatus.now
-                                ? WColor.primaryTint
-                                : j.status == JobStatus.done
-                                ? WColor.canvas
-                                : WColor.white,
-                            stroke: j.status == JobStatus.now ? WColor.primary : WColor.border,
-                            width: j.status == JobStatus.now ? 2 : 1,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  WIconView(WIcon.location, size: 13, color: j.status == JobStatus.done ? WColor.muted : WColor.primaryStrong),
-                                  const SizedBox(width: 6),
-                                  Expanded(child: WText(j.society, WType.title, size: 16, maxLines: 1, color: j.status == JobStatus.done ? WColor.secondary : WColor.heading)),
-                                  WText(Fmt.rupees(j.pay), WType.title, size: 16, mono: true, color: j.status == JobStatus.done ? WColor.secondary : WColor.heading),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  WIconView(j.isBike ? WIcon.bike : WIcon.carFill, size: 13, color: j.status == JobStatus.done ? WColor.muted : WColor.secondary),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(color: j.status == JobStatus.done ? WColor.border : WColor.heading, width: 1.2),
-                                    ),
-                                    child: Text(
-                                      j.plate,
-                                      style: wStyle(WType.label, weight: semibold, size: 13, color: j.status == JobStatus.done ? WColor.secondary : WColor.heading).copyWith(letterSpacing: 1),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: WText('${j.tower} · ${j.floor}', WType.caption, size: 13.5, maxLines: 1)),
-                                  if (j.status == JobStatus.done)
-                                    WText(store.t('Done', 'पूरा', 'పూర్తి'), WType.small, color: WColor.onSuccess, weight: semibold)
-                                  else
-                                    WIconView(WIcon.chevron, size: 11, color: j.status == JobStatus.now ? WColor.primaryStrong : WColor.muted),
-                                ],
-                              ),
-                            ],
-                          ),
+          Builder(
+            builder: (context) {
+              final ph = _phase(j, now);
+              final m = _minutes(j.time), h = m ~/ 60;
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: 46,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            WText('${h % 12 == 0 ? 12 : h % 12}:${(m % 60).toString().padLeft(2, '0')}', WType.title, size: 17, mono: true, color: j.status == JobStatus.done ? WColor.secondary : WColor.heading),
+                            WText(h < 12 ? 'AM' : 'PM', WType.small),
+                          ],
                         ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    SizedBox(
+                      width: 26,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 12),
+                          Stack(
+                            clipBehavior: Clip.none,
+                            alignment: Alignment.center,
+                            children: [_dot(j.status), if (ph.level >= 2) _AlertRing(color: ph.level == 3 ? WColor.destructive : _amber)],
+                          ),
+                          if (i < jobs.length - 1) Expanded(child: Container(width: 3, color: j.status == JobStatus.done ? WColor.success : WColor.border)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Padding(padding: EdgeInsets.only(bottom: i == jobs.length - 1 ? 0 : 10), child: _card(j, ph, now)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
       ],
     );
   }
+}
+
+/// Live countdown inside a plan card: blue while there's time, amber at 30 min left
+/// (gently breathing), red and counting up once late. A thin bar shows how much of the window is used.
+class _WindowTimerRow extends StatelessWidget {
+  const _WindowTimerRow({required this.phase, required this.started, required this.windowEnd});
+  final _Phase phase;
+  final bool started;
+  final String windowEnd;
+
+  static String mmss(int s) => s >= 3600 ? '${s ~/ 3600}h ${((s % 3600) ~/ 60).toString().padLeft(2, '0')}m' : '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final tint = switch (phase.kind) {
+      _PhaseKind.late => WColor.destructive,
+      _PhaseKind.soon => _amber,
+      _ => WColor.primaryStrong,
+    };
+    final urgent = phase.level >= 2;
+    final label = switch (phase.kind) {
+      _PhaseKind.open || _PhaseKind.soon => '${mmss(phase.left)} ${store.t('left', 'बाकी', 'మిగిలింది')}',
+      _PhaseKind.late => '${store.t('Late', 'लेट', 'ఆలస్యం')} ${mmss(phase.over)}',
+      _PhaseKind.none => '',
+    };
+    final note = switch (phase.kind) {
+      _PhaseKind.open => started ? store.t('In progress', 'चल रहा है', 'జరుగుతోంది') : store.t('Finish by $windowEnd', '$windowEnd तक पूरा करें', '$windowEnd లోపు పూర్తి చేయండి'),
+      _PhaseKind.soon =>
+        started
+            ? store.t('Finish soon', 'जल्दी पूरा करें', 'త్వరగా పూర్తి చేయండి')
+            : phase.left <= 25 * 60
+            ? store.t('Not started! Go now', 'शुरू नहीं किया! अभी जाएं', 'మొదలుపెట్టలేదు! ఇప్పుడే వెళ్ళండి')
+            : store.t('Hurry up', 'जल्दी करें', 'త్వరపడండి'),
+      _PhaseKind.late => store.t('−₹1 every late minute', 'हर लेट मिनट −₹1', 'ప్రతి ఆలస్య నిమిషం −₹1'),
+      _PhaseKind.none => '',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Pulse(
+              key: ValueKey(urgent),
+              duration: Duration(milliseconds: urgent ? 700 : 1200),
+              builder: (c, t) => Transform.scale(
+                scale: urgent ? 1 + 0.05 * t : 1,
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  height: 26,
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                  decoration: ShapeDecoration(color: tint.withValues(alpha: 0.12), shape: StadiumBorder(side: BorderSide(color: tint.withValues(alpha: urgent ? 0.6 : 0.25)))),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Opacity(opacity: 1 - 0.75 * t, child: Container(width: 6, height: 6, decoration: BoxDecoration(color: tint, shape: BoxShape.circle))),
+                      const SizedBox(width: 5),
+                      WIconView(WIcon.timer, size: 12, color: tint, weight: semibold),
+                      const SizedBox(width: 5),
+                      WText(label, WType.label, weight: bold, size: 13, color: tint, mono: true),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(child: WText(note, WType.small, color: urgent ? tint : WColor.secondary, weight: urgent ? semibold : FontWeight.w400, maxLines: 1, align: TextAlign.right)),
+          ],
+        ),
+        if (phase.kind != _PhaseKind.late) ...[
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: SizedBox(
+              height: 4,
+              child: Stack(children: [Container(color: tint.withValues(alpha: 0.15)), FractionallySizedBox(widthFactor: phase.frac, child: Container(color: tint))]),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Ripple around a timeline dot when a job is running out of time.
+class _AlertRing extends StatelessWidget {
+  const _AlertRing({required this.color});
+  final Color color;
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Pulse(
+      duration: const Duration(milliseconds: 1300),
+      reverse: false,
+      builder: (c, t) => Transform.scale(
+        scale: 1 + 0.9 * t,
+        child: Opacity(
+          opacity: 0.8 * (1 - t),
+          child: Container(width: 24, height: 24, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: color, width: 2))),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Shakes its child sideways once whenever [trigger] changes.
+class _ShakeOnChange extends StatefulWidget {
+  const _ShakeOnChange({required this.trigger, required this.child});
+  final int trigger;
+  final Widget child;
+  @override
+  State<_ShakeOnChange> createState() => _ShakeOnChangeState();
+}
+
+class _ShakeOnChangeState extends State<_ShakeOnChange> with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 360));
+  static const _keys = [0.0, -7, 7, -5, 5, -2, 0];
+
+  @override
+  void didUpdateWidget(_ShakeOnChange old) {
+    super.didUpdateWidget(old);
+    if (old.trigger != widget.trigger && widget.trigger >= 2) _c.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (c, child) {
+      final p = _c.value * (_keys.length - 1);
+      final i = p.floor().clamp(0, _keys.length - 2);
+      final x = _keys[i] + (_keys[i + 1] - _keys[i]) * (p - i);
+      return Transform.translate(offset: Offset(_c.isAnimating ? x.toDouble() : 0, 0), child: child);
+    },
+    child: widget.child,
+  );
 }
 
 /// Small pop-up for a finished job.
@@ -826,7 +1065,10 @@ class _LiveStrip extends StatelessWidget {
 
 // MARK: W22 New job alert: a stack of offers (W22b batched, W22h Hindi, W22t Telugu, W22m many)
 
-const _offerSeconds = 30;
+const _offerSeconds = 60;
+
+/// How long a missed card stays in the stack before it disappears.
+const _missedLinger = 30;
 
 class _Offer {
   _Offer(this.job, this.arrived);
@@ -834,10 +1076,11 @@ class _Offer {
   final DateTime arrived;
 }
 
-/// Every job that rings gets its own 30-second timer. New jobs arriving while the alert is open
-/// slide in behind the top card. Reject sends the top card to the back of the stack; Accept adds
-/// it to today's jobs on Home and shows the next one. When a timer runs out, that job goes to
-/// someone else. Phones can also swipe the top card left; the web shows "See next job" instead.
+/// Every job that rings gets its own 60-second timer, shown inside its card. New jobs arriving
+/// while the alert is open slide in behind the top card. Reject slides the top card behind the
+/// stack; Accept adds it to today's jobs on Home. When a timer runs out the card stays, greyed
+/// out with an "Opportunity missed" band, for 30 more seconds, then leaves the stack.
+/// Phones can also swipe the top card either way; the web shows "See next job" instead.
 class JobAlertScreen extends StatefulWidget {
   const JobAlertScreen({super.key, this.batched = false});
   final bool batched;
@@ -854,8 +1097,11 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   int acceptedHere = 0;
   Timer? _tick;
   final _timers = <Timer>[];
+  final _missedSeen = <String>{};
 
   double _left(_Offer o) => (_offerSeconds - now.difference(o.arrived).inMilliseconds / 1000).clamp(0, _offerSeconds).toDouble();
+  bool _isMissed(_Offer o) => _left(o) <= 0;
+  bool get _topMissed => offers.isNotEmpty && _isMissed(offers.first);
 
   void _nudge() {
     Device.ding();
@@ -900,13 +1146,14 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     _tick = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (handled || !mounted) return;
       setState(() => now = DateTime.now());
-      // Jobs whose 30 seconds ran out go to someone else.
-      final expired = offers.where((o) => _left(o) <= 0).toList();
-      if (expired.isEmpty) return;
-      for (final o in expired) {
+      // Time over: the job goes to someone else. The card stays greyed for 30 s, then leaves.
+      for (final o in offers.where((o) => _isMissed(o) && _missedSeen.add(o.job.id))) {
         store.notify(WNotifKind.jobTaken, job: o.job, deliver: false);
+        Device.buzz();
       }
-      setState(() => offers.removeWhere(expired.contains));
+      final gone = offers.where((o) => now.difference(o.arrived).inSeconds >= _offerSeconds + _missedLinger).toList();
+      if (gone.isEmpty) return;
+      setState(() => offers.removeWhere(gone.contains));
       if (offers.isEmpty) {
         handled = true;
         if (acceptedHere > 0) {
@@ -941,14 +1188,75 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
       _leave();
       return;
     }
+    _sendBack(-1);
+  }
+
+  /// Carousel move: slide the top card out sideways, then let it settle in behind the others.
+  void _sendBack(double direction) {
+    if (offers.length < 2) {
+      setState(() => drag = 0);
+      return;
+    }
     Device.buzz();
-    setState(() => offers.add(offers.removeAt(0)));
+    setState(() => drag = direction * 600);
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (!mounted || offers.length < 2) return;
+      setState(() {
+        offers.add(offers.removeAt(0));
+        drag = 0;
+      });
+    });
+  }
+
+  /// Small "Go offline": stops new jobs and closes the alert.
+  void _goOffline() {
+    if (handled) return;
+    handled = true;
+    final store = context.store;
+    store.set(() {
+      store.online = false;
+      store.toast = store.t('You’re offline. No new jobs.', 'आप ऑफ़लाइन हैं। नए काम नहीं आएंगे।', 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. కొత్త పనులు రావు.');
+    });
+    context.router.home();
+  }
+
+  /// Time to decide, inside the card.
+  Widget _timeBar(_Offer o) {
+    final store = context.store;
+    final l = _left(o), f = l / _offerSeconds;
+    final tint = f < 0.25 ? _amber : WColor.primaryStrong;
+    final secs = l.ceil();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              WIconView(WIcon.timer, size: 14, color: tint, weight: semibold),
+              const SizedBox(width: 6),
+              WText(store.t('Decide in', 'फ़ैसला करें', 'నిర్ణయించండి'), WType.caption, color: WColor.secondary),
+              const Spacer(),
+              WText('${secs ~/ 60}:${(secs % 60).toString().padLeft(2, '0')}', WType.title, color: tint, size: 17, mono: true),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SizedBox(
+              height: 6,
+              child: Stack(children: [Container(color: WColor.primaryTint), FractionallySizedBox(widthFactor: f, child: Container(color: tint))]),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Accept: the job moves to Home (today's jobs) and the next offer shows.
   void _accept() {
     final store = context.store, router = context.router;
-    if (handled || offers.isEmpty) return;
+    if (handled || offers.isEmpty || _topMissed) return;
     final top = offers.first;
     if (!store.signedUp) {
       // First job: a quick KYC before accepting.
@@ -991,6 +1299,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     final store = context.store;
     final j = o.job;
     final isTop = i == 0;
+    final missed = _isMissed(o);
     final card = Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1007,6 +1316,8 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _timeBar(o),
+          const SizedBox(height: 14),
           Row(
             children: [
               WIconBox(j.isBike ? WIcon.bike : WIcon.car, size: 72, radius: 16, iconSize: 32),
@@ -1017,7 +1328,6 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                   children: [WText(store.t('Your pay', 'आपकी कमाई', 'మీ సంపాదన'), WType.body), WText(Fmt.rupees(j.pay), WType.bigMoney, mono: true)],
                 ),
               ),
-              if (!isTop) WText('0:${_left(o).ceil().toString().padLeft(2, '0')}', WType.label, mono: true),
             ],
           ),
           const SizedBox(height: 14),
@@ -1084,13 +1394,26 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         ],
       ),
     );
+    // Missed: greyed out with a diagonal band, still in the stack for a while.
+    final shownCard = !missed
+        ? card
+        : Stack(
+            children: [
+              Opacity(
+                opacity: 0.55,
+                child: ColorFiltered(
+                  colorFilter: const ColorFilter.matrix([0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0.2126, 0.7152, 0.0722, 0, 0, 0, 0, 0, 1, 0]),
+                  child: card,
+                ),
+              ),
+              Positioned.fill(child: _MissedBand(text: store.t('Opportunity missed', 'मौका चूक गया', 'అవకాశం తప్పింది'))),
+            ],
+          );
     final dx = isTop ? drag : 0.0;
     Widget out = AnimatedContainer(
-      duration: Duration(milliseconds: isTop && drag != 0 && drag > -600 ? 0 : 350),
+      duration: Duration(milliseconds: isTop && drag.abs() > 0 && drag.abs() < 600 ? 0 : 300),
       curve: Curves.easeOutCubic,
-      transform: Matrix4.identity()
-        ..translateByDouble(dx, i * 14.0, 0, 1)
-        ..rotateZ(isTop ? drag / 22 * 3.14159 / 180 : 0),
+      transform: Matrix4.identity()..translateByDouble(dx, i * 14.0, 0, 1),
       transformAlignment: Alignment.bottomCenter,
       child: Transform.scale(
         scale: 1 - i * 0.05,
@@ -1101,48 +1424,20 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
               : i == 1
               ? 0.85
               : 0.6,
-          child: card,
+          child: shownCard,
         ),
       ),
     );
-    if (isTop && drag < -30) {
-      out = Stack(
-        children: [
-          out,
-          Positioned(
-            top: 18,
-            right: 18,
-            child: Transform.rotate(
-              angle: 0.2,
-              child: Opacity(
-                opacity: ((-drag - 30) / 60).clamp(0, 1),
-                child: Container(
-                  height: 30,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: const ShapeDecoration(
-                    shape: StadiumBorder(side: BorderSide(color: WColor.destructive, width: 2)),
-                  ),
-                  alignment: Alignment.center,
-                  child: WText(store.t('LATER', 'बाद में', 'తర్వాత'), WType.label, color: WColor.destructive, weight: bold),
-                ),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-    // Phones: swipe the top card left to see the next job. The web has no swipes.
+    // Phones: swipe the top card either way to see the next job. The web has no swipes.
     if (isTop && !kIsWeb) {
       out = GestureDetector(
-        onHorizontalDragUpdate: (d) => setState(() => drag = (drag + d.delta.dx).clamp(-600, 40)),
+        onHorizontalDragUpdate: (d) {
+          if (offers.length > 1) setState(() => drag = (drag + d.delta.dx).clamp(-600, 600));
+        },
         onHorizontalDragEnd: (d) {
-          if (drag < -110 || (d.primaryVelocity ?? 0) < -800) {
-            setState(() => drag = -600);
-            Future.delayed(const Duration(milliseconds: 220), () {
-              if (!mounted) return;
-              setState(() => drag = 0);
-              _reject();
-            });
+          final v = d.primaryVelocity ?? 0;
+          if (drag.abs() > 90 || v.abs() > 800) {
+            _sendBack((drag + v / 10) < 0 ? -1 : 1);
           } else {
             setState(() => drag = 0);
           }
@@ -1157,7 +1452,6 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   Widget build(BuildContext context) {
     final store = context.store;
     final pad = MediaQuery.paddingOf(context);
-    final top = offers.isEmpty ? null : offers.first;
     final shown = offers.take(3).toList();
     return Material(
       color: WColor.primary,
@@ -1194,33 +1488,30 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                     ),
                   ],
                   const Spacer(),
-                  if (top != null) WText('0:${_left(top).ceil().toString().padLeft(2, '0')}', WType.screen, color: WColor.white, size: 23, mono: true),
+                  // Small "Go offline": stops new jobs and closes the alert.
+                  Pressable(
+                    onTap: _goOffline,
+                    child: Container(
+                      height: 34,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: ShapeDecoration(color: Colors.white.withValues(alpha: 0.16), shape: StadiumBorder(side: BorderSide(color: Colors.white.withValues(alpha: 0.35)))),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const WIconView(WIcon.power, size: 13, color: WColor.white, weight: semibold),
+                          const SizedBox(width: 5),
+                          WText(store.t('Go offline', 'ऑफ़लाइन', 'ఆఫ్‌లైన్'), WType.label, color: WColor.white),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            if (top != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: SizedBox(
-                    height: 8,
-                    child: Stack(
-                      children: [
-                        Container(color: Colors.white38),
-                        FractionallySizedBox(
-                          widthFactor: _left(top) / _offerSeconds,
-                          child: Container(color: _left(top) / _offerSeconds < 0.25 ? const Color(0xFFFFD27A) : WColor.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             // Cards scroll on short screens so Reject and Accept always stay in view.
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 16, bottom: 12),
+                padding: const EdgeInsets.only(top: 22, bottom: 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1283,7 +1574,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                                   const WIconView(WIcon.swipe, size: 14, color: Colors.white70),
                                   const SizedBox(width: 6),
                                   WText(
-                                    store.t('Swipe left to see the next job', 'अगला काम देखने के लिए बाएँ स्वाइप करें', 'తదుపరి పని చూడటానికి ఎడమకు స్వైప్ చేయండి'),
+                                    store.t('Swipe to see the next job', 'अगला काम देखने के लिए स्वाइप करें', 'తదుపరి పని చూడటానికి స్వైప్ చేయండి'),
                                     WType.caption,
                                     color: Colors.white70,
                                   ),
@@ -1333,7 +1624,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, enabled: offers.isNotEmpty, onTap: _accept),
+                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, enabled: offers.isNotEmpty && !_topMissed, onTap: _accept),
                 ),
               ],
             ),
@@ -1342,6 +1633,38 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
       ),
     );
   }
+}
+
+/// Diagonal "Opportunity missed" band across a timed-out job card.
+class _MissedBand extends StatelessWidget {
+  const _MissedBand({required this.text});
+  final String text;
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: LayoutBuilder(
+        builder: (c, box) {
+          final w = box.maxWidth, h = box.maxHeight;
+          return OverflowBox(
+            maxWidth: double.infinity,
+            child: Center(
+              child: Transform.rotate(
+                angle: -atan2(h, w),
+                child: Container(
+                  width: sqrt(w * w + h * h) + 40,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: WColor.destructive.withValues(alpha: 0.92), boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 6, offset: Offset(0, 2))]),
+                  child: WText(text.toUpperCase(), WType.label, color: WColor.white, weight: bold, letterSpacing: 1.2),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 // MARK: W23 Job went to someone else

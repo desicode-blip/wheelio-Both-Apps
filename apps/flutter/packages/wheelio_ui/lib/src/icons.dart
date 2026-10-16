@@ -86,6 +86,7 @@ enum WIcon {
   battery(Icons.battery_2_bar_rounded),
   eye(Icons.visibility_outlined),
   ban(Icons.block_rounded),
+  timer(Icons.timer_outlined),
   stopwatch(Icons.timer_outlined),
   flash(Icons.flash_on_outlined),
   upload(Icons.ios_share_rounded),

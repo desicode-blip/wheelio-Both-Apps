@@ -1,7 +1,8 @@
 # Hidden designs (kept, not deleted)
 
 These screens are fully built and still in the code. They are switched off with flags in
-`apps/ios/Customer/App/DesignFlags.swift`. Set a flag to `true` to bring the design back exactly as it was.
+`apps/flutter/customer/lib/app/design_flags.dart` (Flutter, the development app) and
+`apps/ios/Customer/App/DesignFlags.swift` (SwiftUI reference). Keep both the same. Set a flag to `true` to bring the design back exactly as it was.
 
 | Flag | What it shows | Hidden since |
 |---|---|---|

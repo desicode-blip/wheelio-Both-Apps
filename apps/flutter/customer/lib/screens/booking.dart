@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 
+import '../app/design_flags.dart';
 import '../data/models.dart';
 import '../data/store.dart';
 import 'common.dart';
@@ -8,8 +9,11 @@ import 'common.dart';
 // MARK: C05 Vehicle type (C52: 200% text)
 
 class VehicleTypeScreen extends StatelessWidget {
-  const VehicleTypeScreen({super.key, this.large = false});
+  const VehicleTypeScreen({super.key, this.large = false, this.asRoot = false});
   final bool large;
+
+  /// Shown in place of the hidden first-time Home (no back button there).
+  final bool asRoot;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +26,7 @@ class VehicleTypeScreen extends StatelessWidget {
       child: TextScale(
         scale: large ? 1.6 : 1,
         child: WScreen(
-          header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
+          header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, showBack: !asRoot, showProgress: DesignFlags.firstStepProgress),
           footer: large
               ? Container(decoration: const BoxDecoration(border: Border(top: BorderSide(color: WColor.divider))), padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter, vertical: 12), child: next)
               : WFooterBar(showCall: false, child: next),
@@ -255,20 +259,33 @@ class PhotosScreen extends StatelessWidget {
             ]),
           )
         else if (!d.hasFailedPhoto)
+          // Optional extra: same look as the photo slots, plus an "Optional" tab on its edge.
           Padding(
-            padding: const EdgeInsets.only(top: 20),
+            padding: const EdgeInsets.only(top: 30),
             child: Pressable(
+              label: 'Optional: walk-around video, 15 seconds',
               onTap: () => store.set(() => store.draft.videoSeconds = 14),
-              child: const DashedBorder(
-                child: SizedBox(
-                  height: 62,
-                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
-                    SizedBox(width: 10),
-                    WText('Walk-around video · optional, 15 sec', WType.bodyStrong, color: WColor.primaryStrong, weight: medium),
-                  ]),
+              child: Stack(clipBehavior: Clip.none, children: [
+                const DashedBorder(
+                  child: SizedBox(
+                    height: 62,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
+                      SizedBox(width: 10),
+                      WText('Walk-around video (15 sec)', WType.bodyStrong, color: WColor.primaryStrong, weight: medium),
+                    ]),
+                  ),
                 ),
-              ),
+                Positioned(
+                  left: 14,
+                  top: -10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: const ShapeDecoration(color: WColor.canvas, shape: StadiumBorder(side: BorderSide(color: WColor.border))),
+                    child: WText('OPTIONAL', WType.small, weight: semibold, size: 10.5, color: WColor.secondary, letterSpacing: 0.8),
+                  ),
+                ),
+              ]),
             ),
           ),
       ],
@@ -642,6 +659,8 @@ class _FloorSlotScreenState extends State<FloorSlotScreen> {
 
 // MARK: C11 Notes for the captain
 
+/// Video or voice note (one of the two, same priority), and a text message that can go
+/// along with either. Nothing is recorded by default.
 class EntryNotesScreen extends StatefulWidget {
   const EntryNotesScreen({super.key});
   @override
@@ -650,17 +669,124 @@ class EntryNotesScreen extends StatefulWidget {
 
 class _EntryNotesScreenState extends State<EntryNotesScreen> {
   late String text = context.store.draft.note.text;
-  late int? voice = context.store.draft.note.voiceSeconds ?? 12;
+  late int? voice = context.store.draft.note.voiceSeconds;
+  late int? video = context.store.draft.note.videoSeconds;
   bool playing = false;
+  String? recording;
 
-  Widget _record(WIcon icon, String title, VoidCallback onTap) => Expanded(
-        child: Pressable(
-          onTap: onTap,
-          child: Container(
-            height: 48,
-            decoration: outlinedDecoration(radius: 10),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [WIconView(icon, size: 16), const SizedBox(width: 8), WText(title, WType.bodyStrong, color: WColor.heading, weight: medium)]),
-          ),
+  bool get hasRecording => voice != null || video != null;
+
+  /// Demo: a short "recording" then the clip appears. BACKEND: real camera / mic capture.
+  void _record(String kind) {
+    if (recording != null) return;
+    setState(() => recording = kind);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() {
+        if (kind == 'video') {
+          video = 15;
+          voice = null;
+        } else {
+          voice = 12;
+          video = null;
+        }
+        recording = null;
+      });
+    });
+  }
+
+  Widget _recordTile(WIcon icon, String title, String kind) {
+    final busy = recording == kind;
+    return Expanded(
+      child: Pressable(
+        enabled: recording == null || busy,
+        onTap: () => _record(kind),
+        child: Container(
+          height: 132,
+          decoration: outlinedDecoration(radius: 16, stroke: busy ? WColor.destructive : WColor.border, width: busy ? 2 : 1),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: busy ? WColor.destructive : WColor.primaryTint, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: busy
+                  ? Container(width: 18, height: 18, decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(4)))
+                  : WIconView(icon, size: 22, color: WColor.primaryStrong),
+            ),
+            const SizedBox(height: 12),
+            WText(busy ? 'Recording…' : title, WType.bodyStrong, color: busy ? WColor.destructive : WColor.primaryStrong, weight: medium, align: TextAlign.center),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _deleteButton(VoidCallback action) => Pressable(
+        label: 'Delete recording',
+        onTap: () => setState(() {
+          action();
+          playing = false;
+        }),
+        child: const SizedBox(width: 44, height: 44, child: Center(child: WIconView(WIcon.trash, size: 17, color: WColor.destructive))),
+      );
+
+  Widget _recordedVideo(int secs) => FadeIn(
+        offset: 0,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            Pressable(
+              label: playing ? 'Pause video' : 'Play video',
+              onTap: () => setState(() => playing = !playing),
+              child: Container(
+                width: 96,
+                height: 72,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: const LinearGradient(colors: [Color(0xFF2A3445), Color(0xFF4A5568)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
+                child: Stack(alignment: Alignment.center, children: [
+                  const WIconView(WIcon.carFill, size: 26, color: Colors.white38),
+                  Container(width: 38, height: 38, decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 18, color: WColor.white)),
+                ]),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Row(children: [WIconView(WIcon.video, size: 14, color: WColor.primaryStrong), SizedBox(width: 6), WText('Video message', WType.bodyStrong)]),
+                const SizedBox(height: 4),
+                WText(Fmt.clock(secs), WType.caption, mono: true),
+              ]),
+            ),
+            _deleteButton(() => video = null),
+          ]),
+        ),
+      );
+
+  Widget _recordedVoice(int secs) => FadeIn(
+        offset: 0,
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
+          child: Row(children: [
+            Pressable(
+              label: playing ? 'Pause voice note' : 'Play voice note',
+              onTap: () => setState(() => playing = !playing),
+              child: Container(width: 40, height: 40, decoration: const BoxDecoration(color: WColor.primaryTint, shape: BoxShape.circle), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 15, color: WColor.primaryStrong)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const WText('Voice note', WType.small, color: WColor.secondary),
+                const SizedBox(height: 6),
+                ClipRRect(borderRadius: BorderRadius.circular(2), child: playing ? const LinearProgressIndicator(minHeight: 3, color: WColor.primary, backgroundColor: WColor.border) : Container(height: 3, color: WColor.border)),
+              ]),
+            ),
+            const SizedBox(width: 12),
+            WText(Fmt.clock(secs), WType.caption, mono: true),
+            _deleteButton(() => voice = null),
+          ]),
         ),
       );
 
@@ -675,39 +801,31 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
           store.set(() {
             store.draft.note.text = text;
             store.draft.note.voiceSeconds = voice;
+            store.draft.note.videoSeconds = video;
           });
           context.router.go(N.timeSlot);
         }),
       ),
       children: [
-        const WTitleBlock('Anything the captain should know?', subtitle: 'Optional. Gate, lift, landmarks.'),
-        WTextArea(value: text, placeholder: 'Example: use the B2 ramp near the gym, white car next to the pillar', onChanged: (v) => text = v),
-        const WSectionLabel('Or record it', top: 22),
-        Row(children: [
-          _record(WIcon.mic, 'Voice note', () => setState(() => voice = 12)),
-          const SizedBox(width: 12),
-          _record(WIcon.video, 'Video', () => store.set(() => store.draft.note.videoSeconds = 10)),
-        ]),
-        if (voice != null)
-          Container(
-            margin: const EdgeInsets.only(top: 20),
-            height: 62,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
-            child: Row(children: [
-              Pressable(
-                label: playing ? 'Pause' : 'Play',
-                onTap: () => setState(() => playing = !playing),
-                child: Container(width: 40, height: 40, decoration: const BoxDecoration(color: WColor.primaryTint, shape: BoxShape.circle), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 15, color: WColor.primaryStrong)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(2), child: playing ? const LinearProgressIndicator(minHeight: 3, color: WColor.primary, backgroundColor: WColor.border) : Container(height: 3, color: WColor.border))),
-              const SizedBox(width: 12),
-              WText(Fmt.clock(voice!), WType.caption, mono: true),
-              const SizedBox(width: 12),
-              Pressable(label: 'Delete voice note', onTap: () => setState(() => voice = null), child: const WIconView(WIcon.trash, size: 17, color: WColor.destructive)),
-            ]),
-          ),
+        const Padding(
+          padding: EdgeInsets.only(top: 20, bottom: 20),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: 8, children: [WText('Additional message', WType.screen), WText('(Optional)*', WType.body, color: WColor.secondary, size: 15)]),
+            SizedBox(height: 6),
+            WText('Like gate, lift, landmark or parking spot.', WType.body, maxLines: 1),
+          ]),
+        ),
+        if (video != null)
+          _recordedVideo(video!)
+        else if (voice != null)
+          _recordedVoice(voice!)
+        else
+          // 1 · Video  2 · Voice note: same weight, pick one.
+          Row(children: [_recordTile(WIcon.video, 'Record video', 'video'), const SizedBox(width: 12), _recordTile(WIcon.mic, 'Record voice note', 'voice')]),
+        if (hasRecording) const Padding(padding: EdgeInsets.only(top: 8), child: WText('One recording per booking. Delete it to record again.', WType.small, color: WColor.muted)),
+        // 3 · Text: goes along with either recording.
+        Padding(padding: const EdgeInsets.only(top: 26, bottom: 8), child: WText(hasRecording ? 'Add a text message too' : 'Or write a message', WType.label)),
+        WTextArea(value: text, height: 96, placeholder: 'Example: use the B2 ramp near the gym, white car next to the pillar', onChanged: (v) => text = v),
       ],
     );
   }

@@ -49,11 +49,13 @@ class StepTotal extends InheritedWidget {
 
 /// Header used by every booking step: app bar + "Step n of 5 · Label".
 class BookingHeader extends StatelessWidget {
-  const BookingHeader({super.key, required this.step, required this.label, this.title = 'Book a wash', this.fraction});
+  const BookingHeader({super.key, required this.step, required this.label, this.title = 'Book a wash', this.fraction, this.showBack = true, this.showProgress = true});
   final int step;
   final String label;
   final String title;
   final double? fraction;
+  final bool showBack;
+  final bool showProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -61,9 +63,11 @@ class BookingHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: Column(children: [
-        WAppBar(title: title, onLeading: context.router.pop, onTrailing: () => context.router.go(N.help)),
-        const SizedBox(height: 8),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter), child: WProgress(fraction: fraction ?? step / total, label: 'Step $step of $total · $label')),
+        WAppBar(title: title, leading: showBack ? WIcon.left : null, onLeading: context.router.pop, onTrailing: () => context.router.go(N.help)),
+        if (showProgress) ...[
+          const SizedBox(height: 8),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter), child: WProgress(fraction: fraction ?? step / total, label: 'Step $step of $total · $label')),
+        ],
       ]),
     );
   }

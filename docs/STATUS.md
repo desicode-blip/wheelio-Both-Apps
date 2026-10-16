@@ -1,5 +1,12 @@
 # Wheelio build status
 
+## 16 Oct 2026: iOS changes ported to Flutter; repository handed to engineering
+
+- Development repository: https://github.com/desicode-blip/wheelio-Both-Apps, branch `dev`. **Development language: Flutter** (`apps/flutter/`).
+- Ported the latest SwiftUI changes to Flutter so both match: Today's plan countdowns and plan alerts, 60-second job offers with the "Opportunity missed" state and Go offline, OTP resend timer and edit number, hidden first-time Home (design flag), the redesigned message-for-captain screen, the optional walk-around video tag and the 3-slide Customer welcome.
+- New rule in `CLAUDE.md` / `AGENTS.md`: every app change lands in Flutter in the same task; SwiftUI is the reference and must not drift.
+- Docs updated: [FLUTTER.md](FLUTTER.md), [BACKEND-HOOKUP.md](BACKEND-HOOKUP.md) (now maps each item to the Flutter file) and [hidden-designs.md](hidden-designs.md).
+
 ## 15 Oct 2026: Customer and Captain apps converted to Flutter
 
 - Both apps are now Flutter apps in `apps/flutter/` (`customer/`, `captain/`, and the shared `packages/wheelio_ui`). Web is the first target, then iOS, then Android, all from the same code.

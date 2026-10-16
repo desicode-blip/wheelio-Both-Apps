@@ -3,12 +3,27 @@
 > **Read this first whenever the backend is being connected.** Started 16 Oct 2026.
 > Every item below is something the apps currently fake on the phone (sample data,
 > demo timers, test buttons) that must be switched to real data or removed.
-> The reference code is the SwiftUI apps in `apps/ios/`; the Flutter apps must do the
-> same when they are ported. Search the code for `BACKEND`, `Demo` and `TestFlags`
-> to find each spot. Accounts, keys and approvals are in `CONNECT-LATER.md`.
+> **Flutter (`apps/flutter/`) is the development stack** and already has every item below
+> (16 Oct 2026). File names below are the SwiftUI reference in `apps/ios/`; the Flutter
+> files of the same name are listed under "Where it is in Flutter". Search either codebase
+> for `BACKEND`, `Demo` and `TestFlags` / `onboardingSkip` / `planClockTest` to find each
+> spot. Accounts, keys and approvals are in `CONNECT-LATER.md`.
 >
 > Keep this list current: add a line whenever a new screen fakes something, and tick
 > a line off (move it to "Done") only when it works against the real backend.
+
+## Where it is in Flutter
+
+| SwiftUI reference | Flutter |
+|---|---|
+| `Captain/Data/CaptainStore.swift`, `WNotifications.swift` | `apps/flutter/captain/lib/data/store.dart` (`planNow`, `planSkipSeconds`, `planAlerts`, `openWNotif`) |
+| `TestFlags.onboardingSkip`, `TestFlags.planClock` | `onboardingSkip`, `planClockTest` in `captain/lib/screens/onboarding.dart` |
+| `HomeJobScreens.swift` (`DayPlan`, `JobAlertScreen`) | `captain/lib/screens/home.dart` |
+| `WWelcomeScreens.swift`, `WOtpScreen` (resend, edit number) | `captain/lib/screens/welcome.dart` |
+| `Customer/App/DesignFlags.swift` | `customer/lib/app/design_flags.dart` |
+| `Customer/Data/AppStore.swift` | `customer/lib/data/store.dart` |
+| `BookingScreens.swift` (`EntryNotesScreen`, photos) | `customer/lib/screens/booking.dart` |
+| Screens galleries | `captain/lib/screens/gallery.dart`, `customer/lib/screens/gallery.dart` |
 
 ## 0. Remove before launch (test-only switches)
 
