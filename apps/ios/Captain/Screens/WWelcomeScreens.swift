@@ -111,30 +111,6 @@ struct WelcomeScreen: View {
     func enterApp() { store.exploring = true; router.home() }
 }
 
-/// Three dots; the current one stretches and fills from the left like a timer.
-struct TimerDots: View {
-    let count: Int
-    let index: Int
-    let progress: CGFloat
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<count, id: \.self) { i in
-                let w: CGFloat = i == index ? 30 : 8
-                ZStack(alignment: .leading) {
-                    Capsule().fill(i < index ? WColor.primary : WColor.border)
-                    if i == index {
-                        Capsule().fill(WColor.primary).frame(width: max(8, w * progress))
-                    }
-                }
-                .frame(width: w, height: 8)
-                .animation(.easeInOut(duration: 0.3), value: index)
-            }
-        }
-        .accessibilityLabel("Slide \(index + 1) of \(count)")
-    }
-}
-
 // MARK: Slide pictures (drawn, gently animated; no money shown)
 
 struct WelcomeArt: View {
