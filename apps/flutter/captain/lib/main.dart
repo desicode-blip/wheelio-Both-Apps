@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:wheelio_firebase/wheelio_firebase.dart';
 
 import 'data/store.dart';
 import 'screens/account.dart';
@@ -14,7 +15,7 @@ import 'screens/onboarding.dart';
 import 'screens/wash.dart';
 import 'screens/welcome.dart';
 
-void main() => runApp(const CaptainApp());
+Future<void> main() => launchWheelio(captain: true, demo: const CaptainApp());
 
 class CaptainApp extends StatefulWidget {
   const CaptainApp({super.key});
@@ -63,7 +64,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
             textSelectionTheme: const TextSelectionThemeData(cursorColor: WColor.primary, selectionColor: WColor.primaryTint),
           ),
           // The app keeps its phone layout on every screen size (docs/FLUTTER.md).
-          builder: (context, child) => PhoneFrame(child: child!),
+          builder: (context, child) => PhoneFrame(child: DemoLabel(child: child!)),
           home: const _Root(),
         ),
       );

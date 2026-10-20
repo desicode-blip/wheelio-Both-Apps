@@ -2,6 +2,27 @@
 
 Pay-per-wash, photo-verified exterior wash for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 
+## Active Firebase web app
+
+The web-first release uses Firebase Authentication, Cloud Firestore and Firebase Hosting. The project is **`wheelio-apps`**, created under **`ajay@trustkeyper.com`**. The Flutter code remains shared for future iOS and Android builds.
+
+Live: [website](https://wheelio-apps.web.app/) · [Customer](https://wheelio-apps.web.app/app/) · [Captain](https://wheelio-apps.web.app/captain/).
+
+- `/`: responsive prelaunch website (`apps/hosting/`).
+- `/app/`: Customer account, profile, wash requests, request history and cancellation.
+- `/captain/`: Captain account, profile and application.
+- Add `?demo=true` to either app URL for the original designed sample-data experience. It is explicitly labeled; no real bookings or payments happen there.
+
+This release collects service requests and Captain interest. Paid bookings, job allocation, KYC, photo storage, push notifications and payouts are still to be connected. The old Neon database has not been migrated. [Firebase setup, validation and release guide](docs/FIREBASE.md).
+
+```sh
+# Install Flutter and Firebase CLI first. Copy firebase.example.json to firebase.local.json.
+node apps/flutter/tool/build-firebase.mjs
+firebase deploy --only hosting,firestore,auth --project wheelio-apps --account ajay@trustkeyper.com
+```
+
+The Next.js/Cloudflare/Neon instructions below describe the retained earlier implementation. `pnpm deploy` now deploys Firebase Hosting and Firestore; `pnpm deploy:cloudflare:legacy` retains the old deployment command.
+
 ## Project structure
 
 All three platforms live in `apps/`; backend services, designs and documentation are shared at the root.

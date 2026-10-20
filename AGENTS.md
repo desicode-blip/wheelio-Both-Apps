@@ -2,6 +2,16 @@
 
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 
+## Firebase web release (20 October 2026)
+
+- The owner selected Firebase for the backend and Hosting, under `ajay@trustkeyper.com`. The active project is `wheelio-apps`; `.firebaserc` selects it.
+- `apps/hosting/` is the active landing page. Flutter Customer `/app/` and Captain `/captain/` launch the shared Firebase prelaunch portal in `apps/flutter/packages/wheelio_firebase/`.
+- `?demo=true` explicitly opens the older designed sample-data app with a persistent demo label. Never allow demo OTPs or sample lifecycle timers to write real data.
+- Live features: email/password accounts, profiles, private wash requests with cancellation, and private Captain applications. Requests are not confirmed bookings. No real payments, matching, KYC decisions, wash tracking, uploads or payouts yet.
+- Build: `node apps/flutter/tool/build-firebase.mjs` with `firebase.local.json` (copy `firebase.example.json`) and `FLUTTER_BIN` if Flutter is not on PATH. Deploy: `firebase deploy --only hosting,firestore,auth --project wheelio-apps --account ajay@trustkeyper.com`.
+- Run security rules tests: `npm ci --prefix backend/firebase`, then `firebase emulators:exec --project demo-wheelio --only firestore,auth "npm --prefix backend/firebase test"`. On PowerShell quote the comma-separated `--only` argument. Java 21+ is needed for current emulators.
+- The Next.js/Neon/Cloudflare setup below is retained as historical work, not the Firebase release path. No existing Neon data has been migrated.
+
 These instructions apply to all coding agents, including Codex and Claude Code. `CLAUDE.md` holds the same project context in more detail.
 
 ## Connecting the backend

@@ -1,5 +1,15 @@
 # Flutter apps (Customer and Captain)
 
+## 20 October 2026: Firebase web foundation
+
+Both `main.dart` entry points now start the shared `wheelio_firebase` package. Normal URLs open a real prelaunch app: email/password login and reset, saved profiles, customer wash requests/history/cancellation, and Captain applications. Firebase rules enforce per-account access and prevent client-side payment, job-state and KYC approval changes.
+
+The complete previous design experiences are preserved behind **`?demo=true`** with a persistent "DEMO · Sample data · No bookings or payments" strip. No sample data or hardcoded OTP is used in the live portal. This is an initial request/application release; the entire designed paid-wash lifecycle is not connected yet.
+
+`apps/hosting/` and both Flutter builds package into `build/firebase-hosting/`. Firebase Hosting serves `/`, `/app/` and `/captain/`. Project: `wheelio-apps`, owner account: `ajay@trustkeyper.com`, Firestore: Mumbai (`asia-south1`). See [FIREBASE.md](FIREBASE.md) for commands. iOS/Android platform generation and signing remain future steps; the new backend code is in Flutter and reusable there.
+
+The entries below describe the earlier demo implementation and historical status.
+
 Decided on 15 October 2026: both Wheelio apps, Customer and Captain (washer), are built in Flutter from one codebase. The release order is:
 
 1. **Web**: the first launch target, available now as a build.

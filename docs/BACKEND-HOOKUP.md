@@ -104,4 +104,11 @@ name. Keep them in server config; see also the list at the end of `CONNECT-LATER
 
 ## Done
 
-(nothing yet)
+### 20 October 2026: Firebase prelaunch portal
+
+- Live email/password registration, login, persistent session, reset and logout in shared Flutter `packages/wheelio_firebase/`. Phone SMS has an implementation but its UI is hidden unless `FIREBASE_PHONE_AUTH_ENABLED=true`; do not enable it before provider/billing configuration and verification.
+- Live profile creation/update in Firestore `users/{uid}`. No sample customer is inserted in live mode.
+- Customer wash **requests** save to `washRequests` with realtime history and owner cancellation. These are prelaunch interest records, not paid or confirmed bookings. No simulated captain assignment, payment or wash timer runs on these records.
+- Captain interest saves privately to `captainApplications/{uid}`. Clients cannot approve KYC or access jobs/payouts.
+- Firestore security rules and owner/time index; emulator tests for account isolation and protected states.
+- Both complete designed demo apps remain accessible only with `?demo=true`; their persistent demo strip identifies sample data. Every item still unchecked above remains unfinished for the designed production wash flow.

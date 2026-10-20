@@ -1,0 +1,19 @@
+name: wheelio_firebase
+description: Shared Firebase backend and prelaunch web experience for Wheelio.
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ^3.10.7
+  flutter: '>=3.38.0'
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^4.4.0
+  firebase_auth: ^6.1.4
+  cloud_firestore: ^6.1.2
+  wheelio_ui:
+    path: ../wheelio_ui
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

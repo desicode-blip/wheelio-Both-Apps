@@ -1,5 +1,7 @@
 # Wheelio
 
+> **20 October 2026: active web release uses Firebase.** The owner selected project `wheelio-apps` under `ajay@trustkeyper.com`. See `docs/FIREBASE.md` and the Firebase section in `AGENTS.md`. The Next.js/Neon/Cloudflare integration described below is retained historical work. Live prelaunch Flutter features are accounts, profiles, wash requests and Captain applications; full design demos require `?demo=true` and are visibly labeled. Full marketplace services are not live.
+
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 
 ## Current layout (15 October 2026)

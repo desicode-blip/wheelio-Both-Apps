@@ -1,5 +1,15 @@
 # Wheelio build status
 
+## 20 Oct 2026: Firebase web foundation
+
+- Cloned GitHub branch `dev` into `D:\Wheelio`. The owner selected Firebase project `wheelio-apps` under `ajay@trustkeyper.com`.
+- Added a responsive landing page and shared Flutter Firebase portal for Customer/Captain, with real email auth, profiles, wash requests/cancellation/history and Captain applications.
+- Kept all existing design screens behind an explicit `?demo=true` URL and a persistent demo label. Live mode has no sample records or fake payments/jobs.
+- Added Firebase Hosting packaging, Firestore rules/index, emulator configuration, app dependency locks, rules tests and a live smoke-test script. Twelve rules tests pass, and both Flutter release web builds compile.
+- This is a prelaunch request/application release. Paid bookings, photo uploads, KYC, matching, tracking, push and payouts remain unfinished. iOS/Android native builds have not been generated or verified.
+- Published to https://wheelio-apps.web.app/ with Customer at `/app/` and Captain at `/captain/`. Auth, Firestore rules/index and Hosting deployments succeeded. Live backend and browser flow checks passed; disposable QA accounts/data were removed. Analysis is clean in both apps and the shared Firebase package.
+- See [FIREBASE.md](FIREBASE.md) for setup, scope, deployment, tests and next steps. Previous Neon/Cloudflare notes below are historical.
+
 ## 16 Oct 2026: iOS changes ported to Flutter; repository handed to engineering
 
 - Development repository: https://github.com/desicode-blip/wheelio-Both-Apps, branch `dev`. **Development language: Flutter** (`apps/flutter/`).

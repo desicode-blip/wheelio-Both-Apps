@@ -1,0 +1,7 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Photo upload is not enabled in the first prelaunch release.
+    match /{allPaths=**} { allow read, write: if false; }
+  }
+}
