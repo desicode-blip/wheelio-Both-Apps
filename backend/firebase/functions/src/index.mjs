@@ -11,7 +11,9 @@ import { RazorpayPayments, signatureMatches } from './payments.mjs';
 import { WheelioService, ServiceError } from './service.mjs';
 
 initializeApp();
-setGlobalOptions({ region: 'asia-south1', maxInstances: 5, minInstances: 0, memory: '256MiB', timeoutSeconds: 60 });
+// These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
+// CPU keeps the web rollout within the new project's regional CPU quota.
+setGlobalOptions({ region: 'asia-south1', maxInstances: 5, minInstances: 0, memory: '256MiB', cpu: 'gcf_gen1', concurrency: 1, timeoutSeconds: 60 });
 const keyId = defineSecret('RAZORPAY_KEY_ID'), keySecret = defineSecret('RAZORPAY_KEY_SECRET'), webhookSecret = defineSecret('RAZORPAY_WEBHOOK_SECRET');
 const db = getFirestore();
 function service(withPayment = false) {
@@ -25,7 +27,10 @@ function service(withPayment = false) {
 }
 const cors = ['https://wheelio-apps.web.app', 'https://wheelio-apps.firebaseapp.com', /^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
 function callable(method, payment = false) {
-  return onCall({ cors, ...(payment ? { secrets: [keyId, keySecret] } : {}) }, async request => {
+  // Domain-restricted sharing forbids allUsers IAM bindings. The owner-only
+  // configure-api-access operation enables the HTTP gateway after deployment;
+  // Firebase ID tokens and service authorization below remain mandatory.
+  return onCall({ cors, invoker: 'private', ...(payment ? { secrets: [keyId, keySecret] } : {}) }, async request => {
     try { return await service(payment)[method](request.auth, request.data ?? {}); }
     catch (error) {
       if (error instanceof ServiceError) throw new HttpsError(error.code, error.message);
@@ -53,7 +58,7 @@ export const rateWash = callable('rate');
 export const cancelBooking = callable('cancel');
 export const reportWashProblem = callable('reportProblem');
 
-export const razorpayWebhook = onRequest({ secrets: [keyId, keySecret, webhookSecret], cors: false }, async (request, response) => {
+export const razorpayWebhook = onRequest({ secrets: [keyId, keySecret, webhookSecret], invoker: 'private', cors: false }, async (request, response) => {
   if (request.method !== 'POST') { response.status(405).send('POST required'); return; }
   if (!signatureMatches(request.rawBody, request.get('x-razorpay-signature'), webhookSecret.value())) { response.status(401).send('Invalid signature'); return; }
   const event = request.body;

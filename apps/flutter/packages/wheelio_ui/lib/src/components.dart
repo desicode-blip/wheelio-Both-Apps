@@ -1225,7 +1225,7 @@ class _WTextFieldState extends State<WTextField> {
                   widget.onChanged(out);
                 },
                 onSubmitted: (_) => widget.onSubmit?.call(),
-                decoration: InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: widget.placeholder, hintStyle: style.copyWith(color: WColor.placeholder)),
+                decoration: InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: widget.placeholder.isEmpty ? widget.label : widget.placeholder, hintStyle: style.copyWith(color: WColor.placeholder)),
               ),
             ),
           ]),

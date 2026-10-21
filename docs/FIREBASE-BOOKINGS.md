@@ -49,10 +49,18 @@ node backend/firebase/operations.cjs configure-test
 ```sh
 npm ci --prefix backend/firebase/functions
 node apps/flutter/tool/build-firebase.mjs
+node backend/firebase/operations.cjs configure-storage
 npx -y firebase-tools@latest deploy --only "functions,firestore,storage,hosting" --project wheelio-apps --account ajay@trustkeyper.com --force
+node backend/firebase/operations.cjs configure-api-access
 ```
 
 Set `FLUTTER_BIN` if needed. The build explicitly resolves dependencies for both app projects because the shared path package owns Firebase plugins. All callables are in `asia-south1`. Secrets bind only to functions that need the provider. `--force` accepts the retry policy on the idempotent refund trigger. On slow development machines set `FUNCTIONS_DISCOVERY_TIMEOUT=60` for source discovery.
+
+The Storage setup merges browser GET/HEAD access for the two Hosting origins into the bucket CORS metadata, preserving existing policies with a metageneration precondition. Private photos use authenticated SDK downloads rather than public download-token URLs, following [Firebase's browser download guidance](https://firebase.google.com/docs/storage/web/download-files#cors_configuration). Storage rules still authorize each photo read.
+
+The default Functions build/runtime identity has Firestore user and log writer roles on this project, object viewer on the Functions source bucket and Wheelio photo bucket, and Artifact Registry writer on the regional `gcf-artifacts` repository. Existing service-agent bindings were preserved; no broad Editor role was added to that identity. Functions use 256 MiB, fractional `gcf_gen1` CPU, concurrency 1, zero minimum instances and a maximum of five instances each. This avoids the new project's regional CPU limit hit during the initial 22-function rollout. See [Firebase resource settings](https://firebase.google.com/docs/functions/manage-functions#override-CPU).
+
+Trustkeyper's domain-restricted sharing policy blocks `allUsers` IAM bindings. After every Functions deployment, `configure-api-access` sets Cloud Run's `invokerIamDisabled` on the 18 app callables and signed Razorpay webhook only, using [Google's recommended public gateway configuration](https://cloud.google.com/run/docs/authenticating/public#disable). It does not change the organization policy or grant outsiders project IAM roles. The scheduler and Firestore event handlers remain restricted. Firebase ID tokens, verified phone identity, booking-party authorization and HMAC checks are enforced inside the app endpoints. Coarse availability is intentionally public.
 
 Add a separate Wheelio webhook in the merchant dashboard; preserve Trustkeyper's existing endpoint:
 
@@ -64,9 +72,13 @@ Production cutover requires the merchant's live credentials, a live webhook, rev
 
 ## Verification
 
-Checkpoint: Firebase CLI reauthentication as `ajay@trustkeyper.com` succeeded. The test catalog was applied to `config/operations`, without seeding production captains. All 27 Firestore/Auth/Storage and service emulator tests passed on Firebase CLI 15.34.0 with Java 26. Both release web apps built, and the three Flutter packages analyzed successfully before the final OTP retry adjustment. Local browser checks covered catalog, photo selection, address, availability, review and emulator SMS; the final registration/booking flow still needs a fresh browser pass. No real SMS, merchant charge or complete Customer/Captain browser acceptance has been claimed.
+Released on 21 October 2026: Hosting `/app/` and `/captain/`, all 22 active Functions, Firestore/Storage rules and indexes, bucket CORS and the required HTTP gateway settings. The reconciliation scheduler is enabled and its observed run succeeded. The test catalog is in `config/operations`; no production captains or bookings were fabricated.
 
-The first backend deploy compiled both rule sets but stopped at the retry-policy prompt in noninteractive mode. The next attempt timed out during source discovery. A completed Functions/Firestore/Storage deployment and final Hosting release still require confirmation; the public Hosting site remains the earlier prelaunch release until that succeeds.
+All 27 Firestore/Auth/Storage and service emulator tests passed on Firebase CLI 15.34.0 with Java 26. Customer, Captain and shared Firebase analyses passed; both clean release web builds passed. Deployed checks rejected anonymous calls to all 17 protected app operations (401), returned public availability successfully (200 with six unavailable windows), accepted a correctly signed no-op webhook (200) and rejected an invalid signature (401). These checks made no charges or bookings.
+
+The hosted browser test caught a stale Flutter web plugin registry: Functions calls fell into the native Pigeon codec and failed with `Int64 accessor not supported by dart2js` before making a request. The release builder now clears generated caches, resolves dependencies and checks that Functions, Storage and location web plugins are registered before packaging either app. A fresh hosted booking draft then called `getAvailability` successfully (200) and displayed the actual empty captain pool. Availability errors now have a retry action above the slot grid, and changing dates clears a previous error. Captain fields use visible hints when no separate placeholder is supplied.
+
+Real SMS acceptance and a complete paid Customer/Captain browser acceptance remain pending. Aman is completing merchant onboarding; the owner will obtain live credentials afterward. Payments stay visibly in test mode. Actual captains must submit documents and receive an operator review before capacity opens; live credentials, reviewed commercial settings and approved live-mode captains are required for live cutover. Native platform work remains deferred.
 
 ```sh
 npm ci --prefix backend/firebase

@@ -1,6 +1,6 @@
 # Wheelio
 
-> **20 October 2026: active web release uses Firebase.** The owner selected project `wheelio-apps` under `ajay@trustkeyper.com`. See `docs/FIREBASE.md` and the Firebase section in `AGENTS.md`. The Next.js/Neon/Cloudflare integration described below is retained historical work. Live prelaunch Flutter features are accounts, profiles, wash requests and Captain applications; full design demos require `?demo=true` and are visibly labeled. Full marketplace services are not live.
+> **21 October 2026: active web release uses Firebase.** Project `wheelio-apps` belongs to `ajay@trustkeyper.com`, with Trustkeyper billing. Flutter Customer and Captain controllers now use phone OTP, server-priced bookings, Razorpay verification/refunds, protected uploads, real offers/assignment and wash tracking. Payment credentials and commercial settings are explicitly **test mode**. Aman is completing merchant onboarding; live credentials, real SMS and full paid-flow acceptance remain pending. KYC decisions, disputes and bank payouts require operators. See `docs/FIREBASE-BOOKINGS.md` and the Firebase section in `AGENTS.md` for deployment, including the required post-deploy HTTP gateway step. The Next.js/Neon/Cloudflare sections below are historical. Sample apps require `?demo=true` and remain isolated.
 
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 

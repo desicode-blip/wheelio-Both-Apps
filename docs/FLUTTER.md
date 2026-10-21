@@ -2,6 +2,10 @@
 
 ## 21 October 2026: Firebase booking implementation
 
+Both release web bundles and the Customer, Captain and shared Firebase package analyses passed. The first hosted review caught blank Captain name/mobile inputs: shared `WTextField` now uses its label as the hint when no separate placeholder is supplied. This keeps the existing design and makes empty fields identifiable in both apps.
+
+The Firebase release build now runs a clean build and validates generated Functions, Storage and location web registrations. A cached prelaunch registry had routed callable requests through a native codec, producing `Int64 accessor not supported by dart2js` on web. The rebuilt hosted Customer draft now calls availability successfully; errors provide Retry, stale errors clear when changing dates, and the empty-capacity explanation appears above the disabled slots. No captain availability is simulated to unblock checkout.
+
 The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing Wheelio screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
 
 Trustkeyper billing and its stored **test** Razorpay credentials are reused. Live charges require live merchant keys; actual captains require operator approval. No demo lifecycle timer, sample OTP, fake KYC decision or invented payout runs in the live controllers. See [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md) for the server model, test settings, release commands and remaining human operations. Native platform work remains deferred.

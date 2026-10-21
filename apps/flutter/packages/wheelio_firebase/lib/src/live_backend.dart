@@ -91,8 +91,12 @@ class LiveBackend {
       db.doc('config/operations').snapshots();
   Future<void> refreshCatalog() async {
     await db.enableNetwork();
-    await db.doc('config/operations').get(const GetOptions(source:Source.server)).timeout(const Duration(seconds:15));
+    await db
+        .doc('config/operations')
+        .get(const GetOptions(source: Source.server))
+        .timeout(const Duration(seconds: 15));
   }
+
   Stream<DocumentSnapshot<Map<String, dynamic>>> profile(String uid) =>
       db.doc('users/$uid').snapshots();
   Stream<DocumentSnapshot<Map<String, dynamic>>> captain(String uid) =>

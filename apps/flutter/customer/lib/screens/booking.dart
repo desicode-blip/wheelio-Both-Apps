@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:wheelio_firebase/wheelio_firebase.dart';
 
 import '../app/design_flags.dart';
 import '../data/models.dart';
@@ -276,7 +277,9 @@ class PhotosScreen extends StatelessWidget {
                 onTap: () => showWAlert(
                   context,
                   title: 'Skip the photos?',
-                  message: store.isLive ? 'Your captain will still take official before and after photos. Your own photos provide an extra record of the vehicle’s condition.' : 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
+                  message: store.isLive
+                      ? 'Your captain will still take official before and after photos. Your own photos provide an extra record of the vehicle’s condition.'
+                      : 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
                   actions: [
                     const AlertAction('Take photos', cancel: true),
                     AlertAction('Skip anyway', onTap: goNext),
@@ -1130,6 +1133,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
     if (requested == key) return;
     requested = key;
     fetching = true;
+    slotError = null;
     available = {};
     picked = null;
     store.live!
@@ -1149,7 +1153,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
           if (mounted && requested == key) {
             setState(() {
               fetching = false;
-              slotError = 'Availability could not be loaded. Reopen this screen to retry.';
+              slotError = 'Availability could not be loaded. ${backendError(e)}';
             });
           }
         });
@@ -1196,42 +1200,52 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
         WTitleBlock('When should we come?', subtitle: noneFree ? null : 'The captain arrives any time in this window.'),
         WSegmented(options: [for (final d in days) Fmt.day(d)], selection: dayIndex, onChanged: _changeDay),
         const SizedBox(height: 20),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 159 / 54,
-          children: [
-            for (final s in slots)
-              WChip(
-                s.label,
-                selected: picked == s,
-                enabled: s.available,
-                strike: !s.available,
-                height: 54,
-                fill: true,
-                onTap: () => setState(() => picked = s),
-              ),
-          ],
-        ),
         if (fetching)
-          const Padding(padding: EdgeInsets.only(top: 20), child: WText('Checking captain capacity…', WType.body))
+          const WText('Checking captain capacity…', WType.body)
         else if (noneFree)
           Padding(
-            padding: const EdgeInsets.only(top: 20),
+            padding: const EdgeInsets.only(bottom: 20),
             child: WBanner(
-              tone: Tone.wait,
-              icon: WIcon.search,
+              tone: slotError != null ? Tone.error : Tone.wait,
+              icon: slotError != null ? WIcon.warning : WIcon.search,
               text: store.isLive
-                  ? slotError ?? 'No captain capacity in this society for the selected date. Try another date.'
+                  ? slotError ?? 'No captains are available in this society for this date. Choose another date or come back later.'
                   : 'No captains free today in your society. Tomorrow has slots from 6 AM.',
-              actionTitle: 'See tomorrow',
-              onAction: () => _changeDay(1),
+              actionTitle: slotError != null || dayIndex == days.length - 1 ? 'Retry' : 'Next date',
+              onAction: () {
+                if (slotError == null && dayIndex < days.length - 1) {
+                  _changeDay(dayIndex + 1);
+                } else {
+                  setState(() {
+                    requested = '';
+                    _loadAvailability();
+                  });
+                }
+              },
             ),
-          )
-        else
+          ),
+        if (!fetching && slotError == null)
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 159 / 54,
+            children: [
+              for (final s in slots)
+                WChip(
+                  s.label,
+                  selected: picked == s,
+                  enabled: s.available,
+                  strike: !s.available,
+                  height: 54,
+                  fill: true,
+                  onTap: () => setState(() => picked = s),
+                ),
+            ],
+          ),
+        if (!fetching && !noneFree && slotError == null)
           const Padding(
             padding: EdgeInsets.only(top: 18),
             child: WText('No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.', WType.caption),

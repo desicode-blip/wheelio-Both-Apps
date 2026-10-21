@@ -1,0 +1,7 @@
+[
+  {
+    "origin": ["https://wheelio-apps.web.app", "https://wheelio-apps.firebaseapp.com"],
+    "method": ["GET", "HEAD"],
+    "maxAgeSeconds": 3600
+  }
+]

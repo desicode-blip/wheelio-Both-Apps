@@ -2,14 +2,14 @@
 
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
 
-## Firebase web release (20 October 2026)
+## Firebase web release (21 October 2026)
 
 - The owner selected Firebase for the backend and Hosting, under `ajay@trustkeyper.com`. The active project is `wheelio-apps`; `.firebaserc` selects it.
-- `apps/hosting/` is the active landing page. Flutter Customer `/app/` and Captain `/captain/` launch the shared Firebase prelaunch portal in `apps/flutter/packages/wheelio_firebase/`.
+- `apps/hosting/` is the prelaunch landing page. Flutter Customer `/app/` and Captain `/captain/` use the shared Firebase controllers in `apps/flutter/packages/wheelio_firebase/` and the existing Wheelio screen components.
 - `?demo=true` explicitly opens the older designed sample-data app with a persistent demo label. Never allow demo OTPs or sample lifecycle timers to write real data.
-- Live features: email/password accounts, profiles, private wash requests with cancellation, and private Captain applications. Requests are not confirmed bookings. No real payments, matching, KYC decisions, wash tracking, uploads or payouts yet.
-- Build: `node apps/flutter/tool/build-firebase.mjs` with `firebase.local.json` (copy `firebase.example.json`) and `FLUTTER_BIN` if Flutter is not on PATH. Deploy: `firebase deploy --only hosting,firestore,auth --project wheelio-apps --account ajay@trustkeyper.com`.
-- Run security rules tests: `npm ci --prefix backend/firebase`, then `firebase emulators:exec --project demo-wheelio --only firestore,auth "npm --prefix backend/firebase test"`. On PowerShell quote the comma-separated `--only` argument. Java 21+ is needed for current emulators.
+- Implemented and deployed: phone OTP, profiles, persisted bookings, server prices/capacity, Razorpay verification/refunds, Captain applications and operator approval, atomic assignment, private wash photos, status tracking, optional foreground location, customer approval and earnings. Payments remain explicitly **test mode**. Aman is completing merchant onboarding; the owner will provide live credentials afterward. Real SMS and complete paid-flow browser acceptance remain release checks. Payout transfers and dispute/KYC decisions are human operations.
+- Build: `node apps/flutter/tool/build-firebase.mjs` with `firebase.local.json` (copy `firebase.example.json`) and `FLUTTER_BIN` if Flutter is not on PATH. Deploy: `npx -y firebase-tools@latest deploy --only "functions,firestore,storage,hosting" --project wheelio-apps --account ajay@trustkeyper.com --force`, then `node backend/firebase/operations.cjs configure-api-access`. Domain-restricted sharing requires this gateway step; do not disable the organization policy. See `docs/FIREBASE-BOOKINGS.md` for bucket CORS, IAM and live cutover.
+- Run security rules/service tests: `npm ci --prefix backend/firebase`, `npm ci --prefix backend/firebase/functions`, then `npx -y firebase-tools@latest emulators:exec --project demo-wheelio --only "firestore,auth,storage" "npm --prefix backend/firebase test"`. Java 21+ is needed. All 27 tests passed; never seed QA captains or fixed OTPs into production.
 - The Next.js/Neon/Cloudflare setup below is retained as historical work, not the Firebase release path. No existing Neon data has been migrated.
 
 These instructions apply to all coding agents, including Codex and Claude Code. `CLAUDE.md` holds the same project context in more detail.
@@ -62,4 +62,4 @@ pnpm preview
 
 ## Current state
 
-The Flutter and iOS apps run on sample data. Demo login code: 123456 (000000 is expired). Web auth and database need Neon and Better Auth environment values. `/api/health` returns 503 when the database is missing or unavailable.
+Normal Flutter URLs use Firebase with explicit test-payment labels. The SwiftUI reference and `?demo=true` remain sample-data experiences; fixed demo codes must never reach real controllers. Real merchant/SMS acceptance is still required before live operations. Legacy Next.js auth/database configuration and `/api/health` belong to the historical Neon stack, not the Firebase release.

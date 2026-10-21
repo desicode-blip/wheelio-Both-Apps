@@ -1,7 +1,7 @@
 // One static deployment: landing /, Customer /app/, Captain /captain/.
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -24,6 +24,17 @@ function runFlutter(cwd,args) {
 }
 for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
   const cwd = join(root, 'apps/flutter', app);
+  // Clear generated plugin registrants as well as compiled code. Flutter can
+  // otherwise reuse an older web registry after a shared package adds plugins.
+  for (const generated of ['build', '.dart_tool']) {
+    const target = await realpath(join(cwd, generated)).catch(error => {
+      if (error.code === 'ENOENT') return resolve(cwd, generated);
+      throw error;
+    });
+    const within = relative(root, target);
+    if (within.startsWith('..') || isAbsolute(within)) throw new Error(`Generated path is outside the repository: ${target}`);
+  }
+  runFlutter(cwd,['clean']);
   // A shared path package may add plugins without changing either app pubspec.
   runFlutter(cwd,['pub','get']);
   // FlutterFire restores Auth emulator routing during debug initialization.
@@ -31,6 +42,13 @@ for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
   const args = ['build', 'web', mode, '--pwa-strategy=none', '--no-wasm-dry-run', `--base-href=/${path}/`, `--dart-define-from-file=${configPath}`];
   // Quote Windows paths as PowerShell literals; do not concatenate raw shell arguments.
   runFlutter(cwd,args);
+  const cache = join(cwd, '.dart_tool/flutter_build');
+  const registrants = await Promise.all((await readdir(cache, { withFileTypes: true }))
+    .filter(entry => entry.isDirectory())
+    .map(entry => readFile(join(cache, entry.name, 'web_plugin_registrant.dart'), 'utf8').catch(() => '')));
+  for (const plugin of ['FirebaseFunctionsWeb', 'FirebaseStorageWeb', 'GeolocatorPlugin']) {
+    if (!registrants.some(source => source.includes(`${plugin}.registerWith`))) throw new Error(`${app}: ${plugin} is missing from the generated web plugin registry.`);
+  }
   await cp(join(cwd, 'build/web'), join(output, path), { recursive: true });
 }
 await cp(join(root, 'apps/hosting'), output, { recursive: true });
