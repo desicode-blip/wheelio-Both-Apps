@@ -8,7 +8,7 @@ The Firebase release build now runs a clean build and validates generated Functi
 
 The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing Wheelio screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
 
-The owner confirmed real SMS delivery on 21 October and showed the Customer name screen after OTP verification. Account completion after saving the name and the complete paid Customer/Captain browser flow still need acceptance.
+The owner confirmed real SMS delivery on 21 October and showed the Customer name screen after OTP verification. At their request the existing name was saved in their Chrome session; the signed-in Profile page confirmed account completion. The complete paid Customer/Captain browser flow still needs acceptance.
 
 Trustkeyper billing and its stored **test** Razorpay credentials are reused. Live charges require live merchant keys; actual captains require operator approval. No demo lifecycle timer, sample OTP, fake KYC decision or invented payout runs in the live controllers. See [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md) for the server model, test settings, release commands and remaining human operations. Native platform work remains deferred.
 
