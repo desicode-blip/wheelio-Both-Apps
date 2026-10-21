@@ -1,5 +1,13 @@
 # Backend hook-up list (app side)
 
+## 21 October 2026 implementation update
+
+The Firebase paid-booking implementation is documented in [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md). Phone OTP, server prices/capacity, real persisted orders, Razorpay order/capture verification, private uploads, online captains, expiring private offers, atomic assignment, arrival/wash/evidence stages, optional foreground location, customer approval/rating, refund processing and earnings now have server controllers and emulator coverage. Deployment and real merchant/SMS acceptance are separate checks; test credentials cannot take live payments.
+
+Normal URLs use those controllers. Sample queues, extra-offer timers, sample captain/owner details, fixed OTPs, fake upload progress, midnight approval, made-up bank refunds/payouts and demo KYC/AI outcomes remain confined to `?demo=true`. No new screen fakes backend data. The live UI's timers only display actual offer expiry, refresh location freshness, send an online heartbeat, and share a user-authorized location; they do not invent job transitions.
+
+Live notes are text only. Location displays actual coordinates and a map link, with no fake pin or ETA. Captain approval, payout transfers and dispute decisions need real operations. Voice/video recording, FCM/background tracking, AI/face checks, masked calls, account deletion and phone changes remain unconnected and are not presented as successful live actions. The historical checklists below still enumerate the full demo scope.
+
 > **Read this first whenever the backend is being connected.** Started 16 Oct 2026.
 > Every item below is something the apps currently fake on the phone (sample data,
 > demo timers, test buttons) that must be switched to real data or removed.

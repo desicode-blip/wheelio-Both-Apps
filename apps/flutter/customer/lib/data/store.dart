@@ -5,10 +5,12 @@
 // (backend/API-CONTRACT.md); screens don't change.
 
 import 'dart:math';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:wheelio_firebase/wheelio_firebase.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
@@ -17,10 +19,45 @@ import 'models.dart';
 
 /// One route per screen ID (design read-me).
 enum N {
-  welcome, vehicleType, washType, vehicleNumber, photos, camera, location, addressSearch, floorSlot, entryNotes, timeSlot,
-  review, login, otp, name, paying, booked, whatsApp, notifyAsk, live, photoCompare, rate, reportProblem, problemPhotos,
-  disputeStatus, refund, bookingDetail, repeatBooking, help, helpCaptain, helpEmergency, changePhone, notifications, refundUPI,
-  notificationSettings, offline, serverError, sessionExpired, gallery,
+  welcome,
+  vehicleType,
+  washType,
+  vehicleNumber,
+  photos,
+  camera,
+  location,
+  addressSearch,
+  floorSlot,
+  entryNotes,
+  timeSlot,
+  review,
+  login,
+  otp,
+  name,
+  paying,
+  booked,
+  whatsApp,
+  notifyAsk,
+  live,
+  photoCompare,
+  rate,
+  reportProblem,
+  problemPhotos,
+  disputeStatus,
+  refund,
+  bookingDetail,
+  repeatBooking,
+  help,
+  helpCaptain,
+  helpEmergency,
+  changePhone,
+  notifications,
+  refundUPI,
+  notificationSettings,
+  offline,
+  serverError,
+  sessionExpired,
+  gallery,
 }
 
 enum OtpStart { entering, wrong, expired }
@@ -40,7 +77,19 @@ enum HelpTopic {
 }
 
 class R {
-  const R(this.n, {this.large = false, this.angle, this.denied = false, this.off = false, this.error = false, this.otp = OtpStart.entering, this.pay = PayView.processing, this.kind, this.id, this.topic});
+  const R(
+    this.n, {
+    this.large = false,
+    this.angle,
+    this.denied = false,
+    this.off = false,
+    this.error = false,
+    this.otp = OtpStart.entering,
+    this.pay = PayView.processing,
+    this.kind,
+    this.id,
+    this.topic,
+  });
   final N n;
   final bool large;
   final PhotoAngle? angle;
@@ -103,56 +152,82 @@ enum NotificationCategory {
 }
 
 enum NotificationKind {
-  bookingConfirmed, gatePassNeeded, captainAssigned, captainRunningLate, captainCantFind, washStarted, photosReady, approveReminder,
-  autoApproved, noCaptain, bookingCancelled, washStatusCheck, noShowRefund, disputeDecision, refundCredited, paymentPending, freeWash,
-  offer, phoneChanged, welcome;
+  bookingConfirmed,
+  gatePassNeeded,
+  captainAssigned,
+  captainRunningLate,
+  captainCantFind,
+  washStarted,
+  photosReady,
+  approveReminder,
+  autoApproved,
+  noCaptain,
+  bookingCancelled,
+  washStatusCheck,
+  noShowRefund,
+  disputeDecision,
+  refundCredited,
+  paymentPending,
+  freeWash,
+  offer,
+  phoneChanged,
+  welcome;
 
   NotificationCategory get category => switch (this) {
-        refundCredited || paymentPending => NotificationCategory.payments,
-        freeWash || offer => NotificationCategory.offers,
-        phoneChanged || welcome => NotificationCategory.account,
-        _ => NotificationCategory.bookings,
-      };
+    refundCredited || paymentPending => NotificationCategory.payments,
+    freeWash || offer => NotificationCategory.offers,
+    phoneChanged || welcome => NotificationCategory.account,
+    _ => NotificationCategory.bookings,
+  };
 
   WIcon get icon => switch (this) {
-        bookingConfirmed => WIcon.check,
-        gatePassNeeded => WIcon.door,
-        captainAssigned => WIcon.location,
-        captainRunningLate || approveReminder => WIcon.clock,
-        captainCantFind || paymentPending => WIcon.warning,
-        washStarted => WIcon.drop,
-        photosReady => WIcon.camera,
-        autoApproved => WIcon.sparkle,
-        noCaptain || bookingCancelled => WIcon.close,
-        washStatusCheck => WIcon.search,
-        noShowRefund || refundCredited => WIcon.rupee,
-        disputeDecision => WIcon.flag,
-        freeWash => WIcon.gift,
-        offer => WIcon.megaphone,
-        phoneChanged => WIcon.lock,
-        welcome => WIcon.bell,
-      };
+    bookingConfirmed => WIcon.check,
+    gatePassNeeded => WIcon.door,
+    captainAssigned => WIcon.location,
+    captainRunningLate || approveReminder => WIcon.clock,
+    captainCantFind || paymentPending => WIcon.warning,
+    washStarted => WIcon.drop,
+    photosReady => WIcon.camera,
+    autoApproved => WIcon.sparkle,
+    noCaptain || bookingCancelled => WIcon.close,
+    washStatusCheck => WIcon.search,
+    noShowRefund || refundCredited => WIcon.rupee,
+    disputeDecision => WIcon.flag,
+    freeWash => WIcon.gift,
+    offer => WIcon.megaphone,
+    phoneChanged => WIcon.lock,
+    welcome => WIcon.bell,
+  };
 
   Tone get tone => switch (this) {
-        captainCantFind || paymentPending || phoneChanged => Tone.error,
-        captainRunningLate || approveReminder || gatePassNeeded || washStatusCheck => Tone.wait,
-        noShowRefund || photosReady || autoApproved || refundCredited || freeWash || bookingConfirmed => Tone.ok,
-        _ => Tone.info,
-      };
+    captainCantFind || paymentPending || phoneChanged => Tone.error,
+    captainRunningLate || approveReminder || gatePassNeeded || washStatusCheck => Tone.wait,
+    noShowRefund || photosReady || autoApproved || refundCredited || freeWash || bookingConfirmed => Tone.ok,
+    _ => Tone.info,
+  };
 
   /// Order states this notification still makes sense in. When the order has moved on,
   /// opening it shows the latest state instead, with a short note.
   List<OrderStatus>? get liveStatuses => switch (this) {
-        bookingConfirmed => [OrderStatus.searching],
-        captainAssigned || captainRunningLate || captainCantFind || washStatusCheck => [OrderStatus.onTheWay],
-        washStarted => [OrderStatus.washing],
-        photosReady || approveReminder => [OrderStatus.photosReady],
-        _ => null,
-      };
+    bookingConfirmed => [OrderStatus.searching],
+    captainAssigned || captainRunningLate || captainCantFind || washStatusCheck => [OrderStatus.onTheWay],
+    washStarted => [OrderStatus.washing],
+    photosReady || approveReminder => [OrderStatus.photosReady],
+    _ => null,
+  };
 }
 
 class AppNotification {
-  AppNotification({required this.id, required this.kind, required this.title, required this.body, required this.date, this.orderId, this.expiresAt, this.read = false});
+  AppNotification({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.body,
+    required this.date,
+    this.orderId,
+    this.expiresAt,
+    this.read = false,
+  });
   final String id;
   final NotificationKind kind;
   final String title;
@@ -214,9 +289,19 @@ class DemoScenario {
 
 /// The booking being built, one small decision per screen.
 class BookingDraft {
-  BookingDraft({this.type, this.wash, this.plate = '', Map<PhotoAngle, UploadState>? photos, this.videoSeconds, this.place, EntryNote? note, this.slot, this.useFreeWash = false, this.isRepeat = false})
-      : photos = photos ?? {},
-        note = note ?? EntryNote();
+  BookingDraft({
+    this.type,
+    this.wash,
+    this.plate = '',
+    Map<PhotoAngle, UploadState>? photos,
+    this.videoSeconds,
+    this.place,
+    EntryNote? note,
+    this.slot,
+    this.useFreeWash = false,
+    this.isRepeat = false,
+  }) : photos = photos ?? {},
+       note = note ?? EntryNote();
   VehicleType? type;
   WashKind? wash;
   String plate;
@@ -247,6 +332,20 @@ class AppError implements Exception {
 }
 
 class AppStore extends ChangeNotifier {
+  final LiveBackend? live;
+  bool get isLive => live != null;
+  bool backendReady = false;
+  bool bookingsEnabled = false;
+  bool testPayments = false;
+  String? backendMessage;
+  List<Society> liveSocieties = [];
+  List<(int, int)> liveWindows = [];
+  final List<StreamSubscription<dynamic>> _liveSubscriptions = [];
+  final List<StreamSubscription<dynamic>> _accountSubscriptions = [];
+  String _liveUid = '';
+  String draftRequestId = newId('draft');
+  String? draftBookingId;
+  final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
   static const demoOtp = '123456';
   static const expiredOtp = '000000';
   static const samplePhone = '9848011223';
@@ -301,8 +400,174 @@ class AppStore extends ChangeNotifier {
   final Map<String, WTask> _tasks = {};
   final _rand = Random();
 
-  AppStore() {
-    _seedPastOrders();
+  AppStore({this.live}) {
+    if (live == null) {
+      _seedPastOrders();
+    } else {
+      VehicleType.all = [for (final t in VehicleType.demoTypes) VehicleType(t.kind, t.name, t.minutes, 0)];
+      _liveSubscriptions.add(
+        live!.catalog.listen(
+          (snapshot) {
+            final config = snapshot.data() ?? {};
+            bookingsEnabled = config['bookingsEnabled'] == true;
+            testPayments = config['paymentMode'] == 'test';
+            final types = (config['vehicleTypes'] as List? ?? []).where((v) => v['active'] == true && v['pricePaise'] is num).toList();
+            if (types.isNotEmpty) {
+              VehicleType.all = [
+                for (final v in types)
+                  VehicleType(VehicleKind.values.byName(v['kind']), v['name'], (v['minutes'] as num).toInt(), (v['pricePaise'] as num).toInt() ~/ 100),
+              ];
+              if (draft.type != null) draft.type = VehicleType.all.where((t) => t.kind == draft.type!.kind).firstOrNull;
+            }
+            liveSocieties = [
+              for (final s in config['societies'] as List? ?? [])
+                if (s['active'] == true) Society(s['id'], s['name'], s['area'], s['city'] ?? 'Hyderabad', s['pincode'] ?? ''),
+            ];
+            liveWindows = [for (final w in config['slotWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())];
+            backendReady = types.isNotEmpty;
+            backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen Wheelio.';
+            changed();
+          },
+          onError: (Object e) {
+            backendMessage = backendError(e);
+            changed();
+          },
+        ),
+      );
+      _liveSubscriptions.add(
+        live!.sessions.listen((user) {
+          final uid = user?.phoneNumber != null ? user!.uid : '';
+          if (uid != _liveUid) _bindLiveAccount(uid);
+        }),
+      );
+    }
+  }
+
+  void _bindLiveAccount(String uid) {
+    _liveUid = uid;
+    for (final s in _accountSubscriptions) {
+      s.cancel();
+    }
+    _accountSubscriptions.clear();
+    customer = null;
+    orders = [];
+    vehicles = [];
+    notifications = [];
+    currentOrderId = null;
+    if (uid.isEmpty) {
+      changed();
+      return;
+    }
+    _accountSubscriptions.add(
+      live!
+          .profile(uid)
+          .listen(
+            (snapshot) {
+              if (_liveUid != uid) return;
+              final data = snapshot.data();
+              if (data == null) return;
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: 0);
+              changed();
+            },
+            onError: (Object e) {
+              backendMessage = backendError(e);
+              changed();
+            },
+          ),
+    );
+    _accountSubscriptions.add(
+      live!
+          .orders(uid)
+          .listen(
+            (snapshot) {
+              if (_liveUid != uid) return;
+              orders = [for (final doc in snapshot.docs) _liveOrder(doc.id, doc.data())];
+              vehicles = [];
+              for (final o in orders) {
+                if (!vehicles.any((v) => v.plate == o.vehicle.plate)) vehicles.add(o.vehicle);
+              }
+              if (currentOrderId == null || !orders.any((o) => o.id == currentOrderId)) currentOrderId = activeOrder?.id;
+              changed();
+            },
+            onError: (Object e) {
+              backendMessage = backendError(e);
+              changed();
+            },
+          ),
+    );
+    changed();
+  }
+
+  Order _liveOrder(String id, Map<String, dynamic> data) {
+    DateTime? date(dynamic value) => value == null ? null : (value.toDate() as DateTime).toLocal();
+    final kind = VehicleKind.values.byName(data['vehicleKind']);
+    final type =
+        VehicleType.all.where((t) => t.kind == kind).firstOrNull ?? VehicleType(kind, data['vehicleName'], 20, (data['pricePaise'] as num).toInt() ~/ 100);
+    final society = Society(data['societyId'], data['societyName'], data['area'], data['city'] ?? 'Hyderabad');
+    final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '');
+    final captain = data['captain'] as Map?;
+    final order = Order(
+      id: id,
+      ref: data['ref'],
+      vehicle: Vehicle('veh_${data['plate']}', data['plate'], type, place),
+      place: place,
+      slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt()),
+      price: (data['pricePaise'] as num).toInt() ~/ 100,
+      status: OrderStatus.values.byName(data['status']),
+      createdAt: date(data['createdAt']) ?? DateTime.now(),
+      captain: captain == null
+          ? null
+          : Captain(
+              captain['id'],
+              captain['name'],
+              (captain['rating'] as num? ?? 0).toDouble(),
+              (captain['washes'] as num? ?? 0).toInt(),
+              (captain['name'] as String).substring(0, 1).toUpperCase(),
+            ),
+      startedAt: date(data['startedAt']),
+      finishedAt: date(data['finishedAt']),
+      autoApproveAt: date(data['autoApproveAt']),
+      entryPassReceived: data['arrivedAt'] != null,
+      note: EntryNote(text: data['note'] ?? ''),
+      rating: data['rating'] as int?,
+      wash: WashKind.values.byName(data['washKind']),
+      paidWith: data['paymentStatus'] == 'captured' ? const PaymentMethod('razorpay', 'Razorpay', 'Prepaid') : null,
+    );
+    order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
+    order.refundStatus = data['refundStatus'] ?? 'none';
+    order.testPayment = data['paymentMode'] == 'test';
+    order.evidencePaths = {for (final entry in (data['evidence'] as Map? ?? {}).entries) entry.key as String: entry.value['path'] as String};
+    order.customerPhotoPaths = {for (final entry in (data['customerPhotos'] as Map? ?? {}).entries) entry.key as String: entry.value as String};
+    if (data['dispute'] is Map) {
+      final d = data['dispute'] as Map;
+      order.dispute = Dispute(
+        ref: data['ref'],
+        kind: ProblemKind.values.byName(d['kind']),
+        createdAt: date(d['createdAt']) ?? DateTime.now(),
+        note: d['note'] ?? '',
+      );
+    }
+    if (order.refundStatus != 'none') {
+      order.refund = Refund(
+        amount: (data['refundAmountPaise'] as num? ?? data['pricePaise']).toInt() ~/ 100,
+        startedAt: date(data['cancelledAt']) ?? DateTime.now(),
+        method: 'Original payment method',
+        bankRef: data['providerRefundId'] ?? 'Pending',
+        credited: order.refundStatus == 'processed',
+      );
+    }
+    return order;
+  }
+
+  @override
+  void dispose() {
+    for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
+      s.cancel();
+    }
+    for (final task in _tasks.values) {
+      task.cancel();
+    }
+    super.dispose();
   }
 
   /// Change state from a screen and redraw.
@@ -316,7 +581,8 @@ class AppStore extends ChangeNotifier {
   bool get isLoggedIn => customer != null;
   Order? get currentOrder => orders.where((o) => o.id == currentOrderId).firstOrNull;
   Order? get activeOrder => orders.where((o) => o.status.isActive).firstOrNull;
-  List<Order> get upcomingOrders => demo.emptyHistory ? [] : (orders.where((o) => o.status.isUpcoming).toList()..sort((a, b) => a.slot.start.compareTo(b.slot.start)));
+  List<Order> get upcomingOrders =>
+      demo.emptyHistory ? [] : (orders.where((o) => o.status.isUpcoming).toList()..sort((a, b) => a.slot.start.compareTo(b.slot.start)));
   List<Order> get pastOrders => demo.emptyHistory
       ? []
       : (orders.where((o) => !o.status.isUpcoming && o.status != OrderStatus.pendingPayment).toList()..sort((a, b) => b.slot.start.compareTo(a.slot.start)));
@@ -344,20 +610,45 @@ class AppStore extends ChangeNotifier {
     Order past(String id, int daysAgo, Vehicle v, OrderStatus status, {Refund? refund, int? rating, Place? place, WashKind wash = WashKind.wetOutside}) {
       final day = addDays(today, -daysAgo);
       return Order(
-        id: id, ref: 'WH-${20871 - daysAgo}', vehicle: v, place: place ?? v.place ?? homePlace(), slot: TimeSlot(day, 8, 10), price: v.type.price,
-        status: status, createdAt: day, captain: status == OrderStatus.cancelled ? null : raju,
-        startedAt: day.add(const Duration(hours: 8, minutes: 32)), finishedAt: day.add(const Duration(hours: 8, minutes: 54)),
-        entryPassReceived: true, rating: rating, paidWith: gpay, refund: refund, wash: wash,
+        id: id,
+        ref: 'WH-${20871 - daysAgo}',
+        vehicle: v,
+        place: place ?? v.place ?? homePlace(),
+        slot: TimeSlot(day, 8, 10),
+        price: v.type.price,
+        status: status,
+        createdAt: day,
+        captain: status == OrderStatus.cancelled ? null : raju,
+        startedAt: day.add(const Duration(hours: 8, minutes: 32)),
+        finishedAt: day.add(const Duration(hours: 8, minutes: 54)),
+        entryPassReceived: true,
+        rating: rating,
+        paidWith: gpay,
+        refund: refund,
+        wash: wash,
       );
     }
 
     final d2 = addDays(today, -10);
     orders = [
       past('ord_past1', 7, car(), OrderStatus.approved, rating: 4),
-      past('ord_past2', 10, car(), OrderStatus.noCaptain, refund: Refund(amount: 149, startedAt: d2, method: 'Google Pay · ananya@okhdfc', bankRef: 'RZP8812001', credited: true)),
+      past(
+        'ord_past2',
+        10,
+        car(),
+        OrderStatus.noCaptain,
+        refund: Refund(amount: 149, startedAt: d2, method: 'Google Pay · ananya@okhdfc', bankRef: 'RZP8812001', credited: true),
+      ),
       past('ord_past3', 13, scooter(), OrderStatus.cancelled),
       // Same car, booked at another society (parents' place): its own entry, place highlighted.
-      past('ord_past4', 16, car(), OrderStatus.approved, rating: 5, place: Place(societies[1], tower: 'Tower 1', floor: 'B1', slot: '12')),
+      past(
+        'ord_past4',
+        16,
+        car(),
+        OrderStatus.approved,
+        rating: 5,
+        place: Place(societies[1], tower: 'Tower 1', floor: 'B1', slot: '12'),
+      ),
       // Same car and place, but a dry wash: its own entry, wash highlighted.
       past('ord_past5', 21, car(), OrderStatus.approved, rating: 4, wash: WashKind.dryDusting),
     ];
@@ -366,6 +657,12 @@ class AppStore extends ChangeNotifier {
   // MARK: Auth (BACKEND: auth.signInWithOtp / verifyOtp)
 
   Future<void> requestOtp(String phone) async {
+    if (isLive) {
+      await live!.requestOtp(phone);
+      pendingPhone = phone;
+      changed();
+      return;
+    }
     await _latency(700);
     pendingPhone = phone;
     _otpTries = 0;
@@ -373,6 +670,15 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<OtpResult> verifyOtp(String code) async {
+    if (isLive) {
+      await live!.verifyOtp(code, role: 'customer');
+      final uid = live!.uid!;
+      if (_liveUid != uid) _bindLiveAccount(uid);
+      final data = (await live!.db.doc('users/$uid').get()).data()!;
+      customer = Customer(id: uid, phone: pendingPhone, name: data['name'] ?? '');
+      changed();
+      return OtpResult('ok', isNew: customer!.name.isEmpty);
+    }
     await _latency(600);
     if (code == expiredOtp) return const OtpResult('expired');
     if (code != demoOtp) {
@@ -396,6 +702,7 @@ class AppStore extends ChangeNotifier {
 
   /// Gallery shortcut: log in as the sample customer.
   void signInAsSample([int freeWashes = 0]) {
+    if (isLive) return;
     customer = Customer(id: 'cus_ananya', phone: samplePhone, name: 'Ananya Rao', freeWashes: freeWashes, notificationsOn: true);
     if (vehicles.isEmpty) vehicles = [car(), scooter()];
     if (notifications.isEmpty) seedSampleNotifications();
@@ -403,6 +710,12 @@ class AppStore extends ChangeNotifier {
   }
 
   void signOut() {
+    if (isLive) {
+      live!.signOut().catchError((Object e) {
+        toast = backendError(e);
+        changed();
+      });
+    }
     customer = null;
     vehicles = [];
     notifications = [];
@@ -411,6 +724,12 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> updateName(String name) async {
+    if (isLive) {
+      await live!.saveName(name);
+      customer?.name = name.trim();
+      changed();
+      return;
+    }
     await _latency();
     customer?.name = name.trim();
     notifyListeners();
@@ -456,19 +775,29 @@ class AppStore extends ChangeNotifier {
 
   List<Society> searchSocieties(String q) {
     final s = q.trim().toLowerCase();
-    if (s.isEmpty) return societies;
-    return societies.where((x) => '${x.name} ${x.area}'.toLowerCase().contains(s)).toList();
+    final choices = isLive ? liveSocieties : societies;
+    if (s.isEmpty) return choices;
+    return choices.where((x) => '${x.name} ${x.area}'.toLowerCase().contains(s)).toList();
   }
 
   List<TimeSlot> timeSlots(DateTime day) {
+    if (isLive) {
+      return [
+        for (final w in liveWindows)
+          TimeSlot(startOfDay(day), w.$1, w.$2, available: bookingsEnabled && DateTime(day.year, day.month, day.day, w.$2).isAfter(DateTime.now())),
+      ];
+    }
     final today = isToday(day);
     final hour = DateTime.now().hour;
-    return [for (final w in const [(6, 8), (8, 10), (10, 12), (12, 14), (14, 16), (16, 18)])
-      // Demo: early windows today look full so the crossed-out state shows.
-      TimeSlot(startOfDay(day), w.$1, w.$2, available: !(today && (demo.noCaptainsToday || w.$1 == 6 || (hour >= w.$2 - 1 && hour < 20))))];
+    return [
+      for (final w in const [(6, 8), (8, 10), (10, 12), (12, 14), (14, 16), (16, 18)])
+        // Demo: early windows today look full so the crossed-out state shows.
+        TimeSlot(startOfDay(day), w.$1, w.$2, available: !(today && (demo.noCaptainsToday || w.$1 == 6 || (hour >= w.$2 - 1 && hour < 20)))),
+    ];
   }
 
   List<PaymentMethod> get paymentMethods {
+    if (isLive) return [const PaymentMethod('razorpay', 'Razorpay checkout', 'Choose UPI, card or another available method securely')];
     final upi = customer?.phone == samplePhone ? 'UPI · ananya@okhdfc' : 'UPI';
     return [
       PaymentMethod('gpay', 'Google Pay', upi),
@@ -482,6 +811,14 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: storage upload. Fails the back photo once when the demo switch is on.
   Future<void> uploadPhoto(PhotoAngle a) async {
+    if (isLive) {
+      final bytes = await Device.pickImage();
+      if (bytes == null) return;
+      draftPhotoBytes[a] = bytes;
+      draft.photos[a] = UploadState.done;
+      changed();
+      return;
+    }
     draft.photos[a] = UploadState.uploading;
     notifyListeners();
     await sleepMs(700);
@@ -495,17 +832,55 @@ class AppStore extends ChangeNotifier {
   }
 
   void startRepeat(Vehicle v, {Place? place, WashKind? wash}) {
+    draftBookingId = null;
+    draftRequestId = newId('draft');
+    draftPhotoBytes.clear();
     draft = BookingDraft(type: v.type, wash: wash, plate: v.plate, place: (place ?? v.place)?.copy(), isRepeat: true);
     notifyListeners();
   }
 
   void startNewBooking() {
+    draftBookingId = null;
+    draftRequestId = newId('draft');
+    draftPhotoBytes.clear();
     draft = BookingDraft();
     notifyListeners();
   }
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
   Future<PaymentOutcome> createOrderAndPay() async {
+    if (isLive) {
+      final d = draft, p = d.place, s = d.slot;
+      if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
+      final result = await live!.call('createBooking', {
+        'requestId': draftRequestId,
+        'plate': d.plate,
+        'vehicleKind': d.type!.kind.name,
+        'washKind': (d.wash ?? WashKind.wetOutside).wireName,
+        'societyId': p.society.id,
+        'tower': p.tower,
+        'floor': p.floor,
+        'parking': p.slot,
+        'note': d.note.text,
+        'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
+        'startHour': s.startHour,
+        'endHour': s.endHour,
+      });
+      final bookingId = result['bookingId'] as String;
+      draftBookingId = bookingId;
+      currentOrderId = bookingId;
+      for (final entry in draftPhotoBytes.entries) {
+        await live!.uploadCustomerPhoto(bookingId, entry.key.name, entry.value);
+      }
+      final paid = await live!.pay(bookingId);
+      final fresh = await live!.db.doc('orders/$bookingId').get();
+      if (fresh.exists) {
+        orders.removeWhere((o) => o.id == bookingId);
+        orders.insert(0, _liveOrder(bookingId, fresh.data()!));
+        changed();
+      }
+      return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+    }
     final d = draft;
     final type = d.type, place = d.place, slot = d.slot;
     if (type == null || place == null || slot == null) throw const AppError('server');
@@ -517,8 +892,19 @@ class AppStore extends ChangeNotifier {
     }
     final method = paymentMethods.where((m) => m.id == payMethodId).firstOrNull ?? gpay;
     final o = Order(
-      id: newId('ord'), ref: _nextRef(), vehicle: vehicle, place: place, slot: slot, price: d.price, status: OrderStatus.pendingPayment,
-      createdAt: DateTime.now(), note: d.note, paidWith: method, usedFreeWash: d.useFreeWash, customerSkippedPhotos: !d.photosComplete, wash: d.wash,
+      id: newId('ord'),
+      ref: _nextRef(),
+      vehicle: vehicle,
+      place: place,
+      slot: slot,
+      price: d.price,
+      status: OrderStatus.pendingPayment,
+      createdAt: DateTime.now(),
+      note: d.note,
+      paidWith: method,
+      usedFreeWash: d.useFreeWash,
+      customerSkippedPhotos: !d.photosComplete,
+      wash: d.wash,
     );
     orders.add(o);
     currentOrderId = o.id;
@@ -538,6 +924,12 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<PaymentOutcome> checkPendingPayment() async {
+    if (isLive) {
+      final id = draftBookingId ?? currentOrderId;
+      if (id == null) throw StateError('No pending payment.');
+      final result = await live!.call('checkPayment', {'bookingId': id});
+      return result['paymentStatus'] == 'captured' && result['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+    }
     await _latency(1200);
     demo.payment = PaymentOutcome.success;
     if (currentOrderId != null) _startLifecycle(currentOrderId!);
@@ -550,6 +942,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void _startLifecycle(String id) {
+    if (isLive) return;
     _update(id, (o) => o.status = OrderStatus.searching);
     _tasks[id]?.cancel();
     _tasks[id] = runTask((job) async {
@@ -627,7 +1020,14 @@ class AppStore extends ChangeNotifier {
   /// UPI ID; if we don't have one yet, we ask for it.
   Refund autoRefund(Order o) {
     final upi = customer?.refundUPI;
-    return Refund(amount: o.price, startedAt: DateTime.now(), method: upi != null ? 'UPI · $upi' : 'Waiting for your UPI ID', bankRef: _bankRef(), needsUPI: true, upi: upi);
+    return Refund(
+      amount: o.price,
+      startedAt: DateTime.now(),
+      method: upi != null ? 'UPI · $upi' : 'Waiting for your UPI ID',
+      bankRef: _bankRef(),
+      needsUPI: true,
+      upi: upi,
+    );
   }
 
   /// Saves the refund UPI ID to the profile and sends any refunds that were waiting for it.
@@ -646,14 +1046,18 @@ class AppStore extends ChangeNotifier {
   }
 
   Refund _refundFor(Order o, [int? amount]) => Refund(
-        amount: amount ?? o.price,
-        startedAt: DateTime.now(),
-        method: o.paidWith != null ? '${o.paidWith!.title} · ${o.paidWith!.detail.replaceAll('UPI · ', '')}' : 'UPI',
-        bankRef: _bankRef(),
-      );
+    amount: amount ?? o.price,
+    startedAt: DateTime.now(),
+    method: o.paidWith != null ? '${o.paidWith!.title} · ${o.paidWith!.detail.replaceAll('UPI · ', '')}' : 'UPI',
+    bankRef: _bankRef(),
+  );
 
   /// BACKEND: rpc cancel_order. After a captain accepts, [CANCELLATION FEE] applies (not decided, so 0).
   Future<void> cancel(String id) async {
+    if (isLive) {
+      await live!.call('cancelBooking', {'orderId': id});
+      return;
+    }
     await _latency(800);
     _tasks[id]?.cancel();
     _update(id, (o) {
@@ -666,21 +1070,39 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc approve_order (releases the held money to the captain).
   Future<void> approve(String id) async {
+    if (isLive) {
+      await live!.call('approveWash', {'orderId': id});
+      return;
+    }
     await _latency(600);
     _tasks[id]?.cancel();
     _update(id, (o) => o.status = OrderStatus.approved);
   }
 
   Future<void> rate(String id, int stars) async {
+    if (isLive) {
+      await live!.call('rateWash', {'orderId': id, 'stars': stars});
+      return;
+    }
     await _latency(400);
     _update(id, (o) => o.rating = stars);
   }
 
   /// BACKEND: rpc report_problem.
   Future<void> reportProblem(String id, ProblemKind kind, String note) async {
+    if (isLive) {
+      await live!.call('reportWashProblem', {'orderId': id, 'kind': kind.name, 'note': note});
+      return;
+    }
     await _latency(900);
     _tasks[id]?.cancel();
-    final dispute = Dispute(ref: _nextRef(), kind: kind, createdAt: DateTime.now(), note: note, outcome: kind == ProblemKind.damage ? DisputeOutcome.damagePriority : DisputeOutcome.underReview);
+    final dispute = Dispute(
+      ref: _nextRef(),
+      kind: kind,
+      createdAt: DateTime.now(),
+      note: note,
+      outcome: kind == ProblemKind.damage ? DisputeOutcome.damagePriority : DisputeOutcome.underReview,
+    );
     _update(id, (o) {
       o.status = OrderStatus.disputed;
       o.dispute = dispute;
@@ -717,13 +1139,36 @@ class AppStore extends ChangeNotifier {
   }
 
   /// An order in a given state, built from sample data, made current.
-  Order sampleOrder(OrderStatus status, {bool passMissing = false, bool late = false, bool cantFind = false, DisputeOutcome? dispute, bool damage = false, bool skippedPhotos = false}) {
+  Order sampleOrder(
+    OrderStatus status, {
+    bool passMissing = false,
+    bool late = false,
+    bool cantFind = false,
+    DisputeOutcome? dispute,
+    bool damage = false,
+    bool skippedPhotos = false,
+  }) {
     final now = DateTime.now();
     final o = Order(
-      id: newId('ord_sample'), ref: 'WH-20914', vehicle: car(), place: homePlace(), slot: TimeSlot(startOfDay(now), 8, 10), price: 149, status: status,
-      createdAt: now, note: EntryNote(voiceSeconds: 12), captain: status == OrderStatus.searching ? null : raju, arrivesBy: now.add(const Duration(minutes: 25)),
-      runningLateMinutes: late ? 15 : null, startedAt: now.subtract(const Duration(minutes: 22)), finishedAt: now.subtract(const Duration(minutes: 1)),
-      autoApproveAt: BusinessRules.autoApproveTime(now), entryPassReceived: !passMissing, captainCantFind: cantFind, paidWith: gpay, customerSkippedPhotos: skippedPhotos,
+      id: newId('ord_sample'),
+      ref: 'WH-20914',
+      vehicle: car(),
+      place: homePlace(),
+      slot: TimeSlot(startOfDay(now), 8, 10),
+      price: 149,
+      status: status,
+      createdAt: now,
+      note: EntryNote(voiceSeconds: 12),
+      captain: status == OrderStatus.searching ? null : raju,
+      arrivesBy: now.add(const Duration(minutes: 25)),
+      runningLateMinutes: late ? 15 : null,
+      startedAt: now.subtract(const Duration(minutes: 22)),
+      finishedAt: now.subtract(const Duration(minutes: 1)),
+      autoApproveAt: BusinessRules.autoApproveTime(now),
+      entryPassReceived: !passMissing,
+      captainCantFind: cantFind,
+      paidWith: gpay,
+      customerSkippedPhotos: skippedPhotos,
     );
     if (status == OrderStatus.noCaptain || status == OrderStatus.captainNoShow) {
       o.refund = autoRefund(o);
@@ -732,9 +1177,14 @@ class AppStore extends ChangeNotifier {
     }
     if (dispute != null) {
       o.dispute = Dispute(
-        ref: damage ? 'WH-20915' : 'WH-20914', kind: damage ? ProblemKind.damage : ProblemKind.notClean, createdAt: now,
-        note: 'Water streaks on the bonnet and the left mirror wasn’t wiped.', outcome: dispute,
-        decisionNote: dispute == DisputeOutcome.upheld ? 'The after-photos show streaks on the bonnet. Raju won’t be paid for this wash.' : 'The scratch near the left door is visible in the 8:33 AM before-photo.',
+        ref: damage ? 'WH-20915' : 'WH-20914',
+        kind: damage ? ProblemKind.damage : ProblemKind.notClean,
+        createdAt: now,
+        note: 'Water streaks on the bonnet and the left mirror wasn’t wiped.',
+        outcome: dispute,
+        decisionNote: dispute == DisputeOutcome.upheld
+            ? 'The after-photos show streaks on the bonnet. Raju won’t be paid for this wash.'
+            : 'The scratch near the left door is visible in the 8:33 AM before-photo.',
         creditsAwarded: dispute == DisputeOutcome.upheld ? 2 : 0,
       );
     }
@@ -812,10 +1262,10 @@ class AppStore extends ChangeNotifier {
   void markRead(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = true);
   void markUnread(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = false);
   void markAllRead() => set(() {
-        for (final n in notifications) {
-          n.read = true;
-        }
-      });
+    for (final n in notifications) {
+      n.read = true;
+    }
+  });
   void deleteNotification(String id) => set(() => notifications.removeWhere((n) => n.id == id));
   void clearNotifications() => set(() => notifications = []);
 
@@ -842,29 +1292,67 @@ class AppStore extends ChangeNotifier {
         case OrderStatus.searching:
           notify(NotificationKind.bookingConfirmed, 'Booking confirmed', '${o.vehicle.plate} · ${o.slot.full}. We’re finding a captain.', orderId: o.id);
           if (!o.entryPassReceived) {
-            notify(NotificationKind.gatePassNeeded, 'Share your gate pass', 'Reply on WhatsApp with your MyGate or society pass so the captain can get in.',
-                orderId: o.id, date: DateTime.now().add(const Duration(seconds: 1)));
+            notify(
+              NotificationKind.gatePassNeeded,
+              'Share your gate pass',
+              'Reply on WhatsApp with your MyGate or society pass so the captain can get in.',
+              orderId: o.id,
+              date: DateTime.now().add(const Duration(seconds: 1)),
+            );
           }
         case OrderStatus.onTheWay:
-          notify(NotificationKind.captainAssigned, '$name is on the way', 'Arriving by ${Fmt.time(o.arrivesBy ?? DateTime.now())} for ${o.vehicle.plate}.', orderId: o.id);
+          notify(
+            NotificationKind.captainAssigned,
+            '$name is on the way',
+            'Arriving by ${Fmt.time(o.arrivesBy ?? DateTime.now())} for ${o.vehicle.plate}.',
+            orderId: o.id,
+          );
         case OrderStatus.washing:
-          notify(NotificationKind.washStarted, 'Washing has started', '$name started at ${Fmt.time(o.startedAt ?? DateTime.now())}. Photos when he’s done.', orderId: o.id);
+          notify(
+            NotificationKind.washStarted,
+            'Washing has started',
+            '$name started at ${Fmt.time(o.startedAt ?? DateTime.now())}. Photos when he’s done.',
+            orderId: o.id,
+          );
         case OrderStatus.photosReady:
-          notify(NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve to release $price to $name, or tell us if something’s wrong.', orderId: o.id);
+          notify(
+            NotificationKind.photosReady,
+            'Check the wash',
+            'Photos are ready. Approve to release $price to $name, or tell us if something’s wrong.',
+            orderId: o.id,
+          );
         case OrderStatus.autoApproved:
-          notify(NotificationKind.autoApproved, 'Wash approved automatically', '$price went to $name. You can still report a problem until midnight tomorrow.', orderId: o.id);
+          notify(
+            NotificationKind.autoApproved,
+            'Wash approved automatically',
+            '$price went to $name. You can still report a problem until midnight tomorrow.',
+            orderId: o.id,
+          );
         case OrderStatus.noCaptain:
-          notify(NotificationKind.noCaptain, 'No captain could take your wash',
-              o.refund?.awaitingUPI == true ? 'We’ve cancelled it. Tell us your UPI ID and we’ll send your $price back.' : 'We’ve cancelled it. Your $price is on its way to ${o.refund?.upi ?? 'your UPI'}.',
-              orderId: o.id);
+          notify(
+            NotificationKind.noCaptain,
+            'No captain could take your wash',
+            o.refund?.awaitingUPI == true
+                ? 'We’ve cancelled it. Tell us your UPI ID and we’ll send your $price back.'
+                : 'We’ve cancelled it. Your $price is on its way to ${o.refund?.upi ?? 'your UPI'}.',
+            orderId: o.id,
+          );
         case OrderStatus.captainNoShow:
-          notify(NotificationKind.noShowRefund, 'Full refund for your missed wash',
-              o.refund?.awaitingUPI == true
-                  ? '$name didn’t turn up. Add your UPI ID and $price reaches you by 11:59 PM.'
-                  : '$name didn’t turn up. $price goes to ${o.refund?.upi ?? 'your UPI'} by 11:59 PM. We’ve taken action with the captain.',
-              orderId: o.id);
+          notify(
+            NotificationKind.noShowRefund,
+            'Full refund for your missed wash',
+            o.refund?.awaitingUPI == true
+                ? '$name didn’t turn up. Add your UPI ID and $price reaches you by 11:59 PM.'
+                : '$name didn’t turn up. $price goes to ${o.refund?.upi ?? 'your UPI'} by 11:59 PM. We’ve taken action with the captain.',
+            orderId: o.id,
+          );
         case OrderStatus.cancelled:
-          notify(NotificationKind.bookingCancelled, 'Booking cancelled', 'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.', orderId: o.id);
+          notify(
+            NotificationKind.bookingCancelled,
+            'Booking cancelled',
+            'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.',
+            orderId: o.id,
+          );
         case OrderStatus.disputeUpheld || OrderStatus.disputeRejected:
           notify(NotificationKind.disputeDecision, 'We’ve checked your report', 'Tap to see the decision for ${o.vehicle.plate}.', orderId: o.id);
         case OrderStatus.paymentPending:
@@ -874,11 +1362,20 @@ class AppStore extends ChangeNotifier {
       }
     }
     if (old.late == null && o.runningLateMinutes != null) {
-      notify(NotificationKind.captainRunningLate, 'Your wash is running late', '$name is about ${o.runningLateMinutes} min behind. We’ll keep you posted.', orderId: o.id);
+      notify(
+        NotificationKind.captainRunningLate,
+        'Your wash is running late',
+        '$name is about ${o.runningLateMinutes} min behind. We’ll keep you posted.',
+        orderId: o.id,
+      );
     }
     if (!old.checking && o.noShowChecking) {
-      notify(NotificationKind.washStatusCheck, 'We’re checking on your wash',
-          'Your slot has ended and $name hasn’t updated the wash. We’re checking with him and will update you.', orderId: o.id);
+      notify(
+        NotificationKind.washStatusCheck,
+        'We’re checking on your wash',
+        'Your slot has ended and $name hasn’t updated the wash. We’re checking with him and will update you.',
+        orderId: o.id,
+      );
     }
     if (!old.cantFind && o.captainCantFind) {
       notify(NotificationKind.captainCantFind, '$name can’t find your vehicle', 'He’s at ${o.place.parkingShort}. Tell him where it is.', orderId: o.id);
@@ -895,15 +1392,81 @@ class AppStore extends ChangeNotifier {
     DateTime h(double x) => now.subtract(Duration(minutes: (x * 60).round()));
     final plate = car().plate;
     notifications = [
-      AppNotification(id: 'n_offer', kind: NotificationKind.offer, title: 'Weekend shine, ₹20 off', body: 'On wet washes this Saturday and Sunday.', date: h(0.4), expiresAt: now.add(const Duration(days: 3))),
-      AppNotification(id: 'n_free', kind: NotificationKind.freeWash, title: 'You’ve got a free wash', body: 'Thanks for the report last week. It’s applied at checkout.', date: h(5)),
-      AppNotification(id: 'n_photos_old', kind: NotificationKind.photosReady, title: 'Check the wash', body: 'Photos are ready for $plate. Approve to release ₹149 to Raju.', date: h(26), orderId: 'ord_past1', read: true),
-      AppNotification(id: 'n_assigned_old', kind: NotificationKind.captainAssigned, title: 'Raju is on the way', body: 'Arriving by 8:40 AM for $plate.', date: h(27), orderId: 'ord_past1', read: true),
-      AppNotification(id: 'n_refund', kind: NotificationKind.refundCredited, title: 'Refund credited', body: '₹149 reached Google Pay · ananya@okhdfc.', date: h(70), orderId: 'ord_past2'),
-      AppNotification(id: 'n_gone', kind: NotificationKind.bookingConfirmed, title: 'Booking confirmed', body: 'TS 09 AB 1234 · Mon, 8 – 10 AM.', date: h(140), orderId: 'ord_removed', read: true),
-      AppNotification(id: 'n_offer_old', kind: NotificationKind.offer, title: 'Diwali double shine', body: 'Two washes for the price of one.', date: h(240), expiresAt: now.subtract(const Duration(days: 5)), read: true),
-      AppNotification(id: 'n_phone', kind: NotificationKind.phoneChanged, title: 'Your phone number was changed', body: 'If this wasn’t you, contact us right away.', date: h(300), read: true),
-      AppNotification(id: 'n_welcome', kind: NotificationKind.welcome, title: 'Welcome to ${Brand.name}', body: 'Book a wash, see the photos, then pay. That’s it.', date: h(600), read: true),
+      AppNotification(
+        id: 'n_offer',
+        kind: NotificationKind.offer,
+        title: 'Weekend shine, ₹20 off',
+        body: 'On wet washes this Saturday and Sunday.',
+        date: h(0.4),
+        expiresAt: now.add(const Duration(days: 3)),
+      ),
+      AppNotification(
+        id: 'n_free',
+        kind: NotificationKind.freeWash,
+        title: 'You’ve got a free wash',
+        body: 'Thanks for the report last week. It’s applied at checkout.',
+        date: h(5),
+      ),
+      AppNotification(
+        id: 'n_photos_old',
+        kind: NotificationKind.photosReady,
+        title: 'Check the wash',
+        body: 'Photos are ready for $plate. Approve to release ₹149 to Raju.',
+        date: h(26),
+        orderId: 'ord_past1',
+        read: true,
+      ),
+      AppNotification(
+        id: 'n_assigned_old',
+        kind: NotificationKind.captainAssigned,
+        title: 'Raju is on the way',
+        body: 'Arriving by 8:40 AM for $plate.',
+        date: h(27),
+        orderId: 'ord_past1',
+        read: true,
+      ),
+      AppNotification(
+        id: 'n_refund',
+        kind: NotificationKind.refundCredited,
+        title: 'Refund credited',
+        body: '₹149 reached Google Pay · ananya@okhdfc.',
+        date: h(70),
+        orderId: 'ord_past2',
+      ),
+      AppNotification(
+        id: 'n_gone',
+        kind: NotificationKind.bookingConfirmed,
+        title: 'Booking confirmed',
+        body: 'TS 09 AB 1234 · Mon, 8 – 10 AM.',
+        date: h(140),
+        orderId: 'ord_removed',
+        read: true,
+      ),
+      AppNotification(
+        id: 'n_offer_old',
+        kind: NotificationKind.offer,
+        title: 'Diwali double shine',
+        body: 'Two washes for the price of one.',
+        date: h(240),
+        expiresAt: now.subtract(const Duration(days: 5)),
+        read: true,
+      ),
+      AppNotification(
+        id: 'n_phone',
+        kind: NotificationKind.phoneChanged,
+        title: 'Your phone number was changed',
+        body: 'If this wasn’t you, contact us right away.',
+        date: h(300),
+        read: true,
+      ),
+      AppNotification(
+        id: 'n_welcome',
+        kind: NotificationKind.welcome,
+        title: 'Welcome to ${Brand.name}',
+        body: 'Book a wash, see the photos, then pay. That’s it.',
+        date: h(600),
+        read: true,
+      ),
     ]..sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
   }

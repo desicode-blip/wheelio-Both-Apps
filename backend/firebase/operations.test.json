@@ -1,0 +1,19 @@
+{
+  "bookingsEnabled": true,
+  "paymentMode": "test",
+  "cancellationFeePaise": 0,
+  "capacityPerSlot": null,
+  "offerTtlSeconds": 60,
+  "vehicleTypes": [
+    {"kind":"bike","name":"Bike or scooter","minutes":15,"pricePaise":6900,"captainPayPaise":5400,"active":true},
+    {"kind":"hatchback","name":"Hatchback","minutes":20,"pricePaise":14900,"captainPayPaise":11600,"active":true},
+    {"kind":"sedan","name":"Sedan or compact SUV","minutes":20,"pricePaise":17900,"captainPayPaise":14000,"active":true},
+    {"kind":"suv","name":"SUV or MUV","minutes":25,"pricePaise":21900,"captainPayPaise":14000,"active":true}
+  ],
+  "societies": [
+    {"id":"soc_avatar","name":"My Home Avatar","area":"Narsingi","city":"Hyderabad","pincode":"500089","active":true},
+    {"id":"soc_avali","name":"My Home Avali","area":"Gachibowli","city":"Hyderabad","pincode":"500032","active":true},
+    {"id":"soc_avishkaar","name":"My Home Avishkaar","area":"Kokapet","city":"Hyderabad","pincode":"500075","active":true}
+  ],
+  "slotWindows": [{"startHour":6,"endHour":8},{"startHour":8,"endHour":10},{"startHour":10,"endHour":12},{"startHour":12,"endHour":14},{"startHour":14,"endHour":16},{"startHour":16,"endHour":18}]
+}

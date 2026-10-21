@@ -11,12 +11,9 @@ for (const key of ['FIREBASE_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_APP_ID',
   if (!config[key]) throw new Error(`${key} is missing in ${configPath}`);
 }
 const flutter = process.env.FLUTTER_BIN ?? 'flutter';
-const output = join(root, 'build/firebase-hosting');
+const output = resolve(root, process.argv[3] ?? 'build/firebase-hosting');
 await mkdir(output, { recursive: true });
-for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
-  const cwd = join(root, 'apps/flutter', app);
-  const args = ['build', 'web', '--release', '--pwa-strategy=none', `--base-href=/${path}/`, `--dart-define-from-file=${configPath}`];
-  // Quote Windows paths as PowerShell literals; do not concatenate raw shell arguments.
+function runFlutter(cwd,args) {
   const literal = (value) => `'${value.replaceAll("'", "''")}'`;
   const result = process.platform === 'win32'
     ? spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
@@ -24,6 +21,16 @@ for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
     : spawnSync(flutter, args, { cwd, stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
+}
+for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
+  const cwd = join(root, 'apps/flutter', app);
+  // A shared path package may add plugins without changing either app pubspec.
+  runFlutter(cwd,['pub','get']);
+  // FlutterFire restores Auth emulator routing during debug initialization.
+  const mode = config.FIREBASE_USE_EMULATORS ? '--debug' : '--release';
+  const args = ['build', 'web', mode, '--pwa-strategy=none', '--no-wasm-dry-run', `--base-href=/${path}/`, `--dart-define-from-file=${configPath}`];
+  // Quote Windows paths as PowerShell literals; do not concatenate raw shell arguments.
+  runFlutter(cwd,args);
   await cp(join(cwd, 'build/web'), join(output, path), { recursive: true });
 }
 await cp(join(root, 'apps/hosting'), output, { recursive: true });

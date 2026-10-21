@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 
 import 'backend.dart';
+import 'live_backend.dart';
 
 /// The designed sample-data apps are available only with an explicit demo URL.
 Future<void> launchWheelio({
@@ -12,6 +13,7 @@ Future<void> launchWheelio({
   required Widget demo,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
+  WheelioRuntime.backend = null;
   if (Uri.base.queryParameters['demo'] == 'true') {
     runApp(demo);
     return;
@@ -19,10 +21,15 @@ Future<void> launchWheelio({
   Object? initializationError;
   try {
     await WheelioFirebase.initialize();
+    WheelioRuntime.backend = LiveBackend();
   } catch (error) {
     initializationError = error;
   }
-  runApp(_PortalApp(captain: captain, configured: initializationError == null));
+  runApp(
+    initializationError == null
+        ? demo
+        : _PortalApp(captain: captain, configured: false),
+  );
 }
 
 /// Keep the preview unmistakable on every designed demo screen.
@@ -30,31 +37,33 @@ class DemoLabel extends StatelessWidget {
   const DemoLabel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      const Material(
-        color: Color(0xFFFFE6A8),
-        child: SafeArea(
-          bottom: false,
-          child: SizedBox(
-            width: double.infinity,
-            height: 32,
-            child: Center(
-              child: Text(
-                'DEMO · Sample data · No bookings or payments',
-                style: TextStyle(
-                  color: Color(0xFF172231),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) => !WheelioRuntime.demo
+      ? child
+      : Column(
+          children: [
+            const Material(
+              color: Color(0xFFFFE6A8),
+              child: SafeArea(
+                bottom: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 32,
+                  child: Center(
+                    child: Text(
+                      'DEMO · Sample data · No bookings or payments',
+                      style: TextStyle(
+                        color: Color(0xFF172231),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-      Expanded(child: child),
-    ],
-  );
+            Expanded(child: child),
+          ],
+        );
 }
 
 class _PortalApp extends StatelessWidget {

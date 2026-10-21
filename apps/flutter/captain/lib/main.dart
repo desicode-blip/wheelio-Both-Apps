@@ -14,6 +14,7 @@ import 'screens/money.dart';
 import 'screens/onboarding.dart';
 import 'screens/wash.dart';
 import 'screens/welcome.dart';
+import 'screens/firebase_live.dart';
 
 Future<void> main() => launchWheelio(captain: true, demo: const CaptainApp());
 
@@ -33,8 +34,13 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
     // On a laptop there's no phone to call from: say so instead of dialling.
-    Support.onCallUnavailable = (n) => store.set(() => store.toast = store.t('Calls work on your phone: ${Fmt.phone(n.replaceFirst('+91', ''))}',
-        'कॉल फ़ोन से होती है: ${Fmt.phone(n.replaceFirst('+91', ''))}', 'కాల్స్ ఫోన్‌లో పని చేస్తాయి: ${Fmt.phone(n.replaceFirst('+91', ''))}'));
+    Support.onCallUnavailable = (n) => store.set(
+      () => store.toast = store.t(
+        'Calls work on your phone: ${Fmt.phone(n.replaceFirst('+91', ''))}',
+        'कॉल फ़ोन से होती है: ${Fmt.phone(n.replaceFirst('+91', ''))}',
+        'కాల్స్ ఫోన్‌లో పని చేస్తాయి: ${Fmt.phone(n.replaceFirst('+91', ''))}',
+      ),
+    );
   }
 
   @override
@@ -50,24 +56,26 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) => CaptainScope(
-        store: store,
-        router: router,
-        child: MaterialApp(
-          title: '${Brand.name} Captain',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            fontFamily: wFont,
-            colorScheme: ColorScheme.fromSeed(seedColor: WColor.primary, primary: WColor.primary),
-            scaffoldBackgroundColor: WColor.white,
-            splashFactory: NoSplash.splashFactory,
-            highlightColor: Colors.transparent,
-            textSelectionTheme: const TextSelectionThemeData(cursorColor: WColor.primary, selectionColor: WColor.primaryTint),
-          ),
-          // The app keeps its phone layout on every screen size (docs/FLUTTER.md).
-          builder: (context, child) => PhoneFrame(child: DemoLabel(child: child!)),
-          home: const _Root(),
-        ),
-      );
+    store: store,
+    router: router,
+    child: MaterialApp(
+      title: '${Brand.name} Captain',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        fontFamily: wFont,
+        colorScheme: ColorScheme.fromSeed(seedColor: WColor.primary, primary: WColor.primary),
+        scaffoldBackgroundColor: WColor.white,
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: Colors.transparent,
+        textSelectionTheme: const TextSelectionThemeData(cursorColor: WColor.primary, selectionColor: WColor.primaryTint),
+      ),
+      // The app keeps its phone layout on every screen size (docs/FLUTTER.md).
+      builder: (context, child) => PhoneFrame(
+        child: PaymentEnvironmentLabel(child: DemoLabel(child: child!)),
+      ),
+      home: WheelioRuntime.backend == null ? const _Root() : const FirebaseCaptainScreen(),
+    ),
+  );
 }
 
 class _Root extends StatelessWidget {
@@ -78,11 +86,13 @@ class _Root extends StatelessWidget {
     final store = context.store, router = context.router;
     return Material(
       color: WColor.white,
-      child: Stack(children: [
-        WNavStack<R>(router: router, root: store.signedUp || store.exploring ? const CaptainTabs() : const LanguageScreen(), builder: _destination),
-        const _GalleryTab(),
-        const Positioned.fill(child: WLiveBanner()),
-      ]),
+      child: Stack(
+        children: [
+          WNavStack<R>(router: router, root: store.signedUp || store.exploring ? const CaptainTabs() : const LanguageScreen(), builder: _destination),
+          const _GalleryTab(),
+          const Positioned.fill(child: WLiveBanner()),
+        ],
+      ),
     );
   }
 }
@@ -100,88 +110,108 @@ class _GalleryTab extends StatelessWidget {
     const shape = BorderRadius.horizontal(right: Radius.circular(12));
     final bg = WColor.inverse.withValues(alpha: 0.72);
     Widget tourButton(String label, int j) => Pressable(
-          label: label == '‹' ? 'Previous screen' : 'Next screen',
-          onTap: () {
-            if (j < 0 || j >= galleryAll.length) return;
-            router.setTour(j, router.tourLang);
-            openGalleryEntry(galleryAll[j], store, router);
-          },
-          child: SizedBox(width: 26, height: 30, child: Center(child: Text(label, style: wStyle(WType.body, weight: bold, size: 18, color: WColor.white)))),
-        );
+      label: label == '‹' ? 'Previous screen' : 'Next screen',
+      onTap: () {
+        if (j < 0 || j >= galleryAll.length) return;
+        router.setTour(j, router.tourLang);
+        openGalleryEntry(galleryAll[j], store, router);
+      },
+      child: SizedBox(
+        width: 26,
+        height: 30,
+        child: Center(
+          child: Text(
+            label,
+            style: wStyle(WType.body, weight: bold, size: 18, color: WColor.white),
+          ),
+        ),
+      ),
+    );
     return Positioned(
       left: 0,
       top: top,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Pressable(
-          label: 'Screens gallery',
-          onTap: () {
-            if (!router.isAt(N.gallery)) router.go(N.gallery);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: bg, borderRadius: shape),
-            child: Text('Screens', style: wStyle(WType.small, weight: semibold, size: 11, color: WColor.white)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Pressable(
+            label: 'Screens gallery',
+            onTap: () {
+              if (!router.isAt(N.gallery)) router.go(N.gallery);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(color: bg, borderRadius: shape),
+              child: Text(
+                'Screens',
+                style: wStyle(WType.small, weight: semibold, size: 11, color: WColor.white),
+              ),
+            ),
           ),
-        ),
-        if (i != null && !router.isAt(N.gallery))
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(color: bg, borderRadius: shape),
-            child: Column(children: [
-              Text(galleryAll[i].id, style: wStyle(WType.small, weight: semibold, size: 11, color: WColor.white)),
-              Row(mainAxisSize: MainAxisSize.min, children: [tourButton('‹', i - 1), tourButton('›', i + 1)]),
-            ]),
-          ),
-      ]),
+          if (i != null && !router.isAt(N.gallery))
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(color: bg, borderRadius: shape),
+              child: Column(
+                children: [
+                  Text(
+                    galleryAll[i].id,
+                    style: wStyle(WType.small, weight: semibold, size: 11, color: WColor.white),
+                  ),
+                  Row(mainAxisSize: MainAxisSize.min, children: [tourButton('‹', i - 1), tourButton('›', i + 1)]),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
 Widget _destination(R r) => switch (r.n) {
-      N.welcome => const WelcomeScreen(),
-      N.signUp => SignUpScreen(login: r.flag),
-      N.otp => WOtpScreen(login: r.flag),
-      N.steps => StepsScreen(problem: r.flag),
-      N.aadhaar => AadhaarScreen(unclear: r.flag),
-      N.selfie => const SelfieScreen(),
-      N.bank => const BankScreen(),
-      N.training => const TrainingScreen(),
-      N.video => VideoScreen(index: r.index),
-      N.quiz => const QuizScreen(),
-      N.quizResult => QuizResultScreen(passed: r.flag),
-      N.rules => const RulesScreen(),
-      N.underReview => const UnderReviewScreen(),
-      N.live => const LiveScreen(),
-      N.jobAlert => JobAlertScreen(batched: r.flag),
-      N.jobMissed => const JobMissedScreen(),
-      N.goToVehicle => const GoToVehicleScreen(),
-      N.gateProblem => const GateProblemScreen(),
-      N.cantFind => const CantFindScreen(),
-      N.ownerCancelled => const OwnerCancelledScreen(),
-      N.faceCheck => const FaceCheckScreen(),
-      N.beforePhotos => const JobPhotosScreen(),
-      N.camera => JobCameraScreen(after: r.flag, side: r.index),
-      N.photoDark => const PhotoDarkScreen(),
-      N.washing => const WashingScreen(),
-      N.afterPhotos => const JobPhotosScreen(after: true),
-      N.aiCheck => const AiCheckScreen(),
-      N.uploading => const UploadingScreen(),
-      N.jobDone => JobDoneScreen(late: r.flag),
-      N.payoutDetail => const PayoutDetailScreen(),
-      N.payoutHeld => const PayoutHeldScreen(),
-      N.level => const LevelScreen(),
-      N.probationExtended => const ProbationScreen(),
-      N.refresher => const RefresherScreen(),
-      N.blocked => const BlockedScreen(),
-      N.help => const WHelpScreen(),
-      N.notifications => const WNotificationsScreen(),
-      N.notificationSettings => const WNotificationSettingsScreen(),
-      N.changePhone => const WChangePhoneScreen(),
-      N.editUPI => const WEditUPIScreen(),
-      N.noShowCancelled => const WNoShowCancelledScreen(),
-      N.workArea => const WorkAreaScreen(),
-      N.ownerNote => const OwnerNoteScreen(),
-      N.helpFlow => HelpFlowScreen(topic: r.topic!),
-      N.gallery => const WGalleryScreen(),
-    };
+  N.welcome => const WelcomeScreen(),
+  N.signUp => SignUpScreen(login: r.flag),
+  N.otp => WOtpScreen(login: r.flag),
+  N.steps => StepsScreen(problem: r.flag),
+  N.aadhaar => AadhaarScreen(unclear: r.flag),
+  N.selfie => const SelfieScreen(),
+  N.bank => const BankScreen(),
+  N.training => const TrainingScreen(),
+  N.video => VideoScreen(index: r.index),
+  N.quiz => const QuizScreen(),
+  N.quizResult => QuizResultScreen(passed: r.flag),
+  N.rules => const RulesScreen(),
+  N.underReview => const UnderReviewScreen(),
+  N.live => const LiveScreen(),
+  N.jobAlert => JobAlertScreen(batched: r.flag),
+  N.jobMissed => const JobMissedScreen(),
+  N.goToVehicle => const GoToVehicleScreen(),
+  N.gateProblem => const GateProblemScreen(),
+  N.cantFind => const CantFindScreen(),
+  N.ownerCancelled => const OwnerCancelledScreen(),
+  N.faceCheck => const FaceCheckScreen(),
+  N.beforePhotos => const JobPhotosScreen(),
+  N.camera => JobCameraScreen(after: r.flag, side: r.index),
+  N.photoDark => const PhotoDarkScreen(),
+  N.washing => const WashingScreen(),
+  N.afterPhotos => const JobPhotosScreen(after: true),
+  N.aiCheck => const AiCheckScreen(),
+  N.uploading => const UploadingScreen(),
+  N.jobDone => JobDoneScreen(late: r.flag),
+  N.payoutDetail => const PayoutDetailScreen(),
+  N.payoutHeld => const PayoutHeldScreen(),
+  N.level => const LevelScreen(),
+  N.probationExtended => const ProbationScreen(),
+  N.refresher => const RefresherScreen(),
+  N.blocked => const BlockedScreen(),
+  N.help => const WHelpScreen(),
+  N.notifications => const WNotificationsScreen(),
+  N.notificationSettings => const WNotificationSettingsScreen(),
+  N.changePhone => const WChangePhoneScreen(),
+  N.editUPI => const WEditUPIScreen(),
+  N.noShowCancelled => const WNoShowCancelledScreen(),
+  N.workArea => const WorkAreaScreen(),
+  N.ownerNote => const OwnerNoteScreen(),
+  N.helpFlow => HelpFlowScreen(topic: r.topic!),
+  N.gallery => const WGalleryScreen(),
+};

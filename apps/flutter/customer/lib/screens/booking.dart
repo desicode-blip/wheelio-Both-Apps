@@ -28,7 +28,13 @@ class VehicleTypeScreen extends StatelessWidget {
         child: WScreen(
           header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, showBack: !asRoot, showProgress: DesignFlags.firstStepProgress),
           footer: large
-              ? Container(decoration: const BoxDecoration(border: Border(top: BorderSide(color: WColor.divider))), padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter, vertical: 12), child: next)
+              ? Container(
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: WColor.divider)),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter, vertical: 12),
+                  child: next,
+                )
               : WFooterBar(showCall: false, child: next),
           children: [
             WTitleBlock('What are we washing?', subtitle: large ? null : 'Pick your vehicle. You choose the wash next.'),
@@ -40,16 +46,31 @@ class VehicleTypeScreen extends StatelessWidget {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: outlinedDecoration(radius: 16, fill: store.draft.type == t ? WColor.primaryTint : WColor.white, stroke: store.draft.type == t ? WColor.primary : WColor.border, width: store.draft.type == t ? 2 : 1),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      WText(t.name, WType.section, weight: semibold),
-                      WText('About ${t.minutes} min', WType.body),
-                      WText(Fmt.rupees(t.price), WType.section, weight: bold),
-                    ]),
+                    decoration: outlinedDecoration(
+                      radius: 16,
+                      fill: store.draft.type == t ? WColor.primaryTint : WColor.white,
+                      stroke: store.draft.type == t ? WColor.primary : WColor.border,
+                      width: store.draft.type == t ? 2 : 1,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        WText(t.name, WType.section, weight: semibold),
+                        WText('About ${t.minutes} min', WType.body),
+                        WText(Fmt.rupees(t.price), WType.section, weight: bold),
+                      ],
+                    ),
                   ),
                 )
               else
-                WSelectionTile(icon: t.icon, title: t.name, subtitle: 'About ${t.minutes} min', trailing: Fmt.rupees(t.price), selected: store.draft.type == t, onTap: () => store.set(() => store.draft.type = t)),
+                WSelectionTile(
+                  icon: t.icon,
+                  title: t.name,
+                  subtitle: 'About ${t.minutes} min',
+                  trailing: Fmt.rupees(t.price),
+                  selected: store.draft.type == t,
+                  onTap: () => store.set(() => store.draft.type = t),
+                ),
               const SizedBox(height: 12),
             ],
           ],
@@ -77,9 +98,15 @@ class WashTypeScreen extends StatelessWidget {
       },
       child: WScreen(
         header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
-        footer: WFooterBar(showCall: false, child: WButton('Next', enabled: store.draft.wash != null, onTap: () => router.go(N.vehicleNumber))),
+        footer: WFooterBar(
+          showCall: false,
+          child: WButton('Next', enabled: store.draft.wash != null, onTap: () => router.go(N.vehicleNumber)),
+        ),
         children: [
-          WTitleBlock('What kind of wash?', subtitle: 'Same price for every option${store.draft.type != null ? ': ${Fmt.rupees(store.draft.type!.price)}' : ''}.'),
+          WTitleBlock(
+            'What kind of wash?',
+            subtitle: 'Same price for every option${store.draft.type != null ? ': ${Fmt.rupees(store.draft.type!.price)}' : ''}.',
+          ),
           for (final w in options) ...[
             Opacity(
               opacity: w.available ? 1 : 0.7,
@@ -88,36 +115,58 @@ class WashTypeScreen extends StatelessWidget {
                   if (w.available) {
                     store.set(() => store.draft.wash = w);
                   } else {
-                    showWAlert(context, title: 'Not available in your society yet', message: 'Inside cleaning isn’t offered in your society right now. We’ll let you know when it is.');
+                    showWAlert(
+                      context,
+                      title: 'Not available in your society yet',
+                      message: 'Inside cleaning isn’t offered in your society right now. We’ll let you know when it is.',
+                    );
                   }
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: outlinedDecoration(radius: 16, fill: store.draft.wash == w ? WColor.primaryTint : WColor.white, stroke: store.draft.wash == w ? WColor.primary : WColor.border, width: store.draft.wash == w ? 2 : 1),
-                  child: Row(children: [
-                    WIconBox(w.icon, size: 48, tone: w.available ? Tone.info : Tone.mute),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        WText(w.name(isBike), WType.title),
-                        const SizedBox(height: 2),
-                        WText(w.detail(isBike), WType.caption),
-                        if (!w.available) const Padding(padding: EdgeInsets.only(top: 2), child: WText('Not in your society yet', WType.label, color: WColor.secondary)),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    Pressable(
-                      label: 'See what ${w.name(isBike)} means',
-                      onTap: () => showWAlert(context, title: 'Video coming soon', message: 'We’re making a short video that shows this wash. For now, pick the one you like and carry on.'),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: store.draft.wash == w ? Colors.transparent : WColor.primaryTint),
-                        alignment: Alignment.center,
-                        child: const WIconView(WIcon.eye, size: 18, color: WColor.primaryStrong),
+                  decoration: outlinedDecoration(
+                    radius: 16,
+                    fill: store.draft.wash == w ? WColor.primaryTint : WColor.white,
+                    stroke: store.draft.wash == w ? WColor.primary : WColor.border,
+                    width: store.draft.wash == w ? 2 : 1,
+                  ),
+                  child: Row(
+                    children: [
+                      WIconBox(w.icon, size: 48, tone: w.available ? Tone.info : Tone.mute),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            WText(w.name(isBike), WType.title),
+                            const SizedBox(height: 2),
+                            WText(w.detail(isBike), WType.caption),
+                            if (!w.available)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: WText('Not in your society yet', WType.label, color: WColor.secondary),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ]),
+                      const SizedBox(width: 8),
+                      Pressable(
+                        label: 'See what ${w.name(isBike)} means',
+                        onTap: () => showWAlert(
+                          context,
+                          title: 'Video coming soon',
+                          message: 'We’re making a short video that shows this wash. For now, pick the one you like and carry on.',
+                        ),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: store.draft.wash == w ? Colors.transparent : WColor.primaryTint),
+                          alignment: Alignment.center,
+                          child: const WIconView(WIcon.eye, size: 18, color: WColor.primaryStrong),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -152,21 +201,35 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
     final t = context.store.draft.type;
     return WScreen(
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
-      footer: WFooterBar(showCall: false, child: WButton('Next', enabled: plate.trim().isNotEmpty, onTap: _next)),
+      footer: WFooterBar(
+        showCall: false,
+        child: WButton('Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+      ),
       children: [
         const WTitleBlock('What’s the number plate?', subtitle: 'So the captain finds the right vehicle.'),
-        WTextField(label: 'Vehicle number', value: plate, placeholder: 'TS 09 EA 4521', helper: 'Use the number on your plate', caps: TextCapitalization.characters, autofocus: true, onSubmit: _next, onChanged: (v) => setState(() => plate = v)),
+        WTextField(
+          label: 'Vehicle number',
+          value: plate,
+          placeholder: 'TS 09 EA 4521',
+          helper: 'Use the number on your plate',
+          caps: TextCapitalization.characters,
+          autofocus: true,
+          onSubmit: _next,
+          onChanged: (v) => setState(() => plate = v),
+        ),
         if (t != null)
           Padding(
             padding: const EdgeInsets.only(top: 22),
             child: Pressable(
               onTap: context.router.pop,
-              child: Row(children: [
-                WIconBox(t.icon, size: 38, radius: 10),
-                const SizedBox(width: 10),
-                WText('${t.shortName} · ${Fmt.rupees(t.price)} · ', WType.caption),
-                const WText('Change', WType.caption, color: WColor.primaryStrong, decoration: TextDecoration.underline),
-              ]),
+              child: Row(
+                children: [
+                  WIconBox(t.icon, size: 38, radius: 10),
+                  const SizedBox(width: 10),
+                  WText('${t.shortName} · ${Fmt.rupees(t.price)} · ', WType.caption),
+                  const WText('Change', WType.caption, color: WColor.primaryStrong, decoration: TextDecoration.underline),
+                ],
+              ),
             ),
           ),
       ],
@@ -177,11 +240,11 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
 // MARK: C07 Photos (C07b partial, C07c done)
 
 PhotoState slotState(UploadState? s) => switch (s) {
-      null => PhotoState.empty,
-      UploadState.uploading => PhotoState.uploading,
-      UploadState.done => PhotoState.done,
-      UploadState.failed => PhotoState.failed,
-    };
+  null => PhotoState.empty,
+  UploadState.uploading => PhotoState.uploading,
+  UploadState.done => PhotoState.done,
+  UploadState.failed => PhotoState.failed,
+};
 
 class PhotosScreen extends StatelessWidget {
   const PhotosScreen({super.key});
@@ -194,23 +257,34 @@ class PhotosScreen extends StatelessWidget {
     final title = d.photosComplete
         ? WTitleBlock('Looking good', subtitle: '4 photos${d.videoSeconds != null ? ' and a video' : ''}. Tap any photo to retake.')
         : d.photos.isEmpty
-            ? const WTitleBlock('Take 4 quick photos', subtitle: 'They help the captain find your vehicle. The captain takes the official before photos.')
-            : WTitleBlock('Take 4 quick photos', subtitle: '${d.photosDone} of 4 done');
+        ? const WTitleBlock('Take 4 quick photos', subtitle: 'They help the captain find your vehicle. The captain takes the official before photos.')
+        : WTitleBlock('Take 4 quick photos', subtitle: '${d.photosDone} of 4 done');
     return WScreen(
       header: const BookingHeader(step: 2, label: 'Photos', fraction: 0.4),
       footer: WFooterBar(
         showCall: false,
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          WButton('Next', enabled: d.photosComplete, onTap: goNext),
-          // Photos are optional for the customer: the captain takes the official before photos.
-          if (!d.photosComplete)
-            WLink('Skip for now', color: WColor.secondary, k: WType.caption, onTap: () => showWAlert(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            WButton('Next', enabled: d.photosComplete, onTap: goNext),
+            // Photos are optional for the customer: the captain takes the official before photos.
+            if (!d.photosComplete)
+              WLink(
+                'Skip for now',
+                color: WColor.secondary,
+                k: WType.caption,
+                onTap: () => showWAlert(
                   context,
                   title: 'Skip the photos?',
-                  message: 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
-                  actions: [const AlertAction('Take photos', cancel: true), AlertAction('Skip anyway', onTap: goNext)],
-                )),
-        ]),
+                  message: store.isLive ? 'Your captain will still take official before and after photos. Your own photos provide an extra record of the vehicle’s condition.' : 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
+                  actions: [
+                    const AlertAction('Take photos', cancel: true),
+                    AlertAction('Skip anyway', onTap: goNext),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
       children: [
         title,
@@ -245,47 +319,58 @@ class PhotosScreen extends StatelessWidget {
               },
             ),
           ),
-        if (d.videoSeconds != null && d.photosComplete)
+        if (!store.isLive && d.videoSeconds != null && d.photosComplete)
           Container(
             margin: const EdgeInsets.only(top: 20),
             height: 46,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: const ShapeDecoration(color: WColor.canvas, shape: StadiumBorder()),
-            child: Row(children: [
-              const WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
-              const SizedBox(width: 12),
-              Expanded(child: WText('Walk-around video · ${Fmt.clock(d.videoSeconds!)}', WType.bodyStrong, color: WColor.heading)),
-              const WIconView(WIcon.check, size: 15),
-            ]),
+            child: Row(
+              children: [
+                const WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
+                const SizedBox(width: 12),
+                Expanded(child: WText('Walk-around video · ${Fmt.clock(d.videoSeconds!)}', WType.bodyStrong, color: WColor.heading)),
+                const WIconView(WIcon.check, size: 15),
+              ],
+            ),
           )
-        else if (!d.hasFailedPhoto)
+        else if (!store.isLive && !d.hasFailedPhoto)
           // Optional extra: same look as the photo slots, plus an "Optional" tab on its edge.
           Padding(
             padding: const EdgeInsets.only(top: 30),
             child: Pressable(
               label: 'Optional: walk-around video, 15 seconds',
               onTap: () => store.set(() => store.draft.videoSeconds = 14),
-              child: Stack(clipBehavior: Clip.none, children: [
-                const DashedBorder(
-                  child: SizedBox(
-                    height: 62,
-                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
-                      SizedBox(width: 10),
-                      WText('Walk-around video (15 sec)', WType.bodyStrong, color: WColor.primaryStrong, weight: medium),
-                    ]),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const DashedBorder(
+                    child: SizedBox(
+                      height: 62,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          WIconView(WIcon.video, size: 17, color: WColor.primaryStrong),
+                          SizedBox(width: 10),
+                          WText('Walk-around video (15 sec)', WType.bodyStrong, color: WColor.primaryStrong, weight: medium),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                Positioned(
-                  left: 14,
-                  top: -10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: const ShapeDecoration(color: WColor.canvas, shape: StadiumBorder(side: BorderSide(color: WColor.border))),
-                    child: WText('OPTIONAL', WType.small, weight: semibold, size: 10.5, color: WColor.secondary, letterSpacing: 0.8),
+                  Positioned(
+                    left: 14,
+                    top: -10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: const ShapeDecoration(
+                        color: WColor.canvas,
+                        shape: StadiumBorder(side: BorderSide(color: WColor.border)),
+                      ),
+                      child: WText('OPTIONAL', WType.small, weight: semibold, size: 10.5, color: WColor.secondary, letterSpacing: 0.8),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
       ],
@@ -307,10 +392,11 @@ class _CameraScreenState extends State<CameraScreen> {
   bool denied = false;
   late PhotoAngle current = widget.angle;
 
-  void _shoot() {
+  Future<void> _shoot() async {
     final store = context.store;
     final a = current;
-    store.uploadPhoto(a);
+    await store.uploadPhoto(a);
+    if (!mounted || store.draft.photos[a] == null) return;
     final next = PhotoAngle.values.where((x) => store.draft.photos[x] == null && x != a).firstOrNull;
     if (next != null) {
       setState(() => current = next);
@@ -322,6 +408,16 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    if (store.isLive) {
+      return WScreen(
+        header: const PlainHeader(),
+        children: [
+          WTitleBlock('${current.label} photo', subtitle: 'Choose a clear photo of your vehicle. It will be shared only with your assigned captain.'),
+          WButton('Take or choose photo', icon: WIcon.camera, onTap: _shoot),
+          if (store.draftPhotoBytes[current] != null) Padding(padding: const EdgeInsets.only(top: 20), child: Image.memory(store.draftPhotoBytes[current]!)),
+        ],
+      );
+    }
     if (denied || widget.forceDenied) {
       return WScreen(
         scrolls: false,
@@ -355,29 +451,50 @@ class _CameraScreenState extends State<CameraScreen> {
       color: WColor.camera,
       child: Padding(
         padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom),
-        child: Column(children: [
-          WAppBar(title: '${current.label} · ${index + 1} of 4', leading: WIcon.close, trailing: null, dark: true, onLeading: router.pop),
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              decoration: BoxDecoration(color: WColor.cameraPanel, borderRadius: BorderRadius.circular(20)),
-              child: Stack(children: [
-                const Center(child: CustomPaint(size: Size(250, 160), painter: CarOutlinePainter())),
-                Positioned(left: 16, right: 16, bottom: 22, child: WText('Fit the ${current.label.toLowerCase()} of the vehicle in the outline', WType.body, color: Colors.white.withValues(alpha: 0.9), align: TextAlign.center)),
-              ]),
+        child: Column(
+          children: [
+            WAppBar(title: '${current.label} · ${index + 1} of 4', leading: WIcon.close, trailing: null, dark: true, onLeading: router.pop),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                decoration: BoxDecoration(color: WColor.cameraPanel, borderRadius: BorderRadius.circular(20)),
+                child: Stack(
+                  children: [
+                    const Center(
+                      child: CustomPaint(size: Size(250, 160), painter: CarOutlinePainter()),
+                    ),
+                    Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 22,
+                      child: WText(
+                        'Fit the ${current.label.toLowerCase()} of the vehicle in the outline',
+                        WType.body,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        align: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Row(children: [
-              const SizedBox(width: 60),
-              const Spacer(),
-              ShutterButton(onTap: _shoot),
-              const Spacer(),
-              SizedBox(width: 60, child: Center(child: WIconView(WIcon.flash, size: 20, color: Colors.white.withValues(alpha: 0.5)))),
-            ]),
-          ),
-        ]),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Row(
+                children: [
+                  const SizedBox(width: 60),
+                  const Spacer(),
+                  ShutterButton(onTap: _shoot),
+                  const Spacer(),
+                  SizedBox(
+                    width: 60,
+                    child: Center(child: WIconView(WIcon.flash, size: 20, color: Colors.white.withValues(alpha: 0.5))),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -389,16 +506,23 @@ class ShutterButton extends StatelessWidget {
   final double size;
   @override
   Widget build(BuildContext context) => Pressable(
-        label: 'Take photo',
-        onTap: onTap,
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: WColor.white, width: 5)),
-          alignment: Alignment.center,
-          child: Container(width: size * 0.8, height: size * 0.8, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
-        ),
-      );
+    label: 'Take photo',
+    onTap: onTap,
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: WColor.white, width: 5),
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        width: size * 0.8,
+        height: size * 0.8,
+        decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
+      ),
+    ),
+  );
 }
 
 /// Dashed car outline for the guided camera.
@@ -412,10 +536,16 @@ class CarOutlinePainter extends CustomPainter {
       ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.2, 0, w * 0.56, h * 0.3), const Radius.circular(10)))
       ..addOval(Rect.fromLTWH(w * 0.12, h * 0.66, h * 0.3, h * 0.3))
       ..addOval(Rect.fromLTWH(w - w * 0.12 - h * 0.3, h * 0.66, h * 0.3, h * 0.3));
-    drawDashed(canvas, p, Paint()
-      ..color = Colors.white.withValues(alpha: 0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5, 9, 7);
+    drawDashed(
+      canvas,
+      p,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+      9,
+      7,
+    );
   }
 
   @override
@@ -446,6 +576,7 @@ class _LocationScreenState extends State<LocationScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    if (store.isLive) return const AddressSearchScreen();
     if (off || widget.forceOff) {
       return WScreen(
         scrolls: false,
@@ -471,29 +602,37 @@ class _LocationScreenState extends State<LocationScreen> {
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Yes, it’s here', onTap: () {
-          store.set(() => store.draft.place = Place(place.society, tower: place.tower));
-          router.go(N.floorSlot);
-        }),
+        child: WButton(
+          'Yes, it’s here',
+          onTap: () {
+            store.set(() => store.draft.place = Place(place.society, tower: place.tower));
+            router.go(N.floorSlot);
+          },
+        ),
       ),
       children: [
-        const Padding(padding: EdgeInsets.symmetric(horizontal: WSpace.gutter), child: WTitleBlock('Is your vehicle here?', subtitle: 'Drag the map to move the pin.')),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: WSpace.gutter),
+          child: WTitleBlock('Is your vehicle here?', subtitle: 'Drag the map to move the pin.'),
+        ),
         const SizedBox(height: 330, child: MapPlaceholder()),
         Padding(
           padding: const EdgeInsets.fromLTRB(WSpace.gutter, 18, WSpace.gutter, 0),
           child: WCard(
             outlined: true,
-            child: Row(children: [
-              const WIconBox(WIcon.home, size: 44, radius: 10),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  WText('${place.society.name}, ${place.tower}', WType.title),
-                  WText(place.addressLine, WType.caption),
-                ]),
-              ),
-              WLink('Change', onTap: () => router.go(N.addressSearch)),
-            ]),
+            child: Row(
+              children: [
+                const WIconBox(WIcon.home, size: 44, radius: 10),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [WText('${place.society.name}, ${place.tower}', WType.title), WText(place.addressLine, WType.caption)],
+                  ),
+                ),
+                WLink('Change', onTap: () => router.go(N.addressSearch)),
+              ],
+            ),
           ),
         ),
       ],
@@ -513,25 +652,29 @@ class _MapPlaceholderState extends State<MapPlaceholder> {
   bool dragging = false;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (c, box) {
-        final w = box.maxWidth, h = box.maxHeight;
-        return MouseRegion(
-          cursor: dragging ? SystemMouseCursors.grabbing : SystemMouseCursors.grab,
-          child: GestureDetector(
-            onPanStart: (_) => setState(() => dragging = true),
-            onPanUpdate: (d) => setState(() => off += d.delta),
-            onPanEnd: (_) => setState(() => dragging = false),
-            child: ClipRect(
-              child: ColoredBox(
-                color: WColor.map,
-                child: Stack(children: [
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (c, box) {
+      final w = box.maxWidth, h = box.maxHeight;
+      return MouseRegion(
+        cursor: dragging ? SystemMouseCursors.grabbing : SystemMouseCursors.grab,
+        child: GestureDetector(
+          onPanStart: (_) => setState(() => dragging = true),
+          onPanUpdate: (d) => setState(() => off += d.delta),
+          onPanEnd: (_) => setState(() => dragging = false),
+          child: ClipRect(
+            child: ColoredBox(
+              color: WColor.map,
+              child: Stack(
+                children: [
                   for (var i = 0; i < 25; i++)
                     Positioned(
                       left: -w * 0.4 + (i % 5) * w * 0.36 + off.dx,
                       top: -h * 0.4 + (i ~/ 5) * h * 0.36 + off.dy,
                       width: w * 0.28,
                       height: h * 0.25,
-                      child: Container(decoration: BoxDecoration(color: i % 7 == 1 || i % 7 == 5 ? WColor.mapGreen : WColor.mapBlock, borderRadius: BorderRadius.circular(6))),
+                      child: Container(
+                        decoration: BoxDecoration(color: i % 7 == 1 || i % 7 == 5 ? WColor.mapGreen : WColor.mapBlock, borderRadius: BorderRadius.circular(6)),
+                      ),
                     ),
                   Positioned(
                     left: w * 0.51 - 15,
@@ -539,26 +682,42 @@ class _MapPlaceholderState extends State<MapPlaceholder> {
                     child: AnimatedSlide(
                       duration: const Duration(milliseconds: 150),
                       offset: Offset(0, dragging ? -0.25 : 0),
-                      child: Column(children: [
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: const BoxDecoration(color: WColor.primary, shape: BoxShape.circle),
-                          alignment: Alignment.center,
-                          child: Container(width: 11, height: 11, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
-                        ),
-                        const SizedBox(height: 2),
-                        Container(width: 16, height: 6, decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8))),
-                      ]),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: const BoxDecoration(color: WColor.primary, shape: BoxShape.circle),
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 11,
+                              height: 11,
+                              decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Container(
+                            width: 16,
+                            height: 6,
+                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  Positioned(right: 26, bottom: 16, child: WIconButton(WIcon.locate, label: 'My location', onTap: () => setState(() => off = Offset.zero))),
-                ]),
+                  Positioned(
+                    right: 26,
+                    bottom: 16,
+                    child: WIconButton(WIcon.locate, label: 'My location', onTap: () => setState(() => off = Offset.zero)),
+                  ),
+                ],
               ),
             ),
           ),
-        );
-      });
+        ),
+      );
+    },
+  );
 }
 
 // MARK: C09c Address search
@@ -587,7 +746,10 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
     final store = context.store, router = context.router;
     return WScreen(
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
-      footer: WFooterBar(showCall: false, child: WButton('Next', enabled: picked, onTap: () => router.go(N.floorSlot))),
+      footer: WFooterBar(
+        showCall: false,
+        child: WButton('Next', enabled: picked, onTap: () => router.go(N.floorSlot)),
+      ),
       children: [
         const Padding(padding: EdgeInsets.only(top: 20, bottom: 18), child: WText('Where is your vehicle?', WType.screen)),
         WTextField(label: 'Society or building', value: query, leadingIcon: WIcon.search, autofocus: true, onChanged: (v) => setState(() => query = v)),
@@ -597,22 +759,35 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
             feedback: false,
             onTap: () {
               setState(() => picked = true);
-              store.set(() => store.draft.place = Place(s, tower: 'Tower 3'));
+              store.set(() => store.draft.place = Place(s, tower: store.isLive ? '' : 'Tower 3'));
               router.go(N.floorSlot);
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(children: [
-                const WIconBox(WIcon.location, size: 40, radius: 10),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_highlighted(s.name), WText('${s.area}, ${s.city}', WType.caption)])),
-              ]),
+              child: Row(
+                children: [
+                  const WIconBox(WIcon.location, size: 40, radius: 10),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_highlighted(s.name), WText('${s.area}, ${s.city}', WType.caption)]),
+                  ),
+                ],
+              ),
             ),
           ),
           const WDivider(),
         ],
         const SizedBox(height: 14),
-        const Row(children: [WText('Can’t find it?', WType.caption), SizedBox(width: 4), WLink('Enter address by hand', k: WType.caption)]),
+        if (!store.isLive)
+          const Row(
+            children: [
+              WText('Can’t find it?', WType.caption),
+              SizedBox(width: 4),
+              WLink('Enter address by hand', k: WType.caption),
+            ],
+          )
+        else
+          const WText('Service is available only in the societies listed above.', WType.caption),
       ],
     );
   }
@@ -628,8 +803,13 @@ class FloorSlotScreen extends StatefulWidget {
 
 class _FloorSlotScreenState extends State<FloorSlotScreen> {
   static const floors = ['B3', 'B2', 'B1', 'Ground', 'Open'];
-  late String? floor = context.store.draft.place?.floor ?? 'B2';
-  late String slot = (context.store.draft.place?.slot.isNotEmpty ?? false) ? context.store.draft.place!.slot : '41';
+  late String? floor = context.store.draft.place?.floor ?? (context.store.isLive ? null : 'B2');
+  late String slot = (context.store.draft.place?.slot.isNotEmpty ?? false)
+      ? context.store.draft.place!.slot
+      : context.store.isLive
+      ? ''
+      : '41';
+  late String tower = context.store.draft.place?.tower ?? '';
 
   @override
   Widget build(BuildContext context) {
@@ -638,20 +818,39 @@ class _FloorSlotScreenState extends State<FloorSlotScreen> {
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Next', enabled: floor != null, onTap: () {
-          store.set(() {
-            store.draft.place?.floor = floor;
-            store.draft.place?.slot = slot.trim();
-          });
-          context.router.go(N.entryNotes);
-        }),
+        child: WButton(
+          'Next',
+          enabled: floor != null,
+          onTap: () {
+            store.set(() {
+              store.draft.place?.floor = floor;
+              store.draft.place?.slot = slot.trim();
+              store.draft.place?.tower = tower.trim();
+            });
+            context.router.go(N.entryNotes);
+          },
+        ),
       ),
       children: [
         WTitleBlock('Where is it parked?', subtitle: store.draft.place?.title ?? ''),
+        if (store.isLive) ...[
+          WTextField(label: 'Tower or building', value: tower, placeholder: 'Tower or building', onChanged: (v) => tower = v),
+          const Gap(16),
+        ],
         const WSectionLabel('Parking floor'),
-        WFlow(children: [for (final f in floors) WChip(f, selected: floor == f, onTap: () => setState(() => floor = f))]),
+        WFlow(
+          children: [for (final f in floors) WChip(f, selected: floor == f, onTap: () => setState(() => floor = f))],
+        ),
         const SizedBox(height: 26),
-        WTextField(label: 'Slot number', value: slot, placeholder: 'Slot number', helper: 'Optional, but it saves the captain time', leadingIcon: WIcon.parking, caps: TextCapitalization.characters, onChanged: (v) => setState(() => slot = v)),
+        WTextField(
+          label: 'Slot number',
+          value: slot,
+          placeholder: 'Slot number',
+          helper: 'Optional, but it saves the captain time',
+          leadingIcon: WIcon.parking,
+          caps: TextCapitalization.characters,
+          onChanged: (v) => setState(() => slot = v),
+        ),
       ],
     );
   }
@@ -704,91 +903,148 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
         child: Container(
           height: 132,
           decoration: outlinedDecoration(radius: 16, stroke: busy ? WColor.destructive : WColor.border, width: busy ? 2 : 1),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(color: busy ? WColor.destructive : WColor.primaryTint, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: busy
-                  ? Container(width: 18, height: 18, decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(4)))
-                  : WIconView(icon, size: 22, color: WColor.primaryStrong),
-            ),
-            const SizedBox(height: 12),
-            WText(busy ? 'Recording…' : title, WType.bodyStrong, color: busy ? WColor.destructive : WColor.primaryStrong, weight: medium, align: TextAlign.center),
-          ]),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(color: busy ? WColor.destructive : WColor.primaryTint, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: busy
+                    ? Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(4)),
+                      )
+                    : WIconView(icon, size: 22, color: WColor.primaryStrong),
+              ),
+              const SizedBox(height: 12),
+              WText(
+                busy ? 'Recording…' : title,
+                WType.bodyStrong,
+                color: busy ? WColor.destructive : WColor.primaryStrong,
+                weight: medium,
+                align: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _deleteButton(VoidCallback action) => Pressable(
-        label: 'Delete recording',
-        onTap: () => setState(() {
-          action();
-          playing = false;
-        }),
-        child: const SizedBox(width: 44, height: 44, child: Center(child: WIconView(WIcon.trash, size: 17, color: WColor.destructive))),
-      );
+    label: 'Delete recording',
+    onTap: () => setState(() {
+      action();
+      playing = false;
+    }),
+    child: const SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(child: WIconView(WIcon.trash, size: 17, color: WColor.destructive)),
+    ),
+  );
 
   Widget _recordedVideo(int secs) => FadeIn(
-        offset: 0,
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
-          child: Row(children: [
-            Pressable(
-              label: playing ? 'Pause video' : 'Play video',
-              onTap: () => setState(() => playing = !playing),
-              child: Container(
-                width: 96,
-                height: 72,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: const LinearGradient(colors: [Color(0xFF2A3445), Color(0xFF4A5568)], begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-                child: Stack(alignment: Alignment.center, children: [
+    offset: 0,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Pressable(
+            label: playing ? 'Pause video' : 'Play video',
+            onTap: () => setState(() => playing = !playing),
+            child: Container(
+              width: 96,
+              height: 72,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(colors: [Color(0xFF2A3445), Color(0xFF4A5568)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
                   const WIconView(WIcon.carFill, size: 26, color: Colors.white38),
-                  Container(width: 38, height: 38, decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 18, color: WColor.white)),
-                ]),
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                    alignment: Alignment.center,
+                    child: WIconView(playing ? WIcon.pause : WIcon.play, size: 18, color: WColor.white),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Row(children: [WIconView(WIcon.video, size: 14, color: WColor.primaryStrong), SizedBox(width: 6), WText('Video message', WType.bodyStrong)]),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    WIconView(WIcon.video, size: 14, color: WColor.primaryStrong),
+                    SizedBox(width: 6),
+                    WText('Video message', WType.bodyStrong),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 WText(Fmt.clock(secs), WType.caption, mono: true),
-              ]),
+              ],
             ),
-            _deleteButton(() => video = null),
-          ]),
-        ),
-      );
+          ),
+          _deleteButton(() => video = null),
+        ],
+      ),
+    ),
+  );
 
   Widget _recordedVoice(int secs) => FadeIn(
-        offset: 0,
-        child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
-          child: Row(children: [
-            Pressable(
-              label: playing ? 'Pause voice note' : 'Play voice note',
-              onTap: () => setState(() => playing = !playing),
-              child: Container(width: 40, height: 40, decoration: const BoxDecoration(color: WColor.primaryTint, shape: BoxShape.circle), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 15, color: WColor.primaryStrong)),
+    offset: 0,
+    child: Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(16)),
+      child: Row(
+        children: [
+          Pressable(
+            label: playing ? 'Pause voice note' : 'Play voice note',
+            onTap: () => setState(() => playing = !playing),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(color: WColor.primaryTint, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: WIconView(playing ? WIcon.pause : WIcon.play, size: 15, color: WColor.primaryStrong),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const WText('Voice note', WType.small, color: WColor.secondary),
                 const SizedBox(height: 6),
-                ClipRRect(borderRadius: BorderRadius.circular(2), child: playing ? const LinearProgressIndicator(minHeight: 3, color: WColor.primary, backgroundColor: WColor.border) : Container(height: 3, color: WColor.border)),
-              ]),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: playing
+                      ? const LinearProgressIndicator(minHeight: 3, color: WColor.primary, backgroundColor: WColor.border)
+                      : Container(height: 3, color: WColor.border),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            WText(Fmt.clock(secs), WType.caption, mono: true),
-            _deleteButton(() => voice = null),
-          ]),
-        ),
-      );
+          ),
+          const SizedBox(width: 12),
+          WText(Fmt.clock(secs), WType.caption, mono: true),
+          _deleteButton(() => voice = null),
+        ],
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -797,32 +1053,49 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.8),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Next', onTap: () {
-          store.set(() {
-            store.draft.note.text = text;
-            store.draft.note.voiceSeconds = voice;
-            store.draft.note.videoSeconds = video;
-          });
-          context.router.go(N.timeSlot);
-        }),
+        child: WButton(
+          'Next',
+          onTap: () {
+            store.set(() {
+              store.draft.note.text = text;
+              store.draft.note.voiceSeconds = voice;
+              store.draft.note.videoSeconds = video;
+            });
+            context.router.go(N.timeSlot);
+          },
+        ),
       ),
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 20, bottom: 20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Wrap(crossAxisAlignment: WrapCrossAlignment.end, spacing: 8, children: [WText('Additional message', WType.screen), WText('(Optional)*', WType.body, color: WColor.secondary, size: 15)]),
-            SizedBox(height: 6),
-            WText('Like gate, lift, landmark or parking spot.', WType.body, maxLines: 1),
-          ]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 8,
+                children: [
+                  WText('Additional message', WType.screen),
+                  WText('(Optional)*', WType.body, color: WColor.secondary, size: 15),
+                ],
+              ),
+              SizedBox(height: 6),
+              WText('Like gate, lift, landmark or parking spot.', WType.body, maxLines: 1),
+            ],
+          ),
         ),
-        if (video != null)
+        if (!store.isLive && video != null)
           _recordedVideo(video!)
-        else if (voice != null)
+        else if (!store.isLive && voice != null)
           _recordedVoice(voice!)
-        else
+        else if (!store.isLive)
           // 1 · Video  2 · Voice note: same weight, pick one.
           Row(children: [_recordTile(WIcon.video, 'Record video', 'video'), const SizedBox(width: 12), _recordTile(WIcon.mic, 'Record voice note', 'voice')]),
-        if (hasRecording) const Padding(padding: EdgeInsets.only(top: 8), child: WText('One recording per booking. Delete it to record again.', WType.small, color: WColor.muted)),
+        if (hasRecording)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: WText('One recording per booking. Delete it to record again.', WType.small, color: WColor.muted),
+          ),
         // 3 · Text: goes along with either recording.
         Padding(padding: const EdgeInsets.only(top: 26, bottom: 8), child: WText(hasRecording ? 'Add a text message too' : 'Or write a message', WType.label)),
         WTextArea(value: text, height: 96, placeholder: 'Example: use the B2 ramp near the gym, white car next to the pillar', onChanged: (v) => text = v),
@@ -843,33 +1116,81 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
   final days = [for (var i = 0; i < 3; i++) addDays(startOfDay(DateTime.now()), i)];
   int dayIndex = 0;
   TimeSlot? picked;
+  String requested = '';
+  Set<int> available = {};
+  bool fetching = false;
+  String? slotError;
+
+  void _loadAvailability() {
+    final store = context.store;
+    if (!store.isLive || store.draft.place == null) return;
+    final d = days[dayIndex];
+    final day = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final key = '${store.draft.place!.society.id}:$day';
+    if (requested == key) return;
+    requested = key;
+    fetching = true;
+    available = {};
+    picked = null;
+    store.live!
+        .call('getAvailability', {'societyId': store.draft.place!.society.id, 'day': day})
+        .then((result) {
+          if (!mounted || requested != key) return;
+          setState(() {
+            fetching = false;
+            available = {
+              for (final s in result['slots'] as List)
+                if (s['available'] == true) (s['startHour'] as num).toInt(),
+            };
+            picked = store.timeSlots(d).where((s) => s.available && available.contains(s.startHour)).firstOrNull;
+          });
+        })
+        .catchError((Object e) {
+          if (mounted && requested == key) {
+            setState(() {
+              fetching = false;
+              slotError = 'Availability could not be loaded. Reopen this screen to retry.';
+            });
+          }
+        });
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _loadAvailability();
+    if (context.store.isLive) return;
     if (picked != null) return;
     final s = context.store.draft.slot;
     picked = s != null && s.available ? s : context.store.timeSlots(days[0]).where((x) => x.available).firstOrNull;
   }
 
   void _changeDay(int i) => setState(() {
-        dayIndex = i;
-        picked = context.store.timeSlots(days[i]).where((x) => x.available).firstOrNull;
-      });
+    dayIndex = i;
+    picked = context.store.timeSlots(days[i]).where((x) => x.available).firstOrNull;
+    _loadAvailability();
+  });
 
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    final slots = store.timeSlots(days[dayIndex]);
+    final slots = [
+      for (final s in store.timeSlots(days[dayIndex]))
+        TimeSlot(s.date, s.startHour, s.endHour, available: s.available && (!store.isLive || available.contains(s.startHour))),
+    ];
     final noneFree = !slots.any((s) => s.available);
     return WScreen(
       header: const BookingHeader(step: 4, label: 'Time', fraction: 0.8),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Next', enabled: picked != null && !noneFree, onTap: () {
-          store.set(() => store.draft.slot = picked);
-          context.router.go(N.review);
-        }),
+        child: WButton(
+          'Next',
+          enabled: picked != null && !fetching && !noneFree && slots.any((s) => s.available && s.startHour == picked!.startHour),
+          onTap: () {
+            store.set(() => store.draft.slot = picked);
+            context.router.go(N.review);
+          },
+        ),
       ),
       children: [
         WTitleBlock('When should we come?', subtitle: noneFree ? null : 'The captain arrives any time in this window.'),
@@ -882,12 +1203,39 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
           childAspectRatio: 159 / 54,
-          children: [for (final s in slots) WChip(s.label, selected: picked == s, enabled: s.available, strike: !s.available, height: 54, fill: true, onTap: () => setState(() => picked = s))],
+          children: [
+            for (final s in slots)
+              WChip(
+                s.label,
+                selected: picked == s,
+                enabled: s.available,
+                strike: !s.available,
+                height: 54,
+                fill: true,
+                onTap: () => setState(() => picked = s),
+              ),
+          ],
         ),
-        if (noneFree)
-          Padding(padding: const EdgeInsets.only(top: 20), child: WBanner(tone: Tone.wait, icon: WIcon.search, text: 'No captains free today in your society. Tomorrow has slots from 6 AM.', actionTitle: 'See tomorrow', onAction: () => _changeDay(1)))
+        if (fetching)
+          const Padding(padding: EdgeInsets.only(top: 20), child: WText('Checking captain capacity…', WType.body))
+        else if (noneFree)
+          Padding(
+            padding: const EdgeInsets.only(top: 20),
+            child: WBanner(
+              tone: Tone.wait,
+              icon: WIcon.search,
+              text: store.isLive
+                  ? slotError ?? 'No captain capacity in this society for the selected date. Try another date.'
+                  : 'No captains free today in your society. Tomorrow has slots from 6 AM.',
+              actionTitle: 'See tomorrow',
+              onAction: () => _changeDay(1),
+            ),
+          )
         else
-          const Padding(padding: EdgeInsets.only(top: 18), child: WText('No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.', WType.caption)),
+          const Padding(
+            padding: EdgeInsets.only(top: 18),
+            child: WText('No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.', WType.caption),
+          ),
       ],
     );
   }
@@ -908,7 +1256,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final router = context.router;
     if (router.showPaySheet && !_sheetOpen && isTopScreen(context)) {
       _sheetOpen = true;
-      showWSheet<void>(context, height: 520, builder: (_) => AppScope(store: context.store, router: router, child: const PayMethodSheet())).whenComplete(() {
+      showWSheet<void>(
+        context,
+        height: 520,
+        builder: (_) => AppScope(store: context.store, router: router, child: const PayMethodSheet()),
+      ).whenComplete(() {
         _sheetOpen = false;
         if (router.showPaySheet) router.openPaySheet(false);
       });
@@ -928,35 +1280,38 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final free = store.customer?.freeWashes ?? 0;
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
-      footer: WFooterBar(
-        showCall: false,
-        child: WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login)),
-      ),
+      footer: WFooterBar(showCall: false, child: WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login))),
       children: [
         const WTitleBlock('Check and pay'),
         WCard(
           radius: 16,
           onTap: router.pop,
-          child: Row(children: [
-            WIconBox(d.type?.icon ?? WIcon.car, size: 48),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                WPlate(d.plate.isEmpty ? 'TS 09 EA 4521' : d.plate),
-                const SizedBox(height: 6),
-                WText('${d.type?.shortName ?? ''}${d.wash != null ? ' · ${d.wash!.shortName}' : ''} · ${d.place?.tower ?? ''} · ${d.place?.parkingShort ?? ''}', WType.caption),
-              ]),
-            ),
-            const WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
-          ]),
+          child: Row(
+            children: [
+              WIconBox(d.type?.icon ?? WIcon.car, size: 48),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    WPlate(d.plate.isEmpty ? 'TS 09 EA 4521' : d.plate),
+                    const SizedBox(height: 6),
+                    WText(
+                      '${d.type?.shortName ?? ''}${d.wash != null ? ' · ${d.wash!.shortName}' : ''} · ${d.place?.tower ?? ''} · ${d.place?.parkingShort ?? ''}',
+                      WType.caption,
+                    ),
+                  ],
+                ),
+              ),
+              const WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
+            ],
+          ),
         ),
         const SizedBox(height: 18),
-        WKeyValueCard(boldLast: true, rows: [
-          ('When', d.slot?.full ?? ''),
-          ('Wash', 'Exterior · water and cloth'),
-          ('Notes', d.note.summary),
-          ('Total', Fmt.rupees(d.price)),
-        ]),
+        WKeyValueCard(
+          boldLast: true,
+          rows: [('When', d.slot?.full ?? ''), ('Wash', 'Exterior · water and cloth'), ('Notes', d.note.summary), ('Total', Fmt.rupees(d.price))],
+        ),
         if (free > 0)
           WToggleRow(
             padding: const EdgeInsets.only(top: 14),
@@ -980,24 +1335,41 @@ class PayMethodSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final price = store.draft.price;
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Row(children: [
-        WText('Pay ${Fmt.rupees(price)}', WType.section, weight: semibold, mono: true),
-        const Spacer(),
-        const WBadge('Held until you approve', tone: Tone.mute, icon: WIcon.shield),
-      ]),
-      const SizedBox(height: 14),
-      for (final m in store.paymentMethods) ...[
-        WSelectionTile(icon: WIcon.receipt, title: m.title, subtitle: m.detail, selected: store.payMethodId == m.id, radio: true, iconTone: Tone.mute, onTap: () => store.set(() => store.payMethodId = m.id)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            WText('Pay ${Fmt.rupees(price)}', WType.section, weight: semibold, mono: true),
+            const Spacer(),
+            const WBadge('Held until you approve', tone: Tone.mute, icon: WIcon.shield),
+          ],
+        ),
+        const SizedBox(height: 14),
+        for (final m in store.paymentMethods) ...[
+          WSelectionTile(
+            icon: WIcon.receipt,
+            title: m.title,
+            subtitle: m.detail,
+            selected: store.payMethodId == m.id,
+            radio: true,
+            iconTone: Tone.mute,
+            onTap: () => store.set(() => store.payMethodId = m.id),
+          ),
+          const SizedBox(height: 10),
+        ],
+        const SizedBox(height: 6),
+        WButton(
+          'Pay ${Fmt.rupees(price)}',
+          kind: ButtonKind.success,
+          onTap: () {
+            router.openPaySheet(false);
+            router.push(const R(N.paying, pay: PayView.processing));
+          },
+        ),
         const SizedBox(height: 10),
+        const WText('Secured by Razorpay. Full refund if no captain comes.', WType.caption, align: TextAlign.center),
       ],
-      const SizedBox(height: 6),
-      WButton('Pay ${Fmt.rupees(price)}', kind: ButtonKind.success, onTap: () {
-        router.openPaySheet(false);
-        router.push(const R(N.paying, pay: PayView.processing));
-      }),
-      const SizedBox(height: 10),
-      const WText('Secured by Razorpay. Full refund if no captain comes.', WType.caption, align: TextAlign.center),
-    ]);
+    );
   }
 }

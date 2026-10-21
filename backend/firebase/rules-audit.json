@@ -1,0 +1,7 @@
+{
+  "score": 5,
+  "summary": "Source rules and emulator attack tests enforce owner/assigned-party reads, server-owned business state, private fixed-path image uploads with size/type bounds, and immutable KYC review state. This assessment covers access rules, not operator IAM or photo authenticity.",
+  "findings": [],
+  "checks": ["Create/update ownership and field validation", "No client-controlled role or approval authority", "Order access requires customer or assigned captain", "Offer access does not grant exact booking access", "Client writes to payment, assignment, earnings and location denied", "Photo namespace, stage, MIME and 8 MB limits", "KYC documents locked on submission", "Default deny"],
+  "tests": "access.test.mjs, rules.test.mjs"
+}

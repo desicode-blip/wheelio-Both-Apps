@@ -1,5 +1,9 @@
 # Firebase web release
 
+**21 October update:** the booking implementation and current setup supersede this historical foundation record; see [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md). Trustkeyper billing is now linked, phone SMS is enabled for India, Storage exists, and Razorpay test secrets have been copied securely. The new release uses the existing Flutter screens with Firebase controllers. Deployment/merchant acceptance status must be checked separately from implementation.
+
+## Historical foundation — 20 October
+
 The owner selected Firebase for backend and hosting on 20 October 2026. Project **wheelio-apps**, project number **763324255731**, created under **ajay@trustkeyper.com**. Firestore is Standard Native mode in Mumbai (`asia-south1`) with its free tier. No billing account was attached by this task.
 
 Published: [website](https://wheelio-apps.web.app/), [Customer](https://wheelio-apps.web.app/app/), [Captain](https://wheelio-apps.web.app/captain/).

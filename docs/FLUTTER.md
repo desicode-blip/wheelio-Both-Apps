@@ -1,5 +1,13 @@
 # Flutter apps (Customer and Captain)
 
+## 21 October 2026: Firebase booking implementation
+
+The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing Wheelio screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
+
+Trustkeyper billing and its stored **test** Razorpay credentials are reused. Live charges require live merchant keys; actual captains require operator approval. No demo lifecycle timer, sample OTP, fake KYC decision or invented payout runs in the live controllers. See [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md) for the server model, test settings, release commands and remaining human operations. Native platform work remains deferred.
+
+The 20 October entry below describes the earlier deployed prelaunch foundation.
+
 ## 20 October 2026: Firebase web foundation
 
 Both `main.dart` entry points now start the shared `wheelio_firebase` package. Normal URLs open a real prelaunch app: email/password login and reset, saved profiles, customer wash requests/history/cancellation, and Captain applications. Firebase rules enforce per-account access and prevent client-side payment, job-state and KYC approval changes.

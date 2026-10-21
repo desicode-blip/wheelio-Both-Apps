@@ -1,9 +1,29 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Live model: orders, jobOffers, earnings, payments, refunds and their
+    // events/tracking are server-owned. Users can only read their own records.
+    // Captain approval is never a client-writable profile field.
     function owner(uid) { return request.auth != null && request.auth.uid == uid; }
     function text(value, min, max) { return value is string && value.size() >= min && value.size() <= max; }
     function timestamps(data) { return data.createdAt == request.time && data.updatedAt == request.time; }
+    function bookingParty(orderId) {
+      let order = get(/databases/$(database)/documents/orders/$(orderId)).data;
+      return request.auth != null && (order.customerId == request.auth.uid || order.captainId == request.auth.uid);
+    }
+    match /config/operations { allow read: if true; allow write: if false; }
+    match /orders/{orderId} {
+      allow read: if request.auth != null && (resource.data.customerId == request.auth.uid || resource.data.captainId == request.auth.uid);
+      allow write: if false;
+      match /events/{event} { allow read: if bookingParty(orderId); allow write: if false; }
+      match /tracking/{tracking} { allow read: if bookingParty(orderId); allow write: if false; }
+    }
+    match /captains/{uid} { allow read: if owner(uid); allow write: if false; }
+    match /jobOffers/{offerId} { allow read: if request.auth != null && resource.data.captainId == request.auth.uid; allow write: if false; }
+    match /earnings/{orderId} { allow read: if request.auth != null && resource.data.captainId == request.auth.uid; allow write: if false; }
+    match /payments/{orderId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
+    match /refunds/{orderId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
+    match /supportTickets/{ticketId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
 
     match /users/{uid} {
       allow read: if owner(uid);

@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 /// No service-account keys belong in an app. These are Firebase public app IDs.
 class WheelioFirebase {
@@ -24,18 +26,31 @@ class WheelioFirebase {
     );
     const emulator = bool.fromEnvironment('FIREBASE_USE_EMULATORS');
     if (emulator) {
+      if (!projectId.startsWith('demo-')) throw StateError('Emulator builds require a demo Firebase project.');
       const host = String.fromEnvironment(
         'FIREBASE_EMULATOR_HOST',
         defaultValue: '127.0.0.1',
       );
       await FirebaseAuth.instance.useAuthEmulator(host, 9099);
+      await FirebaseAuth.instance.setSettings(appVerificationDisabledForTesting:true);
       FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+      FirebaseFunctions.instanceFor(
+        region: 'asia-south1',
+      ).useFunctionsEmulator(host, 5001);
+      await FirebaseStorage.instance.useStorageEmulator(host, 9199);
     }
     if (kIsWeb) await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
 }
 
 String backendError(Object error) {
+  // Error identifiers only: never log phone numbers, OTPs, provider payloads or tokens.
+  if (error is FirebaseException) debugPrint('Firebase operation failed: ${error.plugin}/${error.code}');
+  if (error is FirebaseFunctionsException)
+    return error.message ??
+        'This action could not be completed. Please try again.';
+  if (error is ArgumentError) return error.message.toString();
+  if (error is StateError) return error.message;
   if (error is FirebaseAuthException) {
     return switch (error.code) {
       'invalid-email' => 'Enter a valid email address.',

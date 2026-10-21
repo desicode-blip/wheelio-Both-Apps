@@ -1,0 +1,15 @@
+{
+  "bookingsEnabled": false,
+  "currency": "INR",
+  "capacityPerSlot": null,
+  "offerTtlSeconds": 60,
+  "cancellationFeePaise": null,
+  "vehicleTypes": [
+    {"kind":"bike","name":"Bike or scooter","minutes":15,"pricePaise":null,"captainPayPaise":null,"active":false},
+    {"kind":"hatchback","name":"Hatchback","minutes":20,"pricePaise":null,"captainPayPaise":null,"active":false},
+    {"kind":"sedan","name":"Sedan or compact SUV","minutes":20,"pricePaise":null,"captainPayPaise":null,"active":false},
+    {"kind":"suv","name":"SUV or MUV","minutes":25,"pricePaise":null,"captainPayPaise":null,"active":false}
+  ],
+  "societies": [],
+  "slotWindows": [{"startHour":6,"endHour":8},{"startHour":8,"endHour":10},{"startHour":10,"endHour":12},{"startHour":12,"endHour":14},{"startHour":14,"endHour":16},{"startHour":16,"endHour":18}]
+}

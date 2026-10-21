@@ -1,7 +1,28 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Photo upload is not enabled in the first prelaunch release.
+    function signedIn() { return request.auth != null; }
+    function order(orderId) { return firestore.get(/databases/(default)/documents/orders/$(orderId)).data; }
+    function photo() { return request.resource.size <= 8 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)'); }
+    match /orders/{orderId}/customer/{file} {
+      allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
+      allow create, update: if signedIn() && order(orderId).customerId == request.auth.uid && order(orderId).status == 'pendingPayment'
+        && file.matches('(front|back|left|right)\\.jpg') && photo();
+      allow delete: if false;
+    }
+    match /orders/{orderId}/{captainId}/{file} {
+      allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
+      allow create, update: if signedIn() && captainId == request.auth.uid && order(orderId).captainId == request.auth.uid && photo()
+        && ((order(orderId).status == 'onTheWay' && file.matches('before_[0-3]\\.jpg'))
+          || (order(orderId).status == 'washing' && file.matches('after_[0-3]\\.jpg')));
+      allow delete: if false;
+    }
+    match /kyc/{uid}/{file} {
+      allow read: if signedIn() && uid == request.auth.uid;
+      allow create, update: if signedIn() && uid == request.auth.uid && file.matches('(aadhaar|selfie|bank)\\.jpg') && photo()
+        && firestore.get(/databases/(default)/documents/captains/$(uid)).data.kycStatus in ['notSubmitted', 'changesRequested'];
+      allow delete: if false;
+    }
     match /{allPaths=**} { allow read, write: if false; }
   }
 }

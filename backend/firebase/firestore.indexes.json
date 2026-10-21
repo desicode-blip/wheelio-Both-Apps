@@ -1,5 +1,11 @@
 {
   "indexes": [
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"customerId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"captainId","order":"ASCENDING"},{"fieldPath":"createdAt","order":"DESCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"captainId","order":"ASCENDING"},{"fieldPath":"status","order":"ASCENDING"}]},
+    {"collectionGroup":"orders","queryScope":"COLLECTION","fields":[{"fieldPath":"status","order":"ASCENDING"},{"fieldPath":"societyId","order":"ASCENDING"}]},
+    {"collectionGroup":"captains","queryScope":"COLLECTION","fields":[{"fieldPath":"approved","order":"ASCENDING"},{"fieldPath":"online","order":"ASCENDING"},{"fieldPath":"societyIds","arrayConfig":"CONTAINS"}]},
+    {"collectionGroup":"captains","queryScope":"COLLECTION","fields":[{"fieldPath":"approved","order":"ASCENDING"},{"fieldPath":"societyIds","arrayConfig":"CONTAINS"}]},
     {
       "collectionGroup": "washRequests",
       "queryScope": "COLLECTION",

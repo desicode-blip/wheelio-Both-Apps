@@ -11,20 +11,33 @@ enum WashKind {
   wetOutsideDryInside;
 
   String name(bool bike) => switch (this) {
-        dryDusting => bike ? 'Dusting' : 'Dry wash (dusting)',
-        wetOutside => bike ? 'Wet wash' : 'Wet wash, outside',
-        wetOutsideDryInside => 'Wet outside + dry clean inside',
-      };
+    dryDusting => bike ? 'Dusting' : 'Dry wash (dusting)',
+    wetOutside => bike ? 'Wet wash' : 'Wet wash, outside',
+    wetOutsideDryInside => 'Wet outside + dry clean inside',
+  };
 
   String detail(bool bike) => switch (this) {
-        dryDusting => 'Dust wiped off with a dry cloth. No water.',
-        wetOutside => bike ? 'Water and cloth, then wiped dry.' : 'Body, glass and wheels. Water and cloth.',
-        wetOutsideDryInside => 'Wet wash outside, seats and mats dusted inside.',
-      };
+    dryDusting => 'Dust wiped off with a dry cloth. No water.',
+    wetOutside => bike ? 'Water and cloth, then wiped dry.' : 'Body, glass and wheels. Water and cloth.',
+    wetOutsideDryInside => 'Wet wash outside, seats and mats dusted inside.',
+  };
 
-  String get shortName => switch (this) { dryDusting => 'Dusting', wetOutside => 'Wet wash', wetOutsideDryInside => 'Wet + inside' };
+  String get shortName => switch (this) {
+    dryDusting => 'Dusting',
+    wetOutside => 'Wet wash',
+    wetOutsideDryInside => 'Wet + inside',
+  };
+  String get wireName => switch (this) {
+    dryDusting => 'dryDusting',
+    wetOutside => 'wetOutside',
+    wetOutsideDryInside => 'wetOutsideDryInside',
+  };
 
-  WIcon get icon => switch (this) { dryDusting => WIcon.wipe, wetOutside => WIcon.drop, wetOutsideDryInside => WIcon.sparkle };
+  WIcon get icon => switch (this) {
+    dryDusting => WIcon.wipe,
+    wetOutside => WIcon.drop,
+    wetOutsideDryInside => WIcon.sparkle,
+  };
 
   /// Interior cleaning isn't offered in any society yet.
   bool get available => this != wetOutsideDryInside;
@@ -39,10 +52,20 @@ class VehicleType {
   final int minutes;
   final int price;
 
-  String get shortName => switch (kind) { VehicleKind.bike => 'Scooter', VehicleKind.hatchback => 'Hatchback', VehicleKind.sedan => 'Sedan', VehicleKind.suv => 'SUV' };
-  WIcon get icon => kind == VehicleKind.bike ? WIcon.bike : kind == VehicleKind.suv ? WIcon.suv : WIcon.car;
+  String get shortName => switch (kind) {
+    VehicleKind.bike => 'Scooter',
+    VehicleKind.hatchback => 'Hatchback',
+    VehicleKind.sedan => 'Sedan',
+    VehicleKind.suv => 'SUV',
+  };
+  WIcon get icon => kind == VehicleKind.bike
+      ? WIcon.bike
+      : kind == VehicleKind.suv
+      ? WIcon.suv
+      : WIcon.car;
 
-  static const all = [
+  static List<VehicleType> all = [...demoTypes];
+  static const demoTypes = [
     VehicleType(VehicleKind.bike, 'Bike or scooter', 15, 69),
     VehicleType(VehicleKind.hatchback, 'Hatchback', 20, 149),
     VehicleType(VehicleKind.sedan, 'Sedan or compact SUV', 20, 179),
@@ -176,8 +199,19 @@ class Captain {
 
 /// Order lifecycle.
 enum OrderStatus {
-  pendingPayment, paymentPending, searching, onTheWay, washing, photosReady,
-  approved, autoApproved, disputed, disputeUpheld, disputeRejected, cancelled, noCaptain,
+  pendingPayment,
+  paymentPending,
+  searching,
+  onTheWay,
+  washing,
+  photosReady,
+  approved,
+  autoApproved,
+  disputed,
+  disputeUpheld,
+  disputeRejected,
+  cancelled,
+  noCaptain,
 
   /// Captain accepted but never turned up or updated the wash: full refund at 11:59 PM.
   captainNoShow;
@@ -186,7 +220,13 @@ enum OrderStatus {
   bool get isUpcoming => isActive || this == paymentPending;
 
   /// Index into the 4 customer-visible steps.
-  int get stepIndex => switch (this) { searching => 0, onTheWay => 1, washing => 2, photosReady => 3, _ => 4 };
+  int get stepIndex => switch (this) {
+    searching => 0,
+    onTheWay => 1,
+    washing => 2,
+    photosReady => 3,
+    _ => 4,
+  };
 }
 
 class PaymentMethod {
@@ -229,7 +269,15 @@ enum ProblemKind {
 enum DisputeOutcome { underReview, upheld, rejected, damagePriority }
 
 class Dispute {
-  Dispute({required this.ref, required this.kind, required this.createdAt, this.note = '', this.outcome = DisputeOutcome.underReview, this.decisionNote = '', this.creditsAwarded = 0});
+  Dispute({
+    required this.ref,
+    required this.kind,
+    required this.createdAt,
+    this.note = '',
+    this.outcome = DisputeOutcome.underReview,
+    this.decisionNote = '',
+    this.creditsAwarded = 0,
+  });
   final String ref;
   final ProblemKind kind;
   final DateTime createdAt;
@@ -240,11 +288,37 @@ class Dispute {
 }
 
 class Order {
+  Map<String, String> evidencePaths = {};
+  Map<String, String> customerPhotoPaths = {};
+  String paymentStatus = 'unpaid';
+  String refundStatus = 'none';
+  bool testPayment = false;
   Order({
-    required this.id, required this.ref, required this.vehicle, required this.place, required this.slot, required this.price,
-    required this.status, required this.createdAt, EntryNote? note, this.captain, this.arrivesBy, this.runningLateMinutes, this.startedAt,
-    this.finishedAt, this.autoApproveAt, this.entryPassReceived = false, this.captainCantFind = false, this.rating, this.paidWith,
-    this.refund, this.dispute, this.usedFreeWash = false, this.customerSkippedPhotos = false, this.noShowChecking = false, this.wash,
+    required this.id,
+    required this.ref,
+    required this.vehicle,
+    required this.place,
+    required this.slot,
+    required this.price,
+    required this.status,
+    required this.createdAt,
+    EntryNote? note,
+    this.captain,
+    this.arrivesBy,
+    this.runningLateMinutes,
+    this.startedAt,
+    this.finishedAt,
+    this.autoApproveAt,
+    this.entryPassReceived = false,
+    this.captainCantFind = false,
+    this.rating,
+    this.paidWith,
+    this.refund,
+    this.dispute,
+    this.usedFreeWash = false,
+    this.customerSkippedPhotos = false,
+    this.noShowChecking = false,
+    this.wash,
   }) : note = note ?? EntryNote();
 
   final String id;

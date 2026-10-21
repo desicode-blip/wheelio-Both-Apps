@@ -60,4 +60,8 @@ class Device {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery);
     return f?.readAsBytes();
   }
+  static Future<bool> openLocation(num latitude, num longitude) => launchUrl(
+    Uri.https('www.google.com','/maps/search/',{'api':'1','query':'$latitude,$longitude'}),
+    mode: LaunchMode.externalApplication,
+  );
 }
