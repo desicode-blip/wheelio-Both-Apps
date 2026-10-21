@@ -78,7 +78,9 @@ All 27 Firestore/Auth/Storage and service emulator tests passed on Firebase CLI 
 
 The hosted browser test caught a stale Flutter web plugin registry: Functions calls fell into the native Pigeon codec and failed with `Int64 accessor not supported by dart2js` before making a request. The release builder now clears generated caches, resolves dependencies and checks that Functions, Storage and location web plugins are registered before packaging either app. A fresh hosted booking draft then called `getAvailability` successfully (200) and displayed the actual empty captain pool. Availability errors now have a retry action above the slot grid, and changing dates clears a previous error. Captain fields use visible hints when no separate placeholder is supplied.
 
-Real SMS acceptance and a complete paid Customer/Captain browser acceptance remain pending. Aman is completing merchant onboarding; the owner will obtain live credentials afterward. Payments stay visibly in test mode. Actual captains must submit documents and receive an operator review before capacity opens; live credentials, reviewed commercial settings and approved live-mode captains are required for live cutover. Native platform work remains deferred.
+On 21 October the owner confirmed receiving real SMS OTPs and supplied a hosted Customer screenshot showing the post-verification "What should we call you?" screen. This confirms SMS delivery and progression past OTP verification. Saving the name and completing the account has not yet been confirmed; no phone number or OTP is recorded here.
+
+Profile completion and a complete paid Customer/Captain browser acceptance remain pending. Aman is completing merchant onboarding; the owner will obtain live credentials afterward. Payments stay visibly in test mode. Actual captains must submit documents and receive an operator review before capacity opens; live credentials, reviewed commercial settings and approved live-mode captains are required for live cutover. Native platform work remains deferred.
 
 ```sh
 npm ci --prefix backend/firebase
