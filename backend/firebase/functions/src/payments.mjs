@@ -1,5 +1,16 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+// Provider descriptions/payloads can contain payment or personal details.
+// Persist only this bounded error category and HTTP status for operations.
+export class PaymentProviderError extends Error {
+  constructor(status, code) {
+    super(`Payment provider request failed (${status}).`);
+    this.name = 'PaymentProviderError';
+    this.status = status;
+    this.code = ['BAD_REQUEST_ERROR', 'SERVER_ERROR', 'GATEWAY_ERROR', 'AUTHENTICATION_ERROR', 'RATE_LIMIT_EXCEEDED'].includes(code) ? code : 'PROVIDER_ERROR';
+  }
+}
+
 export function signatureMatches(message, signature, secret) {
   if (typeof signature !== 'string' || !/^[a-f0-9]{64}$/i.test(signature)) return false;
   const expected = createHmac('sha256', secret).update(message).digest();
@@ -7,16 +18,17 @@ export function signatureMatches(message, signature, secret) {
 }
 
 export class RazorpayPayments {
-  constructor({ keyId, keySecret }) { this.keyId = keyId; this.keySecret = keySecret; }
+  constructor({ keyId, keySecret, fetchImpl = fetch }) { this.keyId = keyId; this.keySecret = keySecret; this.fetch = fetchImpl; }
   async request(path, method = 'GET', body, headers = {}) {
-    const result = await fetch(`https://api.razorpay.com/v1${path}`, {
+    let result;
+    try { result = await this.fetch(`https://api.razorpay.com/v1${path}`, {
       method, headers: { Authorization: `Basic ${Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64')}`,
         'Content-Type': 'application/json', ...headers },
       body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(20000),
-    });
-    const data = await result.json();
+    }); } catch { throw new PaymentProviderError(0); }
+    const data = await result.json().catch(() => null);
     // Do not return provider payloads or credentials to callers/logs.
-    if (!result.ok) throw new Error(`Payment provider request failed (${result.status}).`);
+    if (!result.ok || !data) throw new PaymentProviderError(result.ok ? 502 : result.status, data?.error?.code);
     return data;
   }
   createOrder({ amount, receipt, bookingId }) {
@@ -25,6 +37,18 @@ export class RazorpayPayments {
   payment(id) { return this.request(`/payments/${encodeURIComponent(id)}`); }
   orderPayments(id) { return this.request(`/orders/${encodeURIComponent(id)}/payments`); }
   fetchRefund(id) { return this.request(`/refunds/${encodeURIComponent(id)}`); }
+  async findRefund({ paymentId, refundId }) {
+    // A process can die after Razorpay accepts a POST but before Firestore gets
+    // the ID. Recover that refund before sending the same idempotent request.
+    for (let skip = 0; skip < 1000; skip += 100) {
+      const page = await this.request(`/payments/${encodeURIComponent(paymentId)}/refunds?count=100&skip=${skip}`);
+      if (!Array.isArray(page.items)) throw new PaymentProviderError(502);
+      const found = page.items.find(r => r.receipt === refundId || r.notes?.wheelioRefundId === refundId);
+      if (found) return found;
+      if (page.items.length < 100) return null;
+    }
+    throw new PaymentProviderError(502);
+  }
   verify({ orderId, paymentId, signature }) { return signatureMatches(`${orderId}|${paymentId}`, signature, this.keySecret); }
   refund({ paymentId, amount, refundId }) {
     return this.request(`/payments/${encodeURIComponent(paymentId)}/refund`, 'POST',

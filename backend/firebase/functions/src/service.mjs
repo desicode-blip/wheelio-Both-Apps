@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { PaymentProviderError } from './payments.mjs';
 
 export class ServiceError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -177,8 +178,22 @@ export class WheelioService {
       const payments = await this.payments.orderPayments(order.razorpayOrderId);
       for (const payment of payments.items ?? []) if (payment.status === 'captured') await this.capturePayment(payment);
     }
+    if (order.status === 'cancelled' && order.paymentStatus === 'captured') {
+      // Customer checks can fetch an existing refund, never bypass POST retry
+      // backoff or create a second refund from repeated button presses.
+      try { await this.processRefund(bookingId, { checkStatus: true }); }
+      catch (error) { if (!(error instanceof PaymentProviderError)) throw error; }
+    }
     const latest = (await this.db.doc(`orders/${bookingId}`).get()).data();
-    return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus };
+    return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus, refundStatus: latest.refundStatus ?? 'none' };
+  }
+  async captureWebhookPayment(paymentId) {
+    const payment = await this.payments.payment(id(paymentId));
+    // The merchant is shared with Trustkeyper. A signed merchant event alone
+    // does not make its order a Wheelio booking; acknowledge unrelated events.
+    if (!payment?.order_id || !(await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).exists) return { ignored: true };
+    await this.capturePayment(payment);
+    return { ignored: false };
   }
   async capturePayment(payment) {
     if (payment.status !== 'captured') return;
@@ -420,24 +435,57 @@ export class WheelioService {
     });
     return {ok:true};
   }
-  async processRefund(bookingId) {
+  async applyRefund(bookingId, refund, lease) {
+    const ref=this.db.doc(`refunds/${id(bookingId)}`);
+    if (!refund?.id || !['pending','processed','failed'].includes(refund.status)) fail('internal','Refund verification failed.');
+    await this.db.runTransaction(async tx=>{
+      const current=(await tx.get(ref)).data();
+      if (!current || refund.payment_id !== current.paymentId || refund.amount !== current.amount
+        || (current.providerRefundId && current.providerRefundId !== refund.id)) fail('internal','Refund verification failed.');
+      // A verified webhook may finish while an older worker is still running.
+      if (current.status === 'processed' || (lease && current.lease !== lease)) return;
+      const status=refund.status==='processed'?'processed':refund.status==='failed'?'needsReview':'submitted';
+      tx.update(ref,{status,providerRefundId:refund.id,leaseUntil:Timestamp.fromMillis(0),
+        lastErrorCode:FieldValue.delete(),lastErrorStatus:FieldValue.delete(),
+        nextAttemptAt:status==='submitted'?Timestamp.fromMillis(this.now()+300000):FieldValue.delete(),updatedAt:stamp()});
+      tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:status==='needsReview'?'delayed':status,
+        refundIssue:status==='needsReview'?'providerFailed':FieldValue.delete(),
+        refundAmountPaise:current.amount,providerRefundId:refund.id,updatedAt:stamp()});
+    });
+  }
+  async processRefund(bookingId, { checkStatus = false } = {}) {
     const ref=this.db.doc(`refunds/${id(bookingId)}`),lease=randomUUID();
     const data=await this.db.runTransaction(async tx=>{
       const s=await tx.get(ref),r=s.data();if(!r||r.status==='processed')return null;
+      if (r.status==='needsReview' || (checkStatus && !r.providerRefundId)) return null;
       if(dateMillis(r.leaseUntil)>this.now())return null;
-      tx.update(ref,{status:'processing',lease,leaseUntil:Timestamp.fromMillis(this.now()+60000),updatedAt:stamp()});return r;
+      if (!checkStatus && dateMillis(r.nextAttemptAt)>this.now()) return null;
+      const attempts=(r.attempts??0)+1;
+      tx.update(ref,{status:'processing',attempts,lease,leaseUntil:Timestamp.fromMillis(this.now()+60000),updatedAt:stamp()});return {...r,attempts};
     });
     if(!data)return;
-    if(data.amount===0){const batch=this.db.batch();batch.update(ref,{status:'processed',updatedAt:stamp()});batch.update(this.db.doc(`orders/${bookingId}`),{refundStatus:'processed',refundAmountPaise:0});await batch.commit();return;}
+    if(data.amount===0){await this.db.runTransaction(async tx=>{const r=(await tx.get(ref)).data();if(r.lease!==lease||r.status==='processed')return;
+      tx.update(ref,{status:'processed',leaseUntil:Timestamp.fromMillis(0),nextAttemptAt:FieldValue.delete(),updatedAt:stamp()});
+      tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:'processed',refundIssue:FieldValue.delete(),refundAmountPaise:0,updatedAt:stamp()});});return;}
     try {
-      const refund=data.providerRefundId ? await this.payments.fetchRefund(data.providerRefundId) : await this.payments.refund({paymentId:data.paymentId,amount:data.amount,refundId:`wh_${bookingId}`});
-      if (refund.payment_id !== data.paymentId || refund.amount !== data.amount) fail('internal', 'Refund verification failed.');
+      const request={paymentId:data.paymentId,amount:data.amount,refundId:`wh_${bookingId}`};
+      const refund=data.providerRefundId ? await this.payments.fetchRefund(data.providerRefundId)
+        : await this.payments.findRefund(request) ?? await this.payments.refund(request);
+      await this.applyRefund(bookingId,refund,lease);
+    } catch(error) {
+      const rejected=error instanceof PaymentProviderError && error.status>=400 && error.status<500 && ![409,429].includes(error.status);
+      const invalid=error instanceof ServiceError;
+      const delay=Math.min(3600000,300000*2**Math.min(data.attempts-1,4));
       await this.db.runTransaction(async tx=>{
-        const current=(await tx.get(ref)).data();if(current.lease!==lease)return;
-        const status=refund.status==='processed'?'processed':'submitted';
-        tx.update(ref,{status,providerRefundId:refund.id,updatedAt:stamp()});
-        tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:status,refundAmountPaise:data.amount,providerRefundId:refund.id,updatedAt:stamp()});
+        const current=(await tx.get(ref)).data();if(current.lease!==lease||current.status==='processed')return;
+        tx.update(ref,{status:invalid?'needsReview':'retry',leaseUntil:Timestamp.fromMillis(0),
+          nextAttemptAt:invalid?FieldValue.delete():Timestamp.fromMillis(this.now()+delay),
+          lastErrorCode:error instanceof PaymentProviderError?error.code:invalid?'VERIFICATION_FAILED':'PROVIDER_ERROR',
+          lastErrorStatus:error instanceof PaymentProviderError?error.status:0,updatedAt:stamp()});
+        tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:'delayed',
+          refundIssue:invalid?'verificationFailed':rejected?'providerRejected':'providerUnavailable',updatedAt:stamp()});
       });
-    } catch(error) {await ref.update({status:'retry',leaseUntil:Timestamp.fromMillis(0),updatedAt:stamp()});throw error;}
+      throw error;
+    }
   }
 }

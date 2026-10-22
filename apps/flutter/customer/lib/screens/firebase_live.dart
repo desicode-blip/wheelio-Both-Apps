@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 import 'package:wheelio_firebase/wheelio_firebase.dart';
 import '../data/store.dart';
+import '../data/refund_status.dart';
 
 /// Live data behind the booking, tracking, photo review and refund layouts.
 class FirebaseOrderScreen extends StatefulWidget {
@@ -78,6 +79,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
       builder: (context, snapshot) {
         final o = snapshot.data?.data();
         final status = o?['status'];
+        final refund = refundStatusText(o?['refundStatus'], o?['refundIssue']);
         final step = switch (status) {
           'onTheWay' => 1,
           'washing' => 2,
@@ -312,7 +314,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
               if (status == 'cancelled') ...[
                 WText(
                   o['paymentStatus'] == 'captured'
-                      ? 'Refund: ${o['refundStatus'] ?? 'queued'} · ${money(o['refundAmountPaise'] ?? o['pricePaise'])}'
+                      ? '${refund.title} · ${money(o['refundAmountPaise'] ?? o['pricePaise'])}'
                       : 'No captured payment for this booking.',
                   WType.body,
                 ),
@@ -322,10 +324,11 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                     WType.caption,
                   ),
                 if (o['paymentStatus'] == 'captured')
-                  const WText(
-                    'Refunds return through Razorpay to your original payment method. Bank processing time may vary.',
-                    WType.caption,
-                  ),
+                  WText(refund.detail, WType.caption),
+                if (o['paymentStatus'] == 'captured' && o['refundStatus'] != 'processed')
+                  button('Check refund status', () async {
+                    await backend.call('checkPayment', {'bookingId': id});
+                  }),
               ],
               button('Go home', () async {
                 router.popToRoot();

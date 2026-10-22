@@ -69,7 +69,7 @@ export const razorpayWebhook = onRequest({ secrets: [keyId, keySecret, webhookSe
       // Fetch the payment independently; never treat a browser callback or
       // an unsigned/deserialized event field as proof of capture.
       const backend = service(true);
-      await backend.capturePayment(await backend.payments.payment(paymentId));
+      await backend.captureWebhookPayment(paymentId);
     } else if (event.event === 'refund.processed') {
       const refund = event.payload?.refund?.entity;
       if (!refund?.id) { response.status(400).send('Missing refund'); return; }
@@ -77,8 +77,8 @@ export const razorpayWebhook = onRequest({ secrets: [keyId, keySecret, webhookSe
       if (!pending.empty) {
         const r = pending.docs[0];
         if (refund.payment_id !== r.data().paymentId || refund.amount !== r.data().amount) { response.status(400).send('Refund mismatch'); return; }
-        const batch = db.batch();
-        batch.update(r.ref, { status: 'processed' }); batch.update(db.doc(`orders/${r.id}`), { refundStatus: 'processed' }); await batch.commit();
+        const backend = service(true);
+        await backend.applyRefund(r.id, await backend.payments.fetchRefund(refund.id));
       }
     }
     response.status(200).send('OK');

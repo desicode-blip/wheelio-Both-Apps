@@ -3,7 +3,7 @@ import {before,beforeEach,after,test} from 'node:test';
 import {initializeApp,deleteApp} from './functions/node_modules/firebase-admin/lib/esm/app/index.js';
 import {getFirestore,Timestamp} from './functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
 import {WheelioService} from './functions/src/service.mjs';
-import {signatureMatches} from './functions/src/payments.mjs';
+import {signatureMatches,PaymentProviderError} from './functions/src/payments.mjs';
 import {createHmac} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
@@ -20,6 +20,7 @@ beforeEach(async()=>{
   await fetch(`http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/demo-wheelio/databases/(default)/documents`,{method:'DELETE'});
   clock=Date.parse('2026-11-01T07:00:00+05:30');counter=0;
   provider={keyId:'rzp_test_fake',refundCalls:0,payments:new Map(),
+    async findRefund(){return null;},
     async createOrder({amount}){return {id:`order_${++counter}`,amount,currency:'INR'};},
     verify:({signature})=>signature==='valid',async payment(id){return this.payments.get(id);},async orderPayments(id){return {items:[...this.payments.values()].filter(p=>p.order_id===id)};},
     async refund({paymentId,amount,refundId}){this.refundCalls++;return {id:`refund_${refundId}`,payment_id:paymentId,amount,status:'processed'};},
@@ -54,6 +55,20 @@ test('only one captain wins simultaneous claims; another customer cannot claim o
   assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
   const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.status,'onTheWay');assert.ok(['captain1','captain2'].includes(o.captainId));
 });
+
+test('shared-merchant webhooks ignore unrelated payments and still verify Wheelio captures',async()=>{
+  provider.payments.set('pay_trustkeyper',{id:'pay_trustkeyper',order_id:'order_other_app',amount:50000,currency:'INR',status:'captured'});
+  provider.payments.set('pay_without_order',{id:'pay_without_order',amount:50000,currency:'INR',status:'captured'});
+  assert.deepEqual(await service.captureWebhookPayment('pay_trustkeyper'),{ignored:true});
+  assert.deepEqual(await service.captureWebhookPayment('pay_without_order'),{ignored:true});
+  assert.equal((await db.collection('orders').get()).size,0);
+  const b=await service.createBooking(customer,input()),c=await service.checkout(customer,b);
+  provider.payments.set('pay_owned',{id:'pay_owned',order_id:c.orderId,amount:1,currency:'INR',status:'captured'});
+  await assert.rejects(service.captureWebhookPayment('pay_owned'),{code:'permission-denied'});
+  provider.payments.get('pay_owned').amount=c.amount;
+  assert.deepEqual(await service.captureWebhookPayment('pay_owned'),{ignored:false});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().paymentStatus,'captured');
+});
 test('expiry, offline and overlapping assignments are enforced by the server',async()=>{
   const b=await paid();clock+=61000;await assert.rejects(service.claim(auth('captain1'),{orderId:b.bookingId}),{code:'deadline-exceeded'});
   await service.dispatch(b.bookingId);await db.doc('captains/captain1').update({online:false});await assert.rejects(service.claim(auth('captain1'),{orderId:b.bookingId}),{code:'permission-denied'});
@@ -84,6 +99,60 @@ test('replayed capture and cancellation produce one refund and release capacity'
   await Promise.all([service.processRefund(b.bookingId),service.processRefund(b.bookingId)]);
   assert.equal(provider.refundCalls,1);assert.equal((await ref.get()).data().refundStatus,'processed');
   assert.equal((await db.doc(`slotCapacity/${slot}`).get()).data().reserved,0);
+});
+
+test('a rejected refund stays fully due, backs off and retries with the same idempotency key',async()=>{
+  const b=await paid(),requests=[];await service.cancel(customer,{orderId:b.bookingId});
+  provider.refund=async request=>{requests.push(request);throw new PaymentProviderError(400,'BAD_REQUEST_ERROR');};
+  await assert.rejects(service.processRefund(b.bookingId),{status:400});
+  let r=(await db.doc(`refunds/${b.bookingId}`).get()).data();
+  assert.equal(r.status,'retry');assert.equal(r.amount,14900);assert.equal(r.lastErrorCode,'BAD_REQUEST_ERROR');
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'delayed');
+  await service.processRefund(b.bookingId);await service.checkPayment(customer,b);
+  await assert.rejects(service.checkPayment(auth('stranger'),b),{code:'permission-denied'});
+  assert.equal(requests.length,1);
+  clock=r.nextAttemptAt.toMillis()+1;
+  provider.refund=async request=>{requests.push(request);return{id:'rfnd_recovered',payment_id:request.paymentId,amount:request.amount,status:'processed'};};
+  await service.processRefund(b.bookingId);assert.deepEqual(requests[0],requests[1]);
+  r=(await db.doc(`refunds/${b.bookingId}`).get()).data();assert.equal(r.status,'processed');assert.equal(r.lastErrorCode,undefined);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundIssue,undefined);
+});
+
+test('a refund accepted before a lost response is found instead of creating another refund',async()=>{
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});
+  provider.findRefund=async({paymentId,refundId})=>({id:'rfnd_existing',payment_id:paymentId,amount:14900,status:'processed',receipt:refundId});
+  await service.processRefund(b.bookingId);assert.equal(provider.refundCalls,0);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().providerRefundId,'rfnd_existing');
+});
+
+test('customer status checks reconcile an existing pending refund without issuing a second POST',async()=>{
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});
+  provider.refund=async({paymentId,amount})=>{provider.refundCalls++;return{id:'rfnd_pending',payment_id:paymentId,amount,status:'pending'};};
+  await service.processRefund(b.bookingId);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'submitted');
+  provider.fetchRefund=async()=>({id:'rfnd_pending',payment_id:b.payment.id,amount:14900,status:'processed'});
+  const result=await service.checkPayment(customer,b);assert.equal(result.refundStatus,'processed');assert.equal(provider.refundCalls,1);
+});
+
+test('late worker errors or pending results cannot downgrade a verified processed refund',async()=>{
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});
+  let release,entered;const started=new Promise(resolve=>entered=resolve);
+  provider.refund=async()=>{entered();await new Promise(resolve=>release=resolve);throw new PaymentProviderError(503);};
+  const work=service.processRefund(b.bookingId);const rejected=assert.rejects(work,{status:503});await started;
+  const result={id:'rfnd_webhook',payment_id:b.payment.id,amount:14900,status:'processed'};
+  await service.applyRefund(b.bookingId,result);release();await rejected;
+  await service.applyRefund(b.bookingId,{...result,status:'pending'});
+  assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).data().status,'processed');
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'processed');
+});
+
+test('failed or mismatched provider refunds need review and are never marked sent or recreated',async()=>{
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});
+  provider.findRefund=async()=>({id:'rfnd_failed',payment_id:b.payment.id,amount:14900,status:'failed'});
+  await service.processRefund(b.bookingId);await service.processRefund(b.bookingId);
+  assert.equal(provider.refundCalls,0);assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).data().status,'needsReview');
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundIssue,'providerFailed');
+  await assert.rejects(service.applyRefund(b.bookingId,{id:'rfnd_wrong',payment_id:b.payment.id,amount:1,status:'processed'}),{code:'internal'});
 });
 test('payments captured after cancellation are refunded and never dispatched',async()=>{
   const b=await service.createBooking(customer,input());const c=await service.checkout(customer,b);await service.cancel(customer,{orderId:b.bookingId});
