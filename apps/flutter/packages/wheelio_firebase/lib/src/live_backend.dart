@@ -186,6 +186,26 @@ class LiveBackend {
 
   Future<Uint8List?> photo(String path) =>
       storage.ref(path).getData(8 * 1024 * 1024);
+  Future<Set<String>> uploadedKyc() async {
+    final accountId = uid;
+    if (accountId == null) throw StateError('Log in to continue.');
+    final uploaded = <String>{};
+    await Future.wait([
+      for (final kind in ['aadhaar', 'selfie', 'bank'])
+        () async {
+          try {
+            final metadata = await storage.ref('kyc/$accountId/$kind.jpg').getMetadata();
+            if (['image/jpeg', 'image/png', 'image/webp'].contains(metadata.contentType) &&
+                (metadata.size ?? 0) > 0 && (metadata.size ?? 0) <= 8 * 1024 * 1024) {
+              uploaded.add(kind);
+            }
+          } on FirebaseException catch (error) {
+            if (error.code != 'object-not-found') rethrow;
+          }
+        }(),
+    ]);
+    return uploaded;
+  }
   Future<void> uploadKyc(String kind, Uint8List bytes) async {
     if (!['aadhaar', 'selfie', 'bank'].contains(kind) ||
         bytes.length > 8 * 1024 * 1024)
@@ -217,9 +237,14 @@ class LiveBackend {
   }
 
   Future<void> shareLocation(String orderId) async {
-    var permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission().timeout(const Duration(seconds: 5));
     if (permission == LocationPermission.denied)
-      permission = await Geolocator.requestPermission();
+      permission = await Geolocator.requestPermission().timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw StateError(
+          'Location permission is still waiting. Respond to the browser prompt, then try sharing again.',
+        ),
+      );
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever)
       throw StateError(
@@ -230,7 +255,7 @@ class LiveBackend {
         accuracy: LocationAccuracy.high,
         timeLimit: Duration(seconds: 15),
       ),
-    );
+    ).timeout(const Duration(seconds: 20), onTimeout: () => throw StateError('Your location could not be found. Check browser location access and try again.'));
     await call('updateCaptainLocation', {
       'orderId': orderId,
       'latitude': position.latitude,

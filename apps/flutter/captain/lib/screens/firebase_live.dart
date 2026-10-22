@@ -18,6 +18,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
   List<Map<String, dynamic>> orders = [], offers = [], earnings = [];
   String uid = '', phone = '', name = '', code = '', upi = '', error = '';
   String? selected;
+  String? restoredApplication;
   int tab = 0;
   bool busy = false, otpSent = false, loaded = false, sharing = false;
   final selectedSocieties = <String>{}, uploaded = <String>{};
@@ -73,6 +74,17 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
       selected = null;
       sharing = false;
       loaded = next.isEmpty;
+      restoredApplication = null;
+      uploaded.clear();
+      selectedSocieties.clear();
+      upi = '';
+      error = '';
+      if (next.isEmpty) {
+        name = '';
+        phone = '';
+        code = '';
+        otpSent = false;
+      }
     });
     if (next.isEmpty) return;
     accountSubscriptions.add(
@@ -81,6 +93,20 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           setState(() {
             captain = s.data() ?? {};
             loaded = true;
+            final applicationVersion = '$next:${captain['kycStatus']}';
+            if (captain.isNotEmpty && restoredApplication != applicationVersion) {
+              restoredApplication = applicationVersion;
+              upi = captain['upi'] as String? ?? '';
+              selectedSocieties.clear();
+              selectedSocieties.addAll((captain['requestedSocietyIds'] as List? ?? []).cast<String>());
+              if (['notSubmitted', 'changesRequested'].contains(captain['kycStatus'])) {
+                backend.uploadedKyc().then((files) {
+                  if (mounted && uid == next) setState(() => uploaded.addAll(files));
+                }).catchError((Object e) {
+                  if (mounted && uid == next) showError(e);
+                });
+              }
+            }
           });
         }
       }, onError: showError),
@@ -154,13 +180,14 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
     Future<void> Function() action, {
     bool enabled = true,
     bool secondary = false,
+    bool green = false,
   }) => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: WButton(
       busy ? 'Please wait…' : text,
       size: ButtonSize.captain,
       enabled: !busy && enabled,
-      kind: secondary ? ButtonKind.outline : ButtonKind.primary,
+      kind: secondary ? ButtonKind.outline : green ? ButtonKind.success : ButtonKind.primary,
       onTap: () => run(action),
     ),
   );
@@ -194,6 +221,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           children: [
             if (selected != null)
               IconButton(
+                tooltip: 'Back to jobs',
                 onPressed: () => setState(() {
                   selected = null;
                   sharing = false;
@@ -347,7 +375,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
         WTextField(
           label: 'Payout UPI ID',
           value: upi,
-          onChanged: (v) => upi = v,
+          onChanged: (v) => setState(() => upi = v),
         ),
         const Gap(16),
         const WText('Choose your societies', WType.label),
@@ -373,7 +401,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
             'societyIds': selectedSocieties.toList(),
             'upi': upi,
           }),
-          enabled: uploaded.length == 3,
+          enabled: uploaded.length == 3 && selectedSocieties.isNotEmpty && RegExp(r'^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$').hasMatch(upi.trim()),
         ),
       ] else if (captain['approved'] != true)
         const WText(
@@ -443,7 +471,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           button('Accept job', () async {
             await invoke('claimJob', {'orderId': o['orderId']});
             setState(() => selected = o['orderId']);
-          }),
+          }, green: true),
           button(
             'Decline',
             () => invoke('rejectJob', {'orderId': o['orderId']}),
@@ -491,7 +519,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
     return [
       WTitleBlock(
         o['plate'],
-        subtitle: '${o['vehicleName']} · ${label(status)}',
+        subtitle: '${o['vehicleName']} · ${status == 'onTheWay' && o['arrivedAt'] != null ? 'Arrived' : label(status)}',
       ),
       card([
         WText('${o['societyName']}, ${o['area']}', WType.title),

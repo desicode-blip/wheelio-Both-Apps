@@ -113,6 +113,51 @@ test('scheduled reconciliation recovers a lost checkout callback',async()=>{
   await service.reconcilePayment(b.bookingId);await service.reconcilePayment(b.bookingId);
   const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.status,'searching');assert.equal(o.nextPaymentCheckAt,undefined);
 });
+test('live location belongs to the assigned active captain and throttles rapid updates',async()=>{
+  const b=await paid(),data={orderId:b.bookingId,latitude:17.385,longitude:78.4867,accuracy:12};
+  await assert.rejects(service.location(auth('captain1'),data),{code:'permission-denied'});
+  await service.claim(auth('captain1'),data);
+  await assert.rejects(service.location(auth('captain2'),data),{code:'permission-denied'});
+  await assert.rejects(service.location(auth('captain1'),{...data,latitude:91}),{code:'invalid-argument'});
+  await service.location(auth('captain1'),data);
+  const ref=db.doc(`orders/${b.bookingId}/tracking/current`),first=(await ref.get()).data();
+  clock=first.updatedAt.toMillis()+1000;
+  await service.location(auth('captain1'),{...data,latitude:17.386});
+  assert.equal((await ref.get()).data().latitude,data.latitude);
+  clock+=5000;
+  await service.location(auth('captain1'),{...data,latitude:17.387});
+  assert.equal((await ref.get()).data().latitude,17.387);
+  await service.cancel(customer,{orderId:b.bookingId});
+  await assert.rejects(service.location(auth('captain1'),data),{code:'permission-denied'});
+});
+
+test('assigned cancellation withdraws offers, releases the captain and prevents starting work',async()=>{
+  const b=await paid(),data={orderId:b.bookingId};
+  await service.claim(auth('captain1'),data);
+  await service.cancel(customer,data);
+  assert.equal((await db.doc('captains/captain1').get()).data().activeJobCount,0);
+  assert.ok((await db.collection('jobOffers').where('orderId','==',b.bookingId).get()).docs.every(d=>d.data().status==='withdrawn'));
+  await assert.rejects(service.progress(auth('captain1'),{...data,action:'arrived'}),{code:'failed-precondition'});
+  await service.processRefund(b.bookingId);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'processed');
+});
+
+test('customer problems hold earnings and cannot be opened or approved by the captain',async()=>{
+  const b=await paid(),data={orderId:b.bookingId};
+  await service.claim(auth('captain1'),data);
+  await service.progress(auth('captain1'),{...data,action:'arrived'});
+  for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...data,stage:'before',side});
+  await service.progress(auth('captain1'),{...data,action:'start'});
+  for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...data,stage:'after',side});
+  await service.progress(auth('captain1'),{...data,action:'finish'});
+  await assert.rejects(service.reportProblem(auth('captain1'),{...data,kind:'notClean',note:'Test'}),{code:'permission-denied'});
+  await service.reportProblem(customer,{...data,kind:'notClean',note:'Missed the rear window'});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().status,'disputed');
+  assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().status,'onHold');
+  assert.equal((await db.doc(`supportTickets/${b.bookingId}`).get()).data().customerId,'customer');
+  await assert.rejects(service.approve(customer,data),{code:'failed-precondition'});
+});
+
 test('HMAC signatures are checked against original bytes and malformed signatures are rejected',()=>{
   const raw=Buffer.from('{"event":"payment.captured"}'),sig=createHmac('sha256','test-secret').update(raw).digest('hex');
   assert.equal(signatureMatches(raw,sig,'test-secret'),true);assert.equal(signatureMatches(Buffer.from('changed'),sig,'test-secret'),false);

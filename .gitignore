@@ -46,6 +46,7 @@ out/
 firestore-debug.log
 ui-debug.log
 firebase.local.json
+.secret.local
 apps/flutter/**/env/firebase.json
 
 # App lockfiles are tracked for reproducible releases.

@@ -1,5 +1,9 @@
 # Backend hook-up list (app side)
 
+## 22 October 2026 acceptance update
+
+Browser testing found and fixed Captain application recovery, a location-permission hang, and arrival/wash-description feedback. No live screen or lifecycle transition was replaced with a fake. Disposable approved accounts, dummy photos and synthetic coordinates exist only in the guarded local `demo-wheelio` fixtures. Actual Razorpay test checkout passed on 21 October; remaining browser and release acceptance is recorded in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md).
+
 ## 21 October 2026 implementation update
 
 The Firebase paid-booking implementation is documented in [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md). Phone OTP, server prices/capacity, real persisted orders, Razorpay order/capture verification, private uploads, online captains, expiring private offers, atomic assignment, arrival/wash/evidence stages, optional foreground location, customer approval/rating, refund processing and earnings now have server controllers and emulator coverage. Deployment and real merchant/account/paid-flow acceptance are separate checks; test credentials cannot take live payments.

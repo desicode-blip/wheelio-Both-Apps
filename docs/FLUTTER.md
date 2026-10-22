@@ -1,5 +1,11 @@
 # Flutter apps (Customer and Captain)
 
+## 22 October 2026: browser acceptance fixes
+
+Captain application uploads now restore from private Storage metadata after refresh, and submission requires the three documents, a society and a valid UPI ID. Account switches clear application state. Pending location permission requests time out instead of locking wash controls. Arrival is visible to Customer, and dry-dusting review uses the selected wash description. Accept uses the green action style and Captain job navigation has an accessible back label.
+
+All 30 backend/rules tests and the Customer, Captain and shared Firebase analyses passed. Browser acceptance and release checks are tracked in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md); do not treat the unfinished acceptance steps there as passed. iOS and Android remain deferred.
+
 ## 21 October 2026: Firebase booking implementation
 
 Both release web bundles and the Customer, Captain and shared Firebase package analyses passed. The first hosted review caught blank Captain name/mobile inputs: shared `WTextField` now uses its label as the hint when no separate placeholder is supplied. This keeps the existing design and makes empty fields identifiable in both apps.

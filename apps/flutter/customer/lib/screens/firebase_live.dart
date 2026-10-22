@@ -103,7 +103,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
               WTitleBlock(switch (status) {
                 'pendingPayment' => 'Complete your payment',
                 'searching' => 'Finding a captain',
-                'onTheWay' => 'Captain on the way',
+                'onTheWay' => o['arrivedAt'] != null ? 'Captain has arrived' : 'Captain on the way',
                 'washing' => 'Your vehicle is being washed',
                 'photosReady' => 'Check your wash',
                 'approved' => 'Wash approved',
@@ -138,11 +138,11 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
               const Gap(24),
               if (!['cancelled', 'pendingPayment'].contains(status))
                 WStatusSteps(
-                  steps: const [
-                    ('Booked', null),
-                    ('Captain on the way', null),
-                    ('Washing', null),
-                    ('Check photos', null),
+                  steps: [
+                    const ('Booked', null),
+                    (o['arrivedAt'] != null ? 'Captain arrived' : 'Captain on the way', null),
+                    const ('Washing', null),
+                    const ('Check photos', null),
                   ],
                   current: step,
                 ),

@@ -1324,7 +1324,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         const SizedBox(height: 18),
         WKeyValueCard(
           boldLast: true,
-          rows: [('When', d.slot?.full ?? ''), ('Wash', 'Exterior · water and cloth'), ('Notes', d.note.summary), ('Total', Fmt.rupees(d.price))],
+          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), ('Total', Fmt.rupees(d.price))],
         ),
         if (free > 0)
           WToggleRow(

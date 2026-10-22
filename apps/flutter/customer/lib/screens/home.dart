@@ -128,7 +128,7 @@ class _HomeTabState extends State<HomeTab> {
     final n = o.captain?.name ?? 'Captain';
     return switch (o.status) {
       OrderStatus.searching => 'Finding a captain',
-      OrderStatus.onTheWay => '$n is on the way',
+      OrderStatus.onTheWay => context.store.isLive && o.entryPassReceived ? '$n has arrived' : '$n is on the way',
       OrderStatus.washing => '$n is washing',
       OrderStatus.photosReady => 'Check the photos',
       _ => 'Booking',
