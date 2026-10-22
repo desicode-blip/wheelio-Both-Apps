@@ -3,9 +3,10 @@ import {readFile} from 'node:fs/promises';
 import {initializeApp} from './functions/node_modules/firebase-admin/lib/esm/app/index.js';
 import {getFirestore,Timestamp} from './functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
 import {getAuth} from './functions/node_modules/firebase-admin/lib/esm/auth/index.js';
+import {getStorage} from './functions/node_modules/firebase-admin/lib/esm/storage/index.js';
 import {WheelioService} from './functions/src/service.mjs';
 if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080'||process.env.FIREBASE_AUTH_EMULATOR_HOST!=='127.0.0.1:9099')throw Error('Both local emulator hosts must be set. Never run against production.');
-initializeApp({projectId:'demo-wheelio'});const db=getFirestore(),auth=getAuth();
+initializeApp({projectId:'demo-wheelio',storageBucket:'demo-wheelio.appspot.com'});const db=getFirestore(),auth=getAuth();
 const config=JSON.parse(await readFile(new URL('./operations.test.json',import.meta.url)));
 const action=process.argv[2]??'seed';
 if(action==='seed'||action==='seed-ready') {
@@ -31,6 +32,29 @@ if(action==='seed'||action==='seed-ready') {
   for(const doc of orders.docs){const o=doc.data();console.log({bookingId:doc.id,status:o.status,paymentStatus:o.paymentStatus,captainId:o.captainId,evidenceCount:Object.keys(o.evidence??{}).length,rating:o.rating??null,refundStatus:o.refundStatus??null});}
   const earnings=await db.collection('earnings').where('captainId','==','qa-captain').get();
   for(const doc of earnings.docs)console.log({earning:doc.id,status:doc.data().status,amount:doc.data().amount});
+} else if(action==='prepare-wash') {
+  if(process.env.FIREBASE_STORAGE_EMULATOR_HOST!=='127.0.0.1:9199')throw Error('Local Storage emulator is required.');
+  if(!(await db.collection('orders').where('customerId','==','qa-customer').limit(1).get()).empty)throw Error('Use a fresh disposable database for checkpoint replay.');
+  const bucket=getStorage().bucket();
+  const service=new WheelioService({db,payments:{keyId:'rzp_test_local_qa',async createOrder({amount,bookingId}){return {id:`order_qa_${bookingId}`,amount,currency:'INR'};}},evidence:{async exists(path){return (await bucket.file(path).exists())[0];},async metadata(path){return (await bucket.file(path).getMetadata())[0];}}});
+  const customer={uid:'qa-customer',token:{phone_number:'+919000000001'}},captain={uid:'qa-captain',token:{phone_number:'+919000000002'}};
+  const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+86400000));
+  await service.captainOnline(captain,{online:true});
+  const booking=await service.createBooking(customer,{requestId:'qa-checkpoint-wash',plate:'TS09QA1234',vehicleKind:'hatchback',washKind:'wetOutside',societyId:'soc_avatar',tower:'QA Tower 3',floor:'B2',parking:'42',note:'Disposable local acceptance replay',day,startHour:8,endHour:10});
+  const checkout=await service.checkout(customer,booking);
+  await service.capturePayment({id:`pay_qa_${booking.bookingId}`,order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+  const data={orderId:booking.bookingId};
+  await service.claim(captain,data);
+  await service.progress(captain,{...data,action:'arrived'});
+  for(const stage of ['before','after']){
+    const bytes=await readFile(process.argv[stage==='before'?3:4]);
+    for(let side=0;side<4;side++){
+      await bucket.file(`orders/${booking.bookingId}/qa-captain/${stage}_${side}.jpg`).save(bytes,{resumable:false,metadata:{contentType:'image/png'}});
+      await service.evidenceUploaded(captain,{...data,stage,side});
+    }
+    if(stage==='before')await service.progress(captain,{...data,action:'start'});
+  }
+  console.log(`Replayed the previously checked washing checkpoint through local service controllers: ${booking.bookingId}. Payment capture and photos are disposable fixtures; no provider was contacted.`);
 } else if(action==='location') {
   const jobs=await db.collection('orders').where('captainId','==','qa-captain').where('status','in',['onTheWay','washing']).get();
   if(jobs.size!==1)throw Error('Expected one active disposable QA wash.');
@@ -49,4 +73,4 @@ if(action==='seed'||action==='seed-ready') {
 } else if(action==='codes') {
   const r=await fetch('http://127.0.0.1:9099/emulator/v1/projects/demo-wheelio/verificationCodes');
   const data=await r.json();console.log((data.verificationCodes??[]).filter(c=>['+919000000001','+919000000002'].includes(c.phoneNumber)).map(c=>({phone:c.phoneNumber,code:c.code})));
-} else throw Error('Use seed, seed-ready (booking-only replay), approve, status, location [second], capture or codes.');
+} else throw Error('Use seed, seed-ready (booking-only replay), approve, status, prepare-wash BEFORE.png AFTER.png, location [second], capture or codes.');

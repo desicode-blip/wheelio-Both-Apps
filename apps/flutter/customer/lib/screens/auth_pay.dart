@@ -406,7 +406,7 @@ class _PayingScreenState extends State<PayingScreen> {
               PayView.pending => WFullState(
                 icon: WIcon.clock,
                 tone: Tone.wait,
-                title: 'Waiting for your bank',
+                title: store.isLive ? 'Payment not confirmed' : 'Waiting for your bank',
                 message: store.isLive
                     ? 'Payment has not been confirmed. Check again, or return home to view the booking and retry checkout.'
                     : 'We haven’t heard back yet. If money left your account, it will be refunded automatically within 3 days.',

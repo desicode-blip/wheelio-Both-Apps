@@ -4,7 +4,9 @@
 
 Captain application uploads now restore from private Storage metadata after refresh, and submission requires the three documents, a society and a valid UPI ID. Account switches clear application state. Pending location permission requests time out instead of locking wash controls. Arrival is visible to Customer, and dry-dusting review uses the selected wash description. Accept uses the green action style and Captain job navigation has an accessible back label.
 
-All 30 backend/rules tests and the Customer, Captain and shared Firebase analyses passed. Browser acceptance and release checks are tracked in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md); do not treat the unfinished acceptance steps there as passed. iOS and Android remain deferred.
+All 30 backend/rules tests and the Customer, Captain and shared Firebase analyses passed. Completed browser acceptance, fixture boundaries and release checks are recorded in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md). iOS and Android remain deferred.
+
+The final acceptance also fixed hidden unpaid bookings: both unpaid and unconfirmed states remain in Upcoming, display payment not confirmed, and reopen the same checkout. Repeat booking no longer promises WhatsApp gate-pass handling or invents a voice note when none exists; Customer photos are labelled optional. Both production web builds and Hosting deployment passed on 22 October. Approval/rating, pending-to-approved earnings, persisted sessions, delayed payment reconciliation and a processed test refund passed the browser/service checks in WEB-ACCEPTANCE.md. The latest test-netbanking refund was rejected by Razorpay (HTTP 400) and remains queued/retry for merchant review; it is not shown as refunded. Physical GPS and merchant live cutover remain future checks.
 
 ## 21 October 2026: Firebase booking implementation
 
@@ -14,7 +16,7 @@ The Firebase release build now runs a clean build and validates generated Functi
 
 The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing Wheelio screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
 
-The owner confirmed real SMS delivery on 21 October and showed the Customer name screen after OTP verification. At their request the existing name was saved in their Chrome session; the signed-in Profile page confirmed account completion. The complete paid Customer/Captain browser flow still needs acceptance.
+The owner confirmed real SMS delivery on 21 October and showed the Customer name screen after OTP verification. At their request the existing name was saved in their Chrome session; the signed-in Profile page confirmed account completion. Test-payment browser acceptance was completed on 21–22 October, with fixture boundaries recorded in WEB-ACCEPTANCE.md.
 
 Trustkeyper billing and its stored **test** Razorpay credentials are reused. Live charges require live merchant keys; actual captains require operator approval. No demo lifecycle timer, sample OTP, fake KYC decision or invented payout runs in the live controllers. See [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md) for the server model, test settings, release commands and remaining human operations. Native platform work remains deferred.
 

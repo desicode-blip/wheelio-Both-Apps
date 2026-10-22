@@ -391,6 +391,7 @@ class _BookingsTabState extends State<BookingsTab> {
   String _subtitle(Order o) {
     final t = o.vehicle.type.shortName;
     return switch (o.status) {
+      OrderStatus.pendingPayment || OrderStatus.paymentPending => '$t · payment not confirmed',
       OrderStatus.cancelled => '$t · cancelled',
       OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => '$t · ${Fmt.rupees(o.price)} refunded',
       OrderStatus.approved || OrderStatus.autoApproved || OrderStatus.disputeRejected => '$t · ${Fmt.rupees(o.price)} paid',
@@ -575,7 +576,7 @@ class RepeatScreen extends StatelessWidget {
     final from = store.order(id);
     final v0 = from?.vehicle ?? store.vehicles.where((v) => v.id == id).firstOrNull ?? AppStore.car();
     final v = Vehicle(v0.id, v0.plate, v0.type, from?.place ?? v0.place);
-    final lastNote = store.orders.where((o) => o.vehicle.id == v.id && !o.note.isEmpty).firstOrNull?.note ?? EntryNote(voiceSeconds: 12);
+    final lastNote = store.orders.where((o) => o.vehicle.id == v.id && !o.note.isEmpty).firstOrNull?.note ?? (store.isLive ? EntryNote() : EntryNote(voiceSeconds: 12));
     final place = v.place;
     return WScreen(
       header: Padding(
@@ -585,7 +586,7 @@ class RepeatScreen extends StatelessWidget {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          'Take photos',
+          store.isLive ? 'Continue' : 'Take photos',
           onTap: () {
             store.startRepeat(v, place: place, wash: from?.wash);
             store.set(() => store.draft.note = lastNote.copy());
@@ -623,10 +624,12 @@ class RepeatScreen extends StatelessWidget {
             ('Notes', lastNote.summary),
           ],
         ),
-        const Padding(padding: EdgeInsets.only(top: 22, bottom: 4), child: WText('Still needed for this wash', WType.label)),
-        const WListRow(icon: WIcon.camera, title: '4 fresh photos', subtitle: 'Every wash starts with new photos'),
-        const WDivider(),
-        const WListRow(icon: WIcon.door, title: 'Gate pass', subtitle: 'We’ll ask on WhatsApp after you pay', trailing: 'Later', chevron: false),
+        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: WText(store.isLive ? 'For this wash' : 'Still needed for this wash', WType.label)),
+        WListRow(icon: WIcon.camera, title: store.isLive ? 'Optional vehicle photos' : '4 fresh photos', subtitle: store.isLive ? 'Your captain takes the official before and after photos' : 'Every wash starts with new photos'),
+        if (!store.isLive) ...[
+          const WDivider(),
+          const WListRow(icon: WIcon.door, title: 'Gate pass', subtitle: 'We’ll ask on WhatsApp after you pay', trailing: 'Later', chevron: false),
+        ],
       ],
     );
   }

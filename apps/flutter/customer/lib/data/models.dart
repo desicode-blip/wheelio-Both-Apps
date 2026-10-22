@@ -217,7 +217,7 @@ enum OrderStatus {
   captainNoShow;
 
   bool get isActive => const [searching, onTheWay, washing, photosReady].contains(this);
-  bool get isUpcoming => isActive || this == paymentPending;
+  bool get isUpcoming => isActive || this == paymentPending || this == pendingPayment;
 
   /// Index into the 4 customer-visible steps.
   int get stepIndex => switch (this) {

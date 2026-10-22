@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const configPath = resolve(root, process.argv[2] ?? 'firebase.local.json');
 const config = JSON.parse(await readFile(configPath, 'utf8'));
+if (config.FIREBASE_USE_EMULATORS && (!config.FIREBASE_PROJECT_ID?.startsWith('demo-') || !['127.0.0.1', 'localhost'].includes(config.FIREBASE_EMULATOR_HOST ?? '127.0.0.1'))) {
+  throw new Error('Emulator builds require a demo project and a loopback emulator host.');
+}
 for (const key of ['FIREBASE_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_APP_ID', 'FIREBASE_MESSAGING_SENDER_ID', 'FIREBASE_AUTH_DOMAIN']) {
   if (!config[key]) throw new Error(`${key} is missing in ${configPath}`);
 }
@@ -42,6 +45,18 @@ for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
   const args = ['build', 'web', mode, '--pwa-strategy=none', '--no-wasm-dry-run', `--base-href=/${path}/`, `--dart-define-from-file=${configPath}`];
   // Quote Windows paths as PowerShell literals; do not concatenate raw shell arguments.
   runFlutter(cwd,args);
+  if (config.FIREBASE_USE_EMULATORS) {
+    // FlutterFire 6.3.x restores Auth before initializeApp returns. Its debug
+    // localhost hook must know the emulator origin before reading persistence,
+    // including in a new tab with an existing local Auth session.
+    const indexPath = join(cwd, 'build/web/index.html');
+    const html = await readFile(indexPath, 'utf8');
+    const bootstrap = '<script src="flutter_bootstrap.js" async></script>';
+    if (!html.includes(bootstrap)) throw new Error(`${app}: Flutter bootstrap was not found.`);
+    const emulatorOrigin = `http://${config.FIREBASE_EMULATOR_HOST ?? '127.0.0.1'}:9099`;
+    const setup = `<script>if(location.hostname==='localhost'){sessionStorage.setItem('[DEFAULT]-firebaseEmulatorOrigin',${JSON.stringify(emulatorOrigin)});}</script>`;
+    await writeFile(indexPath, html.replace(bootstrap, setup + '\n  ' + bootstrap));
+  }
   const cache = join(cwd, '.dart_tool/flutter_build');
   const registrants = await Promise.all((await readdir(cache, { withFileTypes: true }))
     .filter(entry => entry.isDirectory())
