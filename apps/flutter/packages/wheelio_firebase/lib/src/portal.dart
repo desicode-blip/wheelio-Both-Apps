@@ -14,7 +14,9 @@ Future<void> launchWheelio({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
   WheelioRuntime.backend = null;
-  if (Uri.base.queryParameters['demo'] == 'true') {
+  // Web: ?demo=true. Phone builds: --dart-define=WHEELIO_DEMO=true (sample data, no Firebase).
+  if (Uri.base.queryParameters['demo'] == 'true' ||
+      const bool.fromEnvironment('WHEELIO_DEMO')) {
     runApp(demo);
     return;
   }

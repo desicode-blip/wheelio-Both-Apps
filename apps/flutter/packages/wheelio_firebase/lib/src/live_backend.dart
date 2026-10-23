@@ -11,7 +11,9 @@ import 'checkout_stub.dart'
     as checkout;
 
 class WheelioRuntime {
-  static bool get demo => Uri.base.queryParameters['demo'] == 'true';
+  static bool get demo =>
+      Uri.base.queryParameters['demo'] == 'true' ||
+      const bool.fromEnvironment('WHEELIO_DEMO');
   static LiveBackend? backend;
 }
 

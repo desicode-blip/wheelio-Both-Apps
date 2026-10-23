@@ -41,6 +41,17 @@ Live notes are text only. Location displays actual coordinates and a map link, w
 | `BookingScreens.swift` (`EntryNotesScreen`, photos) | `customer/lib/screens/booking.dart` |
 | Screens galleries | `captain/lib/screens/gallery.dart`, `customer/lib/screens/gallery.dart` |
 
+## Native iPhone builds (added 23 Oct 2026)
+
+The Flutter apps now have an `ios` platform, but phone builds run on sample data
+(`WHEELIO_DEMO=true` in `tool/run-ios.sh`). Before a phone build can use the live backend:
+
+- [ ] Register the iOS apps `com.amanmaheshwari.wheelio.customer` and `com.amanmaheshwari.wheelio.captain` in Firebase project `wheelio-apps` (owner: ajay@trustkeyper.com) and pass their iOS app IDs, plus `iosBundleId`, in `WheelioFirebase.initialize()`.
+- [ ] Phone sign-in: `signInWithPhoneNumber` / `linkWithPhoneNumber` are web-only. Add the native `verifyPhoneNumber` flow (`live_backend.dart`, `portal.dart`), with an APNs key in Firebase or the reCAPTCHA URL scheme (encoded iOS app ID) in `Info.plist`.
+- [ ] Razorpay: `checkout_stub.dart` throws on phones. Add the native Razorpay SDK for iOS.
+- [ ] Push notifications (APNs key, FCM) and the paid Apple Developer account for TestFlight; the free account allows 3 apps on the phone and builds expire after 7 days.
+- [ ] Remove `WHEELIO_DEMO` from `tool/run-ios.sh` once the above work.
+
 ## 0. Remove before launch (test-only switches)
 
 - [ ] Captain `TestFlags.onboardingSkip`: "TEST ONLY · Skip onboarding" button (`Captain/Screens/OnboardingScreens.swift`).

@@ -1,5 +1,11 @@
 # Flutter apps (Customer and Captain)
 
+## 23 October 2026: iOS platform added
+
+- `customer/ios` and `captain/ios` were generated with `flutter create --platforms=ios` (Flutter 3.38.6). Bundle IDs `com.amanmaheshwari.wheelio.customer` / `.captain` match the SwiftUI apps, so a phone install replaces them; team `8CCQQM7TP3`; iOS 15+ (Firebase); portrait only on iPhone; camera, photos, microphone and location texts in `Info.plist`.
+- Phone builds use sample data: `--dart-define=WHEELIO_DEMO=true` does what `?demo=true` does on the web. `tool/run-ios.sh` builds and installs both apps on a connected iPhone.
+- Live Firebase on phones is not wired yet (iOS Firebase apps, native phone sign-in, native Razorpay); see "Native iPhone builds" in `BACKEND-HOOKUP.md`.
+
 ## 22 October 2026: browser acceptance fixes
 
 Captain application uploads now restore from private Storage metadata after refresh, and submission requires the three documents, a society and a valid UPI ID. Account switches clear application state. Pending location permission requests time out instead of locking wash controls. Arrival is visible to Customer, and dry-dusting review uses the selected wash description. Accept uses the green action style and Captain job navigation has an accessible back label.
