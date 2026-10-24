@@ -905,7 +905,7 @@ class WPlate extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: EdgeInsets.symmetric(horizontal: large ? 12 : 10, vertical: large ? 8 : 5),
         decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: WColor.heading, width: 1.5)),
-        child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: wStyle(WType.title, weight: bold, size: large ? 22 : 14.5).copyWith(letterSpacing: large ? 2 : 1.3, height: 1.2)),
+        child: Text(Fmt.plate(text), maxLines: 1, overflow: TextOverflow.ellipsis, style: wStyle(WType.title, weight: bold, size: large ? 22 : 14.5).copyWith(letterSpacing: large ? 2 : 1.3, height: 1.2)),
       );
 }
 

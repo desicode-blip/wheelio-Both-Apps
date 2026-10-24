@@ -194,7 +194,7 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
   void _next() {
     final t = plate.trim();
     if (t.isEmpty) return;
-    context.store.set(() => context.store.draft.plate = t.toUpperCase());
+    context.store.set(() => context.store.draft.plate = Fmt.plate(t));
     context.router.go(N.photos);
   }
 

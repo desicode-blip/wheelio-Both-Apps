@@ -28,6 +28,7 @@ class Job {
     required this.id, required this.plate, required this.type, required this.isBike, required this.pay, required this.tower, required this.floor,
     required this.slot, required this.window, required this.time, this.distance = '600 m', this.status = JobStatus.next, this.reachBy = '8:40 AM',
     this.finishBy = '8:55 AM', this.owner = 'Ananya', this.society = 'My Home Avatar', this.wash = WashType.wetOutside, this.area = 'Narsingi',
+    this.windows = const [], this.flexible = false, this.day = 0, this.typedAddress = false, this.pincode = '', this.cancelled = false, this.tripPaid = false,
   });
   final String id;
   final String plate;
@@ -48,15 +49,39 @@ class Job {
   final WashType wash;
   final String area;
 
-  Job copyWith({JobStatus? status}) => Job(
-      id: id, plate: plate, type: type, isBike: isBike, pay: pay, tower: tower, floor: floor, slot: slot, window: window, time: time,
-      distance: distance, status: status ?? this.status, reachBy: reachBy, finishBy: finishBy, owner: owner, society: society, wash: wash, area: area);
+  /// The owner picked several windows ("10–12", "16–18"). [window] is the one the plan uses.
+  final List<String> windows;
+
+  /// The owner said "any time". The app fits it into the captain's plan ([window] is that choice)
+  /// and the job carries a "Flexible" tag.
+  final bool flexible;
+
+  /// 0 = today, 1 = tomorrow… Later-day jobs stay in the Jobs tab until their day starts.
+  final int day;
+
+  /// The owner typed the address by hand (not from our list of societies).
+  final bool typedAddress;
+  final String pincode;
+
+  /// The owner cancelled. It stays in the plan, struck through.
+  bool cancelled;
+
+  /// Cancelled after the captain set off: they get the trip fee.
+  bool tripPaid;
+
+  Job copyWith({JobStatus? status, String? window, String? time, int? day}) => Job(
+      id: id, plate: plate, type: type, isBike: isBike, pay: pay, tower: tower, floor: floor, slot: slot, window: window ?? this.window, time: time ?? this.time,
+      distance: distance, status: status ?? this.status, reachBy: reachBy, finishBy: finishBy, owner: owner, society: society, wash: wash, area: area,
+      windows: windows, flexible: flexible, day: day ?? this.day, typedAddress: typedAddress, pincode: pincode, cancelled: cancelled, tripPaid: tripPaid);
+
+  /// What the owner chose, for cards: "8–10", "10–12, 16–18" or the any-time range.
+  String get whenLabel => windows.length > 1 ? windows.join(', ') : window;
 
   /// "Tower 3 · Floor B2 · Slot 41"
   String get spot => [tower, 'Floor $floor', if (slot.isNotEmpty) 'Slot $slot'].join(' · ');
 
   /// Full address for the job card.
-  String get fullAddress => '$spot, $society, $area, Hyderabad';
+  String get fullAddress => '$spot, $society, $area, Hyderabad${pincode.isEmpty ? '' : ' $pincode'}';
 
   /// Distance in km from the "600 m" / "1.2 km" label.
   double get km {
@@ -97,6 +122,12 @@ List<Job> sampleQueue() => [
       Job(id: 'j2', plate: 'TS 09 HB 0731', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 3', floor: 'B1', slot: '', window: '9:30–11:30', time: '9:30'),
       Job(id: 'j3', plate: 'TS 08 GK 2210', type: 'Sedan', isBike: false, pay: 140, tower: 'Tower 1', floor: 'B1', slot: '', window: '6–8', time: '7:40', status: JobStatus.done, society: 'Lanco Hills', area: 'Manikonda'),
       Job(id: 'j4', plate: 'AP 28 BQ 9911', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 1', floor: 'Open', slot: '', window: '6–8', time: '7:05', status: JobStatus.done, society: 'Lanco Hills', wash: WashType.dryDusting, area: 'Manikonda'),
+      // Owner cancelled before the captain set off: struck through in the plan.
+      Job(id: 'j5', plate: 'TS 07 GH 5512', type: 'Sedan', isBike: false, pay: 140, tower: 'Tower 4', floor: 'B2', slot: '9', window: '10–12', time: '10:30', cancelled: true),
+      // Owner said "any time": fitted next to the other My Home Avatar jobs, tagged Flexible.
+      Job(id: 'j6', plate: 'TS 09 KL 7788', type: 'Hatchback', isBike: false, pay: 116, tower: 'Tower 3', floor: 'B2', slot: '18', window: '12–14', time: '12:00', flexible: true),
+      // Tomorrow: shows in the Jobs tab only, until tomorrow starts.
+      Job(id: 'j7', plate: 'TS 09 MN 4410', type: 'SUV', isBike: false, pay: 140, tower: 'Tower 2', floor: 'B1', slot: '7', window: '8–10', time: '8:00', day: 1, windows: ['8–10', '16–18']),
     ];
 
 /// Other jobs that can ring while an alert is already open (demo).
@@ -104,7 +135,28 @@ final offerPool = [
   Job(id: 'o1', plate: 'TS 08 HK 1207', type: 'Hatchback', isBike: false, pay: 116, tower: 'Tower 3', floor: 'B2', slot: '27', window: '8–10', time: '8:40', owner: 'Ravi'),
   Job(id: 'o2', plate: 'TS 07 FK 3390', type: 'SUV', isBike: false, pay: 140, tower: 'Tower 2', floor: 'Open', slot: '12', window: '8–10', time: '8:45', distance: '2.1 km', owner: 'Kiran', society: 'Lanco Hills', wash: WashType.wetOutsideDryInside, area: 'Manikonda'),
   Job(id: 'o3', plate: 'TS 10 MB 6614', type: 'Scooter', isBike: true, pay: 54, tower: 'Tower 5', floor: 'B1', slot: '', window: '8–10', time: '9:10', distance: '3.2 km', owner: 'Sneha', society: 'Aparna Sarovar Zenith', wash: WashType.dryDusting, area: 'Nallagandla'),
+  // Any time today; the app picks a window when it's accepted.
+  Job(id: 'o4', plate: 'TS 09 PQ 1188', type: 'Hatchback', isBike: false, pay: 116, tower: 'Tower 1', floor: 'B1', slot: '30', window: '6–18', time: '6:00', owner: 'Meera', flexible: true),
+  // Address typed by hand by the owner.
+  Job(id: 'o5', plate: 'TS 11 RS 2045', type: 'Sedan', isBike: false, pay: 140, tower: 'Block B', floor: 'Ground', slot: '', window: '10–12', time: '10:00', distance: '1.4 km', owner: 'Farhan',
+      society: 'Prestige Lakeside', area: 'Kokapet', pincode: '500075', typedAddress: true, windows: ['10–12', '16–18']),
 ];
+
+/// Two-hour windows the plan is built from.
+const planWindows = ['6–8', '8–10', '10–12', '12–14', '14–16', '16–18'];
+
+/// "When I work" choices (filters which jobs ring; the captain still decides on each).
+enum WorkTime { morning, midday, afternoon }
+
+extension WorkTimeHours on WorkTime {
+  (int, int) get hours => switch (this) { WorkTime.morning => (6, 10), WorkTime.midday => (10, 14), WorkTime.afternoon => (14, 18) };
+}
+
+int _hour(String s) => int.tryParse(s.split(':').first) ?? 0;
+(int, int) windowHours(String w) {
+  final p = w.split('–');
+  return p.length == 2 ? (_hour(p[0]), _hour(p[1])) : (0, 24);
+}
 
 // MARK: Routes
 
@@ -154,7 +206,7 @@ class WRouterC extends WRouter<R> {
 enum WNotifCategory { jobs, money, level, account }
 
 enum WNotifKind {
-  newJob, jobTaken, ownerCancelled, gatePassReady, runningLate, slotEnded, noShowPenalty, windowOpen, finishSoon, washApproved, problemReported, payoutSent, upiChanged,
+  newJob, jobTaken, ownerCancelled, ownerCancelledEarly, gatePassReady, runningLate, slotEnded, noShowPenalty, windowOpen, finishSoon, washApproved, problemReported, payoutSent, upiChanged,
   levelUp, probation, blocked, phoneChanged;
 
   WNotifCategory get category => switch (this) {
@@ -168,7 +220,7 @@ enum WNotifKind {
         newJob => WIcon.bell,
         jobTaken || runningLate => WIcon.clock,
         windowOpen || finishSoon => WIcon.timer,
-        ownerCancelled => WIcon.close,
+        ownerCancelled || ownerCancelledEarly => WIcon.close,
         gatePassReady => WIcon.door,
         slotEnded => WIcon.warning,
         noShowPenalty || blocked => WIcon.ban,
@@ -285,6 +337,9 @@ class CaptainStore extends ChangeNotifier {
   Set<String> chosenSocieties = {};
   String workPlace = 'Narsingi';
 
+  /// "When I work": empty means any time. Only a preference for which jobs ring.
+  Set<WorkTime> workTimes = {};
+
   /// How many more jobs ring while the alert is open (demo; 0 = single job).
   int extraOffers = 2;
 
@@ -366,7 +421,51 @@ class CaptainStore extends ChangeNotifier {
         notifications = [];
       });
 
-  bool wantsJob(Job j) => switch (workMode) {
+  /// Fits the captain's area and, unless the job is flexible, their working hours.
+  bool wantsJob(Job j) => _wantsArea(j) && (j.flexible || workTimes.isEmpty || _fitsTime(j));
+
+  bool _fitsTime(Job j) => (j.windows.isEmpty ? [j.window] : j.windows).any((w) {
+        final (a, b) = windowHours(w);
+        return workTimes.any((t) => a < t.hours.$2 && b > t.hours.$1);
+      });
+
+  /// Jobs for today's plan (later days wait in the Jobs tab).
+  List<Job> get todayJobs => queue.where((j) => j.day == 0).toList();
+  List<Job> get laterJobs => queue.where((j) => j.day > 0).toList();
+
+  /// "Any time" job: pick the window next to the captain's other jobs in the same building
+  /// (least walking), else the first free window still ahead today.
+  String fitFlexible(Job j) {
+    final now = planNow.hour;
+    final ahead = planWindows.where((w) => windowHours(w).$2 > now + 1).toList();
+    final taken = {for (final q in todayJobs) if (!q.cancelled && q.status != JobStatus.done) q.window};
+    final free = ahead.where((w) => !taken.contains(w)).toList();
+    final pool = free.isEmpty ? ahead : free;
+    if (pool.isEmpty) return planWindows.last;
+    final mates = todayJobs.where((q) => q.society == j.society && !q.cancelled && q.status != JobStatus.done).map((q) => windowHours(q.window).$1).toList();
+    if (mates.isEmpty) return pool.first;
+    int gap(String w) => mates.map((m) => (windowHours(w).$1 - m).abs()).reduce((a, b) => a < b ? a : b);
+    return (pool..sort((a, b) => gap(a).compareTo(gap(b)))).first;
+  }
+
+  /// The owner cancelled. If the captain had set off, they get the trip fee.
+  /// BACKEND: comes from the server with the cancellation.
+  void ownerCancels(String id, {required bool trip}) {
+    final j = queue.where((x) => x.id == id).firstOrNull;
+    if (j == null || j.cancelled) return;
+    final wasNow = j.status == JobStatus.now;
+    j.cancelled = true;
+    j.tripPaid = trip;
+    if (wasNow) {
+      j.status = JobStatus.next;
+      ownerNoteHeard = false;
+      queue.where((x) => x.status == JobStatus.next && !x.cancelled && x.day == 0).firstOrNull?.status = JobStatus.now;
+    }
+    notify(trip ? WNotifKind.ownerCancelled : WNotifKind.ownerCancelledEarly, job: j);
+    notifyListeners();
+  }
+
+  bool _wantsArea(Job j) => switch (workMode) {
         WorkMode.all => true,
         WorkMode.radius => j.km <= radiusKm,
         WorkMode.societies => chosenSocieties.isEmpty || chosenSocieties.contains(j.society),
@@ -392,7 +491,13 @@ class CaptainStore extends ChangeNotifier {
   /// otherwise next in line) and shows on Home.
   void acceptOffer(Job j) {
     if (queue.any((x) => x.id == j.id)) return;
-    final nj = j.copyWith(status: queue.any((x) => x.status == JobStatus.now) ? JobStatus.next : JobStatus.now);
+    if (j.flexible) {
+      // Any time: the app picks the window that fits the plan best.
+      final w = fitFlexible(j);
+      j = j.copyWith(window: w, time: '${windowHours(w).$1}:00');
+    }
+    final later = j.day > 0;
+    final nj = j.copyWith(status: later || queue.any((x) => x.status == JobStatus.now && x.day == 0) ? JobStatus.next : JobStatus.now);
     final at = queue.lastIndexWhere((x) => x.status != JobStatus.done) + 1;
     queue.insert(at, nj);
     acceptedToday += 1;
@@ -463,6 +568,7 @@ class CaptainStore extends ChangeNotifier {
     acceptedToday = 0;
     workMode = WorkMode.all;
     chosenSocieties = {};
+    workTimes = {};
     kycFromJob = false;
     onlineAfterSignUp = false;
     noShowCancelled = false;
@@ -494,7 +600,7 @@ class CaptainStore extends ChangeNotifier {
     return switch (n.kind) {
       WNotifKind.newJob => t('New job: $rs', 'नया काम: $rs', 'కొత్త పని: $rs'),
       WNotifKind.jobTaken => t('Job went to someone else', 'काम किसी और को मिल गया', 'పని వేరొకరికి వెళ్ళింది'),
-      WNotifKind.ownerCancelled => t('Owner cancelled the job', 'मालिक ने काम रद्द किया', 'యజమాని పని రద్దు చేశారు'),
+      WNotifKind.ownerCancelled || WNotifKind.ownerCancelledEarly => t('Owner cancelled ${n.plate}', 'मालिक ने ${n.plate} रद्द किया', 'యజమాని ${n.plate} రద్దు చేశారు'),
       WNotifKind.gatePassReady => t('Gate pass is ready', 'गेट पास तैयार है', 'గేట్ పాస్ సిద్ధం'),
       WNotifKind.runningLate => t('You’re late for ${n.plate}', 'आप ${n.plate} के लिए लेट हैं', '${n.plate} కి మీరు ఆలస్యం'),
       WNotifKind.windowOpen => t('Time to start: ${n.plate}', 'शुरू करने का समय: ${n.plate}', 'మొదలుపెట్టే సమయం: ${n.plate}'),
@@ -518,6 +624,7 @@ class CaptainStore extends ChangeNotifier {
       WNotifKind.newJob => '${n.plate} · ${t('Tap to see', 'देखने के लिए दबाएं', 'చూడటానికి నొక్కండి')}',
       WNotifKind.jobTaken => t('Keep the app open. Next job comes soon.', 'ऐप खुला रखें। अगला काम जल्दी आएगा।', 'యాప్ తెరిచి ఉంచండి. తదుపరి పని త్వరలో వస్తుంది.'),
       WNotifKind.ownerCancelled => t('You get ₹[CANCELLATION FEE] for the trip.', 'सफ़र के ₹[CANCELLATION FEE] मिलेंगे।', 'ప్రయాణానికి ₹[CANCELLATION FEE] వస్తుంది.'),
+      WNotifKind.ownerCancelledEarly => t('It’s off your plan. Nothing to do.', 'यह आपके प्लान से हट गया। कुछ नहीं करना है।', 'ఇది మీ ప్లాన్ నుండి తీసేశాం. ఏమీ చేయనక్కర్లేదు.'),
       WNotifKind.gatePassReady => t('Show it at the gate for ${n.plate}.', '${n.plate} के लिए गेट पर दिखाएं।', '${n.plate} కోసం గేట్ వద్ద చూపించండి.'),
       WNotifKind.runningLate => t('Reach now. −₹1 for every late minute.', 'अभी पहुँचें। हर लेट मिनट पर −₹1।', 'ఇప్పుడే చేరుకోండి. ప్రతి ఆలస్య నిమిషానికి −₹1.'),
       WNotifKind.windowOpen => t('Its time window has started. The timer is on.', 'इसका समय शुरू हो गया है। टाइमर चालू है।', 'దీని సమయం మొదలైంది. టైమర్ ఆన్‌లో ఉంది.'),
@@ -675,8 +782,9 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
       router.push(const R(N.jobAlert));
     case WNotifKind.jobTaken:
       return null;
-    case WNotifKind.ownerCancelled:
-      router.go(N.ownerCancelled);
+    case WNotifKind.ownerCancelled || WNotifKind.ownerCancelledEarly:
+      // Already handled when it happened: show the plan, where the job is struck through.
+      router.home();
     case WNotifKind.windowOpen || WNotifKind.finishSoon:
       return _openPlanJob(n, store, router);
     case WNotifKind.runningLate when !isCurrent:

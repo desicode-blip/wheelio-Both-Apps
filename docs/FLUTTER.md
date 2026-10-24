@@ -2,7 +2,16 @@
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
 
-## 24 October 2026: address by hand (Customer)
+## 24 October 2026: Captain app follows the new customer features
+
+- **Owner cancels:** the job stays in Today's plan, struck through, with "Cancelled by owner" (or "Cancelled · trip paid" if the captain had set off, who then gets the trip fee). The next job becomes current. Notification is short; no explanation of customer credits. (`CaptainStore.ownerCancels`, `_cancelledCard`)
+- **Several windows / any time:** cards show the owner's windows ("10–12, 16–18"). Any-time jobs are placed by the app in the window closest to the captain's other jobs in the same building (else the first free window ahead) and carry a green **Flexible** tag. (`fitFlexible`, `_FlexTag`)
+- **When I work:** Where I work now has 6–10 AM / 10 AM–2 PM / 2–6 PM chips. They only decide which jobs ring (flexible jobs always can); the captain still accepts or rejects each. (`workTimes`, `wantsJob`)
+- **Later-day jobs:** not on Home's plan; listed under **Coming up** in the Jobs tab, and move to the plan when their day starts. (`todayJobs`, `laterJobs`, `Job.day`)
+- **Address typed by the owner:** **New address** tag with the pincode, plus **Get directions** (Google Maps) on Go to vehicle. No checking step.
+- **Plates:** shown tidied everywhere (`Fmt.plate`: "ts09ea4521" → "TS 09 EA 4521"); the customer app saves plates the same way.
+- Free washes and credit don't show in the Captain app: pay is always the normal job pay.
+
 
 - Captain welcome (W00) now uses the same carousel as the Customer welcome: `PageView` with swipe, dots that follow the scroll (`CarouselDots`, moved into `wheelio_ui`), fixed Back / Next / Skip.
 

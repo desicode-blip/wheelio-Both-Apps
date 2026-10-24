@@ -60,6 +60,11 @@ class Device {
     final f = await ImagePicker().pickImage(source: ImageSource.gallery);
     return f?.readAsBytes();
   }
+  /// Directions to a typed address in Google Maps.
+  static Future<bool> openMapsSearch(String address) => launchUrl(
+    Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': address}),
+    mode: LaunchMode.externalApplication,
+  );
   static Future<bool> openLocation(num latitude, num longitude) => launchUrl(
     Uri.https('www.google.com','/maps/search/',{'api':'1','query':'$latitude,$longitude'}),
     mode: LaunchMode.externalApplication,

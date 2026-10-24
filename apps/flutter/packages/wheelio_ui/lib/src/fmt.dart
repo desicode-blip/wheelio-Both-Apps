@@ -28,6 +28,15 @@ String _inr(int n) {
 }
 
 class Fmt {
+  /// Indian number plate, tidied for display: "ts09ea4521" → "TS 09 EA 4521".
+  /// Anything that doesn't look like a standard plate is only upper-cased.
+  static String plate(String raw) {
+    final s = raw.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final m = RegExp(r'^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$').firstMatch(s);
+    if (m == null) return raw.trim().toUpperCase();
+    return [m[1], m[2]!.padLeft(2, '0'), if (m[3]!.isNotEmpty) m[3], m[4]].join(' ');
+  }
+
   static String rupees(int amount) => '${amount < 0 ? '−₹' : '₹'}${_inr(amount.abs())}';
   static String clock(int seconds) => '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 

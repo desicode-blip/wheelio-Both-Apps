@@ -290,6 +290,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
   int radius = 3;
   Set<String> picked = {};
   String place = 'Narsingi';
+  Set<WorkTime> times = {};
   bool loaded = false;
 
   @override
@@ -302,6 +303,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     radius = store.radiusKm;
     picked = {...store.chosenSocieties};
     place = store.workPlace;
+    times = {...store.workTimes};
   }
 
   Widget _choice(WorkMode m, WIcon icon, String title, String sub) => WSelectionTile(
@@ -381,6 +383,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
             store.radiusKm = radius;
             store.chosenSocieties = picked;
             store.workPlace = place;
+            store.workTimes = times;
           });
           store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
           router.pop();
@@ -407,7 +410,28 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           w,
           const SizedBox(height: 12),
         ],
-        const SizedBox(height: 12),
+        // When I work: only decides which jobs ring. Each job is still the captain's choice.
+        WTitle(store.t('When do you work?', 'आप कब काम करते हैं?', 'మీరు ఎప్పుడు పని చేస్తారు?'), top: 14),
+        WBody(store.t('Pick one or more. Leave all off for any time.', 'एक या ज़्यादा चुनें। कभी भी के लिए कुछ न चुनें।', 'ఒకటి లేదా ఎక్కువ ఎంచుకోండి. ఎప్పుడైనా అంటే ఏదీ ఎంచుకోకండి.'), top: 4, bottom: 12),
+        Row(children: [
+          for (final (i, t) in WorkTime.values.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: WChip(
+                switch (t) {
+                  WorkTime.morning => store.t('6–10 AM', 'सुबह 6–10', 'ఉ. 6–10'),
+                  WorkTime.midday => store.t('10 AM–2 PM', 'दिन 10–2', 'ఉ. 10–మ. 2'),
+                  WorkTime.afternoon => store.t('2–6 PM', 'दोपहर 2–6', 'మ. 2–6'),
+                },
+                selected: times.contains(t),
+                height: 48,
+                fill: true,
+                onTap: () => setState(() => times.contains(t) ? times.remove(t) : times.add(t)),
+              ),
+            ),
+          ],
+        ]),
+        const SizedBox(height: 24),
       ],
     );
   }

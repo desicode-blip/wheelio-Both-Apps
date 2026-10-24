@@ -149,6 +149,16 @@ The Flutter apps now have an `ios` platform, but phone builds run on sample data
 - [ ] Bookings for a later slot stay "Booked" until the slot; captains are assigned before it. The live lifecycle
       should not show captain, wash or before/after photos before the slot starts.
 
+## Captain side of the new customer features (added 24 Oct 2026)
+
+- [ ] Owner cancellations reach the captain instantly (push + `ownerCancels`), with `tripPaid` decided by the server
+      (captain had set off → trip fee from the amount kept). Trip-fee amount still to decide.
+- [ ] Any-time jobs: the server (or app) fits them next to the captain's other jobs; keep the "flexible" flag on the job.
+- [ ] Captain "When I work" times: store on the profile and use them to decide whom to offer jobs.
+- [ ] Later-day jobs: server sends them with their date; the app moves them into Today's plan when the day starts
+      (sample data uses a fixed `Job.day`).
+- [ ] Captain pay is never reduced by free washes or customer credit; Wheelio covers the difference.
+
 ## 6. Values still to decide (config, not code)
 
 Prices, cancellation fee, wait fee, approval and dispute windows, late-penalty

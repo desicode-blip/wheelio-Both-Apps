@@ -162,7 +162,7 @@ class _CaptainHomeState extends State<CaptainHome> {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final limitReached = store.jobsToday >= store.jobLimit;
-    final hasPlan = store.signedUp && store.queue.isNotEmpty;
+    final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
     _scheduleRing(store.online && isTopScreen(context) && router.tab == 0 && !limitReached);
     final pad = MediaQuery.paddingOf(context);
     return ColoredBox(
@@ -236,7 +236,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                   ],
                   const SizedBox(height: 14),
                   if (store.signedUp)
-                    if (store.queue.isEmpty)
+                    if (store.todayJobs.isEmpty)
                       WCard(
                         padding: 18,
                         child: Column(
@@ -579,7 +579,7 @@ class _DayPlanState extends State<DayPlan> {
 
   _Phase _phase(Job j, DateTime now) {
     final w = window(j, now);
-    if (j.status == JobStatus.done || w == null || now.isBefore(w.$1)) return _Phase.none;
+    if (j.status == JobStatus.done || j.cancelled || w == null || now.isBefore(w.$1)) return _Phase.none;
     final left = (w.$2.difference(now).inMilliseconds / 1000).ceil();
     final frac = (now.difference(w.$1).inMilliseconds / w.$2.difference(w.$1).inMilliseconds).clamp(0.0, 1.0);
     if (left <= 0) return _Phase(_PhaseKind.late, over: -left);
@@ -593,7 +593,7 @@ class _DayPlanState extends State<DayPlan> {
   void _checkAlerts() {
     final store = context.store;
     final now = store.planNow;
-    for (final j in store.queue.where((j) => j.status != JobStatus.done).toList()) {
+    for (final j in store.todayJobs.where((j) => j.status != JobStatus.done && !j.cancelled).toList()) {
       final w = window(j, now);
       if (w == null || now.isBefore(w.$1)) continue;
       final left = w.$2.difference(now).inSeconds;
@@ -617,6 +617,7 @@ class _DayPlanState extends State<DayPlan> {
 
   void _open(Job j) {
     final store = context.store, router = context.router;
+    if (j.cancelled) return;
     switch (j.status) {
       case JobStatus.done:
         showWSheet<void>(context, height: 330, gutter: 20, builder: (_) => _DoneJobSheet(job: j));
@@ -658,7 +659,8 @@ class _DayPlanState extends State<DayPlan> {
 
   Widget _card(Job j, _Phase ph, DateTime now) {
     final store = context.store;
-    final isNow = j.status == JobStatus.now, done = j.status == JobStatus.done;
+    final isNow = j.status == JobStatus.now && !j.cancelled, done = j.status == JobStatus.done;
+    if (j.cancelled) return _cancelledCard(j);
     final edge = ph.level == 3 ? WColor.destructive : (ph.level == 2 ? _amber : (isNow ? WColor.primary : WColor.border));
     final fill = ph.level == 3 ? WColor.errorTint : (ph.level == 2 ? WColor.waitTint : (isNow ? WColor.primaryTint : (done ? WColor.canvas : WColor.white)));
     final w = window(j, now);
@@ -697,6 +699,7 @@ class _DayPlanState extends State<DayPlan> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(child: WText('${j.tower} · ${j.floor}', WType.caption, size: 13.5, maxLines: 1)),
+                    if (j.flexible && !done) ...[_FlexTag(), const SizedBox(width: 6)],
                     if (done)
                       WText(store.t('Done', 'पूरा', 'పూర్తి'), WType.small, color: WColor.onSuccess, weight: semibold)
                     else
@@ -717,12 +720,44 @@ class _DayPlanState extends State<DayPlan> {
     );
   }
 
+  /// Owner cancelled: stays in its place, muted and struck through.
+  Widget _cancelledCard(Job j) {
+    final store = context.store;
+    const strike = TextDecoration.lineThrough;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: outlinedDecoration(radius: 14, fill: WColor.canvas, stroke: WColor.border),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Expanded(child: WText(j.society, WType.title, size: 16, maxLines: 1, color: WColor.muted, decoration: strike)),
+            WText(Fmt.rupees(j.pay), WType.title, size: 16, mono: true, color: WColor.muted, decoration: strike),
+          ]),
+          const SizedBox(height: 6),
+          Row(children: [
+            WText(Fmt.plate(j.plate), WType.caption, size: 13.5, color: WColor.muted, decoration: strike),
+            const Spacer(),
+            WText(
+              j.tripPaid ? store.t('Cancelled · trip paid', 'रद्द · सफ़र के पैसे', 'రద్దు · ప్రయాణం చెల్లింపు') : store.t('Cancelled by owner', 'मालिक ने रद्द किया', 'యజమాని రద్దు చేశారు'),
+              WType.small,
+              color: WColor.secondary,
+              weight: semibold,
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.store;
     final now = store.planNow;
-    final jobs = [...store.queue]..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)));
-    final done = store.queue.where((j) => j.status == JobStatus.done).length;
+    // Only today's jobs; later days wait in the Jobs tab until their day starts.
+    final jobs = store.todayJobs..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)));
+    final active = jobs.where((j) => !j.cancelled).toList();
+    final done = active.where((j) => j.status == JobStatus.done).length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -734,7 +769,7 @@ class _DayPlanState extends State<DayPlan> {
                 children: [
                   WText(store.t('Today’s plan', 'आज का प्लान', 'ఈరోజు ప్లాన్'), WType.section, weight: semibold, size: 21),
                   const SizedBox(height: 2),
-                  WText('${_clock(now)} · ${store.t('$done of ${store.queue.length} done', '${store.queue.length} में से $done पूरे', '${store.queue.length} లో $done పూర్తి')}', WType.caption, mono: true),
+                  WText('${_clock(now)} · ${store.t('$done of ${active.length} done', '${active.length} में से $done पूरे', '${active.length} లో $done పూర్తి')}', WType.caption, mono: true),
                 ],
               ),
             ),
@@ -777,7 +812,7 @@ class _DayPlanState extends State<DayPlan> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            WText('${h % 12 == 0 ? 12 : h % 12}:${(m % 60).toString().padLeft(2, '0')}', WType.title, size: 17, mono: true, color: j.status == JobStatus.done ? WColor.secondary : WColor.heading),
+                            WText('${h % 12 == 0 ? 12 : h % 12}:${(m % 60).toString().padLeft(2, '0')}', WType.title, size: 17, mono: true, color: j.status == JobStatus.done || j.cancelled ? WColor.muted : WColor.heading, decoration: j.cancelled ? TextDecoration.lineThrough : null),
                             WText(h < 12 ? 'AM' : 'PM', WType.small),
                           ],
                         ),
@@ -792,7 +827,19 @@ class _DayPlanState extends State<DayPlan> {
                           Stack(
                             clipBehavior: Clip.none,
                             alignment: Alignment.center,
-                            children: [_dot(j.status), if (ph.level >= 2) _AlertRing(color: ph.level == 3 ? WColor.destructive : _amber)],
+                            children: [
+                              if (j.cancelled)
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(color: WColor.canvas, shape: BoxShape.circle, border: Border.all(color: WColor.border, width: 2)),
+                                  alignment: Alignment.center,
+                                  child: const WIconView(WIcon.close, size: 11, color: WColor.muted, weight: bold),
+                                )
+                              else
+                                _dot(j.status),
+                              if (ph.level >= 2) _AlertRing(color: ph.level == 3 ? WColor.destructive : _amber),
+                            ],
                           ),
                           if (i < jobs.length - 1) Expanded(child: Container(width: 3, color: j.status == JobStatus.done ? WColor.success : WColor.border)),
                         ],
@@ -1337,7 +1384,14 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
               const SizedBox(width: 8),
               _fact(WIcon.layers, j.floor, store.t('Floor', 'फ्लोर', 'ఫ్లోర్')),
               const SizedBox(width: 8),
-              _fact(WIcon.clock, j.window, store.t('Today', 'आज', 'ఈరోజు')),
+              _fact(
+                WIcon.clock,
+                j.flexible ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా') : j.whenLabel,
+                [
+                  if (j.day == 1) store.t('Tomorrow', 'कल', 'రేపు') else store.t('Today', 'आज', 'ఈరోజు'),
+                  if (j.flexible) store.t('Flexible', 'लचीला', 'వీలుగా'),
+                ].join(' · '),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -1356,7 +1410,12 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [WText(j.society, WType.title, size: 17.5), const SizedBox(height: 3), WText(j.fullAddress, WType.caption, size: 14)],
+                    children: [
+                      WText(j.society, WType.title, size: 17.5),
+                      const SizedBox(height: 3),
+                      WText(j.fullAddress, WType.caption, size: 14),
+                      if (j.typedAddress) ...[const SizedBox(height: 8), _NewAddressTag()],
+                    ],
                   ),
                 ),
               ],
@@ -1726,10 +1785,10 @@ class JobsTab extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          for (final j in store.queue) ...[
+          for (final j in store.todayJobs..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)))) ...[
             WCard(
               onTap: () {
-                if (j.status == JobStatus.now && store.signedUp) router.go(N.goToVehicle);
+                if (j.status == JobStatus.now && !j.cancelled && store.signedUp) router.go(N.goToVehicle);
               },
               child: Row(
                 children: [
@@ -1745,7 +1804,10 @@ class JobsTab extends StatelessWidget {
                         const SizedBox(height: 6),
                         WText(j.spot, WType.caption),
                         const SizedBox(height: 6),
-                        status(j.status),
+                        Wrap(spacing: 6, runSpacing: 6, children: [
+                          if (j.cancelled) WBadge(store.t('Cancelled', 'रद्द', 'రద్దు'), tone: Tone.mute, icon: WIcon.close) else status(j.status),
+                          if (j.flexible && !j.cancelled) _FlexTag(),
+                        ]),
                       ],
                     ),
                   ),
@@ -1754,6 +1816,37 @@ class JobsTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+          ],
+          // Later days: listed here only, and move to Home's plan when their day starts.
+          if (store.laterJobs.isNotEmpty) ...[
+            WTitle(store.t('Coming up', 'आने वाले', 'రాబోయేవి'), top: 14, bottom: 12),
+            for (final j in store.laterJobs) ...[
+              WCard(
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 84,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        WText(j.day == 1 ? store.t('Tomorrow', 'कल', 'రేపు') : Fmt.day(addDays(DateTime.now(), j.day)), WType.small, weight: semibold, color: WColor.primaryStrong),
+                        WText(j.flexible ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా') : j.whenLabel, WType.caption, color: WColor.heading),
+                      ]),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        WPlate(j.plate),
+                        const SizedBox(height: 6),
+                        WText(j.society, WType.title, size: 16),
+                        const SizedBox(height: 4),
+                        WText(j.spot, WType.caption),
+                      ]),
+                    ),
+                    WText(Fmt.rupees(j.pay), WType.section, weight: semibold, mono: true),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
           ],
         ],
       ),
@@ -1894,7 +1987,18 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [WText(j.society, WType.title, size: 18), const SizedBox(height: 3), WText(j.fullAddress, WType.caption, size: 13.5)],
+                                children: [
+                                  WText(j.society, WType.title, size: 18),
+                                  const SizedBox(height: 3),
+                                  WText(j.fullAddress, WType.caption, size: 13.5),
+                                  if (j.typedAddress) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(spacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                                      _NewAddressTag(),
+                                      WLink(store.t('Get directions', 'रास्ता देखें', 'దారి చూడండి'), k: WType.caption, minHeight: 32, onTap: () => Device.openMapsSearch(j.fullAddress)),
+                                    ]),
+                                  ],
+                                ],
                               ),
                             ),
                           ],
@@ -2108,7 +2212,8 @@ class _OwnerCancelledScreenState extends State<OwnerCancelledScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => context.store.notify(WNotifKind.ownerCancelled, job: context.store.current, deliver: false));
+    // The owner cancelled while the captain was on the way: struck through in the plan, trip paid.
+    WidgetsBinding.instance.addPostFrameCallback((_) => context.store.ownerCancels(context.store.current.id, trip: true));
   }
 
   @override
@@ -2139,4 +2244,33 @@ class _OwnerCancelledScreenState extends State<OwnerCancelledScreen> {
       ],
     );
   }
+}
+
+
+/// Small tag for "any time" jobs the app placed in the plan.
+class _FlexTag extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(6)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      const WIconView(WIcon.clock, size: 11, color: WColor.onSuccess),
+      const SizedBox(width: 4),
+      WText(context.store.t('Flexible', 'लचीला', 'వీలుగా'), WType.small, color: WColor.onSuccess, weight: semibold, size: 12),
+    ]),
+  );
+}
+
+/// The owner typed this address themselves.
+class _NewAddressTag extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(color: WColor.waitTint, borderRadius: BorderRadius.circular(6)),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      const WIconView(WIcon.edit, size: 12, color: WColor.wait),
+      const SizedBox(width: 4),
+      WText(context.store.t('New address', 'नया पता', 'కొత్త చిరునామా'), WType.small, color: WColor.wait, weight: semibold, size: 12.5),
+    ]),
+  );
 }
