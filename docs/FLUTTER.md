@@ -1,5 +1,7 @@
 # Flutter apps (Customer and Captain)
 
+> Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
+
 ## 24 October 2026: address by hand (Customer)
 
 - Cancelling (sample app): "Cancel booking" on the Home "Upcoming" card, the Bookings list and the order screen, until the wash starts. No cash refund. Within 15 minutes of booking: 1 free wash. After that: 50% of the booking's value as credit (`Customer.credit`, rupees). Cards show only "Cancel booking"; the sheet states the outcome in one line before confirming ("You get 1 free wash" / "You get ₹75 credit · 50% of ₹149"). After cancelling: toast, notification, a "Booking cancelled" screen, a Home banner for the credit, and the order moves to Past.
