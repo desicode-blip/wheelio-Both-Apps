@@ -212,12 +212,12 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
           label: 'Vehicle number',
           value: plate,
           placeholder: 'TS 09 EA 4521',
-          helper: 'Use the number on your plate',
           caps: TextCapitalization.characters,
           autofocus: true,
           onSubmit: _next,
           onChanged: (v) => setState(() => plate = v),
         ),
+        const Padding(padding: EdgeInsets.only(top: 18), child: _PlateHint()),
         if (t != null)
           Padding(
             padding: const EdgeInsets.only(top: 22),
@@ -236,6 +236,67 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
       ],
     );
   }
+}
+
+/// A small, friendly picture of an Indian number plate, so people know what to type.
+/// Only a reference: the letters are an example, never checked against what is typed.
+class _PlateHint extends StatelessWidget {
+  const _PlateHint();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+    decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
+    child: Row(
+      children: [
+        // The plate, tilted a little so it reads as a sketch, not a rule.
+        Transform.rotate(
+          angle: -0.045,
+          child: Container(
+            decoration: BoxDecoration(
+              color: WColor.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: WColor.heading, width: 1.5),
+              boxShadow: const [BoxShadow(color: WColor.shadowCard, blurRadius: 6, offset: Offset(0, 2))],
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Blue "IND" strip, like on the new high-security plates.
+                  Container(
+                    width: 18,
+                    decoration: const BoxDecoration(
+                      color: WColor.primary,
+                      borderRadius: BorderRadius.horizontal(left: Radius.circular(4)),
+                    ),
+                    alignment: Alignment.bottomCenter,
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text('IND', style: wStyle(WType.small, weight: bold, size: 6.5, color: WColor.white).copyWith(letterSpacing: 0.4)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    child: Text('TS 07 HB 2024', style: wStyle(WType.title, weight: bold, size: 15).copyWith(letterSpacing: 1.4, height: 1.2)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              WText('Looks like this', WType.caption, color: WColor.heading),
+              SizedBox(height: 2),
+              WText('Spaces or no spaces, both are fine.', WType.small, color: WColor.secondary),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // MARK: C07 Photos (C07b partial, C07c done)
