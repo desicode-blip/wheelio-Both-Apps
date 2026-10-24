@@ -429,6 +429,9 @@ class WScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pad = MediaQuery.paddingOf(context);
+    // When the keyboard is open, the footer (e.g. Next) rides up with it instead of hiding under it.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final bottom = keyboard > pad.bottom ? keyboard : pad.bottom;
     final bg = background ?? (canvas ? WColor.canvas : WColor.white);
     final column = Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: scrolls ? MainAxisSize.min : MainAxisSize.max, children: children);
     return Material(
@@ -438,10 +441,10 @@ class WScreen extends StatelessWidget {
         if (header != null) header!,
         Expanded(
           child: scrolls
-              ? SingleChildScrollView(padding: EdgeInsets.fromLTRB(gutter, 0, gutter, footer == null ? 24 + pad.bottom : 24), child: column)
-              : Padding(padding: EdgeInsets.fromLTRB(gutter, 0, gutter, footer == null ? pad.bottom : 0), child: column),
+              ? SingleChildScrollView(padding: EdgeInsets.fromLTRB(gutter, 0, gutter, footer == null ? 24 + bottom : 24), child: column)
+              : Padding(padding: EdgeInsets.fromLTRB(gutter, 0, gutter, footer == null ? bottom : 0), child: column),
         ),
-        if (footer != null) ColoredBox(color: WColor.white, child: Padding(padding: EdgeInsets.only(bottom: pad.bottom), child: footer)),
+        if (footer != null) ColoredBox(color: WColor.white, child: Padding(padding: EdgeInsets.only(bottom: bottom), child: footer)),
       ]),
     );
   }
