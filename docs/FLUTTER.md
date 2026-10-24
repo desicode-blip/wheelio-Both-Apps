@@ -3,6 +3,8 @@
 ## 23 October 2026: iOS platform added
 
 - `customer/ios` and `captain/ios` were generated with `flutter create --platforms=ios` (Flutter 3.38.6). Bundle IDs `com.amanmaheshwari.wheelio.customer` / `.captain` match the SwiftUI apps, so a phone install replaces them; team `8CCQQM7TP3`; iOS 15+ (Firebase); portrait only on iPhone; camera, photos, microphone and location texts in `Info.plist`.
+- Xcode's Run uses the Release configuration for both Runner schemes, so an app installed from Xcode keeps opening from the home screen after Xcode disconnects (Flutter debug builds don't). For hot reload, use `flutter run -d <iPhone> --dart-define=WHEELIO_DEMO=true` in Terminal instead.
+- The yellow DEMO strip is shown only on the web; phone builds hide it.
 - Phone builds use sample data: `--dart-define=WHEELIO_DEMO=true` does what `?demo=true` does on the web. `tool/run-ios.sh` builds and installs both apps on a connected iPhone.
 - Live Firebase on phones is not wired yet (iOS Firebase apps, native phone sign-in, native Razorpay); see "Native iPhone builds" in `BACKEND-HOOKUP.md`.
 
@@ -102,7 +104,7 @@ A mouse can't swipe comfortably, so each swipe has a visible control on the web 
 | Both · in-app notification banner | Swipe up to dismiss | **×** button on the banner (it still closes itself after a few seconds) |
 | Both · long-press actions (for example, remove profile photo) | Press and hold | Right-click, or press and hold |
 
-These stay the same on the web because a mouse can do them: dragging the map pin, dragging the before/after slider (a tap also works), and the welcome slides, which already have Next and Skip buttons.
+These stay the same on the web because a mouse can do them: dragging the map pin, dragging the before/after slider (a tap also works), and the Customer welcome slides: a `PageView` carousel where picture and words move together under a finger or mouse drag, the dots follow the scroll position (the wide pill slides between dots), and Back, Next and Skip stay fixed (24 Oct 2026).
 
 ## Other web differences
 

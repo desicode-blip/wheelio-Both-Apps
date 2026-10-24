@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 
@@ -64,6 +65,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     (WelcomeArtKind.trust, 'See it, then pay', 'Before and after photos. Money moves only when you approve.'),
     (WelcomeArtKind.time, 'Your weekend is yours', 'Spend it with family, not with a bucket.'),
   ];
+  final _pages = PageController();
   int index = 0;
   double progress = 0;
   Timer? _tick;
@@ -74,6 +76,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     _start();
   }
 
+  /// Auto-advance: fills the active dot over [slideMs], then slides to the next picture.
   void _start() {
     _tick?.cancel();
     progress = 0;
@@ -88,9 +91,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
   }
 
+  void _stop() {
+    _tick?.cancel();
+    _tick = null;
+  }
+
+  /// Back / Next / auto-advance: the whole slide (picture and words) moves sideways.
   void _go(int i) {
-    setState(() => index = i.clamp(0, slides.length - 1));
-    _start();
+    if (!_pages.hasClients) return;
+    _pages.animateToPage(i.clamp(0, slides.length - 1), duration: const Duration(milliseconds: 450), curve: Curves.easeInOutCubic);
   }
 
   /// Into Home, where "Book a wash" is the main button.
@@ -102,14 +111,16 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _pages.dispose();
     super.dispose();
   }
 
+  (WelcomeArtKind, String, String) _slide(int i) => context.store.isLive && i == 1
+      ? (WelcomeArtKind.trust, 'See your wash clearly', 'Pay securely when booking. Review before and after photos to approve the captain’s earnings.')
+      : slides[i];
+
   @override
   Widget build(BuildContext context) {
-    final s = context.store.isLive && index == 1
-        ? (WelcomeArtKind.trust, 'See your wash clearly', 'Pay securely when booking. Review before and after photos to approve the captain’s earnings.')
-        : slides[index];
     final pad = MediaQuery.paddingOf(context);
     return Material(
       color: WColor.white,
@@ -117,6 +128,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom + 12),
         child: Column(
           children: [
+            // Back stays in place; it fades in after the first slide.
             SizedBox(
               height: 44,
               child: Padding(
@@ -145,38 +157,65 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             ),
+            // Carousel: picture and words move together with the finger (or mouse).
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(WSpace.gutter, 8, WSpace.gutter, 0),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, a) => FadeTransition(
-                    opacity: a,
-                    child: SlideTransition(
-                      position: Tween(begin: const Offset(0.15, 0), end: Offset.zero).animate(a),
-                      child: child,
-                    ),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  // Pause the timer while the person is dragging; restart once it settles.
+                  if (n is ScrollStartNotification && n.dragDetails != null) _stop();
+                  if (n is ScrollEndNotification && _tick == null) _start();
+                  return false;
+                },
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus},
+                    scrollbars: false,
                   ),
-                  child: CustomerWelcomeArt(key: ValueKey(index), kind: s.$1),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(WSpace.gutter, 28, WSpace.gutter, 0),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                child: Column(
-                  key: ValueKey('t$index'),
-                  children: [
-                    WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
-                    const SizedBox(height: 10),
-                    WText(s.$3, WType.body, color: WColor.secondary, size: 16.5, align: TextAlign.center),
-                  ],
+                  child: PageView.builder(
+                    controller: _pages,
+                    itemCount: slides.length,
+                    physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+                    onPageChanged: (i) {
+                      setState(() => index = i);
+                      _start();
+                    },
+                    itemBuilder: (context, i) {
+                      final s = _slide(i);
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(WSpace.gutter, 8, WSpace.gutter, 0),
+                              child: CustomerWelcomeArt(kind: s.$1),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(WSpace.gutter, 28, WSpace.gutter, 0),
+                            child: Column(
+                              children: [
+                                WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
+                                const SizedBox(height: 10),
+                                WText(s.$3, WType.body, color: WColor.secondary, size: 16.5, align: TextAlign.center),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 26),
-            TimerDots(count: slides.length, index: index, progress: progress),
+            // Dots follow the carousel position while swiping.
+            AnimatedBuilder(
+              animation: _pages,
+              builder: (context, _) {
+                final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? index.toDouble()) : index.toDouble();
+                return _SlideDots(count: slides.length, page: page, progress: _tick == null ? 0 : progress);
+              },
+            ),
+            // Skip and Next stay put; only the carousel moves.
             Padding(
               padding: const EdgeInsets.fromLTRB(WSpace.gutter, 26, WSpace.gutter, 0),
               child: Row(
@@ -210,6 +249,49 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Slide dots that track the carousel: the wide pill slides between dots as the page moves,
+/// dots already passed are filled, and the current pill fills up with the auto-advance timer.
+class _SlideDots extends StatelessWidget {
+  const _SlideDots({required this.count, required this.page, required this.progress});
+  final int count;
+  final double page;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = page.round().clamp(0, count - 1);
+    return Semantics(
+      label: 'Slide ${current + 1} of $count',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < count; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Builder(builder: (context) {
+              // 1 when this dot is the page, 0 when a full page away.
+              final near = (1 - (page - i).abs()).clamp(0.0, 1.0);
+              final width = 8 + 22 * near;
+              final passed = (page - i).clamp(0.0, 1.0); // how far past this dot the carousel is
+              final fill = i == current && (page - current).abs() < 0.02 ? progress : passed;
+              return Container(
+                width: width,
+                height: 8,
+                decoration: BoxDecoration(color: WColor.border, borderRadius: BorderRadius.circular(4)),
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: (width * fill).clamp(fill > 0 ? 8.0 : 0.0, width),
+                  height: 8,
+                  decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(4)),
+                ),
+              );
+            }),
+          ],
+        ],
       ),
     );
   }
