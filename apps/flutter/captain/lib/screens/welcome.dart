@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 
@@ -109,6 +110,7 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen> {
   static const slideMs = 3500;
+  final _pages = PageController();
   int index = 0;
   double progress = 0;
   Timer? _tick;
@@ -133,9 +135,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     });
   }
 
+  void _stop() {
+    _tick?.cancel();
+    _tick = null;
+  }
+
+  /// Back / Next / auto-advance: the whole slide (picture and words) moves sideways.
   void _go(int i) {
-    setState(() => index = i.clamp(0, 2));
-    _start();
+    if (!_pages.hasClients) return;
+    _pages.animateToPage(i.clamp(0, 2), duration: const Duration(milliseconds: 450), curve: Curves.easeInOutCubic);
   }
 
   void _enterApp() {
@@ -146,6 +154,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   void dispose() {
     _tick?.cancel();
+    _pages.dispose();
     super.dispose();
   }
 
@@ -169,7 +178,6 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         store.t('Straight to your UPI. No waiting.', 'सीधे आपके UPI में। कोई इंतज़ार नहीं।', 'నేరుగా మీ UPI కి. ఎదురుచూపు లేదు.'),
       ),
     ];
-    final s = slides[index];
     final pad = MediaQuery.paddingOf(context);
     return Material(
       color: WColor.white,
@@ -205,38 +213,64 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 ),
               ),
             ),
+            // Carousel: picture and words move together with the finger. Same as the Customer app.
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 8, WSpace.gutterCaptain, 0),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, a) => FadeTransition(
-                    opacity: a,
-                    child: SlideTransition(
-                      position: Tween(begin: const Offset(0.15, 0), end: Offset.zero).animate(a),
-                      child: child,
-                    ),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  // Pause the timer while dragging; restart once it settles.
+                  if (n is ScrollStartNotification && n.dragDetails != null) _stop();
+                  if (n is ScrollEndNotification && _tick == null) _start();
+                  return false;
+                },
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse, PointerDeviceKind.trackpad, PointerDeviceKind.stylus},
+                    scrollbars: false,
                   ),
-                  child: WelcomeArt(key: ValueKey(index), kind: s.$1),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 28, WSpace.gutterCaptain, 0),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 400),
-                child: Column(
-                  key: ValueKey('t$index'),
-                  children: [
-                    WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
-                    const SizedBox(height: 10),
-                    WText(s.$3, WType.body, size: 17, color: WColor.secondary, align: TextAlign.center),
-                  ],
+                  child: PageView.builder(
+                    controller: _pages,
+                    itemCount: slides.length,
+                    physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+                    onPageChanged: (i) {
+                      setState(() => index = i);
+                      _start();
+                    },
+                    itemBuilder: (context, i) {
+                      final s = slides[i];
+                      return Column(
+                        children: [
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 8, WSpace.gutterCaptain, 0),
+                              child: WelcomeArt(kind: s.$1),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 28, WSpace.gutterCaptain, 0),
+                            child: Column(
+                              children: [
+                                WText(s.$2, WType.screen, size: 26, align: TextAlign.center),
+                                const SizedBox(height: 10),
+                                WText(s.$3, WType.body, size: 17, color: WColor.secondary, align: TextAlign.center),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 26),
-            TimerDots(count: 3, index: index, progress: progress),
+            // Dots follow the carousel while swiping; the current one fills with the timer.
+            AnimatedBuilder(
+              animation: _pages,
+              builder: (context, _) {
+                final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? index.toDouble()) : index.toDouble();
+                return CarouselDots(count: 3, page: page, progress: _tick == null ? 0 : progress);
+              },
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(WSpace.gutterCaptain, 26, WSpace.gutterCaptain, 0),
               child: Row(

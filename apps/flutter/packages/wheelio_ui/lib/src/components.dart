@@ -1477,6 +1477,49 @@ class TimerDots extends StatelessWidget {
       );
 }
 
+/// Slide dots that track the carousel: the wide pill slides between dots as the page moves,
+/// dots already passed are filled, and the current pill fills up with the auto-advance timer.
+class CarouselDots extends StatelessWidget {
+  const CarouselDots({required this.count, required this.page, required this.progress});
+  final int count;
+  final double page;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = page.round().clamp(0, count - 1);
+    return Semantics(
+      label: 'Slide ${current + 1} of $count',
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < count; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Builder(builder: (context) {
+              // 1 when this dot is the page, 0 when a full page away.
+              final near = (1 - (page - i).abs()).clamp(0.0, 1.0);
+              final width = 8 + 22 * near;
+              final passed = (page - i).clamp(0.0, 1.0); // how far past this dot the carousel is
+              final fill = i == current && (page - current).abs() < 0.02 ? progress : passed;
+              return Container(
+                width: width,
+                height: 8,
+                decoration: BoxDecoration(color: WColor.border, borderRadius: BorderRadius.circular(4)),
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  width: (width * fill).clamp(fill > 0 ? 8.0 : 0.0, width),
+                  height: 8,
+                  decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(4)),
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 /// Page dots (TabView page style). On the web the dots can be tapped.
 class PageDots extends StatelessWidget {
   const PageDots({super.key, required this.count, required this.index, this.light = true, this.onTap});

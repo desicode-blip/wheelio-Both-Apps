@@ -4,6 +4,8 @@
 
 ## 24 October 2026: address by hand (Customer)
 
+- Captain welcome (W00) now uses the same carousel as the Customer welcome: `PageView` with swipe, dots that follow the scroll (`CarouselDots`, moved into `wheelio_ui`), fixed Back / Next / Skip.
+
 - Cancelling (sample app): "Cancel booking" on the Home "Upcoming" card, the Bookings list and the order screen, until the wash starts. No cash refund. Within 15 minutes of booking: 1 free wash. After that: 50% of the booking's value as credit (`Customer.credit`, rupees). Cards show only "Cancel booking"; the sheet states the outcome in one line before confirming ("You get 1 free wash" / "You get ₹75 credit · 50% of ₹149"). After cancelling: toast, notification, a "Booking cancelled" screen, a Home banner for the credit, and the order moves to Past.
 - Credit at checkout: shown only when the customer has credit, as a green card ("₹75 credit · ₹75 off. You pay ₹74.") with a switch, on by default; the total and the amount held use the reduced price. Not combined with a free wash.
 - Free wash at checkout: shown only when the customer has one, as a green card ("You have 1 free wash · Used for this booking. You pay ₹0.") with a switch, on by default. With it on, the button reads "Book with free wash" and skips the payment sheet.
