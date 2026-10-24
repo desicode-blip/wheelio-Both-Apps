@@ -1651,7 +1651,9 @@ class PayMethodSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final price = store.draft.price;
-    return Column(
+    // Scrolls if the phone is short, so the Pay button is never cut off.
+    return SingleChildScrollView(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
@@ -1686,6 +1688,7 @@ class PayMethodSheet extends StatelessWidget {
         const SizedBox(height: 10),
         const WText('Secured by Razorpay. Full refund if no captain comes.', WType.caption, align: TextAlign.center),
       ],
+    ),
     );
   }
 }
