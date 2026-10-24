@@ -779,7 +779,7 @@ class SignUpNudge extends StatelessWidget {
           ),
           center: true,
         ),
-        const Spacer(),
+        const SizedBox(height: 28),
         WButton(
           store.t('Sign up', 'साइन अप करें', 'సైన్ అప్'),
           size: ButtonSize.captain,

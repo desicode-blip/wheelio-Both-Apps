@@ -547,7 +547,9 @@ class WBottomNav extends StatelessWidget {
 
 // MARK: - Sheets, alerts, menus
 
-/// Present a Wheelio bottom sheet sized to a height (detent), with a grab handle.
+/// Present a Wheelio bottom sheet with a grab handle. The sheet grows to fit its content
+/// (never cutting it off), up to 90% of the screen; taller content scrolls.
+/// [height] is kept for older call sites and is only the minimum height.
 Future<T?> showWSheet<T>(BuildContext context, {required double height, required WidgetBuilder builder, double gutter = WSpace.gutter}) {
   return showModalBottomSheet<T>(
     context: context,
@@ -557,13 +559,13 @@ Future<T?> showWSheet<T>(BuildContext context, {required double height, required
     barrierColor: WColor.scrim,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(WRadius.sheet))),
     clipBehavior: Clip.antiAlias,
-    builder: (c) => SizedBox(
-      height: height + MediaQuery.paddingOf(c).bottom,
+    builder: (c) => ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(c).height * 0.9),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 8 + MediaQuery.paddingOf(c).bottom),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12 + MediaQuery.paddingOf(c).bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Center(child: Container(width: 36, height: 4, margin: const EdgeInsets.only(top: 10, bottom: 14), decoration: BoxDecoration(color: WColor.grab, borderRadius: BorderRadius.circular(2)))),
-          Expanded(child: builder(c)),
+          Flexible(child: SingleChildScrollView(child: builder(c))),
         ]),
       ),
     ),
