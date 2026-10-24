@@ -16,9 +16,17 @@ const active = ['searching', 'onTheWay', 'washing', 'photosReady', 'disputed'];
 const id = (value, label = 'reference') => text(value, 1, 100, label).match(/^[A-Za-z0-9_-]+$/)?.[0] || fail('invalid-argument', `Invalid ${label}.`);
 const dateMillis = value => value?.toMillis?.() ?? (typeof value === 'number' ? value : 0);
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 32);
+// Preserve historical test slot keys; live capacity uses a separate namespace.
+const capacityKey=(society,day,hour,mode)=>hash(`${mode==='live'?'live:':''}${society}:${day}:${hour}`);
 
 export class WheelioService {
-  constructor({ db, payments, evidence, now = () => Date.now() }) { Object.assign(this, { db, payments, evidence, now }); }
+  constructor({ db, payments, paymentProviders, evidence, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, now }); }
+  getPayments(mode) {
+    const provider=this.paymentProviders?.[mode]??this.payments;
+    const actual=provider?.keyId?.startsWith('rzp_live_')?'live':provider?.keyId?.startsWith('rzp_test_')?'test':null;
+    if(!['test','live'].includes(mode)||actual!==mode)fail('failed-precondition','Payments are not configured for this booking. Contact support.');
+    return provider;
+  }
   actor(auth) {
     if (!auth?.uid) fail('unauthenticated', 'Log in to continue.');
     if (!/^\+91[6-9]\d{9}$/.test(auth.token?.phone_number ?? '')) fail('permission-denied', 'Verify your mobile number before continuing.');
@@ -58,7 +66,7 @@ export class WheelioService {
     const slots=await Promise.all((cfg.slotWindows??[]).map(async w=>{
       const count=captains.docs.filter(c=>c.id!==_auth?.uid&&c.data().paymentMode===cfg.paymentMode&&worksWindow(c.data(),w)).length;
       const capacity=Math.min(count,Number.isInteger(cfg.capacityPerSlot)?cfg.capacityPerSlot:count);
-      const ref=this.db.doc(`slotCapacity/${hash(`${societyId}:${data.day}:${w.startHour}`)}`),reserved=(await ref.get()).data()?.reserved??0;
+      const ref=this.db.doc(`slotCapacity/${capacityKey(societyId,data.day,w.startHour,cfg.paymentMode)}`),reserved=(await ref.get()).data()?.reserved??0;
       return {...w,available:!!cfg.bookingsEnabled&&reserved<capacity&&day+w.endHour*3600000>this.now()};
     }));
     return {slots, multipleWindows: true};
@@ -127,7 +135,7 @@ export class WheelioService {
           fail('already-exists', 'Finish or cancel your pending payment before starting another booking.');
       }
       const captains = await tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',societyId));
-      const slots = await Promise.all(windows.map(w => tx.get(this.db.doc(`slotCapacity/${hash(`${societyId}:${data.day}:${w.startHour}`)}`))));
+      const slots = await Promise.all(windows.map(w => tx.get(this.db.doc(`slotCapacity/${capacityKey(societyId,data.day,w.startHour,config.paymentMode)}`))));
       const availableIndex = windows.findIndex((w,i) => {
         const available = captains.docs.filter(c => c.id !== uid && c.data().paymentMode === config.paymentMode && worksWindow(c.data(), w)).length;
         return (slots[i].data()?.reserved ?? 0) < Math.min(available, Number.isInteger(config.capacityPerSlot) ? config.capacityPerSlot : available);
@@ -200,37 +208,37 @@ export class WheelioService {
       await this.dispatch(bookingId);
       return {bookingId,paid:true};
     }
-    if ((this.payments.keyId.startsWith('rzp_live_') ? 'live' : 'test') !== order.paymentMode) fail('failed-precondition', 'Payment configuration changed. Please create a new booking.');
+    const payments=this.getPayments(order.paymentMode);
     let providerId = order.razorpayOrderId;
     if (!providerId) {
-      const created = await this.payments.createOrder({ amount: order.pricePaise, receipt: order.ref, bookingId });
+      const created = await payments.createOrder({ amount: order.pricePaise, receipt: order.ref, bookingId });
       if (!created.id || created.amount !== order.pricePaise || created.currency !== 'INR') fail('internal', 'Checkout could not be prepared.');
       await this.db.runTransaction(async tx => {
         const latest = (await tx.get(ref)).data();
         if (latest.checkoutLease !== lease || latest.status !== 'pendingPayment') fail('aborted', 'Booking changed while preparing payment.');
         tx.update(ref, { razorpayOrderId: created.id, nextPaymentCheckAt: Timestamp.fromMillis(this.now()+120000), checkoutLeaseUntil: Timestamp.fromMillis(0), updatedAt: stamp() });
-        tx.set(this.db.doc(`paymentOrders/${created.id}`), { bookingId });
+        tx.set(this.db.doc(`paymentOrders/${created.id}`), { bookingId, paymentMode:order.paymentMode });
       });
       providerId = created.id;
     }
-    return { bookingId, keyId: this.payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'Wheelio', testMode: order.paymentMode === 'test' };
+    return { bookingId, keyId: payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'Wheelio', testMode: order.paymentMode === 'test' };
   }
   async verifyPayment(auth, data) {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
     if (!order || order.customerId !== uid) fail('permission-denied', 'This booking is not yours.');
-    const paymentId = id(data.paymentId, 'payment');
-    if (data.orderId !== order.razorpayOrderId || !this.payments.verify({ orderId: order.razorpayOrderId, paymentId, signature: data.signature }))
+    const paymentId = id(data.paymentId, 'payment'),payments=this.getPayments(order.paymentMode);
+    if (data.orderId !== order.razorpayOrderId || !payments.verify({ orderId: order.razorpayOrderId, paymentId, signature: data.signature }))
       fail('permission-denied', 'Payment verification failed.');
-    const payment = await this.payments.payment(paymentId);
-    await this.capturePayment(payment);
+    const payment = await payments.payment(paymentId);
+    await this.capturePayment(payment,order.paymentMode);
     const latest = (await this.db.doc(`orders/${bookingId}`).get()).data();
     return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus };
   }
   async reconcilePayment(bookingId) {
     const ref=this.db.doc(`orders/${id(bookingId)}`),o=(await ref.get()).data();
     if(!o?.razorpayOrderId||o.paymentStatus==='captured')return;
-    const result=await this.payments.orderPayments(o.razorpayOrderId);
-    for(const p of result.items??[])if(p.status==='captured')await this.capturePayment(p);
+    const result=await this.getPayments(o.paymentMode).orderPayments(o.razorpayOrderId);
+    for(const p of result.items??[])if(p.status==='captured')await this.capturePayment(p,o.paymentMode);
     // Reconcile lost browser callbacks/webhooks without creating payments.
     // Stop polling after two days; signed webhooks and owner checks still work.
     const fresh=(await ref.get()).data();
@@ -240,8 +248,8 @@ export class WheelioService {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
     if (!order || order.customerId !== uid) fail('permission-denied', 'This booking is not yours.');
     if (order.razorpayOrderId && order.paymentStatus !== 'captured') {
-      const payments = await this.payments.orderPayments(order.razorpayOrderId);
-      for (const payment of payments.items ?? []) if (payment.status === 'captured') await this.capturePayment(payment);
+      const payments = await this.getPayments(order.paymentMode).orderPayments(order.razorpayOrderId);
+      for (const payment of payments.items ?? []) if (payment.status === 'captured') await this.capturePayment(payment,order.paymentMode);
     }
     if (order.status === 'cancelled' && order.paymentStatus === 'captured') {
       // Customer checks can fetch an existing refund, never bypass POST retry
@@ -252,15 +260,32 @@ export class WheelioService {
     const latest = (await this.db.doc(`orders/${bookingId}`).get()).data();
     return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus, refundStatus: latest.refundStatus ?? 'none' };
   }
-  async captureWebhookPayment(paymentId) {
-    const payment = await this.payments.payment(id(paymentId));
+  async captureWebhookPayment(paymentId,mode='test',hintOrderId=null) {
+    // A signed hint can rule out unrelated merchant traffic before an API call;
+    // it never proves payment. Known orders are fetched and verified below.
+    if(hintOrderId) {
+      const mapping=(await this.db.doc(`paymentOrders/${id(hintOrderId)}`).get()).data();
+      if(!mapping)return {ignored:true};
+      if(mapping.paymentMode && mapping.paymentMode!==mode)fail('permission-denied','Payment mode does not match.');
+    }
+    const payment = await this.getPayments(mode).payment(id(paymentId));
     // The merchant is shared with Trustkeyper. A signed merchant event alone
     // does not make its order a Wheelio booking; acknowledge unrelated events.
     if (!payment?.order_id || !(await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).exists) return { ignored: true };
-    await this.capturePayment(payment);
+    await this.capturePayment(payment,mode);
     return { ignored: false };
   }
-  async capturePayment(payment) {
+  async refundWebhook(refund,mode='test') {
+    const pending=await this.db.collection('refunds').where('providerRefundId','==',id(refund.id,'refund')).limit(1).get();
+    if(pending.empty)return {ignored:true};
+    const record=pending.docs[0],expected=record.data();
+    const order=(await this.db.doc(`orders/${record.id}`).get()).data();
+    if(order?.paymentMode!==mode || refund.payment_id!==expected.paymentId || refund.amount!==expected.amount)
+      fail('permission-denied','Refund does not match this booking.');
+    await this.applyRefund(record.id,await this.getPayments(mode).fetchRefund(refund.id));
+    return {ignored:false};
+  }
+  async capturePayment(payment,mode='test') {
     if (payment.status !== 'captured') return;
     const mapping = (await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).data();
     if (!mapping) fail('not-found', 'Unknown payment order.');
@@ -268,7 +293,7 @@ export class WheelioService {
     await this.db.runTransaction(async tx => {
       const [s, cfg] = await Promise.all([tx.get(ref), tx.get(this.db.doc('config/operations'))]);
       const o = s.data();
-      if (!o || payment.order_id !== o.razorpayOrderId || payment.amount !== o.pricePaise || payment.currency !== o.currency)
+      if (!o || o.paymentMode!==mode || payment.order_id !== o.razorpayOrderId || payment.amount !== o.pricePaise || payment.currency !== o.currency)
         fail('permission-denied', 'Payment amount or order does not match.');
       if (o.paymentStatus === 'captured') {
         if (o.razorpayPaymentId !== payment.id) fail('already-exists', 'This booking already has a captured payment.');
@@ -281,7 +306,7 @@ export class WheelioService {
   async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay') {
     const windows = o.requestedWindows ?? [{startHour:o.startHour,endHour:o.endHour}];
     const [slots,captains,wallet] = await Promise.all([
-      Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${hash(`${o.societyId}:${o.day}:${w.startHour}`)}`)))),
+      Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${capacityKey(o.societyId,o.day,w.startHour,o.paymentMode)}`)))),
       tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId)),
       tx.get(this.walletRef(o.customerId,o.paymentMode)),
     ]);
@@ -333,7 +358,7 @@ export class WheelioService {
       // available exclusively to the captain who wins the claim transaction.
       tx.set(offerRef, { orderId: bookingId, captainId: c.id, societyId: o.societyId, societyName: o.societyName, area: o.area,
         vehicleKind: o.vehicleKind, vehicleName: o.vehicleName, washKind: o.washKind, captainPayPaise: o.captainPayPaise,
-        slotStart: o.slotStart, slotEnd: o.slotEnd, status: 'pending', expiresAt: Timestamp.fromMillis(this.now()+seconds*1000), createdAt: stamp() });
+        paymentMode:o.paymentMode, slotStart: o.slotStart, slotEnd: o.slotEnd, status: 'pending', expiresAt: Timestamp.fromMillis(this.now()+seconds*1000), createdAt: stamp() });
     })));
   }
   async advanceWindow(ref) {
@@ -346,7 +371,7 @@ export class WheelioService {
         tx.get(this.db.doc('config/operations')),
         tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId)),
         tx.get(this.db.doc(`slotCapacity/${o.slotKey}`)),
-        Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${hash(`${o.societyId}:${o.day}:${w.startHour}`)}`)))),
+        Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${capacityKey(o.societyId,o.day,w.startHour,o.paymentMode)}`)))),
         tx.get(this.db.collection('jobOffers').where('orderId','==',ref.id)),
       ]);
       const i=windows.findIndex((w,i)=>{
@@ -458,7 +483,7 @@ export class WheelioService {
       else if(action==='noteHeard'&&active.includes(o.status))update.noteHeard=true;
       else fail('failed-precondition','This action is not available at the current wash stage.');
       tx.update(ref,update); this.event(tx,ref,action,{status:update.status??o.status,captainId:uid});
-      if(action==='finish')tx.set(this.db.doc(`earnings/${orderId}`),{captainId:uid,orderId,amount:o.captainPayPaise,status:'awaitingApproval',createdAt:stamp(),updatedAt:stamp()});
+      if(action==='finish')tx.set(this.db.doc(`earnings/${orderId}`),{captainId:uid,orderId,paymentMode:o.paymentMode,amount:o.captainPayPaise,status:'awaitingApproval',createdAt:stamp(),updatedAt:stamp()});
     });
     return {ok:true};
   }
@@ -527,7 +552,7 @@ export class WheelioService {
       const c=await tx.get(this.db.doc(`captains/${o.captainId}`));
       tx.update(ref,{status:'approved',approvedAt:stamp(),updatedAt:stamp()});
       tx.update(c.ref,{completedWashes:(c.data()?.completedWashes??0)+1,activeJobCount:Math.max(0,(c.data()?.activeJobCount??1)-1),updatedAt:stamp()});
-      tx.set(this.db.doc(`earnings/${orderId}`),{captainId:o.captainId,orderId,amount:o.captainPayPaise,status:'approved',updatedAt:stamp()},{merge:true});
+      tx.set(this.db.doc(`earnings/${orderId}`),{captainId:o.captainId,orderId,paymentMode:o.paymentMode,amount:o.captainPayPaise,status:'approved',updatedAt:stamp()},{merge:true});
       this.event(tx,ref,'customerApproved',{status:'approved'});
     });
     return {ok:true};
@@ -664,9 +689,11 @@ export class WheelioService {
       tx.update(ref,{status:'processed',leaseUntil:Timestamp.fromMillis(0),nextAttemptAt:FieldValue.delete(),updatedAt:stamp()});
       tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:'processed',refundIssue:FieldValue.delete(),refundAmountPaise:0,updatedAt:stamp()});});return;}
     try {
+      const order=(await this.db.doc(`orders/${bookingId}`).get()).data();
+      const payments=this.getPayments(order?.paymentMode??'test');
       const request={paymentId:data.paymentId,amount:data.amount,refundId:`wh_${bookingId}`};
-      const refund=data.providerRefundId ? await this.payments.fetchRefund(data.providerRefundId)
-        : await this.payments.findRefund(request) ?? await this.payments.refund(request);
+      const refund=data.providerRefundId ? await payments.fetchRefund(data.providerRefundId)
+        : await payments.findRefund(request) ?? await payments.refund(request);
       await this.applyRefund(bookingId,refund,lease);
     } catch(error) {
       const rejected=error instanceof PaymentProviderError && error.status>=400 && error.status<500 && ![409,429].includes(error.status);

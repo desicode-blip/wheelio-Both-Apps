@@ -4,7 +4,9 @@ The latest `staging` source was pulled at `9e49461`. Flutter iPhone builds now s
 
 Firebase iOS apps were registered for the existing Customer/Captain bundle IDs. Native options and Auth return schemes are committed. No raw Xcode project changes or Android platform generation were performed. The owner will build and test on their Mac; Windows cannot confirm Xcode signing, physical camera, UPI app switching, GPS or APNs delivery. Read [IOS-FIREBASE.md](IOS-FIREBASE.md) for build commands, acceptance steps and precise remaining setup.
 
-Razorpay activation remains pending merchant mobile verification and live-secret recovery. A fresh merchant OTP has now been requested after the owner obtained the registered phone; verification is pending. Existing test payments, refunds and Trustkeyper settings are preserved. Cancellation terms stay server-configured; this task does not approve new commercial policies or invent trip fees/payouts.
+Razorpay activation remains pending merchant mobile verification and live-secret recovery. The owner asked to leave the OTP popup open and will resend when the phone is available again. Existing test payments, refunds and Trustkeyper settings are preserved. Cancellation terms stay server-configured; this task does not approve new commercial policies or invent trip fees/payouts.
+
+The payment-mode follow-up archives verified test credentials in Secret Manager, routes historical payment/refund checks by each booking's mode, and provides a separate signed live-webhook endpoint without enabling real charges. Test capacity keeps its historical keys and cannot consume live slots. Orders/offers/earnings retain explicit test labels; legacy earnings default to test. Cancelled checkout outcomes now open the server cancellation/refund details, including after Check again.
 
 # Flutter apps (Customer and Captain)
 
@@ -12,10 +14,11 @@ Razorpay activation remains pending merchant mobile verification and live-secret
 
 ## Verification and publication — 24 October 2026
 
-- All **52** backend, security-rule, payment-adapter and notification tests passed in the local Firebase emulators. **5** Customer tests and **5** shared native login/checkout tests passed.
+- All **57** backend, security-rule, payment-adapter and notification tests passed in the local Firebase emulators. **8** Customer tests and **5** shared native login/checkout tests passed. The additions cover cutover with historical test captures/refunds, independent capacity, wrong-mode events, shared-merchant isolation and cancelled-checkout navigation.
 - `flutter analyze` passed with no issues for Customer, Captain, `wheelio_firebase` and `wheelio_ui`. Both release web builds passed. Both iOS plist files and shell-script syntax were checked; these checks do not compile an iPhone binary.
 - Firebase rules/indexes and backend code were published, including the scheduled booking-expiry update. Initial CLI IAM setup for the eight new callables hit the existing organization restriction. The documented `configure-api-access` operation completed without changing that policy; all eight endpoints then returned authenticated-service `401 UNAUTHENTICATED` responses to anonymous requests. Test Razorpay authentication and signed/invalid webhook checks passed, with no payment created.
 - Firebase Hosting was published for Customer and Captain. Customer startup and server catalog rendered in the browser without console errors. Native hardware and Apple push acceptance remain pending on the owner's Mac.
+- The payment-mode follow-up was also published to Functions and Hosting. All 25 protected callables rejected anonymous calls with `401 UNAUTHENTICATED`; public availability returned `200`. Both test and separate live webhook endpoints accepted signed no-op setup events (`200`) and rejected invalid signatures (`401`). The API gateway configuration completed with the organization policy unchanged. Razorpay authenticated in test mode; no payment or booking was created by these deployment checks. Both hosted app startups rendered with no console warnings/errors. Live merchant registration and OTP verification remain pending.
 
 ## 24 October 2026: Captain app follows the new customer features
 

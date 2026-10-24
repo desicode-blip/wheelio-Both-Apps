@@ -472,10 +472,12 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
     ]),
     for (final o in offers)
       if (o['status'] == 'pending' &&
+          (o['paymentMode'] ?? 'test') == captain['paymentMode'] &&
           (o['expiresAt']?.toDate() as DateTime?)?.isAfter(DateTime.now()) ==
               true &&
           captain['online'] == true)
         card([
+          if ((o['paymentMode'] ?? 'test') == 'test') const WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee),
           WText(
             'New ${o['vehicleName']} wash · ${money(o['captainPayPaise'])}',
             WType.section,
@@ -507,6 +509,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
       ),
     for (final o in orders.where((o)=>(o['slotStart'].toDate() as DateTime).isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1))))
       card([
+        if ((o['paymentMode'] ?? 'test') == 'test') const WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee),
         WText('${o['plate']} · ${money(o['captainPayPaise'])}', WType.title),
         WText(window(o), WType.caption),
         WText('${o['societyName']} · ${o['status']=='cancelled' ? 'Cancelled by owner · stop work' : label(o['status'])}', WType.body),
@@ -516,6 +519,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
       ]),
     if (orders.any((o)=>(o['slotStart'].toDate() as DateTime).isAfter(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1)))) const WTitleBlock('Coming up'),
     for (final o in orders.where((o)=>!(o['slotStart'].toDate() as DateTime).isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1)))) card([
+      if ((o['paymentMode'] ?? 'test') == 'test') const WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee),
       WText('${o['plate']} · ${label(o['status'])}', WType.title), WText('${o['day']} · ${window(o)}', WType.body),
       button('View booking', () async { setState(()=>selected=o['id']); }, secondary:true),
     ]),
@@ -529,6 +533,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
     if (earnings.isEmpty) const WText('No earnings yet.', WType.body),
     for (final e in earnings)
       card([
+        WBadge((e['paymentMode'] ?? 'test') == 'test' ? 'Test earnings · no real payout' : 'Live earnings', tone: (e['paymentMode'] ?? 'test') == 'test' ? Tone.wait : Tone.info, icon: WIcon.rupee),
         WText(money(e['amount']), WType.section),
         WText(label(e['status']), WType.body),
         WText('Booking ${e['orderId']}', WType.caption),
@@ -545,6 +550,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
     final after = status == 'washing', stage = after ? 'after' : 'before';
     final windowOpen = !(o['slotStart'].toDate() as DateTime).isAfter(DateTime.now());
     return [
+      if ((o['paymentMode'] ?? 'test') == 'test') const WBadge('Test booking · no real payout', tone: Tone.wait, icon: WIcon.rupee),
       WTitleBlock(
         o['plate'],
         subtitle: '${o['vehicleName']} · ${status == 'onTheWay' && o['arrivedAt'] != null ? 'Arrived' : label(status)}',

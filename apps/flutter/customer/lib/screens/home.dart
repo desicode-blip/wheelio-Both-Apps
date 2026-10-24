@@ -308,6 +308,7 @@ class _HomeTabState extends State<HomeTab> {
                               StatusBadge(a.status, slotAhead: a.slotAhead),
                             ],
                           ),
+                          if (a.testPayment) const Padding(padding: EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee))),
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -470,6 +471,7 @@ class _BookingsTabState extends State<BookingsTab> {
                                   StatusBadge(o.status, slotAhead: o.slotAhead),
                                 ],
                               ),
+                              if (o.testPayment) const Padding(padding: EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee))),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
@@ -527,6 +529,7 @@ class BookingDetailScreen extends StatelessWidget {
       ),
       children: [
         const SizedBox(height: 14),
+        if (o.testPayment) const Padding(padding: EdgeInsets.only(bottom: 8), child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee)),
         Row(
           children: [
             StatusBadge(o.status),

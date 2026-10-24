@@ -345,9 +345,7 @@ class _PayingScreenState extends State<PayingScreen> {
       outcome = PaymentOutcome.failed;
     }
     if (!mounted) return;
-    if (outcome == PaymentOutcome.success) {
-      router.replace(const [R(N.booked)]);
-    } else {
+    if (!_openResolvedBooking(store, router, outcome)) {
       setState(() => view = outcome == PaymentOutcome.failed ? PayView.failed : PayView.pending);
     }
   }
@@ -357,14 +355,26 @@ class _PayingScreenState extends State<PayingScreen> {
     setState(() => checking = true);
     try {
       final outcome = await store.checkPendingPayment();
-      if (outcome == PaymentOutcome.success) {
-        router.replace(const [R(N.booked)]);
-      }
+      if (!mounted) return;
+      _openResolvedBooking(store, router, outcome);
     } catch (e) {
       store.set(() => store.toast = backendError(e));
     }
     if (!mounted) return;
     setState(() => checking = false);
+  }
+
+  bool _openResolvedBooking(AppStore store, AppRouter router, PaymentOutcome outcome) {
+    final order = store.currentOrder;
+    if (store.isLive && order?.status == OrderStatus.cancelled) {
+      router.replace([R(N.live, id: order!.id)]);
+      return true;
+    }
+    if (outcome == PaymentOutcome.success) {
+      router.replace(const [R(N.booked)]);
+      return true;
+    }
+    return false;
   }
 
   @override

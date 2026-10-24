@@ -930,12 +930,7 @@ class AppStore extends ChangeNotifier {
       }
       }
       final paid = await live!.pay(bookingId);
-      final fresh = await live!.db.doc('orders/$bookingId').get();
-      if (fresh.exists) {
-        orders.removeWhere((o) => o.id == bookingId);
-        orders.insert(0, _liveOrder(bookingId, fresh.data()!));
-        changed();
-      }
+      await _refreshLiveOrder(bookingId);
       return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }
     final d = draft;
@@ -989,12 +984,21 @@ class AppStore extends ChangeNotifier {
       final id = draftBookingId ?? currentOrderId;
       if (id == null) throw StateError('No pending payment.');
       final result = await live!.call('checkPayment', {'bookingId': id});
+      await _refreshLiveOrder(id);
       return result['paymentStatus'] == 'captured' && result['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }
     await _latency(1200);
     demo.payment = PaymentOutcome.success;
     if (currentOrderId != null) _startLifecycle(currentOrderId!);
     return PaymentOutcome.success;
+  }
+
+  Future<void> _refreshLiveOrder(String id) async {
+    final fresh = await live!.db.doc('orders/$id').get();
+    if (!fresh.exists) return;
+    orders.removeWhere((o) => o.id == id);
+    orders.insert(0, _liveOrder(id, fresh.data()!));
+    changed();
   }
 
   Future<bool> _steps(WTask job, double n) async {

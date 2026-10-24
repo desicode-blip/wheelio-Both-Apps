@@ -103,6 +103,10 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
             else if (o == null)
               const WTitleBlock('Booking not found')
             else ...[
+              if ((o['paymentMode'] ?? 'test') == 'test') ...[
+                const WBadge('Test booking · no real payment', tone: Tone.wait, icon: WIcon.rupee),
+                const Gap(12),
+              ],
               WTitleBlock(upcoming ? 'Booked' : switch (status) {
                 'pendingPayment' => 'Complete your payment',
                 'searching' => 'Finding a captain',

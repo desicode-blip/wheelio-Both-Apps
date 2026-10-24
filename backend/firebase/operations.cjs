@@ -24,8 +24,34 @@ async function main() {
     if(!response.ok)throw Error(`Secret access failed (${response.status}).`);
     return Buffer.from((await response.json()).payload.data,'base64').toString();
   }
+  async function ensureSecret(name,plain) {
+    // Never overwrite an existing archived key or write credentials to disk.
+    const url=`https://secretmanager.googleapis.com/v1/projects/wheelio-apps/secrets/${name}`;
+    let response=await fetch(url,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(20000)});
+    if(response.status===404){
+      response=await fetch(`https://secretmanager.googleapis.com/v1/projects/wheelio-apps/secrets?secretId=${encodeURIComponent(name)}`,{method:'POST',headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({replication:{automatic:{}}}),signal:AbortSignal.timeout(20000)});
+      if(!response.ok)throw Error(`Could not create ${name} (${response.status}).`);
+    }else if(!response.ok)throw Error(`Could not inspect ${name} (${response.status}).`);
+    const existing=await fetch(url+'/versions/latest:access',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(20000)});
+    if(existing.ok)return false;
+    if(existing.status!==404)throw Error(`Could not verify ${name} (${existing.status}).`);
+    response=await fetch(url+':addVersion',{method:'POST',headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({payload:{data:Buffer.from(plain).toString('base64')}}),signal:AbortSignal.timeout(20000)});
+    if(!response.ok)throw Error(`Could not save ${name} (${response.status}).`);
+    return true;
+  }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-test') {
+  if(command==='prepare-payment-modes') {
+    const [key,credential]=await Promise.all([secret('RAZORPAY_KEY_ID'),secret('RAZORPAY_KEY_SECRET')]);
+    if(!key.startsWith('rzp_test_'))throw Error('Preserve the verified historical test pair before changing the current keys to live.');
+    const verify=await fetch('https://api.razorpay.com/v1/orders?count=1',{headers:{Authorization:`Basic ${Buffer.from(`${key}:${credential}`).toString('base64')}`},signal:AbortSignal.timeout(20000)});
+    if(!verify.ok)throw Error(`Existing test credentials did not authenticate (${verify.status}).`);
+    await ensureSecret('RAZORPAY_TEST_KEY_ID',key);
+    await ensureSecret('RAZORPAY_TEST_KEY_SECRET',credential);
+    const archivedKey=await secret('RAZORPAY_TEST_KEY_ID'),archivedCredential=await secret('RAZORPAY_TEST_KEY_SECRET');
+    if(archivedKey!==key||archivedCredential!==credential)throw Error('Archived test credentials differ. Review before changing any key.');
+    await ensureSecret('RAZORPAY_LIVE_WEBHOOK_SECRET',require('node:crypto').randomBytes(32).toString('hex'));
+    console.log('Preserved the verified test credentials and prepared a separate live webhook secret. No merchant key or payment mode changed; no charges created.');
+  } else if(command==='configure-test') {
     const config=JSON.parse(readFileSync(path.join(__dirname,'operations.test.json'),'utf8'));
     await api('/config/operations','PATCH',{fields:fields(config)});
     console.log('Configured Wheelio test payments, catalog and societies. No captains were fabricated or approved.');
@@ -44,7 +70,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook'];
+    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook'];
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;
@@ -71,9 +97,9 @@ async function main() {
     const response=await fetch('https://api.razorpay.com/v1/orders?count=1',{headers:{Authorization:`Basic ${Buffer.from(`${key}:${credential}`).toString('base64')}`},signal:AbortSignal.timeout(20000)});
     if(!response.ok)throw Error(`Razorpay authentication failed (${response.status}).`);
     console.log(JSON.stringify({razorpayAuthenticated:true,mode:key.startsWith('rzp_live_')?'live':'test',chargesCreated:0}));
-  } else if(command==='check-webhook') {
-    const {createHmac}=require('node:crypto'),key=await secret('RAZORPAY_WEBHOOK_SECRET'),body=JSON.stringify({event:'wheelio.setup_check'});
-    const url='https://asia-south1-wheelio-apps.cloudfunctions.net/razorpayWebhook';
+  } else if(command==='check-webhook'||command==='check-live-webhook') {
+    const {createHmac}=require('node:crypto'),key=await secret(command==='check-live-webhook'?'RAZORPAY_LIVE_WEBHOOK_SECRET':'RAZORPAY_WEBHOOK_SECRET'),body=JSON.stringify({event:'wheelio.setup_check'});
+    const url='https://asia-south1-wheelio-apps.cloudfunctions.net/'+(command==='check-live-webhook'?'razorpayLiveWebhook':'razorpayWebhook');
     const good=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Razorpay-Signature':createHmac('sha256',key).update(body).digest('hex')},body,signal:AbortSignal.timeout(20000)});
     const bad=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Razorpay-Signature':'0'.repeat(64)},body,signal:AbortSignal.timeout(20000)});
     if(good.status!==200||bad.status!==401)throw Error(`Webhook checks failed (${good.status}/${bad.status}).`);
@@ -92,6 +118,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Review identity and bank proof in Firebase Console before approval.');
+  } else throw Error('Commands: prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Review identity and bank proof in Firebase Console before approval.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

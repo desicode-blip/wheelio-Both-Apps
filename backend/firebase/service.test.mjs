@@ -88,8 +88,10 @@ test('wash lifecycle requires assigned captain, arrival and four uploaded photos
   for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...d,stage:'after',side});
   await service.progress(auth('captain1'),{...d,action:'finish'});
   assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().status,'awaitingApproval');
+  assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().paymentMode,'test');
   await assert.rejects(service.approve(auth('captain1'),d),{code:'permission-denied'});
   await service.approve(customer,d);await service.approve(customer,d);
+  assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().paymentMode,'test');
   assert.equal((await db.doc('captains/captain1').get()).data().completedWashes,1);
   await service.rate(customer,{...d,stars:5});await assert.rejects(service.rate(customer,{...d,stars:1}),{code:'already-exists'});
 });
@@ -183,6 +185,82 @@ test('scheduled reconciliation recovers a lost checkout callback',async()=>{
   provider.payments.set('pay_recover',{id:'pay_recover',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'});
   await service.reconcilePayment(b.bookingId);await service.reconcilePayment(b.bookingId);
   const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.status,'searching');assert.equal(o.nextPaymentCheckAt,undefined);
+});
+
+test('historical test callbacks and refunds keep their original credentials after live cutover',async()=>{
+  const b=await service.createBooking(customer,input()),c=await service.checkout(customer,b);
+  provider.payments.set('pay_before_cutover',{id:'pay_before_cutover',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'});
+  const live={keyId:'rzp_live_fake',async orderPayments(){assert.fail('Test reconciliation used live keys');},async refund(){assert.fail('Test refund used live keys');}};
+  service.paymentProviders={test:provider,live};service.payments=live;
+  await db.doc('config/operations').update({paymentMode:'live'});
+  await service.reconcilePayment(b.bookingId);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().status,'searching');
+  await service.cancel(customer,{orderId:b.bookingId});
+  await service.processRefund(b.bookingId);
+  assert.equal(provider.refundCalls,1);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'processed');
+});
+
+test('a test reservation cannot consume live capacity and historical test slot keys stay valid',async()=>{
+  await db.doc('config/operations').update({capacityPerSlot:1});
+  const b=await paid(),old=(await db.doc(`orders/${b.bookingId}`).get()).data();
+  assert.equal((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.find(s=>s.startHour===8).available,false);
+  const {createHash}=await import('node:crypto');
+  assert.equal(old.slotKey,createHash('sha256').update('soc_avatar:2026-11-01:8').digest('hex').slice(0,32));
+  const live={...provider,keyId:'rzp_live_fake',payments:new Map()};
+  service.paymentProviders={test:provider,live};service.payments=live;
+  await db.doc('captains/captain2').update({paymentMode:'live'});
+  await db.doc('config/operations').update({paymentMode:'live'});
+  assert.equal((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.find(s=>s.startHour===8).available,true);
+  const next=await service.createBooking(customer,input('live-request')),checkout=await service.checkout(customer,next);
+  assert.equal(checkout.keyId,'rzp_live_fake');assert.equal(checkout.testMode,false);
+  const capture={id:'pay_live',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};
+  live.payments.set(capture.id,capture);
+  await service.captureWebhookPayment(capture.id,'live',checkout.orderId);
+  const current=(await db.doc(`orders/${next.bookingId}`).get()).data();
+  assert.notEqual(current.slotKey,old.slotKey);
+  for(const key of [old.slotKey,current.slotKey])assert.equal((await db.doc(`slotCapacity/${key}`).get()).data().reserved,1);
+  const offers=(await db.collection('jobOffers').where('orderId','==',next.bookingId).get()).docs;
+  assert.equal(offers.length,1);assert.equal(offers[0].data().paymentMode,'live');assert.equal(offers[0].data().captainId,'captain2');
+  await assert.rejects(service.claim(auth('captain1'),{orderId:next.bookingId}),{code:'permission-denied'});
+  await service.cancel(customer,{orderId:b.bookingId});
+  assert.equal((await db.doc(`slotCapacity/${current.slotKey}`).get()).data().reserved,1);
+});
+
+test('wrong-mode captures and unconfigured live checkout cannot use test keys',async()=>{
+  const b=await service.createBooking(customer,input()),c=await service.checkout(customer,b);
+  const capture={id:'pay_wrong_mode',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'};
+  await assert.rejects(service.capturePayment(capture,'live'),{code:'permission-denied'});
+  provider.payments.set(capture.id,capture);
+  await assert.rejects(service.captureWebhookPayment(capture.id,'live',c.orderId),{code:'permission-denied'});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().paymentStatus,'unpaid');
+  assert.throws(()=>service.getPayments('live'),{code:'failed-precondition'});
+  await service.cancel(customer,{orderId:b.bookingId});
+  await db.doc('config/operations').update({paymentMode:'live'});
+  await db.doc('captains/captain1').update({paymentMode:'live'});
+  const liveBooking=await service.createBooking(customer,input('missing-live-keys'));
+  await assert.rejects(service.checkout(customer,liveBooking),{code:'failed-precondition'});
+  assert.equal(counter,1);
+});
+
+test('unrelated shared-merchant live events need no provider access',async()=>{
+  assert.deepEqual(await service.captureWebhookPayment('pay_other_live','live','order_other_live'),{ignored:true});
+  assert.deepEqual(await service.refundWebhook({id:'rfnd_other_live'},'live'),{ignored:true});
+  assert.equal((await db.collection('orders').get()).size,0);
+});
+
+test('refund webhooks reject the wrong environment and verify through the archived test provider',async()=>{
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});
+  provider.refund=async({paymentId,amount})=>({id:'rfnd_mode',payment_id:paymentId,amount,status:'pending'});
+  await service.processRefund(b.bookingId);
+  const result={id:'rfnd_mode',payment_id:b.payment.id,amount:14900,status:'processed'};
+  provider.fetchRefund=async()=>result;
+  const live={keyId:'rzp_live_fake',async fetchRefund(){assert.fail('Test refund webhook used live keys');}};
+  service.paymentProviders={test:provider,live};service.payments=live;
+  await assert.rejects(service.refundWebhook(result,'live'),{code:'permission-denied'});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'submitted');
+  assert.deepEqual(await service.refundWebhook(result,'test'),{ignored:false});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'processed');
 });
 test('live location belongs to the assigned active captain and throttles rapid updates',async()=>{
   const b=await paid(),data={orderId:b.bookingId,latitude:17.385,longitude:78.4867,accuracy:12};
