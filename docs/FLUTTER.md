@@ -2,6 +2,8 @@
 
 ## 24 October 2026: address by hand (Customer)
 
+- Time slot (C12): people can pick several windows, or tap **Any time of the day** to pick every open window at once (tap again to clear). Joined windows read as one ("10 AM – 2 PM"); the review shows e.g. "Today, Any time (10 AM – 6 PM)". Sample-data app only for now; the live app keeps one window (see BACKEND-HOOKUP.md).
+
 - "Enter address by hand" on the address search (C09c) now opens C09d **Type your address**: society or building name (pre-filled from the search text), area, pincode (6 digits, number keypad) and city (Hyderabad by default). Next is enabled once all four are filled. It continues to Floor and slot (C10), which then also asks for the tower and starts with no floor picked. Gallery entry C09d.
 - Text fields' footers (Next) now ride above the keyboard on every screen (`WScreen`).
 

@@ -1311,11 +1311,16 @@ class TimeSlotScreen extends StatefulWidget {
 class _TimeSlotScreenState extends State<TimeSlotScreen> {
   final days = [for (var i = 0; i < 3; i++) addDays(startOfDay(DateTime.now()), i)];
   int dayIndex = 0;
-  TimeSlot? picked;
+
+  /// Start hours of the picked windows. The sample app allows several (or the whole day);
+  /// the live app keeps one until the backend accepts more (docs/BACKEND-HOOKUP.md).
+  Set<int> picked = {};
   String requested = '';
   Set<int> available = {};
   bool fetching = false;
   String? slotError;
+
+  bool get _multi => !context.store.isLive;
 
   void _loadAvailability() {
     final store = context.store;
@@ -1328,7 +1333,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
     fetching = true;
     slotError = null;
     available = {};
-    picked = null;
+    picked = {};
     store.live!
         .call('getAvailability', {'societyId': store.draft.place!.society.id, 'day': day})
         .then((result) {
@@ -1339,7 +1344,8 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
               for (final s in result['slots'] as List)
                 if (s['available'] == true) (s['startHour'] as num).toInt(),
             };
-            picked = store.timeSlots(d).where((s) => s.available && available.contains(s.startHour)).firstOrNull;
+            final first = store.timeSlots(d).where((s) => s.available && available.contains(s.startHour)).firstOrNull;
+            picked = {?first?.startHour};
           });
         })
         .catchError((Object e) {
@@ -1357,15 +1363,32 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
     super.didChangeDependencies();
     _loadAvailability();
     if (context.store.isLive) return;
-    if (picked != null) return;
+    if (picked.isNotEmpty) return;
     final s = context.store.draft.slot;
-    picked = s != null && s.available ? s : context.store.timeSlots(days[0]).where((x) => x.available).firstOrNull;
+    if (s != null && s.available) {
+      final i = days.indexWhere((d) => d == startOfDay(s.date));
+      if (i >= 0) dayIndex = i;
+      final open = {for (final x in context.store.timeSlots(days[dayIndex])) if (x.available) x.startHour};
+      picked = (s.windows.isEmpty ? {s.startHour} : {for (final w in s.windows) w.$1}).intersection(open);
+      if (picked.isNotEmpty) return;
+    }
+    final first = context.store.timeSlots(days[dayIndex]).where((x) => x.available).firstOrNull;
+    picked = {?first?.startHour};
   }
 
   void _changeDay(int i) => setState(() {
     dayIndex = i;
-    picked = context.store.timeSlots(days[i]).where((x) => x.available).firstOrNull;
+    final first = context.store.timeSlots(days[i]).where((x) => x.available).firstOrNull;
+    picked = {?first?.startHour};
     _loadAvailability();
+  });
+
+  void _toggle(TimeSlot s) => setState(() {
+    if (!_multi) {
+      picked = {s.startHour};
+    } else if (!picked.remove(s.startHour)) {
+      picked.add(s.startHour);
+    }
   });
 
   @override
@@ -1375,22 +1398,37 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
       for (final s in store.timeSlots(days[dayIndex]))
         TimeSlot(s.date, s.startHour, s.endHour, available: s.available && (!store.isLive || available.contains(s.startHour))),
     ];
-    final noneFree = !slots.any((s) => s.available);
+    final open = slots.where((s) => s.available).toList();
+    final noneFree = open.isEmpty;
+    final chosen = [for (final s in open) if (picked.contains(s.startHour)) s];
+    final wholeDay = _multi && open.length > 1 && chosen.length == open.length;
     return WScreen(
       header: const BookingHeader(step: 4, label: 'Time', fraction: 0.8),
       footer: WFooterBar(
         showCall: false,
         child: WButton(
           'Next',
-          enabled: picked != null && !fetching && !noneFree && slots.any((s) => s.available && s.startHour == picked!.startHour),
+          enabled: chosen.isNotEmpty && !fetching && !noneFree,
           onTap: () {
-            store.set(() => store.draft.slot = picked);
+            final windows = [for (final s in chosen) (s.startHour, s.endHour)];
+            store.set(
+              () => store.draft.slot = TimeSlot(
+                days[dayIndex],
+                chosen.first.startHour,
+                chosen.last.endHour,
+                windows: windows.length > 1 ? windows : const [],
+                anyTime: wholeDay,
+              ),
+            );
             context.router.go(N.review);
           },
         ),
       ),
       children: [
-        WTitleBlock('When should we come?', subtitle: noneFree ? null : 'The captain arrives any time in this window.'),
+        WTitleBlock(
+          'When should we come?',
+          subtitle: noneFree ? null : (_multi ? 'Pick one or more windows. The captain arrives any time in them.' : 'The captain arrives any time in this window.'),
+        ),
         WSegmented(options: [for (final d in days) Fmt.day(d)], selection: dayIndex, onChanged: _changeDay),
         const SizedBox(height: 20),
         if (fetching)
@@ -1417,6 +1455,38 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
               },
             ),
           ),
+        // "Any time of the day": one tap picks every open window; tap again to clear.
+        if (_multi && !fetching && open.length > 1) ...[
+          Pressable(
+            onTap: () => setState(() => picked = wholeDay ? {} : {for (final s in open) s.startHour}),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: outlinedDecoration(
+                radius: WRadius.chip,
+                fill: wholeDay ? WColor.primaryTint : WColor.white,
+                stroke: wholeDay ? WColor.primary : WColor.border,
+                width: wholeDay ? 2 : 1,
+              ),
+              child: Row(
+                children: [
+                  WIconView(wholeDay ? WIcon.checkCircle : WIcon.sun, size: 20, color: WColor.primaryStrong),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        WText('Any time of the day', WType.bodyStrong, color: wholeDay ? WColor.primaryStrong : WColor.heading, weight: semibold),
+                        WText('No time preference. The captain picks when to come.', WType.small, color: WColor.secondary),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (!fetching && slotError == null)
           GridView.count(
             crossAxisCount: 2,
@@ -1429,19 +1499,24 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
               for (final s in slots)
                 WChip(
                   s.label,
-                  selected: picked == s,
+                  selected: picked.contains(s.startHour) && s.available,
                   enabled: s.available,
                   strike: !s.available,
                   height: 54,
                   fill: true,
-                  onTap: () => setState(() => picked = s),
+                  onTap: () => _toggle(s),
                 ),
             ],
           ),
         if (!fetching && !noneFree && slotError == null)
-          const Padding(
-            padding: EdgeInsets.only(top: 18),
-            child: WText('No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.', WType.caption),
+          Padding(
+            padding: const EdgeInsets.only(top: 18),
+            child: WText(
+              chosen.length > 1 && !wholeDay
+                  ? 'You picked ${chosen.length} windows: ${TimeSlot(days[dayIndex], 0, 0, windows: [for (final s in chosen) (s.startHour, s.endHour)]).label}. No need to be home.'
+                  : 'No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.',
+              WType.caption,
+            ),
           ),
       ],
     );

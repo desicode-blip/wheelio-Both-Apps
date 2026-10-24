@@ -146,13 +146,36 @@ class EntryNote {
 
 /// A wash window on a given day.
 class TimeSlot {
-  const TimeSlot(this.date, this.startHour, this.endHour, {this.available = true});
+  const TimeSlot(this.date, this.startHour, this.endHour, {this.available = true, this.windows = const [], this.anyTime = false});
   final DateTime date;
+
+  /// Earliest start and latest end. With several windows these span all of them.
   final int startHour;
   final int endHour;
   final bool available;
 
-  String get label => Fmt.window(startHour, endHour);
+  /// Windows the customer picked when they chose more than one, e.g. [(10, 12), (16, 18)].
+  final List<(int, int)> windows;
+
+  /// "Any time of the day": every open window was picked; the captain chooses when to come.
+  final bool anyTime;
+
+  /// "8 – 10 AM", "10 AM – 2 PM, 4 – 6 PM" or "Any time (6 AM – 6 PM)".
+  String get label {
+    if (anyTime) return 'Any time (${Fmt.window(startHour, endHour)})';
+    if (windows.length < 2) return Fmt.window(startHour, endHour);
+    // Join windows that touch, so 10–12 and 12–2 read as 10 AM – 2 PM.
+    final merged = <(int, int)>[];
+    for (final w in [...windows]..sort((a, b) => a.$1.compareTo(b.$1))) {
+      if (merged.isNotEmpty && merged.last.$2 == w.$1) {
+        merged[merged.length - 1] = (merged.last.$1, w.$2);
+      } else {
+        merged.add(w);
+      }
+    }
+    return merged.map((w) => Fmt.window(w.$1, w.$2)).join(', ');
+  }
+
   String get dayLabel => Fmt.day(date);
 
   /// "Today, 8 – 10 AM"
@@ -161,9 +184,10 @@ class TimeSlot {
   DateTime get end => DateTime(date.year, date.month, date.day, endHour % 24);
 
   @override
-  bool operator ==(Object other) => other is TimeSlot && other.date == date && other.startHour == startHour && other.endHour == endHour;
+  bool operator ==(Object other) =>
+      other is TimeSlot && other.date == date && other.startHour == startHour && other.endHour == endHour && other.anyTime == anyTime && other.windows.join() == windows.join();
   @override
-  int get hashCode => Object.hash(date, startHour, endHour);
+  int get hashCode => Object.hash(date, startHour, endHour, anyTime, windows.join());
 }
 
 class Customer {

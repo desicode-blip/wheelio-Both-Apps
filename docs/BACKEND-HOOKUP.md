@@ -129,6 +129,14 @@ The Flutter apps now have an `ios` platform, but phone builds run on sample data
       before payment (the screen promises this), and add the same "Enter address by hand" link to the live app,
       which today shows only listed societies.
 
+## Several time windows / any time (added 24 Oct 2026)
+
+- [ ] Customer C12: the sample-data app lets people pick several windows or "Any time of the day"
+      (`TimeSlot.windows`, `TimeSlot.anyTime`). The live app still sends one window (`startHour`/`endHour`).
+      To turn it on live: accept a list of windows (or an any-time flag) in `createOrder`, check capacity for
+      each in `getAvailability`, assign captains within them, and base late / slot-ended messages on the
+      last window's end.
+
 ## 6. Values still to decide (config, not code)
 
 Prices, cancellation fee, wait fee, approval and dispute windows, late-penalty
