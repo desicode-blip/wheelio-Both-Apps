@@ -35,6 +35,7 @@ final _sections = <(String, List<_E>)>[
     _E('C09', 'Confirm location', (s) => s..draftFull()..draft.place = null, route: const R(N.location)),
     const _E('C09b', 'Location is off', _none, route: R(N.location, off: true)),
     _E('C09c', 'Search address', (s) => s.draftFull(), route: const R(N.addressSearch)),
+    _E('C09d', 'Type the address by hand', (s) => s.draftFull(), route: const R(N.manualAddress)),
     _E('C10', 'Floor and slot', (s) => s.draftFull(), route: const R(N.floorSlot)),
     _E('C11', 'Message for the captain – nothing yet', (s) => s..draftFull()..draft.note = EntryNote(), route: const R(N.entryNotes)),
     _E('C11v', 'Message – voice note + text', (s) => s..draftFull()..draft.note = EntryNote(text: 'White car next to the pillar', voiceSeconds: 12), route: const R(N.entryNotes)),

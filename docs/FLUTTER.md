@@ -1,5 +1,10 @@
 # Flutter apps (Customer and Captain)
 
+## 24 October 2026: address by hand (Customer)
+
+- "Enter address by hand" on the address search (C09c) now opens C09d **Type your address**: society or building name (pre-filled from the search text), area, pincode (6 digits, number keypad) and city (Hyderabad by default). Next is enabled once all four are filled. It continues to Floor and slot (C10), which then also asks for the tower and starts with no floor picked. Gallery entry C09d.
+- Text fields' footers (Next) now ride above the keyboard on every screen (`WScreen`).
+
 ## 23 October 2026: iOS platform added
 
 - `customer/ios` and `captain/ios` were generated with `flutter create --platforms=ios` (Flutter 3.38.6). Bundle IDs `com.amanmaheshwari.wheelio.customer` / `.captain` match the SwiftUI apps, so a phone install replaces them; team `8CCQQM7TP3`; iOS 15+ (Firebase); portrait only on iPhone; camera, photos, microphone and location texts in `Info.plist`.

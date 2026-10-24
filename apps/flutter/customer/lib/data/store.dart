@@ -27,6 +27,7 @@ enum N {
   camera,
   location,
   addressSearch,
+  manualAddress,
   floorSlot,
   entryNotes,
   timeSlot,

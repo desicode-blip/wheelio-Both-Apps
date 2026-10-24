@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 import 'package:wheelio_firebase/wheelio_firebase.dart';
 
@@ -843,15 +844,144 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
         ],
         const SizedBox(height: 14),
         if (!store.isLive)
-          const Row(
+          Row(
             children: [
-              WText('Can’t find it?', WType.caption),
-              SizedBox(width: 4),
-              WLink('Enter address by hand', k: WType.caption),
+              const WText('Can’t find it?', WType.caption),
+              const SizedBox(width: 4),
+              WLink(
+                'Enter address by hand',
+                k: WType.caption,
+                onTap: () {
+                  // Carry what they already typed into the society name.
+                  ManualAddressScreen.prefill = query.trim();
+                  router.go(N.manualAddress);
+                },
+              ),
             ],
           )
         else
           const WText('Service is available only in the societies listed above.', WType.caption),
+      ],
+    );
+  }
+}
+
+// MARK: C09d Address by hand (society not in the list)
+//
+// Flow: Search (C09c) → "Enter address by hand" → this screen → Floor and slot (C10, with a
+// Tower field) → the rest of the booking as usual. The typed text from the search becomes the
+// society name. BACKEND: save the address for review and check the area is served
+// before payment (see docs/BACKEND-HOOKUP.md).
+
+class ManualAddressScreen extends StatefulWidget {
+  const ManualAddressScreen({super.key});
+
+  /// What the person typed in the search box, used to start the name field.
+  static String prefill = '';
+  static const idPrefix = 'manual-';
+
+  @override
+  State<ManualAddressScreen> createState() => _ManualAddressScreenState();
+}
+
+class _ManualAddressScreenState extends State<ManualAddressScreen> {
+  late String name = _titleCase(ManualAddressScreen.prefill);
+  String area = '';
+  String pincode = '';
+  String city = 'Hyderabad';
+  int focusArea = 0, focusPin = 0, focusCity = 0;
+
+  static String _titleCase(String s) =>
+      s.split(' ').where((w) => w.isNotEmpty).map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
+
+  bool get _pinOk => RegExp(r'^[1-9]\d{5}$').hasMatch(pincode);
+  bool get _ready => name.trim().isNotEmpty && area.trim().isNotEmpty && _pinOk && city.trim().isNotEmpty;
+
+  void _next() {
+    if (!_ready) return;
+    final store = context.store;
+    final society = Society(
+      '${ManualAddressScreen.idPrefix}${DateTime.now().millisecondsSinceEpoch}',
+      name.trim(),
+      area.trim(),
+      city.trim(),
+      pincode,
+    );
+    store.set(() => store.draft.place = Place(society));
+    context.router.go(N.floorSlot);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WScreen(
+      header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
+      footer: WFooterBar(
+        showCall: false,
+        child: WButton('Next', enabled: _ready, onTap: _next),
+      ),
+      children: [
+        const WTitleBlock('Type your address', subtitle: 'Just the basics. The captain gets the rest from your parking details next.'),
+        WTextField(
+          label: 'Society or building name',
+          value: name,
+          placeholder: 'Society or building name',
+          leadingIcon: WIcon.home,
+          caps: TextCapitalization.words,
+          autofocus: true,
+          action: TextInputAction.next,
+          onSubmit: () => setState(() => focusArea++),
+          onChanged: (v) => setState(() => name = v),
+        ),
+        const Gap(14),
+        WTextField(
+          label: 'Area or locality',
+          value: area,
+          placeholder: 'Area or locality',
+          leadingIcon: WIcon.location,
+          caps: TextCapitalization.words,
+          focusTrigger: focusArea,
+          action: TextInputAction.next,
+          onSubmit: () => setState(() => focusPin++),
+          onChanged: (v) => setState(() => area = v),
+        ),
+        const Gap(14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: WTextField(
+                label: 'Pincode',
+                value: pincode,
+                placeholder: 'Pincode',
+                keyboard: TextInputType.number,
+                focusTrigger: focusPin,
+                formatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+                error: pincode.length == 6 && !_pinOk ? 'Check the pincode' : null,
+                action: TextInputAction.next,
+                onSubmit: () => setState(() => focusCity++),
+                onChanged: (v) => setState(() => pincode = v),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: WTextField(
+                label: 'City',
+                value: city,
+                placeholder: 'City',
+                caps: TextCapitalization.words,
+                focusTrigger: focusCity,
+                onSubmit: _next,
+                onChanged: (v) => setState(() => city = v),
+              ),
+            ),
+          ],
+        ),
+        const Gap(20),
+        const WBanner(
+          tone: Tone.info,
+          icon: WIcon.info,
+          text: 'New place for us? If captains don’t reach it yet, we’ll tell you before you pay.',
+        ),
       ],
     );
   }
@@ -867,10 +997,12 @@ class FloorSlotScreen extends StatefulWidget {
 
 class _FloorSlotScreenState extends State<FloorSlotScreen> {
   static const floors = ['B3', 'B2', 'B1', 'Ground', 'Open'];
-  late String? floor = context.store.draft.place?.floor ?? (context.store.isLive ? null : 'B2');
+  /// Typed by hand (C09d): start empty, like the live app, instead of the demo's B2 / 41.
+  late final bool _manual = context.store.draft.place?.society.id.startsWith(ManualAddressScreen.idPrefix) ?? false;
+  late String? floor = context.store.draft.place?.floor ?? (context.store.isLive || _manual ? null : 'B2');
   late String slot = (context.store.draft.place?.slot.isNotEmpty ?? false)
       ? context.store.draft.place!.slot
-      : context.store.isLive
+      : context.store.isLive || _manual
       ? ''
       : '41';
   late String tower = context.store.draft.place?.tower ?? '';
@@ -897,7 +1029,7 @@ class _FloorSlotScreenState extends State<FloorSlotScreen> {
       ),
       children: [
         WTitleBlock('Where is it parked?', subtitle: store.draft.place?.title ?? ''),
-        if (store.isLive) ...[
+        if (store.isLive || _manual) ...[
           WTextField(label: 'Tower or building', value: tower, placeholder: 'Tower or building', onChanged: (v) => tower = v),
           const Gap(16),
         ],

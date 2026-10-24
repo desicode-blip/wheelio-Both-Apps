@@ -155,6 +155,7 @@ Widget _destination(R r) {
     N.camera => CameraScreen(angle: r.angle!, forceDenied: r.denied),
     N.location => LocationScreen(forceOff: r.off),
     N.addressSearch => const AddressSearchScreen(),
+    N.manualAddress => const ManualAddressScreen(),
     N.floorSlot => const FloorSlotScreen(),
     N.entryNotes => const EntryNotesScreen(),
     N.timeSlot => const TimeSlotScreen(),

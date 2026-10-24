@@ -122,6 +122,13 @@ The Flutter apps now have an `ios` platform, but phone builds run on sample data
 - [ ] Notifications inbox and push (today `seedSampleNotifications`).
 - [ ] Free washes / credit on the account.
 
+## Address typed by hand (added 24 Oct 2026)
+
+- [ ] Customer C09d "Type your address" (sample-data app only for now): the address is kept on the phone as a
+      `Society` with id `manual-…`. Save it on the server, check the pincode/area is served and tell the customer
+      before payment (the screen promises this), and add the same "Enter address by hand" link to the live app,
+      which today shows only listed societies.
+
 ## 6. Values still to decide (config, not code)
 
 Prices, cancellation fee, wait fee, approval and dispute windows, late-penalty
