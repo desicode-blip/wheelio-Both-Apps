@@ -1,3 +1,5 @@
+import 'dart:async';
+
 // Pieces shared by several customer screens: brand mark, headers, captain card, status badge,
 // bell, profile photo picker.
 
@@ -211,10 +213,14 @@ class HeldSafelyBanner extends StatelessWidget {
 
 /// Status badge for an order (icon + word).
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.status, {super.key});
+  const StatusBadge(this.status, {super.key, this.slotAhead = false});
   final OrderStatus status;
+
+  /// Booked for a later slot: shows "Booked" instead of "Searching".
+  final bool slotAhead;
   @override
   Widget build(BuildContext context) => switch (status) {
+    OrderStatus.searching when slotAhead => const WBadge('Booked', tone: Tone.info, icon: WIcon.calendar),
     OrderStatus.searching => const WBadge('Searching', tone: Tone.mute, icon: WIcon.search),
     OrderStatus.onTheWay => const WBadge('On the way', tone: Tone.info, icon: WIcon.check),
     OrderStatus.washing => const WBadge('Washing', tone: Tone.info, icon: WIcon.drop),
@@ -309,6 +315,118 @@ class ProfilePhotoPicker extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// "Cancel booking · 12 min left". Shown only while the 15-minute cancel window is open;
+/// opens the cancel sheet for this order. Counts down by itself.
+class CancelLink extends StatefulWidget {
+  const CancelLink({super.key, required this.order, this.compact = false});
+  final Order order;
+
+  /// Small text link (cards) instead of a full-width text button (order screen).
+  final bool compact;
+  @override
+  State<CancelLink> createState() => _CancelLinkState();
+}
+
+class _CancelLinkState extends State<CancelLink> {
+  late final Timer _t = Timer.periodic(const Duration(seconds: 15), (_) {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void dispose() {
+    _t.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final o = widget.order;
+    if (!o.canCancel()) return const SizedBox.shrink();
+    final label = 'Cancel booking · ${o.cancelMinutesLeft()} min left';
+    void open() => openCancelSheet(context, o);
+    return widget.compact
+        ? WLink(label, k: WType.caption, color: WColor.destructive, onTap: open)
+        : WButton(label, kind: ButtonKind.text, onTap: open);
+  }
+}
+
+/// Opens the cancel sheet for [o] (it becomes the current order).
+void openCancelSheet(BuildContext context, Order o) {
+  final store = context.store;
+  store.set(() => store.currentOrderId = o.id);
+  showWSheet<void>(context, height: 480, builder: (c) => AppScope(store: store, router: context.router, child: const CancelSheet()));
+}
+
+// MARK: C29 Cancel sheet: within 15 minutes of booking, no refund, 1 free wash instead.
+
+class CancelSheet extends StatefulWidget {
+  const CancelSheet({super.key});
+  @override
+  State<CancelSheet> createState() => _CancelSheetState();
+}
+
+class _CancelSheetState extends State<CancelSheet> {
+  String? reason;
+  bool loading = false;
+  String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final o = store.currentOrder;
+    final open = o?.canCancel() ?? false;
+    if (!open) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const WText('Cancelling is closed', WType.section, weight: semibold),
+        const SizedBox(height: 12),
+        const WText('A booking can be cancelled only in the first 15 minutes after you book it.', WType.body),
+        const SizedBox(height: 22),
+        WButton('OK', onTap: () => Navigator.of(context).pop()),
+      ]);
+    }
+    return SingleChildScrollView(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        const WText('Cancel this booking?', WType.section, weight: semibold),
+        const SizedBox(height: 6),
+        WText('You can cancel for ${o!.cancelMinutesLeft()} more min.', WType.caption),
+        const SizedBox(height: 14),
+        const WBanner(
+          tone: Tone.info,
+          icon: WIcon.gift,
+          title: 'No refund, but a free wash',
+          text: 'We don’t refund cancelled bookings. We add 1 free wash to your account instead, for your next booking.',
+        ),
+        const SizedBox(height: 16),
+        const WText('Why are you cancelling? (optional)', WType.label),
+        const SizedBox(height: 10),
+        WFlow(children: [for (final r in const ['Changed plans', 'Booked by mistake', 'Wrong time', 'Other']) WChip(r, selected: reason == r, onTap: () => setState(() => reason = r))]),
+        if (error != null) ...[const SizedBox(height: 12), WText(error!, WType.caption, color: WColor.destructive)],
+        const SizedBox(height: 18),
+        WButton('Cancel booking', kind: ButtonKind.danger, loading: loading, onTap: () async {
+          final nav = Navigator.of(context);
+          setState(() {
+            loading = true;
+            error = null;
+          });
+          try {
+            await store.cancel(o.id);
+            store.set(() => store.toast = 'Booking cancelled. 1 free wash added.');
+            nav.pop();
+          } catch (e) {
+            setState(() {
+              loading = false;
+              error = e is StateError ? e.message : 'Couldn’t cancel. Please try again.';
+            });
+          }
+        }),
+        const SizedBox(height: 10),
+        WButton('Keep booking', kind: ButtonKind.text, onTap: () => Navigator.of(context).pop()),
+      ]),
     );
   }
 }

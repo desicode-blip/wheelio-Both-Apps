@@ -945,6 +945,8 @@ class AppStore extends ChangeNotifier {
   void _startLifecycle(String id) {
     if (isLive) return;
     _update(id, (o) => o.status = OrderStatus.searching);
+    // Booked for later: it stays "Booked" until the slot; no captain, wash or photos yet.
+    if (orders.where((o) => o.id == id).firstOrNull?.slotAhead ?? false) return;
     _tasks[id]?.cancel();
     _tasks[id] = runTask((job) async {
       if (!await _steps(job, 1)) return;
@@ -1053,20 +1055,26 @@ class AppStore extends ChangeNotifier {
     bankRef: _bankRef(),
   );
 
-  /// BACKEND: rpc cancel_order. After a captain accepts, [CANCELLATION FEE] applies (not decided, so 0).
+  /// Customer cancels within 15 minutes of booking: no refund, 1 free wash for a future booking.
+  /// BACKEND: rpc cancel_order must enforce the 15-minute window and credit the free wash
+  /// (today the live backend refunds instead; see docs/BACKEND-HOOKUP.md).
   Future<void> cancel(String id) async {
     if (isLive) {
       await live!.call('cancelBooking', {'orderId': id});
       return;
     }
+    final o = orders.where((x) => x.id == id).firstOrNull;
+    if (o == null || !o.canCancel()) throw StateError('This booking can no longer be cancelled.');
     await _latency(800);
     _tasks[id]?.cancel();
     _update(id, (o) {
-      final fee = o.status == OrderStatus.onTheWay ? (BusinessRules.cancellationFee ?? 0) : 0;
-      o.refund = _refundFor(o, o.price - fee);
+      o.refund = null;
       o.status = OrderStatus.cancelled;
       o.captainCantFind = false;
+      o.freeWashGiven = true;
     });
+    customer?.freeWashes += 1;
+    notifyListeners();
   }
 
   /// BACKEND: rpc approve_order (releases the held money to the captain).
@@ -1351,7 +1359,7 @@ class AppStore extends ChangeNotifier {
           notify(
             NotificationKind.bookingCancelled,
             'Booking cancelled',
-            'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.',
+            o.freeWashGiven ? '1 free wash is added to your account. Use it on your next booking.' : 'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.',
             orderId: o.id,
           );
         case OrderStatus.disputeUpheld || OrderStatus.disputeRejected:

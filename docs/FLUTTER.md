@@ -2,6 +2,10 @@
 
 ## 24 October 2026: address by hand (Customer)
 
+- Cancelling (sample app): a booking can be cancelled for 15 minutes after it is made, from the Home "Upcoming" card, the Bookings list and the order screen ("Cancel booking · N min left", counts down). The sheet says there is no refund and 1 free wash is added instead. After cancelling: toast, notification, a "Booking cancelled" screen with "Book with free wash", and the order moves to Past. After 15 minutes the link disappears.
+- Free wash at checkout: shown only when the customer has one, as a green card ("You have 1 free wash · Used for this booking. You pay ₹0.") with a switch, on by default. With it on, the button reads "Book with free wash" and skips the payment sheet.
+- Upcoming bookings for a later slot show "Booked" (not "Searching"/"Check photos"), and their screen shows the booking, only the customer's own photos, and the cancel link. The demo lifecycle no longer runs ahead to captain/wash/photos before the slot.
+
 - Time slot (C12): people can pick several windows, or tap **Any time of the day** to pick every open window at once (tap again to clear). Joined windows read as one ("10 AM – 2 PM"); the review shows e.g. "Today, Any time (10 AM – 6 PM)". Sample-data app only for now; the live app keeps one window (see BACKEND-HOOKUP.md).
 
 - "Enter address by hand" on the address search (C09c) now opens C09d **Type your address**: society or building name (pre-filled from the search text), area, pincode (6 digits, number keypad) and city (Hyderabad by default). Next is enabled once all four are filled. It continues to Floor and slot (C10), which then also asks for the tower and starts with no floor picked. Gallery entry C09d.

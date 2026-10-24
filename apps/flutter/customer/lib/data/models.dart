@@ -347,6 +347,23 @@ class Order {
 
   final String id;
 
+  /// Cancelled by the customer: no refund, 1 free wash added to their account.
+  bool freeWashGiven = false;
+
+  /// Still before the slot starts (nothing to wash or photograph yet).
+  bool get slotAhead => slot.start.isAfter(DateTime.now());
+
+  /// Cancellable: booked less than 15 minutes ago and the wash hasn't started.
+  bool canCancel([DateTime? now]) =>
+      const [OrderStatus.searching, OrderStatus.onTheWay].contains(status) &&
+      (now ?? DateTime.now()).difference(createdAt) < BusinessRules.cancelWindow;
+
+  /// Whole minutes left to cancel (at least 1 while cancellable).
+  int cancelMinutesLeft([DateTime? now]) {
+    final left = BusinessRules.cancelWindow - (now ?? DateTime.now()).difference(createdAt);
+    return left.isNegative ? 0 : (left.inSeconds / 60).ceil().clamp(1, BusinessRules.cancelWindow.inMinutes);
+  }
+
   /// Human reference, e.g. WH-20914.
   final String ref;
   final Vehicle vehicle;
@@ -390,6 +407,8 @@ class Order {
 
 /// Business values not decided yet. While null the UI shows the placeholder text from the designs.
 class BusinessRules {
+  /// Customers can cancel only this long after booking. No refund: they get 1 free wash instead.
+  static const cancelWindow = Duration(minutes: 15);
   static const int? cancellationFee = null;
   static const int? waitFee = null;
 

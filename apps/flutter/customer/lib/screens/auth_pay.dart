@@ -499,7 +499,10 @@ class BookedScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),
+        if (o != null && o.slotAhead)
+          const WBanner(tone: Tone.info, icon: WIcon.calendar, text: 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
+        else
+          const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),
       ],
     );
   }

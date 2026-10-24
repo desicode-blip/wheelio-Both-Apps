@@ -100,6 +100,7 @@ class _HomeTabState extends State<HomeTab> {
     final seen = <String>{};
     final list = <_BookAgainEntry>[];
     for (final o in store.pastOrders) {
+      if (o.status == OrderStatus.cancelled) continue; // nothing was washed
       if (seen.add('${o.vehicle.id}#${o.placeKey}#${o.washKind.name}')) list.add(_BookAgainEntry(o));
     }
     for (final e in list) {
@@ -127,6 +128,7 @@ class _HomeTabState extends State<HomeTab> {
   String _activeTitle(Order o) {
     final n = o.captain?.name ?? 'Captain';
     return switch (o.status) {
+      OrderStatus.searching when o.slotAhead => 'Booked. Captain comes in your slot',
       OrderStatus.searching => 'Finding a captain',
       OrderStatus.onTheWay => context.store.isLive && o.entryPassReceived ? '$n has arrived' : '$n is on the way',
       OrderStatus.washing => '$n is washing',
@@ -256,7 +258,7 @@ class _HomeTabState extends State<HomeTab> {
                     WBanner(
                       tone: Tone.ok,
                       icon: WIcon.gift,
-                      title: 'You have ${c.freeWashes} free washes.',
+                      title: c.freeWashes == 1 ? 'You have 1 free wash.' : 'You have ${c.freeWashes} free washes.',
                       text: 'They’re applied at checkout.',
                       actionTitle: 'Use one',
                       onAction: _book,
@@ -276,9 +278,9 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ),
                   if (a != null) ...[
-                    const Padding(
-                      padding: EdgeInsets.only(top: 30, bottom: 14),
-                      child: WText('In progress', WType.section, weight: semibold),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30, bottom: 14),
+                      child: WText(a.slotAhead ? 'Upcoming' : 'In progress', WType.section, weight: semibold),
                     ),
                     WCard(
                       radius: 16,
@@ -292,13 +294,13 @@ class _HomeTabState extends State<HomeTab> {
                             children: [
                               WText('${a.slot.dayLabel} · ${a.slot.label}', WType.label, color: WColor.heading),
                               const Spacer(),
-                              StatusBadge(a.status),
+                              StatusBadge(a.status, slotAhead: a.slotAhead),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Row(
                             children: [
-                              WAvatar(a.captain?.initials ?? '…', size: 40),
+                              if (a.captain == null) WIconBox(a.slotAhead ? WIcon.calendar : WIcon.search, size: 40, radius: 10) else WAvatar(a.captain!.initials, size: 40),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -314,6 +316,7 @@ class _HomeTabState extends State<HomeTab> {
                           ),
                           const SizedBox(height: 12),
                           WProgress(fraction: (a.status.stepIndex + 1) / 4),
+                          if (a.canCancel()) Align(alignment: Alignment.centerLeft, child: CancelLink(order: a, compact: true)),
                         ],
                       ),
                     ),
@@ -453,7 +456,7 @@ class _BookingsTabState extends State<BookingsTab> {
                                     color: WColor.heading,
                                   ),
                                   const Spacer(),
-                                  StatusBadge(o.status),
+                                  StatusBadge(o.status, slotAhead: o.slotAhead),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -473,6 +476,7 @@ class _BookingsTabState extends State<BookingsTab> {
                                   const WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
                                 ],
                               ),
+                              if (o.canCancel()) Align(alignment: Alignment.centerLeft, child: CancelLink(order: o, compact: true)),
                             ],
                           ),
                         );
@@ -786,7 +790,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     children: [
                       const WIconView(WIcon.gift, size: 15, color: WColor.onSuccess),
                       const SizedBox(width: 10),
-                      WText('${c.freeWashes} free washes left', WType.caption, color: WColor.onSuccess, weight: medium),
+                      WText(c.freeWashes == 1 ? '1 free wash left' : '${c.freeWashes} free washes left', WType.caption, color: WColor.onSuccess, weight: medium),
                     ],
                   ),
                 ),

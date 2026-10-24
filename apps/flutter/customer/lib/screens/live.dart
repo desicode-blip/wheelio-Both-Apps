@@ -36,10 +36,6 @@ class LiveOrderScreen extends StatefulWidget {
 class _LiveOrderScreenState extends State<LiveOrderScreen> {
   OrderStatus? _lastStatus;
 
-  void _openCancel() {
-    final store = context.store;
-    showWSheet<void>(context, height: store.currentOrder?.status == OrderStatus.onTheWay ? 360 : 420, builder: (c) => AppScope(store: store, router: context.router, child: const CancelSheet()));
-  }
 
   void _again(Order o) {
     context.store.startRepeat(o.vehicle);
@@ -61,6 +57,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       body = WScreen(scrolls: false, header: const PlainHeader(), children: [Expanded(child: WFullState(icon: WIcon.calendar, title: 'No active booking', primary: 'Go home', onPrimary: router.popToRoot))]);
     } else {
       body = switch (o.status) {
+        OrderStatus.searching when o.slotAhead => _booked(o),
         OrderStatus.searching || OrderStatus.paymentPending || OrderStatus.pendingPayment => _searching(o),
         OrderStatus.noCaptain => _autoCancelled(o, WIcon.search, 'No captain could take your wash', 'We couldn’t find a free captain, so we’ve cancelled the booking.'),
         OrderStatus.captainNoShow => _autoCancelled(o, WIcon.clock, '${o.captain?.name ?? 'Your captain'} didn’t turn up',
@@ -68,16 +65,27 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.onTheWay => o.captainCantFind ? _cantFind(o) : _onTheWay(o),
         OrderStatus.washing => _washing(o),
         OrderStatus.photosReady => CheckWashView(order: o),
-        OrderStatus.cancelled => _state(WFullState(
-            icon: WIcon.check,
-            tone: Tone.ok,
-            title: 'Booking cancelled',
-            message: '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
-            primary: 'Book another time',
-            secondary: 'Track refund',
-            onPrimary: () => _again(o),
-            onSecondary: () => router.go(N.refund),
-          )),
+        OrderStatus.cancelled => _state(o.freeWashGiven
+            ? WFullState(
+                icon: WIcon.gift,
+                tone: Tone.ok,
+                title: 'Booking cancelled',
+                message: 'We’ve added 1 free wash to your account. It’s used automatically when you book next, so you pay nothing.',
+                primary: 'Book with free wash',
+                secondary: 'Go home',
+                onPrimary: () => _again(o),
+                onSecondary: router.popToRoot,
+              )
+            : WFullState(
+                icon: WIcon.check,
+                tone: Tone.ok,
+                title: 'Booking cancelled',
+                message: '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
+                primary: 'Book another time',
+                secondary: 'Track refund',
+                onPrimary: () => _again(o),
+                onSecondary: () => router.go(N.refund),
+              )),
         OrderStatus.autoApproved => _state(WFullState(
             icon: WIcon.clock,
             title: 'Approved automatically',
@@ -126,11 +134,52 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
     );
   }
 
+  // C20a Booked for a later slot: what's booked, the customer's own photos, and cancel (15 min).
+  Widget _booked(Order o) {
+    final notes = o.note.summary;
+    return WScreen(
+      canvas: true,
+      header: OrderHeader(order: o),
+      footer: WStackedFooter(children: [WButton('Done', onTap: context.router.popToRoot), CancelLink(order: o)]),
+      children: [
+        const SizedBox(height: 14),
+        WCard(
+          padding: 20,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const WBadge('Booked', tone: Tone.info, icon: WIcon.calendar),
+            const SizedBox(height: 12),
+            WText(o.slot.full, WType.section, weight: semibold),
+            const SizedBox(height: 6),
+            const WText('We’ll assign a captain before your slot and let you know.', WType.body),
+            const SizedBox(height: 14),
+            WBadge(o.usedFreeWash ? 'Free wash' : '${Fmt.rupees(o.price)} held safely', tone: Tone.mute, icon: o.usedFreeWash ? WIcon.gift : WIcon.shield),
+          ]),
+        ),
+        const SizedBox(height: 22),
+        // Only the photos the customer took: before/after come after the wash.
+        const WText('Your photos', WType.label, color: WColor.heading),
+        const SizedBox(height: 10),
+        Row(children: [
+          for (final a in PhotoAngle.values) ...[
+            if (a != PhotoAngle.values.first) const SizedBox(width: 8),
+            Expanded(child: WPhotoPlaceholder(height: 64, icon: o.vehicle.type.icon, tag: a.label.split(' ').first)),
+          ],
+        ]),
+        if (notes.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          WKeyValueCard(rows: [('Place', '${o.place.title} · ${o.place.parkingShort}'), ('Notes', notes)]),
+        ],
+        const SizedBox(height: 26),
+        const WStatusSteps(steps: _liveSteps, current: 0),
+      ],
+    );
+  }
+
   // C20 Finding a captain
   Widget _searching(Order o) => WScreen(
         canvas: true,
         header: OrderHeader(order: o),
-        footer: WStackedFooter(children: [WButton('Keep me posted', onTap: context.router.popToRoot), WButton('Cancel booking', kind: ButtonKind.text, onTap: _openCancel)]),
+        footer: WStackedFooter(children: [WButton('Keep me posted', onTap: context.router.popToRoot), CancelLink(order: o)]),
         children: [
           const SizedBox(height: 14),
           WCard(
@@ -166,7 +215,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
           WButton('Message on WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => router.go(N.whatsApp))
         else
           WButton('Send pass on WhatsApp', icon: WIcon.whatsapp, onTap: () => router.go(N.whatsApp)),
-        WButton('Cancel booking', kind: ButtonKind.text, onTap: _openCancel),
+        CancelLink(order: o),
       ]),
       children: [
         const SizedBox(height: 14),
@@ -289,54 +338,6 @@ class SearchPulse extends StatelessWidget {
           ]),
         ),
       );
-}
-
-// MARK: C29 Cancel sheet (C29c after accept)
-
-class CancelSheet extends StatefulWidget {
-  const CancelSheet({super.key});
-  @override
-  State<CancelSheet> createState() => _CancelSheetState();
-}
-
-class _CancelSheetState extends State<CancelSheet> {
-  String? reason;
-  bool loading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final store = context.store;
-    final o = store.currentOrder;
-    final accepted = o?.status == OrderStatus.onTheWay;
-    final name = o?.captain?.name ?? 'Raju';
-    return SingleChildScrollView(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        WText(accepted ? '$name is already on the way' : 'Cancel this wash?', WType.section, weight: semibold),
-        const SizedBox(height: 14),
-        if (accepted)
-          WBanner(tone: Tone.wait, icon: WIcon.rupee, text: 'Cancelling now refunds ₹${BusinessRules.refundAmountText}. ₹${BusinessRules.cancellationFeeText} goes to $name for the trip.')
-        else ...[
-          WBanner(tone: Tone.info, icon: WIcon.rupee, text: 'No captain has accepted yet, so you get the full ${Fmt.rupees(o?.price ?? 149)} back.'),
-          const SizedBox(height: 14),
-          const WText('Why are you cancelling? (optional)', WType.label),
-          const SizedBox(height: 14),
-          WFlow(children: [for (final r in const ['Changed plans', 'Booked by mistake', 'Taking too long', 'Other']) WChip(r, selected: reason == r, onTap: () => setState(() => reason = r))]),
-        ],
-        const SizedBox(height: 18),
-        WButton(accepted ? 'Cancel anyway' : 'Yes, cancel and refund', kind: ButtonKind.danger, loading: loading, onTap: () async {
-          if (o == null) return;
-          final nav = Navigator.of(context);
-          setState(() => loading = true);
-          try {
-            await store.cancel(o.id);
-          } catch (_) {}
-          nav.pop();
-        }),
-        const SizedBox(height: 14),
-        WButton('Keep booking', kind: ButtonKind.text, onTap: () => Navigator.of(context).pop()),
-      ]),
-    );
-  }
 }
 
 // MARK: C25 Check the wash

@@ -1534,6 +1534,18 @@ class ReviewScreen extends StatefulWidget {
 class _ReviewScreenState extends State<ReviewScreen> {
   bool _sheetOpen = false;
 
+  bool _freeDefaulted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Someone with a free wash uses it by default; they can switch it off.
+    if (_freeDefaulted) return;
+    _freeDefaulted = true;
+    final store = context.store;
+    if ((store.customer?.freeWashes ?? 0) > 0 && !store.isLive) store.draft.useFreeWash = true;
+  }
+
   void _syncSheet() {
     final router = context.router;
     if (router.showPaySheet && !_sheetOpen && isTopScreen(context)) {
@@ -1562,7 +1574,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final free = store.customer?.freeWashes ?? 0;
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
-      footer: WFooterBar(showCall: false, child: WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login))),
+      footer: WFooterBar(
+        showCall: false,
+        child: d.useFreeWash
+            // Free wash: nothing to pay, so skip the payment sheet.
+            ? WButton('Book with free wash', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
+            : WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login)),
+      ),
       children: [
         const WTitleBlock('Check and pay'),
         WCard(
@@ -1594,16 +1612,32 @@ class _ReviewScreenState extends State<ReviewScreen> {
           boldLast: true,
           rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), ('Total', Fmt.rupees(d.price))],
         ),
-        if (free > 0)
-          WToggleRow(
-            padding: const EdgeInsets.only(top: 14),
-            on: d.useFreeWash,
-            tint: WColor.success,
-            onChanged: (v) => store.set(() => store.draft.useFreeWash = v),
-            child: WText('Use a free wash ($free left)', WType.bodyStrong),
+        // Only when they have one: a short note that a free wash can pay for this booking.
+        if (free > 0) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+            decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
+            child: Row(
+              children: [
+                const WIconView(WIcon.gift, size: 22, color: WColor.onSuccess),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WText(free == 1 ? 'You have 1 free wash' : 'You have $free free washes', WType.bodyStrong, color: WColor.onSuccess),
+                      WText(d.useFreeWash ? 'Used for this booking. You pay ₹0.' : 'Use it for this booking and pay nothing.', WType.caption, color: WColor.onSuccess),
+                    ],
+                  ),
+                ),
+                WToggle(on: d.useFreeWash, tint: WColor.success, onChanged: (v) => store.set(() => store.draft.useFreeWash = v)),
+              ],
+            ),
           ),
+        ],
         const SizedBox(height: 18),
-        HeldSafelyBanner(amount: d.price),
+        if (!d.useFreeWash) HeldSafelyBanner(amount: d.price),
       ],
     );
   }
