@@ -1535,6 +1535,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _sheetOpen = false;
 
   bool _freeDefaulted = false;
+  bool _useCredit = true;
 
   @override
   void didChangeDependencies() {
@@ -1572,13 +1573,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
     });
     final d = store.draft;
     final free = store.customer?.freeWashes ?? 0;
+    // Credit from a late cancellation comes off automatically (not with a free wash).
+    final credit = store.isLive ? 0 : (store.customer?.credit ?? 0);
+    d.creditApplied = d.useFreeWash || !_useCredit ? 0 : credit.clamp(0, d.basePrice);
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
         showCall: false,
-        child: d.useFreeWash
+        child: d.price == 0
             // Free wash: nothing to pay, so skip the payment sheet.
-            ? WButton('Book with free wash', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
+            ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
             : WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login)),
       ),
       children: [
@@ -1636,8 +1640,35 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           ),
         ],
+        if (credit > 0 && !d.useFreeWash) ...[
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+            decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
+            child: Row(
+              children: [
+                const WIconView(WIcon.rupee, size: 22, color: WColor.onSuccess),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WText('${Fmt.rupees(credit)} credit', WType.bodyStrong, color: WColor.onSuccess),
+                      WText(
+                        _useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
+                        WType.caption,
+                        color: WColor.onSuccess,
+                      ),
+                    ],
+                  ),
+                ),
+                WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 18),
-        if (!d.useFreeWash) HeldSafelyBanner(amount: d.price),
+        if (d.price > 0) HeldSafelyBanner(amount: d.price),
       ],
     );
   }

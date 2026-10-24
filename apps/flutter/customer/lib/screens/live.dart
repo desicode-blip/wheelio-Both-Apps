@@ -65,6 +65,16 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.onTheWay => o.captainCantFind ? _cantFind(o) : _onTheWay(o),
         OrderStatus.washing => _washing(o),
         OrderStatus.photosReady => CheckWashView(order: o),
+        OrderStatus.cancelled when o.creditGiven > 0 => _state(WFullState(
+            icon: WIcon.rupee,
+            tone: Tone.ok,
+            title: 'Booking cancelled',
+            message: '${Fmt.rupees(o.creditGiven)} (${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}) is added as credit. It comes off your next booking, so you pay only the rest.',
+            primary: 'Book again',
+            secondary: 'Go home',
+            onPrimary: () => _again(o),
+            onSecondary: router.popToRoot,
+          )),
         OrderStatus.cancelled => _state(o.freeWashGiven
             ? WFullState(
                 icon: WIcon.gift,

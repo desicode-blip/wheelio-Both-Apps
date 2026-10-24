@@ -196,6 +196,10 @@ class Customer {
   String phone;
   String name;
   int freeWashes;
+
+  /// Rupees from bookings cancelled after the first 15 minutes (50% of the price).
+  /// Comes off the next booking.
+  int credit = 0;
   bool notificationsOn;
 
   /// Saved the first time we need to send a refund (UPI only for now). Editable in Profile.
@@ -347,18 +351,28 @@ class Order {
 
   final String id;
 
-  /// Cancelled by the customer: no refund, 1 free wash added to their account.
+  /// Cancelled by the customer within 15 minutes: no refund, 1 free wash added to their account.
   bool freeWashGiven = false;
+
+  /// Cancelled after 15 minutes: rupees credited for the next booking (50%).
+  int creditGiven = 0;
+
+  /// Credit from an earlier cancellation used to pay for this booking.
+  int creditUsed = 0;
+
+  /// What the booking was worth: the price paid plus any credit, or the full wash price for a free wash.
+  int get value => usedFreeWash ? vehicle.type.price : price + creditUsed;
 
   /// Still before the slot starts (nothing to wash or photograph yet).
   bool get slotAhead => slot.start.isAfter(DateTime.now());
 
-  /// Cancellable: booked less than 15 minutes ago and the wash hasn't started.
-  bool canCancel([DateTime? now]) =>
-      const [OrderStatus.searching, OrderStatus.onTheWay].contains(status) &&
-      (now ?? DateTime.now()).difference(createdAt) < BusinessRules.cancelWindow;
+  /// Cancellable until the wash starts.
+  bool canCancel([DateTime? now]) => const [OrderStatus.searching, OrderStatus.onTheWay].contains(status);
 
-  /// Whole minutes left to cancel (at least 1 while cancellable).
+  /// Still in the first 15 minutes: cancelling gives a free wash.
+  bool inFreeCancelWindow([DateTime? now]) => (now ?? DateTime.now()).difference(createdAt) < BusinessRules.cancelWindow;
+
+  /// Whole minutes left in the free-wash window (at least 1 while it is open).
   int cancelMinutesLeft([DateTime? now]) {
     final left = BusinessRules.cancelWindow - (now ?? DateTime.now()).difference(createdAt);
     return left.isNegative ? 0 : (left.inSeconds / 60).ceil().clamp(1, BusinessRules.cancelWindow.inMinutes);
@@ -407,8 +421,13 @@ class Order {
 
 /// Business values not decided yet. While null the UI shows the placeholder text from the designs.
 class BusinessRules {
-  /// Customers can cancel only this long after booking. No refund: they get 1 free wash instead.
+  /// Cancelling within this long after booking: no refund, 1 free wash instead.
   static const cancelWindow = Duration(minutes: 15);
+
+  /// Cancelling later (until the wash starts): this share of the price becomes credit
+  /// for the next booking. No cash refund either way.
+  static const lateCancelCreditPercent = 50;
+  static int lateCancelCredit(int price) => (price * lateCancelCreditPercent / 100).round();
   static const int? cancellationFee = null;
   static const int? waitFee = null;
 

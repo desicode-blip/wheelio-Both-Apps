@@ -139,10 +139,12 @@ The Flutter apps now have an `ios` platform, but phone builds run on sample data
 
 ## Cancelling and free washes (added 24 Oct 2026)
 
-- [ ] New rule (sample app): customers can cancel only within **15 minutes of booking** (`BusinessRules.cancelWindow`),
-      and get **no refund** but **1 free wash** credited instead. The live `cancelBooking` function still refunds:
-      change it to enforce the window on the server (booking time from the server, not the phone), credit the free wash
-      to the customer record, and send the "Booking cancelled · 1 free wash added" notification.
+- [ ] New rule (sample app): customers can cancel until the wash starts, with **no cash refund**:
+      within **15 minutes of booking** (`BusinessRules.cancelWindow`) they get **1 free wash**; after that they get
+      **50% of the booking's value as credit** (`BusinessRules.lateCancelCredit`), taken off their next booking.
+      The live `cancelBooking` function still refunds: change it to apply these rules on the server (booking time from
+      the server, not the phone), store free washes and rupee credit on the customer record, take credit off the next
+      booking's price in `createOrder`, and send the matching "Booking cancelled" notification.
 - [ ] Free washes: keep the count on the server; a booking paid with a free wash skips Razorpay (`price` 0).
 - [ ] Bookings for a later slot stay "Booked" until the slot; captains are assigned before it. The live lifecycle
       should not show captain, wash or before/after photos before the slot starts.

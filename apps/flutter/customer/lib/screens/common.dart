@@ -347,7 +347,7 @@ class _CancelLinkState extends State<CancelLink> {
   Widget build(BuildContext context) {
     final o = widget.order;
     if (!o.canCancel()) return const SizedBox.shrink();
-    final label = 'Cancel booking · ${o.cancelMinutesLeft()} min left';
+    const label = 'Cancel booking'; // details only in the sheet, to keep cards clean
     void open() => openCancelSheet(context, o);
     return widget.compact
         ? WLink(label, k: WType.caption, color: WColor.destructive, onTap: open)
@@ -382,25 +382,29 @@ class _CancelSheetState extends State<CancelSheet> {
     final open = o?.canCancel() ?? false;
     if (!open) {
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const WText('Cancelling is closed', WType.section, weight: semibold),
+        const WText('The wash has started', WType.section, weight: semibold),
         const SizedBox(height: 12),
-        const WText('A booking can be cancelled only in the first 15 minutes after you book it.', WType.body),
+        const WText('A booking can’t be cancelled once the captain starts washing. Something wrong? Use Help.', WType.body),
         const SizedBox(height: 22),
         WButton('OK', onTap: () => Navigator.of(context).pop()),
       ]);
     }
+    final early = o!.inFreeCancelWindow();
+    final credit = BusinessRules.lateCancelCredit(o.value);
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const WText('Cancel this booking?', WType.section, weight: semibold),
-        const SizedBox(height: 6),
-        WText('You can cancel for ${o!.cancelMinutesLeft()} more min.', WType.caption),
         const SizedBox(height: 14),
-        const WBanner(
-          tone: Tone.info,
-          icon: WIcon.gift,
-          title: 'No refund, but a free wash',
-          text: 'We don’t refund cancelled bookings. We add 1 free wash to your account instead, for your next booking.',
-        ),
+        // Say exactly what they get back before they confirm.
+        if (early)
+          const WBanner(tone: Tone.ok, icon: WIcon.gift, title: 'You get 1 free wash', text: 'For your next booking. No cash refund.')
+        else
+          WBanner(
+            tone: Tone.ok,
+            icon: WIcon.rupee,
+            title: 'You get ${Fmt.rupees(credit)} credit',
+            text: '${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}, taken off your next booking. No cash refund.',
+          ),
         const SizedBox(height: 16),
         const WText('Why are you cancelling? (optional)', WType.label),
         const SizedBox(height: 10),
@@ -415,7 +419,7 @@ class _CancelSheetState extends State<CancelSheet> {
           });
           try {
             await store.cancel(o.id);
-            store.set(() => store.toast = 'Booking cancelled. 1 free wash added.');
+            store.set(() => store.toast = early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
             nav.pop();
           } catch (e) {
             setState(() {

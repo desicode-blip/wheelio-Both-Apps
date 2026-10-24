@@ -2,7 +2,8 @@
 
 ## 24 October 2026: address by hand (Customer)
 
-- Cancelling (sample app): a booking can be cancelled for 15 minutes after it is made, from the Home "Upcoming" card, the Bookings list and the order screen ("Cancel booking · N min left", counts down). The sheet says there is no refund and 1 free wash is added instead. After cancelling: toast, notification, a "Booking cancelled" screen with "Book with free wash", and the order moves to Past. After 15 minutes the link disappears.
+- Cancelling (sample app): "Cancel booking" on the Home "Upcoming" card, the Bookings list and the order screen, until the wash starts. No cash refund. Within 15 minutes of booking: 1 free wash. After that: 50% of the booking's value as credit (`Customer.credit`, rupees). Cards show only "Cancel booking"; the sheet states the outcome in one line before confirming ("You get 1 free wash" / "You get ₹75 credit · 50% of ₹149"). After cancelling: toast, notification, a "Booking cancelled" screen, a Home banner for the credit, and the order moves to Past.
+- Credit at checkout: shown only when the customer has credit, as a green card ("₹75 credit · ₹75 off. You pay ₹74.") with a switch, on by default; the total and the amount held use the reduced price. Not combined with a free wash.
 - Free wash at checkout: shown only when the customer has one, as a green card ("You have 1 free wash · Used for this booking. You pay ₹0.") with a switch, on by default. With it on, the button reads "Book with free wash" and skips the payment sheet.
 - Upcoming bookings for a later slot show "Booked" (not "Searching"/"Check photos"), and their screen shows the booking, only the customer's own photos, and the cancel link. The demo lifecycle no longer runs ahead to captain/wash/photos before the slot.
 

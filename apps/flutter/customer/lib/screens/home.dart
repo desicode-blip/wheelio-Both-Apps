@@ -264,6 +264,17 @@ class _HomeTabState extends State<HomeTab> {
                       onAction: _book,
                     ),
                   ],
+                  if (c.credit > 0) ...[
+                    const SizedBox(height: 20),
+                    WBanner(
+                      tone: Tone.ok,
+                      icon: WIcon.rupee,
+                      title: '${Fmt.rupees(c.credit)} credit',
+                      text: 'Comes off your next booking.',
+                      actionTitle: 'Book',
+                      onAction: _book,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   // Booking a wash is always the main action, even while another wash is running.
                   WCard(

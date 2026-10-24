@@ -300,6 +300,7 @@ class BookingDraft {
     EntryNote? note,
     this.slot,
     this.useFreeWash = false,
+    this.creditApplied = 0,
     this.isRepeat = false,
   }) : photos = photos ?? {},
        note = note ?? EntryNote();
@@ -312,12 +313,16 @@ class BookingDraft {
   EntryNote note;
   TimeSlot? slot;
   bool useFreeWash;
+
+  /// Rupees of the customer's credit taken off this booking (set on Check and pay).
+  int creditApplied;
   bool isRepeat;
 
   int get photosDone => photos.values.where((s) => s == UploadState.done).length;
   bool get photosComplete => PhotoAngle.values.every((a) => photos[a] == UploadState.done);
   bool get hasFailedPhoto => photos.values.contains(UploadState.failed);
-  int get price => useFreeWash ? 0 : (type?.price ?? 0);
+  int get basePrice => type?.price ?? 0;
+  int get price => useFreeWash ? 0 : (basePrice - creditApplied).clamp(0, basePrice);
 }
 
 class OtpResult {
@@ -919,6 +924,10 @@ class AppStore extends ChangeNotifier {
         return PaymentOutcome.pending;
       case PaymentOutcome.success:
         if (d.useFreeWash) customer?.freeWashes -= 1;
+        if (!d.useFreeWash && d.creditApplied > 0) {
+          o.creditUsed = d.creditApplied;
+          customer?.credit -= d.creditApplied;
+        }
         _startLifecycle(o.id);
         return PaymentOutcome.success;
     }
@@ -1055,8 +1064,9 @@ class AppStore extends ChangeNotifier {
     bankRef: _bankRef(),
   );
 
-  /// Customer cancels within 15 minutes of booking: no refund, 1 free wash for a future booking.
-  /// BACKEND: rpc cancel_order must enforce the 15-minute window and credit the free wash
+  /// Customer cancels before the wash starts. No cash refund:
+  /// within 15 minutes of booking → 1 free wash; later → 50% of the booking's value as credit.
+  /// BACKEND: rpc cancel_order must apply these rules on the server
   /// (today the live backend refunds instead; see docs/BACKEND-HOOKUP.md).
   Future<void> cancel(String id) async {
     if (isLive) {
@@ -1067,13 +1077,20 @@ class AppStore extends ChangeNotifier {
     if (o == null || !o.canCancel()) throw StateError('This booking can no longer be cancelled.');
     await _latency(800);
     _tasks[id]?.cancel();
+    final early = o.inFreeCancelWindow();
+    final credit = early ? 0 : BusinessRules.lateCancelCredit(o.value);
     _update(id, (o) {
       o.refund = null;
       o.status = OrderStatus.cancelled;
       o.captainCantFind = false;
-      o.freeWashGiven = true;
+      o.freeWashGiven = early;
+      o.creditGiven = credit;
     });
-    customer?.freeWashes += 1;
+    if (early) {
+      customer?.freeWashes += 1;
+    } else {
+      customer?.credit += credit;
+    }
     notifyListeners();
   }
 
@@ -1359,7 +1376,11 @@ class AppStore extends ChangeNotifier {
           notify(
             NotificationKind.bookingCancelled,
             'Booking cancelled',
-            o.freeWashGiven ? '1 free wash is added to your account. Use it on your next booking.' : 'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.',
+            o.freeWashGiven
+                ? '1 free wash is added to your account. Use it on your next booking.'
+                : o.creditGiven > 0
+                ? '${Fmt.rupees(o.creditGiven)} credit is added. It comes off your next booking.'
+                : 'Your refund of ${Fmt.rupees(o.refund?.amount ?? o.price)} has started.',
             orderId: o.id,
           );
         case OrderStatus.disputeUpheld || OrderStatus.disputeRejected:
