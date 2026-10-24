@@ -44,7 +44,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook'];
+    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook'];
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;
@@ -78,6 +78,13 @@ async function main() {
     const bad=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Razorpay-Signature':'0'.repeat(64)},body,signal:AbortSignal.timeout(20000)});
     if(good.status!==200||bad.status!==401)throw Error(`Webhook checks failed (${good.status}/${bad.status}).`);
     console.log('Webhook accepts a correctly signed setup event and rejects an invalid signature. No payments changed. Merchant dashboard registration is a separate step.');
+  } else if(command==='approve-address') {
+    if(!/^[a-f0-9]{32}$/.test(uid??'')||societyIds.length!==1)throw Error('Usage: approve-address REQUEST_ID SOCIETY_ID');
+    const request=await api(`/addressRequests/${uid}`),key=request.fields.addressKey?.stringValue;
+    const cfg=await api('/config/operations'),societies=cfg.fields.societies?.arrayValue?.values??[];
+    if(!/^[a-f0-9]{32}$/.test(key??'')||!societies.some(s=>s.mapValue?.fields?.id?.stringValue===societyIds[0]&&s.mapValue?.fields?.active?.booleanValue))throw Error('Review the address and select an active served society.');
+    await api(`/serviceAddresses/${key}`,'PATCH',{fields:fields({approved:true,societyId:societyIds[0]})});
+    console.log('Service address mapping saved. The customer can check the typed address again.');
   } else if(command==='approve-captain') {
     if(!/^[A-Za-z0-9_-]{1,128}$/.test(uid??'')||!societyIds.length)throw Error('Usage: node backend/firebase/operations.cjs approve-captain UID SOCIETY_ID [...]');
     const c=await api(`/captains/${uid}`), requested=c.fields.requestedSocietyIds?.arrayValue?.values?.map(v=>v.stringValue)??[];
@@ -85,6 +92,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-captain UID SOCIETY_ID [...]. Review identity and bank proof in Firebase Console before approval.');
+  } else throw Error('Commands: configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Review identity and bank proof in Firebase Console before approval.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

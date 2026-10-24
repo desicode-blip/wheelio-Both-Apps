@@ -1,5 +1,9 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
+import { createHash } from 'node:crypto';
+import { FieldValue } from 'firebase-admin/firestore';
+import { orderNotices } from './notifications.mjs';
 import { getStorage } from 'firebase-admin/storage';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
@@ -41,22 +45,30 @@ function callable(method, payment = false) {
 }
 export const registerAccount = callable('register');
 export const getAvailability = callable('availability');
+export const checkServiceAddress = callable('checkAddress');
 export const createBooking = callable('createBooking');
 export const createCheckout = callable('checkout', true);
 export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
 export const setCaptainOnline = callable('captainOnline');
+export const setCaptainPreferences = callable('captainPreferences');
 export const submitCaptainApplication = callable('submitCaptainApplication');
 export const claimJob = callable('claim');
 export const rejectJob = callable('reject');
 export const updateWashProgress = callable('progress');
 export const recordWashEvidence = callable('evidenceUploaded');
 export const recordCustomerPhoto = callable('customerPhoto');
+export const recordCustomerMedia = callable('customerMedia');
 export const updateCaptainLocation = callable('location');
 export const approveWash = callable('approve');
 export const rateWash = callable('rate');
 export const cancelBooking = callable('cancel');
 export const reportWashProblem = callable('reportProblem');
+export const createSupportRequest = callable('supportRequest');
+export const registerPushToken = callable('registerPushToken');
+export const setPushPreference = callable('setPushPreference');
+export const removePushToken = callable('removePushToken');
+export const readNotification = callable('readNotification');
 
 export const razorpayWebhook = onRequest({ secrets: [keyId, keySecret, webhookSecret], invoker: 'private', cors: false }, async (request, response) => {
   if (request.method !== 'POST') { response.status(405).send('POST required'); return; }
@@ -111,15 +123,39 @@ export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeou
   }
   const pending = await db.collection('orders').where('status', '==', 'pendingPayment').limit(200).get();
   for (const doc of pending.docs) {
-    if (doc.data().paymentExpiresAt.toMillis() < now) await db.runTransaction(async tx => {
-      const fresh = await tx.get(doc.ref);
-      if (fresh.data().status === 'pendingPayment') tx.update(doc.ref, { status: 'cancelled', cancellationReason: 'paymentExpired' });
-    });
+    if (doc.data().paymentExpiresAt.toMillis() < now)
+      await backend.cancel({uid:doc.data().customerId},{orderId:doc.id},{paymentExpired:true});
   }
   const stalled = await db.collection('orders').where('status', 'in', ['searching', 'onTheWay']).limit(200).get();
-  for (const doc of stalled.docs) if (doc.data().slotEnd.toMillis() < now) {
+  for (const doc of stalled.docs) if ((doc.data().status==='searching' ? doc.data().lastSlotEnd??doc.data().slotEnd : doc.data().slotEnd).toMillis() < now) {
     const o = doc.data();
     try { await backend.cancel({uid:o.customerId},{orderId:doc.id},{expired:true}); }
     catch(error) { if (!(error instanceof ServiceError)) throw error; }
   }
+});
+
+
+async function saveNotice(key,notice) {
+  const ref=db.doc(`notifications/${createHash('sha256').update(key).digest('hex').slice(0,32)}`);
+  await db.runTransaction(async tx=>{if((await tx.get(ref)).exists)return;tx.create(ref,{...notice,read:false,createdAt:FieldValue.serverTimestamp()});});
+}
+export const notifyBookingUpdate = onDocumentUpdated('orders/{orderId}',async event=>{
+  for(const notice of orderNotices(event.data.before.data(),event.data.after.data()))
+    await saveNotice(`${event.id}:${notice.recipientId}:${notice.role}:${notice.kind}`,{...notice,orderId:event.params.orderId});
+});
+export const notifyJobOffer = onDocumentCreated('jobOffers/{offerId}',async event=>{
+  const o=event.data.data();
+  if(o.status!=='pending'||o.expiresAt.toMillis()<=Date.now())return;
+  await saveNotice(event.id,{recipientId:o.captainId,role:'captain',kind:'offer',orderId:o.orderId,offerExpiresAt:o.expiresAt,title:'New wash offer',body:'Open Wheelio Captain to review this offer before it expires.'});
+});
+export const sendInboxPush = onDocumentCreated({document:'notifications/{notificationId}',retry:true},async event=>{
+  const notice=event.data.data();
+  if(notice.offerExpiresAt?.toMillis()<=Date.now())return;
+  const devices=await db.collection('deviceTokens').where('uid','==',notice.recipientId).get();
+  const eligible=devices.docs.filter(d=>d.data().role===notice.role).slice(0,50);
+  if(!eligible.length)return;
+  try {
+    const result=await getMessaging().sendEachForMulticast({tokens:eligible.map(d=>d.data().token),notification:{title:notice.title,body:notice.body},data:{orderId:notice.orderId,role:notice.role},apns:{payload:{aps:{sound:'default'}}}});
+    for(let i=0;i<result.responses.length;i++)if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(result.responses[i].error?.code))await eligible[i].ref.delete();
+  }catch(error){logger.error('Push delivery failed; inbox entry retained',{code:error.code??'messaging'});throw error;}
 });

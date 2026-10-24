@@ -34,6 +34,7 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
+    store.live?.listenPush('customer',(id){if(mounted){store.set(()=>store.currentOrderId=id);router.push(R(N.live,id:id));}});
     // On a laptop there's no phone to call from: say so instead of dialling.
     Support.onCallUnavailable = (n) => store.set(() => store.toast = 'Calls work on your phone: ${Fmt.phone(n.replaceFirst('+91', ''))}');
   }
@@ -142,6 +143,7 @@ Widget _destination(R r) {
     if ({N.booked, N.live, N.photoCompare, N.rate, N.reportProblem, N.problemPhotos, N.disputeStatus, N.refund, N.bookingDetail, N.refundUPI}.contains(r.n)) {
       return FirebaseOrderScreen(orderId: r.id);
     }
+    if ({N.notifications,N.notificationSettings,N.notifyAsk}.contains(r.n)) return Builder(builder:(context)=>WScreen(header:WAppBar(onLeading:context.router.pop),children:[FirebaseInbox(captain:false,onOpen:(id){context.store.set(()=>context.store.currentOrderId=id);context.router.push(R(N.live,id:id));})]));
     if ({N.whatsApp, N.notifyAsk, N.help, N.helpCaptain, N.helpEmergency, N.changePhone, N.notificationSettings, N.notifications}.contains(r.n)) {
       return const FirebaseAccountHelp();
     }

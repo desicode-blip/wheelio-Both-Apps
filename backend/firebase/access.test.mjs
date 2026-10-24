@@ -54,3 +54,47 @@ test('KYC photos stay private and are locked after submission',async()=>{
   await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'captains/applicant'),{kycStatus:'underReview'}));
   await assertFails(uploadBytes(ref(actor('applicant').storage(),path),bytes,{contentType:'image/jpeg'}));
 });
+
+
+test('wallet balances and address approval resist forgery, cross-user reads and public queries',async()=>{
+  await env.withSecurityRulesDisabled(async c=>{
+    await setDoc(doc(c.firestore(),'wallets/alice_test'),{customerId:'alice',paymentMode:'test',freeWashes:1,creditPaise:7500});
+    await setDoc(doc(c.firestore(),'addressRequests/address'),{customerId:'alice',status:'underReview'});
+  });
+  const alice=actor('alice').firestore(),bob=actor('bob').firestore(),anon=env.unauthenticatedContext().firestore();
+  await assertSucceeds(getDoc(doc(alice,'wallets/alice_test')));
+  await assertSucceeds(getDoc(doc(alice,'wallets/alice_live')));
+  await assertSucceeds(getDoc(doc(alice,'addressRequests/address')));
+  for(const db of [bob,anon])for(const path of ['wallets/alice_test','addressRequests/address'])await assertFails(getDoc(doc(db,path)));
+  await assertFails(getDocs(collection(alice,'wallets')));
+  await assertFails(getDocs(collection(anon,'addressRequests')));
+  for(const patch of [{freeWashes:999},{customerId:'bob'},{creditPaise:-1},{extra:'x'.repeat(10000)}])
+    await assertFails(updateDoc(doc(alice,'wallets/alice_test'),patch));
+  await assertFails(setDoc(doc(alice,'wallets/forged_test'),{customerId:'alice',freeWashes:1}));
+  await assertFails(updateDoc(doc(alice,'addressRequests/address'),{status:'approved',societyId:'soc_avatar'}));
+});
+
+test('private recordings are scoped to the booking parties and pending-payment owner',async()=>{
+  await env.withSecurityRulesDisabled(async c=>updateDoc(doc(c.firestore(),'orders/job'),{status:'pendingPayment'}));
+  const path='orders/job/customer/note_audio',bytes=new Uint8Array([1,2,3]);
+  await assertSucceeds(uploadBytes(ref(actor('alice').storage(),path),bytes,{contentType:'audio/mp4'}));
+  await assertFails(uploadBytes(ref(actor('captain').storage(),path),bytes,{contentType:'audio/mp4'}));
+  await assertFails(uploadBytes(ref(actor('alice').storage(),'orders/job/customer/note_video'),bytes,{contentType:'text/html'}));
+  await assertSucceeds(getBytes(ref(actor('captain').storage(),path)));
+  await assertFails(getBytes(ref(actor('stranger').storage(),path)));
+  await env.withSecurityRulesDisabled(async c=>updateDoc(doc(c.firestore(),'orders/job'),{status:'searching'}));
+  await assertFails(uploadBytes(ref(actor('alice').storage(),path),bytes,{contentType:'audio/mp4'}));
+});
+
+test('inbox entries are private and tokens remain inaccessible even to clients that own them',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{
+  await setDoc(doc(c.firestore(),'notifications/n'),{recipientId:'alice',read:false});
+  await setDoc(doc(c.firestore(),'deviceTokens/t'),{uid:'alice',token:'private-token',role:'customer'});
+ });
+ await assertSucceeds(getDocs(query(collection(actor('alice').firestore(),'notifications'),where('recipientId','==','alice'))));
+ for(const uid of ['alice','stranger']){
+  await assertFails(getDoc(doc(actor(uid).firestore(),'deviceTokens/t')));
+  await assertFails(updateDoc(doc(actor(uid).firestore(),'notifications/n'),{recipientId:uid,read:true}));
+ }
+ await assertFails(getDoc(doc(actor('stranger').firestore(),'notifications/n')));
+});

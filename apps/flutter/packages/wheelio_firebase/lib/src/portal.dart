@@ -22,7 +22,7 @@ Future<void> launchWheelio({
   }
   Object? initializationError;
   try {
-    await WheelioFirebase.initialize();
+    await WheelioFirebase.initialize(captain: captain);
     WheelioRuntime.backend = LiveBackend();
   } catch (error) {
     initializationError = error;
@@ -34,13 +34,12 @@ Future<void> launchWheelio({
   );
 }
 
-/// Keep the web preview unmistakable on every designed demo screen. Phone builds don't
-/// show the strip (decided 24 Oct 2026): they are installed only on the team's own phones.
+/// Label every explicit sample-data build, including installed phone builds.
 class DemoLabel extends StatelessWidget {
   const DemoLabel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => !WheelioRuntime.demo || !kIsWeb
+  Widget build(BuildContext context) => !WheelioRuntime.demo
       ? child
       : Column(
           children: [

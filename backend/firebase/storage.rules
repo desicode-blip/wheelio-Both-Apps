@@ -7,7 +7,10 @@ service firebase.storage {
     match /orders/{orderId}/customer/{file} {
       allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
       allow create, update: if signedIn() && order(orderId).customerId == request.auth.uid && order(orderId).status == 'pendingPayment'
-        && file.matches('(front|back|left|right)\\.jpg') && photo();
+        && ((file.matches('(front|back|left|right)\\.jpg') && photo())
+          || (request.resource.size > 0 && request.resource.size <= 20 * 1024 * 1024
+            && ((file == 'note_audio' && request.resource.contentType.matches('audio/(mp4|aac)'))
+              || (file in ['note_video', 'vehicle'] && request.resource.contentType.matches('video/(mp4|quicktime)')))));
       allow delete: if false;
     }
     match /orders/{orderId}/{captainId}/{file} {

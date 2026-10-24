@@ -77,6 +77,8 @@ test('expiry, offline and overlapping assignments are enforced by the server',as
 });
 test('wash lifecycle requires assigned captain, arrival and four uploaded photos per stage; customer alone approves',async()=>{
   const b=await paid(),d={orderId:b.bookingId};await service.claim(auth('captain1'),d);
+  await assert.rejects(service.progress(auth('captain1'),{...d,action:'arrived'}),{code:'failed-precondition'});
+  clock=Date.parse('2026-11-01T08:00:00+05:30');
   await assert.rejects(service.progress(auth('captain2'),{...d,action:'arrived'}),{code:'permission-denied'});
   await assert.rejects(service.progress(auth('captain1'),{...d,action:'start'}),{code:'failed-precondition'});
   await service.progress(auth('captain1'),{...d,action:'arrived'});
@@ -214,6 +216,7 @@ test('assigned cancellation withdraws offers, releases the captain and prevents 
 test('customer problems hold earnings and cannot be opened or approved by the captain',async()=>{
   const b=await paid(),data={orderId:b.bookingId};
   await service.claim(auth('captain1'),data);
+  clock=Date.parse('2026-11-01T08:00:00+05:30');
   await service.progress(auth('captain1'),{...data,action:'arrived'});
   for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...data,stage:'before',side});
   await service.progress(auth('captain1'),{...data,action:'start'});
@@ -231,4 +234,103 @@ test('HMAC signatures are checked against original bytes and malformed signature
   const raw=Buffer.from('{"event":"payment.captured"}'),sig=createHmac('sha256','test-secret').update(raw).digest('hex');
   assert.equal(signatureMatches(raw,sig,'test-secret'),true);assert.equal(signatureMatches(Buffer.from('changed'),sig,'test-secret'),false);
   for(const bad of [null,'','0','z'.repeat(64),'f'.repeat(64)])assert.equal(signatureMatches(raw,bad,'test-secret'),false);
+});
+
+
+test('wallet reservation is atomic, free checkout uses no provider order, and cancellation restores once',async()=>{
+  await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',freeWashes:1,creditPaise:0});
+  const b=await service.createBooking(customer,{...input(),useFreeWash:true,expectedAmountPaise:0});
+  assert.equal(b.amount,0);
+  assert.equal((await db.doc('wallets/customer_test').get()).data().freeWashes,0);
+  const checkout=await service.checkout(customer,b);assert.equal(checkout.paid,true);assert.equal(counter,0);
+  await service.checkout(customer,b);
+  await service.cancel(customer,{orderId:b.bookingId});await service.cancel(customer,{orderId:b.bookingId});
+  assert.equal((await db.doc('wallets/customer_test').get()).data().freeWashes,1);
+  assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).exists,false);
+});
+test('payment expiry restores reserved credit; late capture refunds only cash without restoring twice',async()=>{
+  await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',freeWashes:0,creditPaise:7500});
+  const b=await service.createBooking(customer,{...input(),useCredit:true,expectedAmountPaise:7400});
+  const checkout=await service.checkout(customer,b);
+  assert.equal(checkout.amount,7400);
+  clock+=16*60000;
+  await service.cancel({uid:'customer'},{orderId:b.bookingId},{paymentExpired:true});
+  assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
+  await service.capturePayment({id:'pay_late',order_id:checkout.orderId,amount:7400,currency:'INR',status:'captured'});
+  assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
+  assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).data().amount,7400);
+});
+test('wallet cancellation snapshots grant early free wash or late credit only once and never cross modes',async()=>{
+  await db.doc('config/operations').update({cancellationPolicy:{kind:'wallet',freeWashMinutes:15,lateCreditBps:5000}});
+  const b=await paid();await service.cancel(customer,{orderId:b.bookingId});await service.cancel(customer,{orderId:b.bookingId});
+  assert.equal((await db.doc('wallets/customer_test').get()).data().freeWashes,1);
+  const b2=await paid('second');clock+=16*60000;
+  await service.cancel(customer,{orderId:b2.bookingId});
+  assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
+  assert.equal((await db.doc('wallets/customer_live').get()).exists,false);
+  assert.equal((await db.collection('refunds').get()).size,0);
+});
+test('multiple windows choose capacity, expire into the next window and respect captain hours',async()=>{
+  for(const uid of ['captain1','captain2'])await service.captainPreferences(auth(uid),{workingWindows:[{startHour:10,endHour:14}]});
+  await assert.rejects(service.createBooking(customer,input()),{code:'resource-exhausted'});
+  const b=await service.createBooking(customer,{...input(),windows:[{startHour:8,endHour:10},{startHour:10,endHour:12},{startHour:12,endHour:14}]});
+  const checkout=await service.checkout(customer,b);
+  await service.capturePayment({id:'pay_windows',order_id:checkout.orderId,amount:14900,currency:'INR',status:'captured'});
+  let o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.startHour,10);
+  clock=Date.parse('2026-11-01T12:01:00+05:30');await service.dispatch(b.bookingId);
+  o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.startHour,12);
+  assert.equal((await db.doc(`slotCapacity/${o.slotKey}`).get()).data().reserved,1);
+});
+test('typed addresses need a served society or operator mapping and cannot forge approval',async()=>{
+  const a={name:'My Home Avatar',area:'Narsingi',city:'Hyderabad',pincode:'500089'};
+  const ok=await service.checkAddress(customer,a);assert.equal(ok.served,true);
+  const b=await service.createBooking(customer,{...input(),addressKey:ok.addressKey});assert.equal(b.amount,14900);
+  await service.cancel(customer,{orderId:b.bookingId});
+  assert.equal((await service.checkAddress(customer,{...a,name:'Unserved building'})).served,false);
+  await assert.rejects(service.createBooking(customer,{...input('forged'),addressKey:'forged'}),{code:'failed-precondition'});
+});
+
+test('recorded notes are owner-only, bounded, and locked after payment',async()=>{
+  const b=await service.createBooking(customer,input());
+  service.evidence.metadata=async()=>({contentType:'audio/mp4',size:1000});
+  const d={orderId:b.bookingId,kind:'note_audio',seconds:12};
+  await assert.rejects(service.customerMedia(auth('stranger'),d),{code:'permission-denied'});
+  await service.customerMedia(customer,d);
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().customerMedia.note_audio.seconds,12);
+  await assert.rejects(service.customerMedia(customer,{...d,seconds:100}),{code:'invalid-argument'});
+  service.evidence.metadata=async()=>({contentType:'text/html',size:100});
+  await assert.rejects(service.customerMedia(customer,d),{code:'invalid-argument'});
+  service.evidence.metadata=async()=>({contentType:'audio/mp4',size:100});
+  const c=await service.checkout(customer,b);
+  await service.capturePayment({id:'pay_media',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'});
+  await assert.rejects(service.customerMedia(customer,d),{code:'permission-denied'});
+});
+test('support requests are authenticated, idempotent and rate limited',async()=>{
+  const data={requestId:'help-one',kind:'accountDeletion',note:'Please review my account deletion request.'};
+  await assert.rejects(service.supportRequest(null,data),{code:'unauthenticated'});
+  const r=await service.supportRequest(customer,data);await service.supportRequest(customer,data);
+  assert.equal((await db.doc(`supportTickets/${r.requestId}`).get()).data().status,'open');
+  await assert.rejects(service.supportRequest(customer,{...data,requestId:'help-two'}),{code:'resource-exhausted'});
+});
+
+test('push registration honors owner preferences, token removal and private inbox acknowledgements',async()=>{
+ const token='test-token-long-enough-for-registration';
+ await assert.rejects(service.registerPushToken(customer,{token,role:'customer'}),{code:'permission-denied'});
+ await service.setPushPreference(customer,{role:'customer',enabled:true});
+ await service.registerPushToken(customer,{token,role:'customer'});
+ await service.removePushToken(auth('stranger'),{token});assert.equal((await db.collection('deviceTokens').get()).size,1);
+ await service.setPushPreference(customer,{role:'customer',enabled:false});assert.equal((await db.collection('deviceTokens').get()).size,0);
+ await db.doc('notifications/notice').set({recipientId:'customer',read:false});
+ await assert.rejects(service.readNotification(auth('stranger'),{notificationId:'notice'}),{code:'permission-denied'});
+ await service.readNotification(customer,{notificationId:'notice'});assert.equal((await db.doc('notifications/notice').get()).data().read,true);
+});
+
+test('revoked manual service mappings cannot be reused for a new booking',async()=>{
+ const a={name:'Mapped building',area:'Area',city:'Hyderabad',pincode:'500089'};
+ await service.checkAddress(customer,a);
+ const req=(await db.collection('addressRequests').get()).docs[0].data();
+ await db.doc(`serviceAddresses/${req.addressKey}`).set({approved:true,societyId:'soc_avatar'});
+ const approved=await service.checkAddress(customer,a);assert.equal(approved.served,true);
+ await db.doc(`serviceAddresses/${req.addressKey}`).update({approved:false});
+ await assert.rejects(service.createBooking(customer,{...input(),addressKey:req.addressKey}),{code:'failed-precondition'});
 });

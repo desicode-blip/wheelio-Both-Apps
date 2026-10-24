@@ -1,7 +1,34 @@
 {
   "score": 5,
-  "summary": "Source rules and emulator attack tests enforce owner/assigned-party reads, server-owned business state, private fixed-path image uploads with size/type bounds, and immutable KYC review state. This assessment covers access rules, not operator IAM or photo authenticity.",
+  "summary": "Source rules and emulator attack tests enforce owner/assigned-party reads, server-owned business state, private fixed-path image uploads with size/type bounds, and immutable KYC review state. This assessment covers access rules, not operator IAM or photo authenticity. The 24 October additions cover server-owned wallets, address approvals, private recordings, notification inboxes and unreadable device tokens.",
   "findings": [],
-  "checks": ["Create/update ownership and field validation", "No client-controlled role or approval authority", "Order access requires customer or assigned captain", "Offer access does not grant exact booking access", "Client writes to payment, assignment, earnings and location denied", "Photo namespace, stage, MIME and 8 MB limits", "KYC documents locked on submission", "Default deny"],
-  "tests": "access.test.mjs, rules.test.mjs"
+  "checks": [
+    "Create/update ownership and field validation",
+    "No client-controlled role or approval authority",
+    "Order access requires customer or assigned captain",
+    "Offer access does not grant exact booking access",
+    "Client writes to payment, assignment, earnings and location denied",
+    "Photo namespace, stage, MIME and 8 MB limits",
+    "KYC documents locked on submission",
+    "Default deny",
+    "Wallet and address approval forgery denied",
+    "Private media fixed paths, MIME and 20 MB limit, locked after payment",
+    "Inbox owner queries permitted; cross-user reads and direct acknowledgements denied",
+    "Device token read/write unavailable to all client SDK contexts"
+  ],
+  "tests": "52 backend/rules/payment tests passed on 24 October 2026; access.test.mjs, rules.test.mjs, service.test.mjs, notifications.test.mjs and payments.test.mjs. This is scoped test evidence, not an exhaustive security guarantee.",
+  "attackOutcomes": {
+    "publicList": "Denied for private orders, profiles, wallets, address requests, inbox and token collections.",
+    "unauthorizedReadWrite": "Cross-user reads denied; all client business-state writes denied.",
+    "updateBypass": "Server-owned document updates denied; profile/request updates retain bounded field validation.",
+    "ownershipCreateAndUpdate": "Forged customer IDs, owner changes and privileged roles rejected.",
+    "immutableFieldsAndTimestamps": "Client creation timestamps and immutable-field changes rejected by existing profile/request tests.",
+    "invalidTypesMissingFieldsOversizedContent": "Existing request/profile/application validation tests reject malformed content. Wallet, address and token writes are denied entirely.",
+    "schemaPollutionAndPrivilegeEscalation": "Extra roles/fields and self-approval rejected.",
+    "invalidTransitionsAndReplay": "Client state transitions denied; service tests enforce claim races, idempotent refunds and wallet restoration.",
+    "pathScopeAndOrphanAccess": "Storage scopes require a real booking party and allowed path/stage; arbitrary user uploads denied.",
+    "mixedContent": "Other users cannot read profiles, exact bookings, private media, wallets or inbox entries. Tokens are never client-readable.",
+    "queryMismatch": "Owner/assigned queries and inbox owner filtering tested in emulator; notifications recipient/date index added.",
+    "syntax": "Firestore/Storage rules accepted by the emulator; deployment compilation must also pass."
+  }
 }

@@ -84,15 +84,16 @@ class Society {
 
 /// Where the vehicle is parked.
 class Place {
-  Place(this.society, {this.tower = '', this.floor, this.slot = ''});
+  Place(this.society, {this.tower = '', this.floor, this.slot = '',this.addressKey});
   Society society;
+  String? addressKey;
   String tower;
 
   /// Mandatory before booking (B3, B2, B1, Ground, Open).
   String? floor;
   String slot;
 
-  Place copy() => Place(society, tower: tower, floor: floor, slot: slot);
+  Place copy() => Place(society, tower: tower, floor: floor, slot: slot,addressKey:addressKey);
   String get title => tower.isEmpty ? society.name : '${society.name}, $tower';
   String get addressLine => '${society.area}, ${society.city}${society.pincode.isEmpty ? '' : ' ${society.pincode}'}';
 
@@ -103,7 +104,7 @@ class Place {
     return f.isEmpty ? 'slot $slot' : '$f, slot $slot';
   }
 
-  String get key => '${society.id}|$tower|${floor ?? ''}|$slot';
+  String get key => '${society.id}|${addressKey ?? ''}|$tower|${floor ?? ''}|$slot';
 }
 
 class Vehicle {
@@ -321,6 +322,18 @@ class Order {
   String paymentStatus = 'unpaid';
   String refundStatus = 'none';
   bool testPayment = false;
+  DateTime? serverSlotStart;
+  Map<String, dynamic>? liveCancelPolicy;
+  String get cancellationTerms {
+    final p = liveCancelPolicy;
+    if (paymentStatus != 'captured') return 'No payment has been confirmed. Any reserved free wash or credit will be restored.';
+    if (price == 0) return 'Your reserved free wash or credit will be restored. No cash payment was taken.';
+    if (p?['kind'] != 'wallet') return 'Eligible payment is refunded to the original payment method, less any configured cancellation fee. Reserved credit is restored.';
+    final minutes = (p?['freeWashMinutes'] as num).toInt();
+    if (DateTime.now().difference(createdAt).inSeconds <= minutes * 60) return 'You get 1 free wash for your next booking. No cash refund.';
+    final credit = (price * (p?['lateCreditBps'] as num).toInt() / 10000).round();
+    return 'You get ${Fmt.rupees(credit)} credit for your next booking. No cash refund.';
+  }
   Order({
     required this.id,
     required this.ref,
@@ -364,7 +377,7 @@ class Order {
   int get value => usedFreeWash ? vehicle.type.price : price + creditUsed;
 
   /// Still before the slot starts (nothing to wash or photograph yet).
-  bool get slotAhead => slot.start.isAfter(DateTime.now());
+  bool get slotAhead => (serverSlotStart ?? slot.start).isAfter(DateTime.now());
 
   /// Cancellable until the wash starts.
   bool canCancel([DateTime? now]) => const [OrderStatus.searching, OrderStatus.onTheWay].contains(status);

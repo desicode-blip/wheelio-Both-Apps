@@ -11,6 +11,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 export PATH="$HOME/development/flutter/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 APP="${1:-customer}"
+[[ "$APP" == customer || "$APP" == captain ]] || { echo "Choose customer or captain"; exit 1; }
+DEMO_DEFINE=()
+[[ "${2:-}" == "--demo" ]] && DEMO_DEFINE=(--dart-define=WHEELIO_DEMO=true)
 DEVICE="$(flutter devices --machine 2>/dev/null | node -e '
 let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
   const d = JSON.parse(s).find(x => x.targetPlatform === "ios" && !x.emulator);
@@ -19,4 +22,4 @@ let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
 });')"
 cd "$ROOT/apps/flutter/$APP"
 echo "=== $APP: starting live mode on your iPhone (first start takes a few minutes) ==="
-exec flutter run -d "$DEVICE" --dart-define=WHEELIO_DEMO=true
+exec flutter run -d "$DEVICE" "${DEMO_DEFINE[@]}"

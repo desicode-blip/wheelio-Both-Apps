@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 import 'package:wheelio_firebase/wheelio_firebase.dart';
@@ -384,6 +385,17 @@ class PhotosScreen extends StatelessWidget {
               },
             ),
           ),
+        if (store.isLive && !kIsWeb) ...[
+          const Gap(16),
+          if(store.draftMedia['vehicle'] != null) MediaPreview(store.draftMedia['vehicle']!,key:ValueKey(store.draftMedia['vehicle'])),
+          WButton(store.draftMedia['vehicle']==null?'Record walk-around video':'Replace walk-around video',kind:ButtonKind.outline,onTap:() async {
+            try {
+              final clip=await captureVideo(context);
+              if(clip!=null)store.set(() { store.draftMedia['vehicle']=clip;store.draft.videoSeconds=clip.seconds; });
+            }catch(e){store.set(()=>store.toast=e is MediaAccessException?e.message:backendError(e));}
+          }),
+          if(store.draftMedia['vehicle']!=null) WLink('Remove video',onTap:()=>store.set((){store.draftMedia.remove('vehicle');store.draft.videoSeconds=null;})),
+        ],
         if (!store.isLive && d.videoSeconds != null && d.photosComplete)
           Container(
             margin: const EdgeInsets.only(top: 20),
@@ -455,13 +467,28 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   bool denied = false;
+  bool busy = false, settings = false;
+  String? error;
   late PhotoAngle current = widget.angle;
 
-  Future<void> _shoot() async {
+  Future<void> _shoot({bool gallery = false}) async {
+    if (busy) { return; }
     final store = context.store;
     final a = current;
-    await store.uploadPhoto(a);
-    if (!mounted || store.draft.photos[a] == null) return;
+    setState(() { busy = true; error = null; settings = false; });
+    bool captured;
+    try {
+      captured = await store.uploadPhoto(a, gallery: gallery);
+    } catch (e) {
+      if (mounted) { setState(() {
+        error = e is MediaAccessException ? e.message : backendError(e);
+        settings = e is MediaAccessException && e.settings;
+      }); }
+      return;
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+    if (!mounted || !captured) return;
     final next = PhotoAngle.values.where((x) => store.draft.photos[x] == null && x != a).firstOrNull;
     if (next != null) {
       setState(() => current = next);
@@ -473,12 +500,19 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    if (store.isLive) {
+    if (store.isLive || !kIsWeb) {
       return WScreen(
         header: const PlainHeader(),
         children: [
           WTitleBlock('${current.label} photo', subtitle: 'Choose a clear photo of your vehicle. It will be shared only with your assigned captain.'),
-          WButton('Take or choose photo', icon: WIcon.camera, onTap: _shoot),
+          if (error != null) ...[
+            WBanner(tone: Tone.error, icon: WIcon.info, text: error!),
+            if (settings) WButton('Open Settings', kind: ButtonKind.outline, onTap: Device.openSettings),
+            const Gap(16),
+          ],
+          WButton(busy ? 'Opening…' : 'Take photo', enabled: !busy, icon: WIcon.camera, onTap: _shoot),
+          const Gap(12),
+          WButton('Choose from photos', enabled: !busy, kind: ButtonKind.outline, onTap: () => _shoot(gallery: true)),
           if (store.draftPhotoBytes[current] != null) Padding(padding: const EdgeInsets.only(top: 20), child: Image.memory(store.draftPhotoBytes[current]!)),
         ],
       );
@@ -843,8 +877,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
           const WDivider(),
         ],
         const SizedBox(height: 14),
-        if (!store.isLive)
-          Row(
+        Row(
             children: [
               const WText('Can’t find it?', WType.caption),
               const SizedBox(width: 4),
@@ -858,9 +891,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
                 },
               ),
             ],
-          )
-        else
-          const WText('Service is available only in the societies listed above.', WType.caption),
+          ),
       ],
     );
   }
@@ -897,9 +928,28 @@ class _ManualAddressScreenState extends State<ManualAddressScreen> {
   bool get _pinOk => RegExp(r'^[1-9]\d{5}$').hasMatch(pincode);
   bool get _ready => name.trim().isNotEmpty && area.trim().isNotEmpty && _pinOk && city.trim().isNotEmpty;
 
-  void _next() {
-    if (!_ready) return;
+  bool checking = false;
+  String? addressError;
+  Future<void> _next() async {
+    if (!_ready || checking) return;
     final store = context.store;
+    if (store.isLive) {
+      if (!store.isLoggedIn) { context.router.go(N.login); return; }
+      setState(() { checking = true; addressError = null; });
+      try {
+        final result = await store.live!.call('checkServiceAddress', {'name':name.trim(),'area':area.trim(),'city':city.trim(),'pincode':pincode});
+        if (!mounted) return;
+        if (result['served'] != true) {
+          setState(() => addressError = 'Address saved for service review. Choose a served society or check this address again after approval. No payment was taken.');
+          return;
+        }
+        final s = result['society'] as Map;
+        store.set(() => store.draft.place = Place(Society(s['id'],s['addressName'],s['addressArea'],s['addressCity'],s['addressPincode']),addressKey:result['addressKey'] as String));
+        context.router.go(N.floorSlot);
+      } catch (e) { if (mounted) setState(() => addressError = backendError(e)); }
+      finally { if (mounted) setState(() => checking = false); }
+      return;
+    }
     final society = Society(
       '${ManualAddressScreen.idPrefix}${DateTime.now().millisecondsSinceEpoch}',
       name.trim(),
@@ -917,9 +967,10 @@ class _ManualAddressScreenState extends State<ManualAddressScreen> {
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Next', enabled: _ready, onTap: _next),
+        child: WButton(checking ? 'Checking address…' : 'Next', enabled: _ready && !checking, onTap: _next),
       ),
       children: [
+        if (addressError != null) WBanner(tone: Tone.wait, icon: WIcon.info, text: addressError!),
         const WTitleBlock('Type your address', subtitle: 'Just the basics. The captain gets the rest from your parking details next.'),
         WTextField(
           label: 'Society or building name',
@@ -1070,6 +1121,21 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
   String? recording;
 
   bool get hasRecording => voice != null || video != null;
+  String? mediaError;
+  bool mediaBusy = false;
+  Future<void> _capture(bool videoNote) async {
+    if(mediaBusy)return;
+    setState(()=>mediaBusy=true);
+    final store=context.store;
+    try {
+      final recordingFuture=videoNote?captureVideo(context):captureVoice(context);
+      final clip=await recordingFuture;
+      if(!mounted||clip==null)return;
+      store.set(() {store.draftMedia.remove('note_audio');store.draftMedia.remove('note_video');store.draftMedia[videoNote?'note_video':'note_audio']=clip;});
+      setState((){video=videoNote?clip.seconds:null;voice=videoNote?null:clip.seconds;mediaError=null;});
+    }catch(e){if(mounted)setState(()=>mediaError=e is MediaAccessException?e.message:backendError(e));}
+    finally{if(mounted)setState(()=>mediaBusy=false);}
+  }
 
   /// Demo: a short "recording" then the clip appears. BACKEND: real camera / mic capture.
   void _record(String kind) {
@@ -1280,6 +1346,17 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
             ],
           ),
         ),
+        if(store.isLive && !kIsWeb) ...[
+          if(mediaError!=null) WBanner(tone:Tone.error,icon:WIcon.warning,text:mediaError!),
+          if(mediaError!=null) WLink('Open Settings',onTap:Device.openSettings),
+          if(store.draftMedia['note_audio']!=null || store.draftMedia['note_video']!=null) ...[
+            MediaPreview((store.draftMedia['note_audio']??store.draftMedia['note_video'])!,key:ValueKey(store.draftMedia['note_audio']??store.draftMedia['note_video'])),
+            WLink('Delete recording',onTap:()=>setState((){store.draftMedia.remove('note_audio');store.draftMedia.remove('note_video');voice=null;video=null;})),
+          ] else ...[
+            WButton('Record video message',enabled:!mediaBusy,kind:ButtonKind.outline,onTap:()=>_capture(true)),
+            const Gap(12), WButton('Record voice note',enabled:!mediaBusy,kind:ButtonKind.outline,onTap:()=>_capture(false)),
+          ],
+        ],
         if (!store.isLive && video != null)
           _recordedVideo(video!)
         else if (!store.isLive && voice != null)
@@ -1320,7 +1397,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
   bool fetching = false;
   String? slotError;
 
-  bool get _multi => !context.store.isLive;
+  bool get _multi => true;
 
   void _loadAvailability() {
     final store = context.store;
@@ -1544,7 +1621,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (_freeDefaulted) return;
     _freeDefaulted = true;
     final store = context.store;
-    if ((store.customer?.freeWashes ?? 0) > 0 && !store.isLive) store.draft.useFreeWash = true;
+    if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
   void _syncSheet() {
@@ -1574,7 +1651,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final d = store.draft;
     final free = store.customer?.freeWashes ?? 0;
     // Credit from a late cancellation comes off automatically (not with a free wash).
-    final credit = store.isLive ? 0 : (store.customer?.credit ?? 0);
+    final credit = store.customer?.credit ?? 0;
     d.creditApplied = d.useFreeWash || !_useCredit ? 0 : credit.clamp(0, d.basePrice);
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),

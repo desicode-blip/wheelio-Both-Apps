@@ -1,3 +1,11 @@
+# Current Flutter integration update — 24 October 2026
+
+The native iPhone blockers below were superseded by the source implementation documented in [IOS-FIREBASE.md](IOS-FIREBASE.md). Both iOS apps are registered, default builds use Firebase, native phone OTP and Razorpay are connected, capture/library permissions are handled, and real optional audio/video uploads and private playback replace native live placeholders. Unknown typed addresses require service review. Multiple windows and work-hour preferences are server-validated. Free-wash/credit balances are server-owned and isolated by payment mode, with idempotent cancellation/expiry restoration. Cash refunds remain the default for existing orders; configured wallet policies are snapshotted on new orders.
+
+Support actions now save operations tickets. Notifications use a private server-owned inbox and FCM delivery code; Apple entitlement/APNs setup and physical delivery remain unverified until the Mac pass. No callback, masked calling, AI photo certification, trip fee, bank payout, automatic dispute decision, phone change or account deletion is faked as completed. The explicit sample app retains its documented sample controls. Web does not expose native voice/video capture; text/photos remain available there.
+
+Physical iPhone verification is pending by the owner's choice. Live Razorpay activation is pending the merchant's registered mobile OTP (fresh phone verification now pending), existing live-secret recovery and Wheelio merchant approval. No live charge or shared-key regeneration was performed. The historical unchecked reference-screen checklist below is not a claim that the active Firebase booking implementation uses sample state.
+
 # Backend hook-up list (app side)
 
 ## 22 October 2026 acceptance update

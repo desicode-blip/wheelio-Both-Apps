@@ -396,7 +396,9 @@ class _CancelSheetState extends State<CancelSheet> {
         const WText('Cancel this booking?', WType.section, weight: semibold),
         const SizedBox(height: 14),
         // Say exactly what they get back before they confirm.
-        if (early)
+        if (store.isLive)
+          WBanner(tone: Tone.info, icon: WIcon.info, text: o.cancellationTerms)
+        else if (early)
           const WBanner(tone: Tone.ok, icon: WIcon.gift, title: 'You get 1 free wash', text: 'For your next booking. No cash refund.')
         else
           WBanner(
@@ -419,7 +421,7 @@ class _CancelSheetState extends State<CancelSheet> {
           });
           try {
             await store.cancel(o.id);
-            store.set(() => store.toast = early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
+            store.set(() => store.toast = store.isLive ? 'Booking cancelled. Check your booking for the confirmed outcome.' : early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
             nav.pop();
           } catch (e) {
             setState(() {

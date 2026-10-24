@@ -6,9 +6,9 @@
 
 import 'dart:math';
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:wheelio_ui/wheelio_ui.dart';
 import 'package:wheelio_firebase/wheelio_firebase.dart';
 
@@ -125,6 +125,8 @@ class AppRouter extends WRouter<R> {
 
   /// After login: back to Check and pay with the pay sheet open, or home.
   void finishLogin() {
+    final address = path.indexWhere((e) => e.route.n == N.manualAddress);
+    if (address >= 0) { keep(address + 1); return; }
     final i = path.indexWhere((e) => e.route.n == N.review);
     if (i >= 0) {
       keep(i + 1);
@@ -351,7 +353,11 @@ class AppStore extends ChangeNotifier {
   String _liveUid = '';
   String draftRequestId = newId('draft');
   String? draftBookingId;
+  StreamSubscription<dynamic>? _walletSubscription;
+  String _walletIdentity = '';
+  int _walletFree = 0, _walletCredit = 0;
   final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
+  final Map<String, MediaClip> draftMedia = {};
   static const demoOtp = '123456';
   static const expiredOtp = '000000';
   static const samplePhone = '9848011223';
@@ -417,6 +423,7 @@ class AppStore extends ChangeNotifier {
             final config = snapshot.data() ?? {};
             bookingsEnabled = config['bookingsEnabled'] == true;
             testPayments = config['paymentMode'] == 'test';
+            _bindWallet();
             final types = (config['vehicleTypes'] as List? ?? []).where((v) => v['active'] == true && v['pricePaise'] is num).toList();
             if (types.isNotEmpty) {
               VehicleType.all = [
@@ -449,6 +456,24 @@ class AppStore extends ChangeNotifier {
     }
   }
 
+  void _bindWallet() {
+    final identity = _liveUid.isEmpty ? '' : '${_liveUid}_${testPayments ? 'test' : 'live'}';
+    if (_walletIdentity == identity) return;
+    _walletIdentity = identity;
+    _walletSubscription?.cancel();
+    _walletFree = 0; _walletCredit = 0;
+    customer?.freeWashes = 0; customer?.credit = 0;
+    if (identity.isEmpty) return;
+    _walletSubscription = live!.wallet(_liveUid, testPayments ? 'test' : 'live').listen((s) {
+      if (identity != _walletIdentity) return;
+      final d = s.data() ?? {};
+      _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
+      _walletCredit = (d['creditPaise'] as num? ?? 0).toInt() ~/ 100;
+      customer?.freeWashes = _walletFree; customer?.credit = _walletCredit;
+      changed();
+    }, onError: (Object e) { backendMessage = backendError(e); changed(); });
+  }
+
   void _bindLiveAccount(String uid) {
     _liveUid = uid;
     for (final s in _accountSubscriptions) {
@@ -456,6 +481,7 @@ class AppStore extends ChangeNotifier {
     }
     _accountSubscriptions.clear();
     customer = null;
+    _bindWallet();
     orders = [];
     vehicles = [];
     notifications = [];
@@ -464,6 +490,12 @@ class AppStore extends ChangeNotifier {
       changed();
       return;
     }
+    live!.registerPush('customer').catchError((Object _) {});
+    _accountSubscriptions.add(live!.inbox(uid).listen((s){
+      if(_liveUid!=uid)return;
+      notifications=[for(final doc in s.docs) if(doc.data()['role']=='customer') AppNotification(id:doc.id,kind:NotificationKind.bookingConfirmed,title:doc.data()['title'],body:doc.data()['body'],date:doc.data()['createdAt']?.toDate() as DateTime? ?? DateTime.now(),orderId:doc.data()['orderId'],read:doc.data()['read']==true)];
+      changed();
+    },onError:(Object e){backendMessage=backendError(e);changed();}));
     _accountSubscriptions.add(
       live!
           .profile(uid)
@@ -472,7 +504,7 @@ class AppStore extends ChangeNotifier {
               if (_liveUid != uid) return;
               final data = snapshot.data();
               if (data == null) return;
-              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: 0);
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: _walletFree)..credit = _walletCredit;
               changed();
             },
             onError: (Object e) {
@@ -510,7 +542,7 @@ class AppStore extends ChangeNotifier {
     final type =
         VehicleType.all.where((t) => t.kind == kind).firstOrNull ?? VehicleType(kind, data['vehicleName'], 20, (data['pricePaise'] as num).toInt() ~/ 100);
     final society = Society(data['societyId'], data['societyName'], data['area'], data['city'] ?? 'Hyderabad');
-    final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '');
+    final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '',addressKey:data['addressKey']);
     final captain = data['captain'] as Map?;
     final order = Order(
       id: id,
@@ -539,6 +571,12 @@ class AppStore extends ChangeNotifier {
       wash: WashKind.values.byName(data['washKind']),
       paidWith: data['paymentStatus'] == 'captured' ? const PaymentMethod('razorpay', 'Razorpay', 'Prepaid') : null,
     );
+    order.liveCancelPolicy = Map<String, dynamic>.from(data['cancellationPolicy'] as Map? ?? {'kind': 'refund'});
+    order.usedFreeWash = data['freeWashUsed'] == true;
+    order.creditUsed = (data['creditUsedPaise'] as num? ?? 0).toInt() ~/ 100;
+    order.freeWashGiven = data['cancellationBenefit']?['kind'] == 'freeWash';
+    order.creditGiven = (data['cancellationBenefit']?['creditPaise'] as num? ?? 0).toInt() ~/ 100;
+    order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
     order.refundStatus = data['refundStatus'] ?? 'none';
     order.testPayment = data['paymentMode'] == 'test';
@@ -567,6 +605,7 @@ class AppStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _walletSubscription?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
       s.cancel();
     }
@@ -816,14 +855,14 @@ class AppStore extends ChangeNotifier {
   // MARK: Booking
 
   /// BACKEND: storage upload. Fails the back photo once when the demo switch is on.
-  Future<void> uploadPhoto(PhotoAngle a) async {
-    if (isLive) {
-      final bytes = await Device.pickImage();
-      if (bytes == null) return;
+  Future<bool> uploadPhoto(PhotoAngle a, {bool gallery = false}) async {
+    if (isLive || !kIsWeb) {
+      final bytes = await Device.pickImage(camera: !gallery);
+      if (bytes == null) return false;
       draftPhotoBytes[a] = bytes;
       draft.photos[a] = UploadState.done;
       changed();
-      return;
+      return true;
     }
     draft.photos[a] = UploadState.uploading;
     notifyListeners();
@@ -835,12 +874,14 @@ class AppStore extends ChangeNotifier {
       draft.photos[a] = UploadState.done;
     }
     notifyListeners();
+    return draft.photos[a] == UploadState.done;
   }
 
   void startRepeat(Vehicle v, {Place? place, WashKind? wash}) {
     draftBookingId = null;
     draftRequestId = newId('draft');
     draftPhotoBytes.clear();
+    draftMedia.clear();
     draft = BookingDraft(type: v.type, wash: wash, plate: v.plate, place: (place ?? v.place)?.copy(), isRepeat: true);
     notifyListeners();
   }
@@ -849,6 +890,7 @@ class AppStore extends ChangeNotifier {
     draftBookingId = null;
     draftRequestId = newId('draft');
     draftPhotoBytes.clear();
+    draftMedia.clear();
     draft = BookingDraft();
     notifyListeners();
   }
@@ -869,14 +911,23 @@ class AppStore extends ChangeNotifier {
         'parking': p.slot,
         'note': d.note.text,
         'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
+        'windows': [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) {'startHour': w.$1, 'endHour': w.$2}],
+        'anyTime': s.anyTime,
+        'useFreeWash': d.useFreeWash,
+        'useCredit': d.creditApplied > 0,
+        'expectedAmountPaise': d.price * 100,
+        if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
         'endHour': s.endHour,
       });
       final bookingId = result['bookingId'] as String;
       draftBookingId = bookingId;
       currentOrderId = bookingId;
+      if (result['status'] == 'pendingPayment') {
+      for (final entry in draftMedia.entries) { await live!.uploadCustomerMedia(bookingId, entry.key, entry.value.bytes,entry.value.contentType,entry.value.seconds); }
       for (final entry in draftPhotoBytes.entries) {
         await live!.uploadCustomerPhoto(bookingId, entry.key.name, entry.value);
+      }
       }
       final paid = await live!.pay(bookingId);
       final fresh = await live!.db.doc('orders/$bookingId').get();

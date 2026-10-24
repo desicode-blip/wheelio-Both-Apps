@@ -1,6 +1,21 @@
+# Current integration update — 24 October 2026
+
+The latest `staging` source was pulled at `9e49461`. Flutter iPhone builds now select real Firebase by default, with native OTP, Razorpay checkout, real camera/library capture, private recorded notes/video, server-backed address checks, multiple booking windows, mode-separated wallets, cancellation restoration, Captain work-hour preferences and future-job handling. Private support tickets and notification inbox/FCM integration were added. Explicit demo builds remain labelled and isolated.
+
+Firebase iOS apps were registered for the existing Customer/Captain bundle IDs. Native options and Auth return schemes are committed. No raw Xcode project changes or Android platform generation were performed. The owner will build and test on their Mac; Windows cannot confirm Xcode signing, physical camera, UPI app switching, GPS or APNs delivery. Read [IOS-FIREBASE.md](IOS-FIREBASE.md) for build commands, acceptance steps and precise remaining setup.
+
+Razorpay activation remains pending merchant mobile verification and live-secret recovery. A fresh merchant OTP has now been requested after the owner obtained the registered phone; verification is pending. Existing test payments, refunds and Trustkeyper settings are preserved. Cancellation terms stay server-configured; this task does not approve new commercial policies or invent trip fees/payouts.
+
 # Flutter apps (Customer and Captain)
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
+
+## Verification and publication — 24 October 2026
+
+- All **52** backend, security-rule, payment-adapter and notification tests passed in the local Firebase emulators. **5** Customer tests and **5** shared native login/checkout tests passed.
+- `flutter analyze` passed with no issues for Customer, Captain, `wheelio_firebase` and `wheelio_ui`. Both release web builds passed. Both iOS plist files and shell-script syntax were checked; these checks do not compile an iPhone binary.
+- Firebase rules/indexes and backend code were published, including the scheduled booking-expiry update. Initial CLI IAM setup for the eight new callables hit the existing organization restriction. The documented `configure-api-access` operation completed without changing that policy; all eight endpoints then returned authenticated-service `401 UNAUTHENTICATED` responses to anonymous requests. Test Razorpay authentication and signed/invalid webhook checks passed, with no payment created.
+- Firebase Hosting was published for Customer and Captain. Customer startup and server catalog rendered in the browser without console errors. Native hardware and Apple push acceptance remain pending on the owner's Mac.
 
 ## 24 October 2026: Captain app follows the new customer features
 

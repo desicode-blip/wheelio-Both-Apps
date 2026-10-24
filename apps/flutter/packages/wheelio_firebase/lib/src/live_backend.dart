@@ -1,12 +1,16 @@
-import 'dart:typed_data';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'phone_otp.dart';
 
 import 'checkout_stub.dart'
+    if (dart.library.io) 'checkout_native.dart'
     if (dart.library.js_interop) 'checkout_web.dart'
     as checkout;
 
@@ -22,9 +26,8 @@ class LiveBackend {
   final db = FirebaseFirestore.instance;
   final functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
   final storage = FirebaseStorage.instance;
-  ConfirmationResult? _confirmation;
-  bool _otpConfirmed = false;
-  String pendingPhone = '';
+  late final PhoneOtpSession _phoneOtp = PhoneOtpSession(auth);
+  String get pendingPhone => _phoneOtp.phone;
   String? get uid => auth.currentUser?.uid;
   bool get phoneVerified => auth.currentUser?.phoneNumber != null;
   Stream<User?> get sessions => auth.idTokenChanges();
@@ -43,21 +46,7 @@ class LiveBackend {
   }
 
   Future<void> requestOtp(String raw) async {
-    final digits = raw.replaceAll(RegExp(r'\D'), '');
-    final national = digits.length == 12 && digits.startsWith('91')
-        ? digits.substring(2)
-        : digits;
-    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(national))
-      throw ArgumentError('Enter a valid 10-digit mobile number.');
-    _confirmation = null;
-    _otpConfirmed = false;
-    pendingPhone = national;
-    final current = auth.currentUser;
-    if (current != null && current.phoneNumber == null) {
-      _confirmation = await current.linkWithPhoneNumber('+91$national');
-    } else {
-      _confirmation = await auth.signInWithPhoneNumber('+91$national');
-    }
+    await _phoneOtp.request(raw);
   }
 
   Future<void> verifyOtp(
@@ -65,32 +54,118 @@ class LiveBackend {
     required String role,
     String name = '',
   }) async {
-    if (!_otpConfirmed) {
-      final confirmation = _confirmation;
-      if (confirmation == null) throw StateError('Request a new SMS code.');
-      await confirmation.confirm(code);
-      _otpConfirmed = true;
-      _confirmation = null;
-    }
+    await _phoneOtp.confirm(code);
     // Sign-in/link already returned a fresh token. Retrying account registration
     // must not consume the one-use SMS session a second time.
     await call('registerAccount', {'role': role, 'name': name});
-    _otpConfirmed = false;
+    _phoneOtp.registrationCompleted();
   }
 
   void invalidateOtp() {
-    _confirmation = null;
-    _otpConfirmed = false;
-    pendingPhone = '';
+    _phoneOtp.invalidate();
   }
+
+  StreamSubscription<String>? _tokenRefresh;
+  StreamSubscription<RemoteMessage>? _pushOpened;
+  bool get supportsPush =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  Future<void> enablePush(String role) async {
+    if (!supportsPush)
+      throw StateError(
+        'Push alerts are available in the iPhone app. Your inbox works here.',
+      );
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+    if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+        settings.authorizationStatus != AuthorizationStatus.provisional)
+      throw StateError('Allow notifications for Wheelio in Settings.');
+    await call('setPushPreference', {'role': role, 'enabled': true});
+    await registerPush(role);
+  }
+
+  Future<void> registerPush(String role) async {
+    if (!supportsPush || !phoneVerified) return;
+    final account = uid;
+    final prefs = (await db.doc('users/$account').get()).data();
+    if (prefs?[role == 'captain'
+            ? 'captainPushEnabled'
+            : 'customerPushEnabled'] !=
+        true)
+      return;
+    final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (settings.authorizationStatus != AuthorizationStatus.authorized &&
+        settings.authorizationStatus != AuthorizationStatus.provisional)
+      return;
+    if (await FirebaseMessaging.instance.getAPNSToken() == null)
+      throw StateError(
+        'iPhone push setup is not ready yet. Your booking updates remain in the inbox.',
+      );
+    final token = await FirebaseMessaging.instance.getToken();
+    if (account != uid || token == null) return;
+    await call('registerPushToken', {'token': token, 'role': role});
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+    await _tokenRefresh?.cancel();
+    _tokenRefresh = FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      if (uid == account)
+        call('registerPushToken', {
+          'token': token,
+          'role': role,
+        }).catchError((Object _) => <String, dynamic>{});
+    });
+  }
+
+  void listenPush(String role, void Function(String orderId) onOpen) {
+    if (!supportsPush) return;
+    _pushOpened?.cancel();
+    void open(RemoteMessage message) {
+      if (phoneVerified &&
+          message.data['role'] == role &&
+          message.data['orderId'] is String)
+        onOpen(message.data['orderId']);
+    }
+
+    _pushOpened = FirebaseMessaging.onMessageOpenedApp.listen(open);
+    FirebaseMessaging.instance.getInitialMessage().then((m) {
+      if (m != null) open(m);
+    });
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> inbox(String uid) => db
+      .collection('notifications')
+      .where('recipientId', isEqualTo: uid)
+      .orderBy('createdAt', descending: true)
+      .limit(100)
+      .snapshots();
 
   Future<void> signOut() async {
     invalidateOtp();
+    await _tokenRefresh?.cancel();
+    if (supportsPush) {
+      try {
+        final token = await FirebaseMessaging.instance.getToken();
+        if (token != null) await call('removePushToken', {'token': token});
+        await FirebaseMessaging.instance.deleteToken();
+      } catch (_) {
+        /* Sign-out remains available offline. Push payloads contain no private booking details. */
+      }
+    }
     await auth.signOut();
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> get catalog =>
       db.doc('config/operations').snapshots();
+  Stream<DocumentSnapshot<Map<String, dynamic>>> wallet(
+    String uid,
+    String mode,
+  ) => db.doc('wallets/${uid}_$mode').snapshots();
   Future<void> refreshCatalog() async {
     await db.enableNetwork();
     await db
@@ -126,16 +201,24 @@ class LiveBackend {
     final options = await call('createCheckout', {'bookingId': bookingId});
     if (options['paid'] == true)
       return call('checkPayment', {'bookingId': bookingId});
-    final result = await checkout.openCheckout(
-      options,
-      auth.currentUser?.phoneNumber ?? '',
-    );
-    if (result == null)
-      return {
-        'bookingId': bookingId,
-        'status': 'pendingPayment',
-        'paymentStatus': 'unpaid',
-      };
+    Map<String, dynamic>? result;
+    try {
+      result = await checkout.openCheckout(
+        options,
+        auth.currentUser?.phoneNumber ?? '',
+      );
+    } catch (_) {
+      // A native app switch can lose the SDK callback after capture. Reconcile
+      // with the provider before presenting an error or permitting another try.
+      try {
+        final checked = await call('checkPayment', {'bookingId': bookingId});
+        if (checked['paymentStatus'] == 'captured') return checked;
+      } catch (_) {
+        /* The existing booking remains available for recovery. */
+      }
+      rethrow;
+    }
+    if (result == null) return call('checkPayment', {'bookingId': bookingId});
     return call('verifyPayment', {
       'bookingId': bookingId,
       'orderId': result['razorpay_order_id'],
@@ -196,9 +279,16 @@ class LiveBackend {
       for (final kind in ['aadhaar', 'selfie', 'bank'])
         () async {
           try {
-            final metadata = await storage.ref('kyc/$accountId/$kind.jpg').getMetadata();
-            if (['image/jpeg', 'image/png', 'image/webp'].contains(metadata.contentType) &&
-                (metadata.size ?? 0) > 0 && (metadata.size ?? 0) <= 8 * 1024 * 1024) {
+            final metadata = await storage
+                .ref('kyc/$accountId/$kind.jpg')
+                .getMetadata();
+            if ([
+                  'image/jpeg',
+                  'image/png',
+                  'image/webp',
+                ].contains(metadata.contentType) &&
+                (metadata.size ?? 0) > 0 &&
+                (metadata.size ?? 0) <= 8 * 1024 * 1024) {
               uploaded.add(kind);
             }
           } on FirebaseException catch (error) {
@@ -208,6 +298,7 @@ class LiveBackend {
     ]);
     return uploaded;
   }
+
   Future<void> uploadKyc(String kind, Uint8List bytes) async {
     if (!['aadhaar', 'selfie', 'bank'].contains(kind) ||
         bytes.length > 8 * 1024 * 1024)
@@ -238,8 +329,37 @@ class LiveBackend {
     await call('recordCustomerPhoto', {'orderId': orderId, 'angle': angle});
   }
 
+  Future<void> uploadCustomerMedia(
+    String orderId,
+    String kind,
+    Uint8List bytes,
+    String contentType,
+    int seconds,
+  ) async {
+    if (!['vehicle', 'note_audio', 'note_video'].contains(kind) ||
+        bytes.isEmpty ||
+        bytes.length > 20 * 1024 * 1024 ||
+        seconds < 1 ||
+        seconds > 30)
+      throw ArgumentError('Choose a recording of up to 30 seconds and 20 MB.');
+    final path = 'orders/$orderId/customer/$kind';
+    await storage
+        .ref(path)
+        .putData(bytes, SettableMetadata(contentType: contentType));
+    await call('recordCustomerMedia', {
+      'orderId': orderId,
+      'kind': kind,
+      'seconds': seconds,
+    });
+  }
+
+  Future<Uint8List?> media(String path) =>
+      storage.ref(path).getData(20 * 1024 * 1024);
+
   Future<void> shareLocation(String orderId) async {
-    var permission = await Geolocator.checkPermission().timeout(const Duration(seconds: 5));
+    var permission = await Geolocator.checkPermission().timeout(
+      const Duration(seconds: 5),
+    );
     if (permission == LocationPermission.denied)
       permission = await Geolocator.requestPermission().timeout(
         const Duration(seconds: 20),
@@ -250,14 +370,20 @@ class LiveBackend {
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever)
       throw StateError(
-        'Allow location access in your browser to share your location.',
+        'Allow location access for Wheelio to share your location.',
       );
-    final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        timeLimit: Duration(seconds: 15),
-      ),
-    ).timeout(const Duration(seconds: 20), onTimeout: () => throw StateError('Your location could not be found. Check browser location access and try again.'));
+    final position =
+        await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 15),
+          ),
+        ).timeout(
+          const Duration(seconds: 20),
+          onTimeout: () => throw StateError(
+            'Your location could not be found. Check Wheelio location access and try again.',
+          ),
+        );
     await call('updateCaptainLocation', {
       'orderId': orderId,
       'latitude': position.latitude,

@@ -79,6 +79,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
       builder: (context, snapshot) {
         final o = snapshot.data?.data();
         final status = o?['status'];
+        final upcoming = ['searching','onTheWay'].contains(status) && (o?['slotStart']?.toDate() as DateTime?)?.isAfter(DateTime.now()) == true;
         final refund = refundStatusText(o?['refundStatus'], o?['refundIssue']);
         final step = switch (status) {
           'onTheWay' => 1,
@@ -102,7 +103,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
             else if (o == null)
               const WTitleBlock('Booking not found')
             else ...[
-              WTitleBlock(switch (status) {
+              WTitleBlock(upcoming ? 'Booked' : switch (status) {
                 'pendingPayment' => 'Complete your payment',
                 'searching' => 'Finding a captain',
                 'onTheWay' => o['arrivedAt'] != null ? 'Captain has arrived' : 'Captain on the way',
@@ -138,7 +139,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                 ),
               ),
               const Gap(24),
-              if (!['cancelled', 'pendingPayment'].contains(status))
+              if (!upcoming && !['cancelled', 'pendingPayment'].contains(status))
                 WStatusSteps(
                   steps: [
                     const ('Booked', null),
@@ -148,7 +149,11 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                   ],
                   current: step,
                 ),
-              if (status == 'searching')
+              if (upcoming) ...[
+                const WText('Your booking is scheduled. Live wash progress opens when the confirmed window starts.', WType.body),
+                for(final path in (o['customerPhotos'] as Map? ?? {}).values) PrivatePhoto(path),
+              ],
+              if (status == 'searching' && !upcoming)
                 const Padding(
                   padding: EdgeInsets.only(top: 16),
                   child: WText(
@@ -164,7 +169,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                   await backend.call('checkPayment', {'bookingId': id});
                 }, secondary: true),
               ],
-              if (['onTheWay', 'washing'].contains(status)) ...[
+              if (!upcoming && ['onTheWay', 'washing'].contains(status)) ...[
                 const Gap(16),
                 CaptainTracking(id),
               ],
@@ -195,6 +200,7 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                     const WText('Photo unavailable', WType.caption),
                 ],
               ],
+              for(final media in (o['customerMedia'] as Map? ?? {}).values) PrivateMedia(Map<String,dynamic>.from(media),key:ValueKey(media['path'])),
               if (status == 'photosReady') ...[
                 button(
                   'Approve wash',
@@ -301,8 +307,8 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                 }, secondary: true),
                 if (cancelling) ...[
                   const Gap(12),
-                  const WText(
-                    'Cancel this booking? Captured payments are refunded to the original payment method. No cancellation fee is configured.',
+                  WText(
+                    context.store.orders.where((order) => order.id == id).firstOrNull?.cancellationTerms ?? 'Review the cancellation policy before confirming.',
                     WType.body,
                   ),
                   button(
@@ -312,10 +318,11 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                 ],
               ],
               if (status == 'cancelled') ...[
+                if (o['cancellationBenefit'] != null) WText(o['cancellationBenefit']['kind'] == 'freeWash' ? '1 free wash added to your account.' : o['cancellationBenefit']['kind'] == 'credit' ? '${money(o['cancellationBenefit']['creditPaise'])} credit added to your account.' : 'Your reserved free wash or credit was restored.', WType.body),
                 WText(
-                  o['paymentStatus'] == 'captured'
+                  o['paymentStatus'] == 'captured' && o['refundStatus'] != 'none'
                       ? '${refund.title} · ${money(o['refundAmountPaise'] ?? o['pricePaise'])}'
-                      : 'No captured payment for this booking.',
+                      : o['paymentStatus'] == 'captured' ? 'No cash refund is due under this booking’s policy.' : 'No captured payment for this booking.',
                   WType.body,
                 ),
                 if (o['providerRefundId'] != null)
@@ -323,9 +330,9 @@ class _FirebaseOrderScreenState extends State<FirebaseOrderScreen> {
                     'Refund reference: ${o['providerRefundId']}',
                     WType.caption,
                   ),
-                if (o['paymentStatus'] == 'captured')
+                if (o['paymentStatus'] == 'captured' && o['refundStatus'] != 'none')
                   WText(refund.detail, WType.caption),
-                if (o['paymentStatus'] == 'captured' && o['refundStatus'] != 'processed')
+                if (o['paymentStatus'] == 'captured' && o['refundStatus'] != 'none' && o['refundStatus'] != null && o['refundStatus'] != 'processed')
                   button('Check refund status', () async {
                     await backend.call('checkPayment', {'bookingId': id});
                   }),
@@ -361,10 +368,11 @@ class FirebaseAccountHelp extends StatelessWidget {
       ),
       const Gap(16),
       const WText(
-        'Phone changes, account deletion and general support requests require operations assistance. These actions are not available in this release.',
+        'Use the form below to request account help from operations.',
         WType.caption,
       ),
       const Gap(20),
+      if(context.store.isLoggedIn) const SupportRequestForm(),
       WButton('Go home', onTap: context.router.popToRoot),
     ],
   );

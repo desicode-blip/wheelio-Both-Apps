@@ -17,6 +17,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
   Map<String, dynamic> config = {}, captain = {};
   List<Map<String, dynamic>> orders = [], offers = [], earnings = [];
   String uid = '', phone = '', name = '', code = '', upi = '', error = '';
+  bool mediaSettings = false;
   String? selected;
   String? restoredApplication;
   int tab = 0;
@@ -27,6 +28,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
   @override
   void initState() {
     super.initState();
+    backend.listenPush('captain',(id){if(mounted)setState(() {tab=0;selected=orders.any((o)=>o['id']==id)?id:null;});});
     subscriptions.add(
       backend.catalog.listen((s) {
         if (mounted) setState(() => config = s.data() ?? {});
@@ -57,7 +59,10 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
   }
 
   void showError(Object e) {
-    if (mounted) setState(() => error = backendError(e));
+    if (mounted) { setState(() {
+      error = e is MediaAccessException ? e.message : backendError(e);
+      mediaSettings = e is MediaAccessException && e.settings;
+    }); }
   }
 
   void bind(String next) {
@@ -87,6 +92,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
       }
     });
     if (next.isEmpty) return;
+    backend.registerPush('captain').catchError((Object _) {});
     accountSubscriptions.add(
       backend.captain(next).listen((s) {
         if (mounted && uid == next) {
@@ -251,6 +257,8 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
             padding: const EdgeInsets.only(bottom: 16),
             child: WBanner(tone: Tone.error, icon: WIcon.close, text: error),
           ),
+        if (error.isNotEmpty && mediaSettings)
+          button('Open Settings', Device.openSettings, secondary: true),
         if (uid.isEmpty)
           ...login()
         else if (!loaded)
@@ -364,7 +372,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
                 ? 'bank proof'
                 : 'selfie'}',
             () async {
-              final bytes = await Device.pickImage();
+              final bytes = await Device.chooseImage(context, front: kind == 'selfie');
               if (bytes == null) return;
               await backend.uploadKyc(kind, bytes);
               setState(() => uploaded.add(kind));
@@ -409,6 +417,18 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           WType.body,
         ),
       if (captain['approved'] == true) ...[
+        const WText('When I work', WType.section),
+        const WText('Choose one or more windows for new job offers. Accepted jobs stay assigned.', WType.caption),
+        Wrap(spacing: 8, children: [for (final w in [(6,10),(10,14),(14,18)]) FilterChip(
+          label: Text(Fmt.window(w.$1,w.$2)),
+          selected: (captain['workingWindows'] as List? ?? [{'startHour':6,'endHour':10},{'startHour':10,'endHour':14},{'startHour':14,'endHour':18}]).any((x)=>x['startHour']==w.$1),
+          onSelected: busy ? null : (v)=>run(() async {
+            final chosen = [for (final x in captain['workingWindows'] as List? ?? [{'startHour':6,'endHour':10},{'startHour':10,'endHour':14},{'startHour':14,'endHour':18}]) Map<String,dynamic>.from(x)];
+            if(v) { chosen.add({'startHour':w.$1,'endHour':w.$2}); } else { chosen.removeWhere((x)=>x['startHour']==w.$1); }
+            if(chosen.isEmpty) throw StateError('Keep at least one working window.');
+            await invoke('setCaptainPreferences',{'workingWindows':chosen});
+          }),
+        )]),
         const Gap(16),
         WText(
           '${captain['completedWashes'] ?? 0} completed washes',
@@ -423,6 +443,8 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           WType.caption,
         ),
       ],
+      FirebaseInbox(captain:true,onOpen:(id)=>setState(() {tab=0;selected=orders.any((o)=>o['id']==id)?id:null;})),
+      const SupportRequestForm(),
       button('Sign out', () async {
         if (captain['online'] == true) {
           await invoke('setCaptainOnline', {'online': false});
@@ -483,15 +505,20 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
         'No accepted jobs yet. Go online to receive available offers in your approved societies.',
         WType.body,
       ),
-    for (final o in orders)
+    for (final o in orders.where((o)=>(o['slotStart'].toDate() as DateTime).isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1))))
       card([
         WText('${o['plate']} · ${money(o['captainPayPaise'])}', WType.title),
         WText(window(o), WType.caption),
-        WText('${o['societyName']} · ${label(o['status'])}', WType.body),
+        WText('${o['societyName']} · ${o['status']=='cancelled' ? 'Cancelled by owner · stop work' : label(o['status'])}', WType.body),
         button('View wash', () async {
           setState(() => selected = o['id']);
         }, secondary: true),
       ]),
+    if (orders.any((o)=>(o['slotStart'].toDate() as DateTime).isAfter(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1)))) const WTitleBlock('Coming up'),
+    for (final o in orders.where((o)=>!(o['slotStart'].toDate() as DateTime).isBefore(DateTime(DateTime.now().year,DateTime.now().month,DateTime.now().day+1)))) card([
+      WText('${o['plate']} · ${label(o['status'])}', WType.title), WText('${o['day']} · ${window(o)}', WType.body),
+      button('View booking', () async { setState(()=>selected=o['id']); }, secondary:true),
+    ]),
   ];
   List<Widget> moneyTab() => [
     const WTitleBlock(
@@ -516,6 +543,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
   List<Widget> jobDetails(Map<String, dynamic> o) {
     final status = o['status'], evidence = o['evidence'] as Map? ?? {};
     final after = status == 'washing', stage = after ? 'after' : 'before';
+    final windowOpen = !(o['slotStart'].toDate() as DateTime).isAfter(DateTime.now());
     return [
       WTitleBlock(
         o['plate'],
@@ -528,6 +556,11 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           WType.body,
         ),
         WText(window(o), WType.caption),
+        if(o['manualAddress']==true) const WBadge('New address',icon:WIcon.location),
+        button('Get directions', () async {
+          final opened=await Device.openMapsSearch('${o['societyName']}, ${o['area']}, ${o['city']}, ${o['pincode']??''}');
+          if(!opened) throw StateError('Maps could not open. Try again.');
+        },secondary:true),
         WText('Customer: ${o['customerFirstName']}', WType.body),
         WText(
           'Wash: ${o['washKind'] == 'dryDusting' ? 'Dry dusting' : 'Exterior wet wash'} · ${money(o['captainPayPaise'])}',
@@ -539,6 +572,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           const WText('Owner’s note', WType.title),
           WText(o['note'], WType.body),
         ]),
+      for(final media in (o['customerMedia'] as Map? ?? {}).values) PrivateMedia(Map<String,dynamic>.from(media),key:ValueKey(media['path'])),
       for (final path in (o['customerPhotos'] as Map? ?? {}).values)
         PrivatePhoto(path),
       if (['onTheWay', 'washing'].contains(status)) ...[
@@ -556,7 +590,8 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           WType.caption,
         ),
       ],
-      if (status == 'onTheWay' && o['arrivedAt'] == null)
+      if(!windowOpen) const WBanner(tone:Tone.wait,icon:WIcon.clock,text:'This booking window has not opened. Arrival and washing actions unlock at the scheduled time.'),
+      if (windowOpen && status == 'onTheWay' && o['arrivedAt'] == null)
         button(
           'I’m at the vehicle',
           () => invoke('updateWashProgress', {
@@ -564,8 +599,8 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
             'action': 'arrived',
           }),
         ),
-      if ((status == 'onTheWay' && o['arrivedAt'] != null) ||
-          status == 'washing') ...[
+      if (windowOpen && ((status == 'onTheWay' && o['arrivedAt'] != null) ||
+          status == 'washing')) ...[
         WTitleBlock(
           after ? 'After photos' : 'Before photos',
           subtitle:
@@ -577,7 +612,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
           button(
             '${evidence['${stage}_$i'] != null ? '✓ Replace' : 'Add'} ${['front', 'back', 'left', 'right'][i]} photo',
             () async {
-              final bytes = await Device.pickImage();
+              final bytes = await Device.chooseImage(context);
               if (bytes != null) {
                 await backend.uploadEvidence(
                   orderId: o['id'],

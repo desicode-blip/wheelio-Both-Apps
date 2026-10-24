@@ -4,14 +4,16 @@
 #   apps/flutter/tool/run-ios.sh            # both apps
 #   apps/flutter/tool/run-ios.sh captain    # one app (customer | captain)
 #
-# Phone builds use sample data for now (WHEELIO_DEMO=true): the live Firebase
-# backend needs iOS apps registered in Firebase, native phone sign-in and native
-# Razorpay first (see docs/BACKEND-HOOKUP.md, "Native iPhone builds").
+# Normal builds connect to Firebase. Pass customer --demo or captain --demo
+# only for the explicitly labelled sample app.
 # Bundle IDs match the SwiftUI apps, so these replace them on the phone.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 export PATH="$HOME/development/flutter/bin:$PATH"
 APPS="${1:-customer captain}"
+DEMO_DEFINE=()
+[[ "${2:-}" == "--demo" ]] && DEMO_DEFINE=(--dart-define=WHEELIO_DEMO=true)
+for APP in $APPS; do [[ "$APP" == customer || "$APP" == captain ]] || { echo "Choose customer or captain"; exit 1; }; done
 
 command -v flutter >/dev/null || { echo "Flutter not found in ~/development/flutter/bin"; exit 1; }
 # CocoaPods fetches Firebase for iPhone builds. Install it once if it's missing.
@@ -38,7 +40,7 @@ for APP in $APPS; do
   echo "=== $APP: building for iPhone (first build takes several minutes) ==="
   cd "$ROOT/apps/flutter/$APP"
   flutter pub get
-  flutter build ios --release --dart-define=WHEELIO_DEMO=true
+  flutter build ios --release "${DEMO_DEFINE[@]}"
   echo "=== $APP: installing on the phone ==="
   flutter install -d "$DEVICE" --release
 done

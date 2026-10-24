@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
+import 'checkout_options.dart';
 
 @JS('Razorpay')
 extension type _Razorpay._(JSObject _) implements JSObject {
@@ -45,15 +46,8 @@ Future<Map<String, dynamic>?> openCheckout(
   }).toJS;
   instance = _Razorpay(
     {
-          'key': options['keyId'],
-          'order_id': options['orderId'],
-          'amount': options['amount'],
-          'currency': 'INR',
-          'name': 'Wheelio',
-          'description': 'Doorstep exterior wash',
+          ...checkoutOptions(options, phone),
           'handler': handler,
-          'prefill': {'contact': phone},
-          'theme': {'color': '#3160FF'},
           'modal': {'ondismiss': dismiss},
         }.jsify()
         as JSObject,

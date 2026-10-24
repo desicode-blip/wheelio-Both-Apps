@@ -5,17 +5,30 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+import 'package:app_settings/app_settings.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'device_stub.dart' if (dart.library.js_interop) 'device_web.dart' as impl;
+import 'device_stub.dart'
+    if (dart.library.js_interop) 'device_web.dart'
+    as impl;
 
 enum Permission { unknown, allowed, denied }
+
+class MediaAccessException implements Exception {
+  const MediaAccessException(this.message, {this.settings = false});
+  final String message;
+  final bool settings;
+  @override
+  String toString() => message;
+}
 
 /// Placeholder until the real support number exists.
 class Support {
   static const phone = '+910000000000';
-  static const hours = '7 AM – 9 PM, every day. Calls in English, Hindi or Telugu.';
+  static const hours =
+      '7 AM – 9 PM, every day. Calls in English, Hindi or Telugu.';
 
   /// Shown instead of dialling on a laptop (no phone to call from).
   static void Function(String number)? onCallUnavailable;
@@ -39,13 +52,16 @@ class Device {
     }
   }
 
-  static void buzz([bool strong = false]) => strong ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact();
+  static void buzz([bool strong = false]) =>
+      strong ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact();
 
   static Permission get notificationPermission => impl.notificationPermission();
-  static Future<Permission> requestNotifications() => impl.requestNotifications();
+  static Future<Permission> requestNotifications() =>
+      impl.requestNotifications();
 
   /// Notification while the app is in the background.
-  static void systemNotify(String title, String body, {bool silent = false}) => impl.systemNotify(title, body, silent);
+  static void systemNotify(String title, String body, {bool silent = false}) =>
+      impl.systemNotify(title, body, silent);
 
   static bool get appIsActive => impl.appIsActive();
 
@@ -53,20 +69,106 @@ class Device {
   static bool get isTouch => !kIsWeb || impl.isTouchDevice();
 
   /// Speak text in a language; returns a function that stops it. [onEnd] runs when done.
-  static void Function() speak(String text, String lang, void Function() onEnd) => impl.speak(text, lang, onEnd);
+  static void Function() speak(
+    String text,
+    String lang,
+    void Function() onEnd,
+  ) => impl.speak(text, lang, onEnd);
 
-  /// Pick a photo from the library; returns its bytes.
-  static Future<Uint8List?> pickImage() async {
-    final f = await ImagePicker().pickImage(source: ImageSource.gallery);
-    return f?.readAsBytes();
+  static bool _pickingImage = false;
+
+  /// Capture and library are deliberately separate: opening the library never
+  /// requests camera access and a cancelled picker never invents a photo.
+  static Future<Uint8List?> pickImage({
+    bool camera = false,
+    bool front = false,
+  }) async {
+    if (_pickingImage) {
+      throw const MediaAccessException(
+        'A photo picker is already open. Finish or cancel it first.',
+      );
+    }
+    _pickingImage = true;
+    try {
+      final f = await ImagePicker().pickImage(
+        source: camera ? ImageSource.camera : ImageSource.gallery,
+        preferredCameraDevice: front ? CameraDevice.front : CameraDevice.rear,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 85,
+        requestFullMetadata: false,
+      );
+      if (f == null) return null;
+      if (await f.length() > 8 * 1024 * 1024) {
+        throw const MediaAccessException('Choose a photo smaller than 8 MB.');
+      }
+      return await f.readAsBytes();
+    } on PlatformException catch (error) {
+      final denied =
+          error.code.toLowerCase().contains('denied') ||
+          error.code.toLowerCase().contains('restricted');
+      throw MediaAccessException(
+        denied
+            ? 'Allow ${camera ? 'Camera' : 'Photos'} access for Wheelio in Settings, then try again.'
+            : 'The ${camera ? 'camera' : 'photo library'} could not open. Try again or choose another photo source.',
+        settings: denied && !kIsWeb,
+      );
+    } finally {
+      _pickingImage = false;
+    }
   }
+
+  static Future<Uint8List?> chooseImage(
+    BuildContext context, {
+    bool front = false,
+  }) async {
+    final camera = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      builder: (sheet) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            minTileHeight: 64,
+            leading: const Icon(Icons.camera_alt_outlined),
+            title: const Text('Take a photo'),
+            onTap: () => Navigator.pop(sheet, true),
+          ),
+          ListTile(
+            minTileHeight: 64,
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Choose from photos'),
+            onTap: () => Navigator.pop(sheet, false),
+          ),
+          ListTile(
+            minTileHeight: 64,
+            title: const Text('Cancel'),
+            onTap: () => Navigator.pop(sheet),
+          ),
+        ],
+      ),
+    );
+    if (camera == null) return null;
+    return pickImage(camera: camera, front: front);
+  }
+
+  static Future<void> openSettings() async {
+    if (!kIsWeb) await AppSettings.openAppSettings();
+  }
+
   /// Directions to a typed address in Google Maps.
   static Future<bool> openMapsSearch(String address) => launchUrl(
-    Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': address}),
+    Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': address,
+    }),
     mode: LaunchMode.externalApplication,
   );
   static Future<bool> openLocation(num latitude, num longitude) => launchUrl(
-    Uri.https('www.google.com','/maps/search/',{'api':'1','query':'$latitude,$longitude'}),
+    Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': '$latitude,$longitude',
+    }),
     mode: LaunchMode.externalApplication,
   );
 }

@@ -14,6 +14,8 @@ dependencies:
   cloud_functions: ^6.0.0
   firebase_storage: ^13.0.0
   geolocator: ^14.0.2
+  razorpay_flutter: ^1.4.7
+  firebase_messaging: ^16.1.0
   web: ^1.1.1
   wheelio_ui:
     path: ../wheelio_ui
@@ -21,3 +23,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

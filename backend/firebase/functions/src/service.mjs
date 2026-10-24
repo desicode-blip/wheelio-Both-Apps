@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { PaymentProviderError } from './payments.mjs';
+import { walletPrice, cancellationPolicy, cancellationBenefit, worksWindow, windowTimes, normalizedAddress } from './booking-policy.mjs';
 
 export class ServiceError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -27,6 +28,25 @@ export class WheelioService {
     const s = await this.db.doc('config/operations').get();
     return s.exists ? s.data() : { bookingsEnabled: false, societies: [], vehicleTypes: [], slotWindows: [] };
   }
+  walletRef(uid, mode) { return this.db.doc(`wallets/${uid}_${mode}`); }
+  async checkAddress(auth, data) {
+    const uid = this.actor(auth), cfg = await this.config();
+    const address = {
+      name: text(data.name, 2, 120, 'building name'), area: text(data.area, 2, 120, 'area'),
+      city: text(data.city, 2, 80, 'city'), pincode: text(data.pincode, 6, 6, 'pincode'),
+    };
+    if (!/^[1-9]\d{5}$/.test(address.pincode)) fail('invalid-argument', 'Check the pincode.');
+    const key = hash(normalizedAddress(address));
+    const canonical = cfg.societies?.find(s => s.active && s.name.trim().toLowerCase() === address.name.toLowerCase() &&
+      s.pincode === address.pincode && (s.city ?? 'Hyderabad').toLowerCase() === address.city.toLowerCase());
+    const reviewed = (await this.db.doc(`serviceAddresses/${key}`).get()).data();
+    const society = canonical ?? cfg.societies?.find(s => s.active && s.id === reviewed?.societyId && reviewed.approved === true);
+    const requestRef = this.db.doc(`addressRequests/${hash(`${uid}:${key}`)}`);
+    await requestRef.set({ customerId: uid, address, addressKey: key, status: society ? 'approved' : 'underReview',
+      ...(society ? { societyId: society.id } : {}), updatedAt: stamp() }, { merge: true });
+    return society ? { served: true, society: { ...society, addressName: address.name, addressArea: address.area, addressCity: address.city, addressPincode: address.pincode }, addressKey: key }
+      : { served: false, requestId: requestRef.id, status: 'underReview' };
+  }
   async availability(_auth,data) {
     const societyId=id(data.societyId,'society');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(data.day??''))fail('invalid-argument','Choose a date.');
@@ -35,13 +55,13 @@ export class WheelioService {
     const day=Date.parse(`${data.day}T00:00:00+05:30`);
     if(!Number.isFinite(day)||day<this.now()-86400000||day>this.now()+60*86400000)fail('invalid-argument','Choose a date within 60 days.');
     const captains=await this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',societyId).get();
-    const count=captains.docs.filter(c=>c.id!==_auth?.uid&&c.data().paymentMode===cfg.paymentMode).length;
-    const capacity=Math.min(count,Number.isInteger(cfg.capacityPerSlot)?cfg.capacityPerSlot:count);
     const slots=await Promise.all((cfg.slotWindows??[]).map(async w=>{
+      const count=captains.docs.filter(c=>c.id!==_auth?.uid&&c.data().paymentMode===cfg.paymentMode&&worksWindow(c.data(),w)).length;
+      const capacity=Math.min(count,Number.isInteger(cfg.capacityPerSlot)?cfg.capacityPerSlot:count);
       const ref=this.db.doc(`slotCapacity/${hash(`${societyId}:${data.day}:${w.startHour}`)}`),reserved=(await ref.get()).data()?.reserved??0;
       return {...w,available:!!cfg.bookingsEnabled&&reserved<capacity&&day+w.endHour*3600000>this.now()};
     }));
-    return {slots};
+    return {slots, multipleWindows: true};
   }
   async register(auth, data) {
     const uid = this.actor(auth), role = data.role;
@@ -89,35 +109,69 @@ export class WheelioService {
       if (!type || !society) fail('failed-precondition', 'This vehicle or society is not currently available.');
       if (!Number.isSafeInteger(type.pricePaise) || type.pricePaise < 100 || !Number.isSafeInteger(type.captainPayPaise)
         || type.captainPayPaise < 0 || type.captainPayPaise > type.pricePaise) fail('failed-precondition', 'Pricing is not configured.');
-      const window = config.slotWindows?.find(w => w.startHour === data.startHour && w.endHour === data.endHour);
-      if (!window) fail('invalid-argument', 'Choose an available time window.');
-      const start = Date.parse(`${data.day}T${String(window.startHour).padStart(2, '0')}:00:00+05:30`);
-      const end = Date.parse(`${data.day}T${String(window.endHour).padStart(2, '0')}:00:00+05:30`);
-      if (!Number.isFinite(start) || end <= this.now() || start > this.now() + 60 * 86400000) fail('invalid-argument', 'Choose a future slot within 60 days.');
+      const requested = data.windows ?? [{ startHour: data.startHour, endHour: data.endHour }];
+      if (!Array.isArray(requested) || !requested.length || requested.length > 12 ||
+          (data.anyTime !== undefined && typeof data.anyTime !== 'boolean')) fail('invalid-argument', 'Choose available time windows.');
+      const windows = requested.map(w => {
+        const found = config.slotWindows?.find(x => x.startHour === w?.startHour && x.endHour === w?.endHour);
+        if (!found) fail('invalid-argument', 'Choose available time windows.');
+        const times = windowTimes(data.day, found);
+        if (!Number.isFinite(times.start) || times.end <= this.now() || times.start > this.now() + 60 * 86400000) fail('invalid-argument', 'Choose a future slot within 60 days.');
+        return { startHour: found.startHour, endHour: found.endHour };
+      }).sort((a,b) => a.startHour-b.startHour);
+      if (new Set(windows.map(w=>w.startHour)).size !== windows.length) fail('invalid-argument', 'Choose each time window once.');
       const outstanding = await tx.get(this.db.doc(`customerState/${uid}`));
       if (outstanding.data()?.pendingBookingId) {
         const previous = await tx.get(this.db.doc(`orders/${outstanding.data().pendingBookingId}`));
         if (previous.exists && previous.data().status === 'pendingPayment' && dateMillis(previous.data().paymentExpiresAt) > this.now())
           fail('already-exists', 'Finish or cancel your pending payment before starting another booking.');
       }
-      const slotKey = hash(`${societyId}:${data.day}:${window.startHour}`);
-      const slot = await tx.get(this.db.doc(`slotCapacity/${slotKey}`));
       const captains = await tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',societyId));
-      const available = captains.docs.filter(c => c.id !== uid && c.data().paymentMode === config.paymentMode).length;
-      const capacity = Math.min(available, Number.isInteger(config.capacityPerSlot) ? config.capacityPerSlot : available);
-      if ((slot.data()?.reserved ?? 0) >= capacity) fail('resource-exhausted', 'No captain capacity is available in that time window. Choose another time.');
+      const slots = await Promise.all(windows.map(w => tx.get(this.db.doc(`slotCapacity/${hash(`${societyId}:${data.day}:${w.startHour}`)}`))));
+      const availableIndex = windows.findIndex((w,i) => {
+        const available = captains.docs.filter(c => c.id !== uid && c.data().paymentMode === config.paymentMode && worksWindow(c.data(), w)).length;
+        return (slots[i].data()?.reserved ?? 0) < Math.min(available, Number.isInteger(config.capacityPerSlot) ? config.capacityPerSlot : available);
+      });
+      if (availableIndex < 0) fail('resource-exhausted', 'No captain capacity is available in those time windows. Choose another time.');
+      const window = windows[availableIndex], {start,end} = windowTimes(data.day, window);
+      const slotKey = slots[availableIndex].id;
+      if (!['test','live'].includes(config.paymentMode)) fail('failed-precondition', 'Payment mode is not configured.');
+      const walletRef = this.walletRef(uid, config.paymentMode), wallet = (await tx.get(walletRef)).data();
+      if (data.useFreeWash && !(wallet?.freeWashes > 0)) fail('failed-precondition', 'Your free-wash balance changed. Review this booking again.');
+      const pricing = walletPrice(type.pricePaise, wallet, {useFreeWash:data.useFreeWash===true,useCredit:data.useCredit===true});
+      if (data.expectedAmountPaise !== undefined && data.expectedAmountPaise !== pricing.pricePaise) fail('failed-precondition', 'Your price or balance changed. Review this booking again.');
+      let address = null;
+      if (data.addressKey) {
+        const request = (await tx.get(this.db.doc(`addressRequests/${hash(`${uid}:${id(data.addressKey)}`)}`))).data();
+        if (request?.status !== 'approved' || request.societyId !== societyId) fail('failed-precondition', 'This address is awaiting service approval.');
+        const mapping=(await tx.get(this.db.doc(`serviceAddresses/${data.addressKey}`))).data();
+        const canonical=society.name.trim().toLowerCase()===request.address.name.trim().toLowerCase()&&society.pincode===request.address.pincode&&(society.city??'Hyderabad').toLowerCase()===request.address.city.toLowerCase();
+        if(!canonical&&!(mapping?.approved===true&&mapping.societyId===societyId))fail('failed-precondition','This address is no longer served. Check availability again.');
+        address = request.address;
+      }
+      const policy = cancellationPolicy(config);
       tx.set(ref, {
         customerId: uid, customerFirstName: profile.data().name.split(' ')[0], captainId: null,
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
-        vehicleKind, vehicleName: type.name, plate, societyId, societyName: society.name, area: society.area, city: society.city ?? 'Hyderabad',
+        vehicleKind, vehicleName: type.name, plate, societyId, societyName: address?.name ?? society.name, area: address?.area ?? society.area, city: address?.city ?? society.city ?? 'Hyderabad',
+        pincode: address?.pincode ?? society.pincode ?? '', manualAddress: !!address, addressKey: address ? data.addressKey : null,
         tower, floor, parking, note, washKind: data.washKind, day: data.day, startHour: window.startHour, endHour: window.endHour,
         slotStart: Timestamp.fromMillis(start), slotEnd: Timestamp.fromMillis(end), slotKey,
-        pricePaise: type.pricePaise, captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode,
+        requestedWindows: windows, anyTime: data.anyTime === true,
+        lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
+        ...pricing, basePricePaise: type.pricePaise, cancellationPolicy: policy,
+        walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
+        captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode,
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
-        evidence: {}, createdAt: stamp(), updatedAt: stamp(),
+        evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
       });
+      if (pricing.freeWashUsed || pricing.creditUsedPaise > 0) tx.set(walletRef, {
+        customerId:uid, paymentMode:config.paymentMode,
+        freeWashes: Math.max(0,(wallet?.freeWashes??0)-(pricing.freeWashUsed?1:0)),
+        creditPaise: Math.max(0,(wallet?.creditPaise??0)-pricing.creditUsedPaise), updatedAt:stamp(),
+      }, {merge:true});
       tx.set(this.db.doc(`customerState/${uid}`), { pendingBookingId: bookingId }, { merge: true });
-      return { bookingId, status: 'pendingPayment', amount: type.pricePaise };
+      return { bookingId, status: 'pendingPayment', amount: pricing.pricePaise };
     });
     return result;
   }
@@ -135,6 +189,17 @@ export class WheelioService {
       return o;
     });
     if (order.paymentStatus === 'captured') return { bookingId, paid: true };
+    if (order.pricePaise === 0) {
+      await this.db.runTransaction(async tx => {
+        const [fresh,cfg] = await Promise.all([tx.get(ref),tx.get(this.db.doc('config/operations'))]);
+        const latest = fresh.data();
+        if (latest.paymentStatus === 'captured') return;
+        if (latest.customerId !== uid || latest.status !== 'pendingPayment' || latest.pricePaise !== 0 || !latest.walletReserved || dateMillis(latest.paymentExpiresAt)<=this.now()) fail('failed-precondition','Review or reopen this booking.');
+        await this.settleBooking(tx,ref,latest,cfg.data(),null,'wallet');
+      });
+      await this.dispatch(bookingId);
+      return {bookingId,paid:true};
+    }
     if ((this.payments.keyId.startsWith('rzp_live_') ? 'live' : 'test') !== order.paymentMode) fail('failed-precondition', 'Payment configuration changed. Please create a new booking.');
     let providerId = order.razorpayOrderId;
     if (!providerId) {
@@ -209,37 +274,59 @@ export class WheelioService {
         if (o.razorpayPaymentId !== payment.id) fail('already-exists', 'This booking already has a captured payment.');
         return;
       }
-      const capacity = await tx.get(this.db.doc(`slotCapacity/${o.slotKey}`));
-      const cfgData = cfg.data();
-      const captains = await tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId));
-      const available = captains.docs.filter(c => c.id !== o.customerId && c.data().paymentMode === o.paymentMode).length;
-      const capacityLimit = Math.min(available, Number.isInteger(cfgData?.capacityPerSlot) ? cfgData.capacityPerSlot : available);
-      const canReserve = o.status === 'pendingPayment' && dateMillis(o.paymentExpiresAt) > this.now() && dateMillis(o.slotEnd) > this.now() && cfgData?.bookingsEnabled
-        && (capacity.data()?.reserved ?? 0) < capacityLimit;
-      tx.update(ref, { paymentStatus: 'captured', razorpayPaymentId: payment.id, nextPaymentCheckAt:FieldValue.delete(),
-        status: canReserve ? 'searching' : 'cancelled', capacityReserved: !!canReserve,
-        ...(canReserve ? {} : { cancellationReason: 'slotUnavailable', refundStatus: 'queued' }), updatedAt: stamp() });
-      tx.set(this.db.doc(`payments/${mapping.bookingId}`), { customerId: o.customerId, paymentId: payment.id, amount: payment.amount, currency: 'INR', status: 'captured', updatedAt: stamp() });
-      tx.set(this.db.doc(`customerState/${o.customerId}`), { pendingBookingId: null }, { merge: true });
-      if (canReserve) tx.set(capacity.ref, { reserved: (capacity.data()?.reserved ?? 0) + 1 }, { merge: true });
-      else tx.set(this.db.doc(`refunds/${mapping.bookingId}`), { bookingId: mapping.bookingId, customerId: o.customerId, paymentId: payment.id, amount: o.pricePaise, status: 'queued', createdAt: stamp() });
-      this.event(tx, ref, 'paymentCaptured', { status: canReserve ? 'searching' : 'cancelled' });
+      await this.settleBooking(tx, ref, o, cfg.data(), payment.id);
     });
     await this.dispatch(mapping.bookingId);
+  }
+  async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay') {
+    const windows = o.requestedWindows ?? [{startHour:o.startHour,endHour:o.endHour}];
+    const [slots,captains,wallet] = await Promise.all([
+      Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${hash(`${o.societyId}:${o.day}:${w.startHour}`)}`)))),
+      tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId)),
+      tx.get(this.walletRef(o.customerId,o.paymentMode)),
+    ]);
+    const selected = windows.findIndex((w,i)=>{
+      const count=captains.docs.filter(c=>c.id!==o.customerId&&c.data().paymentMode===o.paymentMode&&worksWindow(c.data(),w)).length;
+      return windowTimes(o.day,w).end>this.now() && (slots[i].data()?.reserved??0)<Math.min(count,Number.isInteger(cfg?.capacityPerSlot)?cfg.capacityPerSlot:count);
+    });
+    const canReserve=o.status==='pendingPayment'&&dateMillis(o.paymentExpiresAt)>this.now()&&cfg?.bookingsEnabled===true&&selected>=0;
+    const selection=canReserve?windows[selected]:null;
+    const cashRefund=!canReserve&&o.pricePaise>0;
+    tx.update(ref,{paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
+      status:canReserve?'searching':'cancelled',capacityReserved:canReserve,
+      ...(canReserve?{...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
+        {cancellationReason:'slotUnavailable',refundStatus:cashRefund?'queued':'none',walletReleased:!!o.walletReserved}),updatedAt:stamp()});
+    tx.set(this.db.doc(`payments/${ref.id}`),{customerId:o.customerId,paymentId:paymentId??null,source,amount:o.pricePaise,currency:'INR',status:'captured',updatedAt:stamp()});
+    tx.set(this.db.doc(`customerState/${o.customerId}`),{pendingBookingId:null},{merge:true});
+    if(canReserve)tx.set(slots[selected].ref,{reserved:(slots[selected].data()?.reserved??0)+1},{merge:true});
+    else {
+      this.restoreWallet(tx,wallet,o);
+      if(cashRefund)tx.set(this.db.doc(`refunds/${ref.id}`),{bookingId:ref.id,customerId:o.customerId,paymentId,amount:o.pricePaise,status:'queued',createdAt:stamp()});
+    }
+    this.event(tx,ref,'paymentCaptured',{status:canReserve?'searching':'cancelled'});
+  }
+  restoreWallet(tx, wallet, order, benefit = null) {
+    const restore=order.walletReserved&&!order.walletReleased;
+    const free=(restore&&order.freeWashUsed?1:0)+(benefit?.freeWashes??0);
+    const credit=(restore?(order.creditUsedPaise??0):0)+(benefit?.creditPaise??0);
+    if(free||credit)tx.set(wallet.ref,{customerId:order.customerId,paymentMode:order.paymentMode,
+      freeWashes:(wallet.data()?.freeWashes??0)+free,creditPaise:(wallet.data()?.creditPaise??0)+credit,updatedAt:stamp()},{merge:true});
   }
   event(tx, ref, type, details = {}) {
     tx.create(ref.collection('events').doc(), { type, ...details, createdAt: stamp() });
   }
   async dispatch(bookingId) {
-    const ref = this.db.doc(`orders/${id(bookingId)}`), o = (await ref.get()).data();
+    const ref = this.db.doc(`orders/${id(bookingId)}`);
+    await this.advanceWindow(ref);
+    const o = (await ref.get()).data();
     if (!o || o.status !== 'searching' || o.paymentStatus !== 'captured' || dateMillis(o.slotEnd) <= this.now()) return;
     const cfg = await this.config();
     const seconds = Number.isInteger(cfg.offerTtlSeconds) && cfg.offerTtlSeconds >= 30 ? cfg.offerTtlSeconds : 60;
     const captains = await this.db.collection('captains').where('approved', '==', true).where('online', '==', true).where('societyIds', 'array-contains', o.societyId).limit(50).get();
-    await Promise.all(captains.docs.filter(c=>c.id!==o.customerId && c.data().paymentMode === o.paymentMode && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
+    await Promise.all(captains.docs.filter(c=>c.id!==o.customerId && c.data().paymentMode === o.paymentMode && worksWindow(c.data(),o) && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
       const offerRef = this.db.doc(`jobOffers/${hash(`${bookingId}:${c.id}`)}`);
       const [booking, captain, prior] = await Promise.all([tx.get(ref), tx.get(c.ref), tx.get(offerRef)]);
-      if (booking.data()?.status !== 'searching' || !captain.data()?.approved || !captain.data()?.online) return;
+      if (booking.data()?.status !== 'searching' || booking.data().slotKey!==o.slotKey || !captain.data()?.approved || !captain.data()?.online || !worksWindow(captain.data(),o)) return;
       if (prior.exists && ['rejected','accepted','withdrawn'].includes(prior.data().status)) return;
       if (prior.exists && dateMillis(prior.data().expiresAt) > this.now()) return;
       // Coarse offer only. Vehicle identity, owner's note and exact parking are
@@ -248,6 +335,43 @@ export class WheelioService {
         vehicleKind: o.vehicleKind, vehicleName: o.vehicleName, washKind: o.washKind, captainPayPaise: o.captainPayPaise,
         slotStart: o.slotStart, slotEnd: o.slotEnd, status: 'pending', expiresAt: Timestamp.fromMillis(this.now()+seconds*1000), createdAt: stamp() });
     })));
+  }
+  async advanceWindow(ref) {
+    await this.db.runTransaction(async tx=>{
+      const o=(await tx.get(ref)).data();
+      if(o?.status!=='searching'||dateMillis(o.slotEnd)>this.now()||!o.requestedWindows?.length)return;
+      const windows=o.requestedWindows.filter(w=>windowTimes(o.day,w).end>this.now());
+      if(!windows.length)return;
+      const [cfg,captains,old,slots,offers]=await Promise.all([
+        tx.get(this.db.doc('config/operations')),
+        tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId)),
+        tx.get(this.db.doc(`slotCapacity/${o.slotKey}`)),
+        Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${hash(`${o.societyId}:${o.day}:${w.startHour}`)}`)))),
+        tx.get(this.db.collection('jobOffers').where('orderId','==',ref.id)),
+      ]);
+      const i=windows.findIndex((w,i)=>{
+        const count=captains.docs.filter(c=>c.id!==o.customerId&&c.data().paymentMode===o.paymentMode&&worksWindow(c.data(),w)).length;
+        return (slots[i].data()?.reserved??0)<Math.min(count,cfg.data()?.capacityPerSlot??count);
+      });
+      if(i<0)return;
+      const w=windows[i],times=windowTimes(o.day,w);
+      tx.update(ref,{...w,slotKey:slots[i].id,slotStart:Timestamp.fromMillis(times.start),slotEnd:Timestamp.fromMillis(times.end),updatedAt:stamp()});
+      if(o.capacityReserved)tx.set(old.ref,{reserved:Math.max(0,(old.data()?.reserved??1)-1)},{merge:true});
+      tx.set(slots[i].ref,{reserved:(slots[i].data()?.reserved??0)+1},{merge:true});
+      for(const f of offers.docs)tx.delete(f.ref);
+      this.event(tx,ref,'windowUpdated');
+    });
+  }
+  async captainPreferences(auth,data) {
+    const uid=this.actor(auth), windows=data.workingWindows;
+    if(!Array.isArray(windows)||!windows.length||windows.length>3||windows.some(w=>![[6,10],[10,14],[14,18]].some(([a,b])=>w?.startHour===a&&w?.endHour===b))||new Set(windows.map(w=>w.startHour)).size!==windows.length)
+      fail('invalid-argument','Choose your working hours.');
+    await this.db.runTransaction(async tx=>{
+      const ref=this.db.doc(`captains/${uid}`),c=(await tx.get(ref)).data();
+      if(!c?.approved)fail('permission-denied','Your captain account needs approval.');
+      tx.update(ref,{workingWindows:windows.map(w=>({startHour:w.startHour,endHour:w.endHour})),updatedAt:stamp()});
+    });
+    return {ok:true};
   }
   async captainOnline(auth, data) {
     const uid = this.actor(auth);
@@ -294,6 +418,7 @@ export class WheelioService {
       if (!c?.approved || !c.online || this.now()-dateMillis(c.lastSeenAt)>=120000 || !c.societyIds.includes(o?.societyId) || c.paymentMode !== o?.paymentMode) fail('permission-denied', 'You are not available for this society.');
       if (!o || o.customerId === uid || o.status !== 'searching' || o.paymentStatus !== 'captured') fail('failed-precondition', 'This job is no longer available.');
       if (!f || f.status !== 'pending' || dateMillis(f.expiresAt) <= this.now()) fail('deadline-exceeded', 'This offer expired.');
+      if (dateMillis(o.slotEnd)<=this.now() || !worksWindow(c,o) || dateMillis(f.slotStart)!==dateMillis(o.slotStart)) fail('failed-precondition','This time window is no longer available.');
       const assigned = await tx.get(this.db.collection('orders').where('captainId','==',uid).where('status','in',['onTheWay','washing','photosReady']));
       if (assigned.docs.some(d => dateMillis(d.data().slotStart)<dateMillis(o.slotEnd) && dateMillis(d.data().slotEnd)>dateMillis(o.slotStart)))
         fail('failed-precondition','You already have a job in this time window.');
@@ -314,6 +439,7 @@ export class WheelioService {
     const uid=this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`), action=data.action;
     const before=(await ref.get()).data();
     if(!before||before.captainId!==uid)fail('permission-denied','This job is not yours.');
+    if(['arrived','start','finish'].includes(action)&&dateMillis(before.slotStart)>this.now())fail('failed-precondition','This booking window has not opened yet.');
     if(['start','finish'].includes(action)) {
       const stage=action==='start'?'before':'after';
       for(let side=0;side<4;side++) {
@@ -324,6 +450,7 @@ export class WheelioService {
     await this.db.runTransaction(async tx=>{
       const s=await tx.get(ref),o=s.data();
       if(o.captainId!==uid)fail('permission-denied','This job is not yours.');
+      if(['arrived','start','finish'].includes(action)&&dateMillis(o.slotStart)>this.now())fail('failed-precondition','This booking window has not opened yet.');
       let update={updatedAt:stamp()};
       if(action==='arrived'&&o.status==='onTheWay')update.arrivedAt=stamp();
       else if(action==='start'&&o.status==='onTheWay'&&o.arrivedAt)update={...update,status:'washing',startedAt:stamp()};
@@ -359,6 +486,23 @@ export class WheelioService {
       if(o?.customerId!==uid||o.status!=='pendingPayment')fail('permission-denied','These vehicle photos are locked.');
       tx.update(ref,{[`customerPhotos.${angle}`]:path,updatedAt:stamp()});
     });return {path};
+  }
+  async customerMedia(auth,data) {
+    const uid=this.actor(auth),orderId=id(data.orderId),kind=data.kind,seconds=data.seconds;
+    if(!['vehicle','note_audio','note_video'].includes(kind)||!Number.isInteger(seconds)||seconds<1||seconds>30)fail('invalid-argument','Choose a recording of up to 30 seconds.');
+    const path=`orders/${orderId}/customer/${kind}`,meta=await this.evidence.metadata(path);
+    const allowed=kind==='note_audio'?['audio/mp4','audio/aac']:['video/mp4','video/quicktime'];
+    if(!meta||!allowed.includes(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>20*1024*1024)fail('invalid-argument','Upload a supported recording smaller than 20 MB.');
+    await this.db.runTransaction(async tx=>{
+      const ref=this.db.doc(`orders/${orderId}`),o=(await tx.get(ref)).data();
+      if(o?.customerId!==uid||o.status!=='pendingPayment')fail('permission-denied','These recordings are locked.');
+      const media={...(o.customerMedia??{})};
+      if(kind==='note_audio')delete media.note_video;
+      if(kind==='note_video')delete media.note_audio;
+      media[kind]={path,contentType:meta.contentType,seconds};
+      tx.update(ref,{customerMedia:media,updatedAt:stamp()});
+    });
+    return {path};
   }
   async location(auth,data) {
     const uid=this.actor(auth),orderId=id(data.orderId);
@@ -400,24 +544,31 @@ export class WheelioService {
     });
     return {ok:true};
   }
-  async cancel(auth,data,{expired = false} = {}) {
-    const uid=expired?auth.uid:this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
+  async cancel(auth,data,{expired = false, paymentExpired = false} = {}) {
+    const uid=expired||paymentExpired?auth.uid:this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
       const [s,cfg]=await Promise.all([tx.get(ref),tx.get(this.db.doc('config/operations'))]),o=s.data();
       if(!o||o.customerId!==uid)fail('permission-denied','This booking is not yours.');
       if(o.status==='cancelled')return;
+      if(paymentExpired && (o.status!=='pendingPayment'||dateMillis(o.paymentExpiresAt)>this.now()))return;
       if(expired && (dateMillis(o.slotEnd)>this.now() || o.arrivedAt))return;
       if(!['pendingPayment','searching','onTheWay'].includes(o.status))fail('failed-precondition','Contact support to cancel a wash that has started.');
-      const fee=!expired&&o.status==='onTheWay'?cfg.data()?.cancellationFeePaise:0;
+      const benefit=!expired&&!paymentExpired?cancellationBenefit(o,this.now()):null;
+      const fee=!benefit&&!expired&&o.status==='onTheWay'?cfg.data()?.cancellationFeePaise:0;
       if(!Number.isSafeInteger(fee)||fee<0||fee>o.pricePaise)fail('failed-precondition','Cancellation terms are not configured. Contact support.');
       const slot=o.capacityReserved?await tx.get(this.db.doc(`slotCapacity/${o.slotKey}`)):null;
       const captain=o.captainId?await tx.get(this.db.doc(`captains/${o.captainId}`)):null;
       const offers=await tx.get(this.db.collection('jobOffers').where('orderId','==',orderId));
-      tx.update(ref,{status:'cancelled',cancelledAt:stamp(),capacityReserved:false,refundStatus:o.paymentStatus==='captured'?'queued':'none',refundAmountPaise:o.paymentStatus==='captured'?o.pricePaise-fee:0,updatedAt:stamp()});
+      const wallet=await tx.get(this.walletRef(uid,o.paymentMode));
+      const refund=o.paymentStatus==='captured'&&!benefit&&o.pricePaise>0;
+      tx.update(ref,{status:'cancelled',cancelledAt:stamp(),capacityReserved:false,walletReleased:!!o.walletReserved,
+        ...(benefit?{cancellationBenefit:benefit}:{}),cancellationReason:paymentExpired?'paymentExpired':expired?'slotExpired':'customerCancelled',
+        refundStatus:refund?'queued':'none',refundAmountPaise:refund?o.pricePaise-fee:0,updatedAt:stamp()});
+      this.restoreWallet(tx,wallet,o,benefit);
       if(slot)tx.set(slot.ref,{reserved:Math.max(0,(slot.data()?.reserved??1)-1)},{merge:true});
       if(captain?.exists)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),updatedAt:stamp()});
       for(const offer of offers.docs)tx.update(offer.ref,{status:'withdrawn',updatedAt:stamp()});
-      if(o.paymentStatus==='captured')tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:o.pricePaise-fee,status:'queued',createdAt:stamp()});
+      if(refund)tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:o.pricePaise-fee,status:'queued',createdAt:stamp()});
       this.event(tx,ref,'customerCancelled',{status:'cancelled'});
     });
     return {ok:true};
@@ -433,6 +584,51 @@ export class WheelioService {
       tx.set(this.db.doc(`earnings/${orderId}`),{status:'onHold',updatedAt:stamp()},{merge:true});
       this.event(tx,ref,'problemReported',{status:'disputed'});
     });
+    return {ok:true};
+  }
+  async supportRequest(auth,data) {
+    const uid=this.actor(auth),requestId=id(data.requestId),kind=data.kind,note=text(data.note,5,1000,'your message');
+    if(!['booking','payment','phoneChange','accountDeletion','other'].includes(kind))fail('invalid-argument','Choose a support topic.');
+    const ref=this.db.doc(`supportTickets/${hash(`${uid}:${requestId}`)}`),state=this.db.doc(`supportState/${uid}`);
+    await this.db.runTransaction(async tx=>{
+      const [old,rate]=await Promise.all([tx.get(ref),tx.get(state)]);
+      if(old.exists)return;
+      if(dateMillis(rate.data()?.lastRequestAt)>this.now()-60000)fail('resource-exhausted','Your previous request is saved. Wait one minute before sending another.');
+      tx.set(ref,{customerId:uid,kind,note,status:'open',createdAt:stamp(),updatedAt:stamp()});
+      tx.set(state,{lastRequestAt:Timestamp.fromMillis(this.now())});
+    });
+    return {requestId:ref.id,status:'open'};
+  }
+  async registerPushToken(auth,data) {
+    const uid=this.actor(auth),token=text(data.token,20,4096,'notification registration'),role=data.role;
+    if(!['customer','captain'].includes(role))fail('invalid-argument','Invalid app.');
+    await this.db.runTransaction(async tx=>{
+      const profile=(await tx.get(this.db.doc(`users/${uid}`))).data();
+      if(profile?.[`${role}PushEnabled`]!==true)fail('permission-denied','Enable notifications first.');
+      tx.set(this.db.doc(`deviceTokens/${hash(token)}`),{uid,token,role,updatedAt:stamp()});
+    });
+    return {ok:true};
+  }
+  async setPushPreference(auth,data) {
+    const uid=this.actor(auth),{role,enabled}=data;
+    if(!['customer','captain'].includes(role)||typeof enabled!=='boolean')fail('invalid-argument','Choose a notification preference.');
+    await this.db.runTransaction(async tx=>{
+      const ref=this.db.doc(`users/${uid}`),profile=await tx.get(ref);
+      const devices=enabled?null:await tx.get(this.db.collection('deviceTokens').where('uid','==',uid));
+      if(!profile.exists)fail('failed-precondition','Complete your account first.');
+      tx.update(ref,{[`${role}PushEnabled`]:enabled,updatedAt:stamp()});
+      for(const d of devices?.docs??[])if(d.data().role===role)tx.delete(d.ref);
+    });
+    return {ok:true};
+  }
+  async removePushToken(auth,data) {
+    const uid=this.actor(auth),token=text(data.token,20,4096,'notification registration'),ref=this.db.doc(`deviceTokens/${hash(token)}`);
+    await this.db.runTransaction(async tx=>{const s=await tx.get(ref);if(s.data()?.uid===uid)tx.delete(ref);});
+    return {ok:true};
+  }
+  async readNotification(auth,data) {
+    const uid=this.actor(auth),ref=this.db.doc(`notifications/${id(data.notificationId)}`);
+    await this.db.runTransaction(async tx=>{const s=await tx.get(ref);if(s.data()?.recipientId!==uid)fail('permission-denied','This update is not yours.');tx.update(ref,{read:true});});
     return {ok:true};
   }
   async applyRefund(bookingId, refund, lease) {

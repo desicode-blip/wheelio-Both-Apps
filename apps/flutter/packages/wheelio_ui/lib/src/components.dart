@@ -438,7 +438,7 @@ class WScreen extends StatelessWidget {
       color: bg,
       child: Column(children: [
         SizedBox(height: pad.top),
-        if (header != null) header!,
+        ?header,
         Expanded(
           child: scrolls
               ? SingleChildScrollView(padding: EdgeInsets.fromLTRB(gutter, 0, gutter, footer == null ? 24 + bottom : 24), child: column)
@@ -1480,7 +1480,7 @@ class TimerDots extends StatelessWidget {
 /// Slide dots that track the carousel: the wide pill slides between dots as the page moves,
 /// dots already passed are filled, and the current pill fills up with the auto-advance timer.
 class CarouselDots extends StatelessWidget {
-  const CarouselDots({required this.count, required this.page, required this.progress});
+  const CarouselDots({super.key, required this.count, required this.page, required this.progress});
   final int count;
   final double page;
   final double progress;

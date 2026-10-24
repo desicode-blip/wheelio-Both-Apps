@@ -18,6 +18,11 @@ service cloud.firestore {
       match /events/{event} { allow read: if bookingParty(orderId); allow write: if false; }
       match /tracking/{tracking} { allow read: if bookingParty(orderId); allow write: if false; }
     }
+    // Wallets and service address approvals are server-owned; owners can observe
+    // their own results, but cannot award credit or approve an address.
+    match /wallets/{walletId} { allow read: if request.auth != null && walletId in [request.auth.uid + '_test', request.auth.uid + '_live']; allow write: if false; }
+    match /addressRequests/{requestId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
+    match /notifications/{notificationId} { allow read: if request.auth != null && resource.data.recipientId == request.auth.uid; allow write: if false; }
     match /captains/{uid} { allow read: if owner(uid); allow write: if false; }
     match /jobOffers/{offerId} { allow read: if request.auth != null && resource.data.captainId == request.auth.uid; allow write: if false; }
     match /earnings/{orderId} { allow read: if request.auth != null && resource.data.captainId == request.auth.uid; allow write: if false; }
