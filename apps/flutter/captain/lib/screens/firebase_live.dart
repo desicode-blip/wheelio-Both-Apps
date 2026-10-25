@@ -1,8 +1,8 @@
 // Firebase controllers for the existing Captain phone layouts and design system.
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 class FirebaseCaptainScreen extends StatefulWidget {
   const FirebaseCaptainScreen({super.key});
@@ -11,7 +11,7 @@ class FirebaseCaptainScreen extends StatefulWidget {
 }
 
 class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
-  final backend = WheelioRuntime.backend!;
+  final backend = WashKrewRuntime.backend!;
   final subscriptions = <StreamSubscription>[];
   final accountSubscriptions = <StreamSubscription>[];
   Map<String, dynamic> config = {}, captain = {};

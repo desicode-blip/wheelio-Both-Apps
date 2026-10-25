@@ -28,7 +28,7 @@ async function main() {
   if(command==='configure-test') {
     const config=JSON.parse(readFileSync(path.join(__dirname,'operations.test.json'),'utf8'));
     await api('/config/operations','PATCH',{fields:fields(config)});
-    console.log('Configured Wheelio test payments, catalog and societies. No captains were fabricated or approved.');
+    console.log('Configured WashKrew test payments, catalog and societies. No captains were fabricated or approved.');
   } else if(command==='configure-storage') {
     const url='https://storage.googleapis.com/storage/v1/b/wheelio-apps.firebasestorage.app';
     const request=async(route,options={})=>{
@@ -40,7 +40,7 @@ async function main() {
     const cors=[...(bucket.cors??[])];
     for(const rule of desired) if(!cors.some(existing=>rule.origin.every(origin=>existing.origin?.includes('*')||existing.origin?.includes(origin))&&rule.method.every(method=>existing.method?.includes(method))))cors.push(rule);
     if(cors.length!==(bucket.cors??[]).length)await request(`?ifMetagenerationMatch=${encodeURIComponent(bucket.metageneration)}`,{method:'PATCH',body:JSON.stringify({cors})});
-    console.log('Storage allows authenticated photo downloads from the Wheelio Hosting origins. Existing bucket policies were preserved.');
+    console.log('Storage allows authenticated photo downloads from the WashKrew Hosting origins. Existing bucket policies were preserved.');
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.

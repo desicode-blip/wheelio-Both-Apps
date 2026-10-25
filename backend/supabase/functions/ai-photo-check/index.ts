@@ -64,7 +64,7 @@ const checkResultSchema = {
   },
 };
 
-const SYSTEM = `You check photos for Wheelio, a doorstep exterior car and bike wash in India.
+const SYSTEM = `You check photos for WashKrew, a doorstep exterior car and bike wash in India.
 The wash is water and cloth only (no soap, no foam), exterior only. Interior dirt is out of scope.
 You receive time-stamped photos from fixed angles. "before" and "after" photos are taken by the washer
 and are the official wash evidence. "customer" photos are taken by the vehicle owner when they report a problem.

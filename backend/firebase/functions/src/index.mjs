@@ -8,7 +8,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { RazorpayPayments, signatureMatches } from './payments.mjs';
-import { WheelioService, ServiceError } from './service.mjs';
+import { WashKrewService, ServiceError } from './service.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -17,7 +17,7 @@ setGlobalOptions({ region: 'asia-south1', maxInstances: 5, minInstances: 0, memo
 const keyId = defineSecret('RAZORPAY_KEY_ID'), keySecret = defineSecret('RAZORPAY_KEY_SECRET'), webhookSecret = defineSecret('RAZORPAY_WEBHOOK_SECRET');
 const db = getFirestore();
 function service(withPayment = false) {
-  return new WheelioService({ db,
+  return new WashKrewService({ db,
     payments: withPayment ? new RazorpayPayments({ keyId: keyId.value(), keySecret: keySecret.value() }) : null,
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
@@ -34,7 +34,7 @@ function callable(method, payment = false) {
     try { return await service(payment)[method](request.auth, request.data ?? {}); }
     catch (error) {
       if (error instanceof ServiceError) throw new HttpsError(error.code, error.message);
-      logger.error('Wheelio operation failed', { operation: method, code: error.code ?? 'internal' });
+      logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
   });

@@ -13,7 +13,7 @@ Published: [website](https://wheelio-apps.web.app/), [Customer](https://wheelio-
 - Landing page: `apps/hosting/`.
 - Customer: Firebase email/password signup/login/password reset/logout, persistent session, saved name, wash requests, realtime request history and cancellation.
 - Captain: the same authentication/profile, with private Captain applications.
-- Shared code: `apps/flutter/packages/wheelio_firebase/`. Both active Flutter app entry points use it, preserving the web → iOS → Android direction.
+- Shared code: `apps/flutter/packages/washkrew_firebase/`. Both active Flutter app entry points use it, preserving the web → iOS → Android direction.
 - Designed demos: `/app/?demo=true` and `/captain/?demo=true`, with a persistent sample-data label. The live app does not use hardcoded OTPs or simulated payment/job state.
 
 The complete paid-wash marketplace is **not** shipped. Requests do not reserve a slot or charge money. KYC, document/photo uploads, payments/refunds, job dispatch/claim, evidence approval, payouts, push, maps, account deletion and native device integration remain to be implemented. Captain applications are interest records, not permission to accept jobs. Existing Neon/Supabase databases and integrations are retained and not migrated or used by this release.
@@ -23,7 +23,7 @@ The complete paid-wash marketplace is **not** shipped. Requests do not reserve a
 Prerequisites: Flutter 3.38.6 / Dart 3.10.7 or compatible, Node 24, Firebase CLI 15.8+. The app lockfiles are tracked. `firebase.local.json` is ignored; no service account private key is needed in the client.
 
 1. Copy `firebase.example.json` to `firebase.local.json`.
-2. Fill its public Firebase web configuration from the existing "Wheelio Web" app in Firebase project settings. App ID: `1:763324255731:web:06973464f9d08d23ef9686`.
+2. Fill its public Firebase web configuration from the existing "WashKrew Web" app in Firebase project settings. App ID: `1:763324255731:web:06973464f9d08d23ef9686`.
 3. Run `node apps/flutter/tool/build-firebase.mjs` from the repository root. Set `FLUTTER_BIN` to the Flutter executable if it is not on PATH.
 4. Run `firebase emulators:start --only hosting` to serve the assembled build at `http://127.0.0.1:5000` (this previews the live Firebase backend, unless the build uses emulator defines).
 
@@ -62,7 +62,7 @@ The emulator suite requires Java 21+ (this workstation also has Java 26). There 
 
 20 October verification: all 12 rules tests passed; Customer, Captain and the shared Firebase package passed `flutter analyze`; both release web builds succeeded. Live Auth/Firestore smoke checks passed signup, login/logout, profile update, request save/query/cancel, application save and account isolation. Browser checks exercised Customer login/request/cancellation/profile and Captain application, with phone and desktop layout checks. Generated QA accounts/documents/credentials were removed. Firebase CLI confirmed successful auth, Firestore rules/index and Hosting deployment.
 
-Run `flutter analyze` in Customer, Captain and `packages/wheelio_firebase`. Compile both web apps through the build script.
+Run `flutter analyze` in Customer, Captain and `packages/washkrew_firebase`. Compile both web apps through the build script.
 
 For intentional live QA, run `node backend/firebase/smoke.mjs` from the root. It exercises signup, profiles, request save/query/cancel, Captain applications, isolation, login and logout without sending email or SMS. Its disposable credentials/record IDs go in ignored `.cache/firebase-qa.json` for browser testing. Afterwards run `node backend/firebase/cleanup-smoke.mjs`; this signs in as each generated QA user, enumerates only their records, deletes those exact documents using the Firebase CLI under the project owner, deletes the generated Auth accounts, then removes the local credentials. If a test fails, run cleanup before retrying. Do not retain QA accounts in production.
 

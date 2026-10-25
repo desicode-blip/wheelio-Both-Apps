@@ -1,4 +1,4 @@
--- Wheelio V1 schema. Ready to apply to a new Supabase project:
+-- WashKrew V1 schema. Ready to apply to a new Supabase project:
 --   supabase link --project-ref <ref> && supabase db push
 -- Region: ap-south-1 (Mumbai). Money is stored in paise (integer).
 -- Business rules that are still open decisions live in app_settings so they

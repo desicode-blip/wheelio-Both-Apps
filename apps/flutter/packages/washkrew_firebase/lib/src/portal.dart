@@ -2,18 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 import 'backend.dart';
 import 'live_backend.dart';
 
 /// The designed sample-data apps are available only with an explicit demo URL.
-Future<void> launchWheelio({
+Future<void> launchWashKrew({
   required bool captain,
   required Widget demo,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
-  WheelioRuntime.backend = null;
+  WashKrewRuntime.backend = null;
   // Web: ?demo=true. Phone builds: --dart-define=WHEELIO_DEMO=true (sample data, no Firebase).
   if (Uri.base.queryParameters['demo'] == 'true' ||
       const bool.fromEnvironment('WHEELIO_DEMO')) {
@@ -22,8 +22,8 @@ Future<void> launchWheelio({
   }
   Object? initializationError;
   try {
-    await WheelioFirebase.initialize();
-    WheelioRuntime.backend = LiveBackend();
+    await WashKrewFirebase.initialize();
+    WashKrewRuntime.backend = LiveBackend();
   } catch (error) {
     initializationError = error;
   }
@@ -40,7 +40,7 @@ class DemoLabel extends StatelessWidget {
   const DemoLabel({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => !WheelioRuntime.demo || !kIsWeb
+  Widget build(BuildContext context) => !WashKrewRuntime.demo || !kIsWeb
       ? child
       : Column(
           children: [
@@ -162,7 +162,7 @@ class _ProfileLoader extends StatefulWidget {
 }
 
 class _ProfileLoaderState extends State<_ProfileLoader> {
-  late Future<void> ready = WheelioRepository().ensureProfile();
+  late Future<void> ready = WashKrewRepository().ensureProfile();
   @override
   Widget build(BuildContext context) => FutureBuilder<void>(
     future: ready,
@@ -179,7 +179,7 @@ class _ProfileLoaderState extends State<_ProfileLoader> {
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () => setState(
-                      () => ready = WheelioRepository().ensureProfile(),
+                      () => ready = WashKrewRepository().ensureProfile(),
                     ),
                     child: const Text('Try again'),
                   ),
@@ -609,7 +609,7 @@ class _RequestPageState extends State<_RequestPage> {
       error = null;
     });
     try {
-      await WheelioRepository().requestWash({
+      await WashKrewRepository().requestWash({
         'vehicleType': vehicle,
         'registration': registration.text.trim().toUpperCase().replaceAll(
           ' ',
@@ -792,7 +792,7 @@ class _RequestsPage extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) => StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-    stream: WheelioRepository().requests.snapshots(),
+    stream: WashKrewRepository().requests.snapshots(),
     builder: (context, snapshot) {
       if (snapshot.hasError)
         return Center(
@@ -936,7 +936,7 @@ class _RequestCardState extends State<_RequestCard> {
                         if (confirm != true || !mounted) return;
                         setState(() => busy = true);
                         try {
-                          await WheelioRepository().cancelRequest(widget.id);
+                          await WashKrewRepository().cancelRequest(widget.id);
                         } catch (e) {
                           if (context.mounted)
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -979,7 +979,7 @@ class _CaptainApplicationState extends State<_CaptainApplication> {
   Widget build(
     BuildContext context,
   ) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: WheelioRepository().application.snapshots(),
+    stream: WashKrewRepository().application.snapshots(),
     builder: (context, snapshot) {
       if (snapshot.hasError)
         return Center(child: Text(backendError(snapshot.error!)));
@@ -1067,7 +1067,7 @@ class _CaptainApplicationState extends State<_CaptainApplication> {
                               error = null;
                             });
                             try {
-                              await WheelioRepository().applyAsCaptain(
+                              await WashKrewRepository().applyAsCaptain(
                                 name: name.text,
                                 phone: phone.text,
                                 area: area.text,
@@ -1109,7 +1109,7 @@ class _AccountPageState extends State<_AccountPage> {
   Widget build(
     BuildContext context,
   ) => StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-    stream: WheelioRepository().profile.snapshots(),
+    stream: WashKrewRepository().profile.snapshots(),
     builder: (context, snapshot) {
       if (snapshot.hasError)
         return Center(child: Text(backendError(snapshot.error!)));
@@ -1152,7 +1152,7 @@ class _AccountPageState extends State<_AccountPage> {
                       error = null;
                     });
                     try {
-                      await WheelioRepository().saveProfile(name.text);
+                      await WashKrewRepository().saveProfile(name.text);
                       if (context.mounted)
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Name saved.')),

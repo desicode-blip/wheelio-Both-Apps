@@ -6,7 +6,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 /// Captain app language. Captains pick it on the first screen (W01).
 enum Lang { en, hi, te }

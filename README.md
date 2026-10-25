@@ -2,7 +2,7 @@
 
 Pay-per-wash, photo-verified exterior wash for cars and bikes in Hyderabad gated societies.
 
-**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/wheelio_ui/lib/src/brand.dart`) is the only way to show the logo. Technical identifiers still say wheelio (package names, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, repo and folder names) and are left alone on purpose: renaming them needs new App Store and Firebase setup.
+**Name: WashKrew** (renamed from WashKrew on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Technical identifiers still say wheelio (package names, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, repo and folder names) and are left alone on purpose: renaming them needs new App Store and Firebase setup.
 
 ## Active Firebase web app
 
@@ -39,7 +39,7 @@ Wheelio/
 │   ├── flutter/                # Active Customer and Captain apps (web first, then iOS, Android)
 │   │   ├── customer/           # Customer app
 │   │   ├── captain/            # Captain (washer) app
-│   │   ├── packages/wheelio_ui/ # Shared design system, navigation and phone frame
+│   │   ├── packages/washkrew_ui/ # Shared design system, navigation and phone frame
 │   │   └── tool/serve.mjs      # Local preview server for web builds
 │   ├── ios/                    # Native SwiftUI apps (reference for the Flutter port)
 │   │   ├── Wheelio.xcodeproj/  # Customer and Captain shared schemes
@@ -52,7 +52,7 @@ Wheelio/
 ├── docs/                       # Status, integration notes and build brief
 ├── legacy/                     # Preserved earlier Flutter implementation
 │   ├── apps/customer/
-│   ├── packages/wheelio_ui/
+│   ├── packages/washkrew_ui/
 │   └── tool/bootstrap_customer.sh
 ├── package.json                # Root web development commands
 ├── pnpm-workspace.yaml         # JavaScript workspace (apps/web)
@@ -91,7 +91,7 @@ pnpm build
 pnpm start
 ```
 
-The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing Wheelio colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
+The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing WashKrew colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
 
 The web app also carries earlier React demo ports of both iOS apps, now superseded by the Flutter apps, running on the same sample data: the Customer app at `/app` and the Captain app at `/captain` (not linked from the landing page, and marked noindex). On a laptop each app sits in a phone frame in the middle of the page; on a phone it fills the screen. Every screen, state and demo switch from the iOS Screens gallery is available through the "Screens" tab on the left edge. Demo login code: 123456. The code lives in `apps/web/src/phone/`.
 
@@ -140,4 +140,4 @@ xcodebuild -project apps/ios/Wheelio.xcodeproj -scheme Captain -sdk iphonesimula
 ## Online sources
 
 - Design (live): https://claude.ai/artifact/QrsfqjaXnQ9fpY7spb1XAN
-- Google Drive "Wheelio" folder: https://drive.google.com/drive/folders/1iIwNXlTps-X5rACETmyfAqnT9boJ3kpU
+- Google Drive "WashKrew" folder: https://drive.google.com/drive/folders/1iIwNXlTps-X5rACETmyfAqnT9boJ3kpU

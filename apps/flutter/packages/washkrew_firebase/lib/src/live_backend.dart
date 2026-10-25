@@ -10,7 +10,7 @@ import 'checkout_stub.dart'
     if (dart.library.js_interop) 'checkout_web.dart'
     as checkout;
 
-class WheelioRuntime {
+class WashKrewRuntime {
   static bool get demo =>
       Uri.base.queryParameters['demo'] == 'true' ||
       const bool.fromEnvironment('WHEELIO_DEMO');

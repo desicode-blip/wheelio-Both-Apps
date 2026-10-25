@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';

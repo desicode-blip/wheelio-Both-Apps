@@ -6,7 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 /// No service-account keys belong in an app. These are Firebase public app IDs.
-class WheelioFirebase {
+class WashKrewFirebase {
   static Future<void> initialize() async {
     const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
     if (projectId.isEmpty) {
@@ -83,7 +83,7 @@ String backendError(Object error) {
   return 'Something went wrong. Please try again.';
 }
 
-class WheelioRepository {
+class WashKrewRepository {
   final auth = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance;
   String get uid => auth.currentUser!.uid;

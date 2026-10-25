@@ -16,7 +16,7 @@ const id = (value, label = 'reference') => text(value, 1, 100, label).match(/^[A
 const dateMillis = value => value?.toMillis?.() ?? (typeof value === 'number' ? value : 0);
 const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 32);
 
-export class WheelioService {
+export class WashKrewService {
   constructor({ db, payments, evidence, now = () => Date.now() }) { Object.assign(this, { db, payments, evidence, now }); }
   actor(auth) {
     if (!auth?.uid) fail('unauthenticated', 'Log in to continue.');
@@ -148,7 +148,7 @@ export class WheelioService {
       });
       providerId = created.id;
     }
-    return { bookingId, keyId: this.payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'Wheelio', testMode: order.paymentMode === 'test' };
+    return { bookingId, keyId: this.payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'WashKrew', testMode: order.paymentMode === 'test' };
   }
   async verifyPayment(auth, data) {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
@@ -190,7 +190,7 @@ export class WheelioService {
   async captureWebhookPayment(paymentId) {
     const payment = await this.payments.payment(id(paymentId));
     // The merchant is shared with Trustkeyper. A signed merchant event alone
-    // does not make its order a Wheelio booking; acknowledge unrelated events.
+    // does not make its order a WashKrew booking; acknowledge unrelated events.
     if (!payment?.order_id || !(await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).exists) return { ignored: true };
     await this.capturePayment(payment);
     return { ignored: false };

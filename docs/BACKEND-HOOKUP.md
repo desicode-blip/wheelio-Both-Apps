@@ -10,7 +10,7 @@ On 22 October, unpaid-booking recovery, Finish/photo review, approval/rating, ea
 
 The Firebase paid-booking implementation is documented in [FIREBASE-BOOKINGS.md](FIREBASE-BOOKINGS.md). Phone OTP, server prices/capacity, real persisted orders, Razorpay order/capture verification, private uploads, online captains, expiring private offers, atomic assignment, arrival/wash/evidence stages, optional foreground location, customer approval/rating, refund processing and earnings now have server controllers and emulator coverage. Deployment and real merchant/account/paid-flow acceptance are separate checks; test credentials cannot take live payments.
 
-The test-payment web release, all 22 Functions, rules, indexes and private-photo browser settings are deployed. Hosted capacity requests succeed and honestly show no availability until actual captains are approved. The builder checks web plugin registration after clearing stale caches; availability failures have a retry action. On 21 October the owner confirmed receiving real SMS OTPs; the name was then saved at their request and the signed-in Profile page confirmed account completion. The completed test-payment browser checks and their replay boundaries are recorded in WEB-ACCEPTANCE.md. Wheelio has a separate test webhook on the existing Trustkeyper merchant; unrelated merchant events cannot create Wheelio bookings. Aman is handling merchant onboarding, so live keys and live webhook registration remain pending.
+The test-payment web release, all 22 Functions, rules, indexes and private-photo browser settings are deployed. Hosted capacity requests succeed and honestly show no availability until actual captains are approved. The builder checks web plugin registration after clearing stale caches; availability failures have a retry action. On 21 October the owner confirmed receiving real SMS OTPs; the name was then saved at their request and the signed-in Profile page confirmed account completion. The completed test-payment browser checks and their replay boundaries are recorded in WEB-ACCEPTANCE.md. WashKrew has a separate test webhook on the existing Trustkeyper merchant; unrelated merchant events cannot create WashKrew bookings. Aman is handling merchant onboarding, so live keys and live webhook registration remain pending.
 
 Normal URLs use those controllers. Sample queues, extra-offer timers, sample captain/owner details, fixed OTPs, fake upload progress, midnight approval, made-up bank refunds/payouts and demo KYC/AI outcomes remain confined to `?demo=true`. No new screen fakes backend data. The live UI's timers only display actual offer expiry, refresh location freshness, send an online heartbeat, and share a user-authorized location; they do not invent job transitions.
 
@@ -46,7 +46,7 @@ Live notes are text only. Location displays actual coordinates and a map link, w
 The Flutter apps now have an `ios` platform, but phone builds run on sample data
 (`WHEELIO_DEMO=true` in `tool/run-ios.sh`). Before a phone build can use the live backend:
 
-- [ ] Register the iOS apps `com.amanmaheshwari.wheelio.customer` and `com.amanmaheshwari.wheelio.captain` in Firebase project `wheelio-apps` (owner: ajay@trustkeyper.com) and pass their iOS app IDs, plus `iosBundleId`, in `WheelioFirebase.initialize()`.
+- [ ] Register the iOS apps `com.amanmaheshwari.wheelio.customer` and `com.amanmaheshwari.wheelio.captain` in Firebase project `wheelio-apps` (owner: ajay@trustkeyper.com) and pass their iOS app IDs, plus `iosBundleId`, in `WashKrewFirebase.initialize()`.
 - [ ] Phone sign-in: `signInWithPhoneNumber` / `linkWithPhoneNumber` are web-only. Add the native `verifyPhoneNumber` flow (`live_backend.dart`, `portal.dart`), with an APNs key in Firebase or the reCAPTCHA URL scheme (encoded iOS app ID) in `Info.plist`.
 - [ ] Razorpay: `checkout_stub.dart` throws on phones. Add the native Razorpay SDK for iOS.
 - [ ] Push notifications (APNs key, FCM) and the paid Apple Developer account for TestFlight; the free account allows 3 apps on the phone and builds expire after 7 days.
@@ -157,7 +157,7 @@ The Flutter apps now have an `ios` platform, but phone builds run on sample data
 - [ ] Captain "When I work" times: store on the profile and use them to decide whom to offer jobs.
 - [ ] Later-day jobs: server sends them with their date; the app moves them into Today's plan when the day starts
       (sample data uses a fixed `Job.day`).
-- [ ] Captain pay is never reduced by free washes or customer credit; Wheelio covers the difference.
+- [ ] Captain pay is never reduced by free washes or customer credit; WashKrew covers the difference.
 
 ## 6. Values still to decide (config, not code)
 
@@ -170,7 +170,7 @@ name. Keep them in server config; see also the list at the end of `CONNECT-LATER
 
 ### 20 October 2026: Firebase prelaunch portal
 
-- Live email/password registration, login, persistent session, reset and logout in shared Flutter `packages/wheelio_firebase/`. Phone SMS has an implementation but its UI is hidden unless `FIREBASE_PHONE_AUTH_ENABLED=true`; do not enable it before provider/billing configuration and verification.
+- Live email/password registration, login, persistent session, reset and logout in shared Flutter `packages/washkrew_firebase/`. Phone SMS has an implementation but its UI is hidden unless `FIREBASE_PHONE_AUTH_ENABLED=true`; do not enable it before provider/billing configuration and verification.
 - Live profile creation/update in Firestore `users/{uid}`. No sample customer is inserted in live mode.
 - Customer wash **requests** save to `washRequests` with realtime history and owner cancellation. These are prelaunch interest records, not paid or confirmed bookings. No simulated captain assignment, payment or wash timer runs on these records.
 - Captain interest saves privately to `captainApplications/{uid}`. Clients cannot approve KYC or access jobs/payouts.

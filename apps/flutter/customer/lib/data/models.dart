@@ -1,6 +1,6 @@
 // Domain models, ported from apps/ios/Customer/Data/Models.swift. Field names mirror the backend.
 
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 enum VehicleKind { bike, hatchback, sedan, suv }
 

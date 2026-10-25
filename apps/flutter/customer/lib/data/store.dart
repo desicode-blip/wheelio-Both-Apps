@@ -9,8 +9,8 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';

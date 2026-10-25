@@ -1,4 +1,4 @@
-name: wheelio_firebase
+name: washkrew_firebase
 description: Shared Firebase backend and prelaunch web experience for WashKrew.
 version: 0.1.0
 publish_to: none
@@ -15,8 +15,8 @@ dependencies:
   firebase_storage: ^13.0.0
   geolocator: ^14.0.2
   web: ^1.1.1
-  wheelio_ui:
-    path: ../wheelio_ui
+  washkrew_ui:
+    path: ../washkrew_ui
 dev_dependencies:
   flutter_test:
     sdk: flutter

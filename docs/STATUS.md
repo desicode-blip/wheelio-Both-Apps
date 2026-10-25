@@ -1,8 +1,8 @@
-# Wheelio build status
+# WashKrew build status
 
 ## 20 Oct 2026: Firebase web foundation
 
-- Cloned GitHub branch `dev` into `D:\Wheelio`. The owner selected Firebase project `wheelio-apps` under `ajay@trustkeyper.com`.
+- Cloned GitHub branch `dev` into `D:\WashKrew`. The owner selected Firebase project `wheelio-apps` under `ajay@trustkeyper.com`.
 - Added a responsive landing page and shared Flutter Firebase portal for Customer/Captain, with real email auth, profiles, wash requests/cancellation/history and Captain applications.
 - Kept all existing design screens behind an explicit `?demo=true` URL and a persistent demo label. Live mode has no sample records or fake payments/jobs.
 - Added Firebase Hosting packaging, Firestore rules/index, emulator configuration, app dependency locks, rules tests and a live smoke-test script. Twelve rules tests pass, and both Flutter release web builds compile.
@@ -19,7 +19,7 @@
 
 ## 15 Oct 2026: Customer and Captain apps converted to Flutter
 
-- Both apps are now Flutter apps in `apps/flutter/` (`customer/`, `captain/`, and the shared `packages/wheelio_ui`). Web is the first target, then iOS, then Android, all from the same code.
+- Both apps are now Flutter apps in `apps/flutter/` (`customer/`, `captain/`, and the shared `packages/washkrew_ui`). Web is the first target, then iOS, then Android, all from the same code.
 - They were ported screen by screen from the SwiftUI apps: every screen and state, the interactions, the sample data, the Screens gallery, and English/Hindi/Telugu copy in Captain.
 - Decision: no large-screen redesign. On laptops, the phone screen is centred and the sides are grey; on phones, it fills the screen. On the web, swipes become visible controls (See next job, ‹ › arrows, ⋯ menus, × to dismiss). See [FLUTTER.md](FLUTTER.md).
 - Verified: `flutter analyze` reports no issues and `flutter build web` succeeds for both apps. Captain and Customer were checked in the browser at laptop and phone sizes: the job alert stack, day plan, wash flow, booking and payment sheet. A layout fix keeps job-alert actions visible on short laptop screens.
@@ -36,7 +36,7 @@
 ## 11 Oct 2026: platform folders and website
 
 - Active platform roots are `apps/web/`, `apps/ios/` and `apps/android/`.
-- The website is a Next.js App Router landing page with TypeScript, existing Wheelio brand colours, local fonts and responsive layouts. Booking and app downloads are future work.
+- The website is a Next.js App Router landing page with TypeScript, existing WashKrew brand colours, local fonts and responsive layouts. Booking and app downloads are future work.
 - `/app` and `/captain` are web ports of the iOS Customer and Captain apps (same screens, interactions, sample data and Screens gallery), shown in a phone frame on laptops and full screen on phones.
 - Existing SwiftUI Customer and Captain apps moved together to `apps/ios/`. Shared schemes make both targets available in a fresh checkout. They still use sample data.
 - Android is reserved with only `.gitkeep`; no Android implementation has been selected or generated.
@@ -54,7 +54,7 @@
 
 ### Done
 
-- **Design system** (`legacy/packages/wheelio_ui`): every token from the design read-me (colours, type scale, spacing, radius, control sizes) and the shared components, including buttons, header and progress, footer bar, bottom nav, fields, chips, OTP boxes, tabs, tiles, badges, banners, full-screen states, photo slots, list rows, status steps, sheets, dialogs and snackbars.
+- **Design system** (`legacy/packages/washkrew_ui`): every token from the design read-me (colours, type scale, spacing, radius, control sizes) and the shared components, including buttons, header and progress, footer bar, bottom nav, fields, chips, OTP boxes, tabs, tiles, badges, banners, full-screen states, photo slots, list rows, status steps, sheets, dialogs and snackbars.
 - **Customer app** (`legacy/apps/customer`): all 72 customer screens and states from the designs (C01–C55, CA1–CA4):
   - Booking flow: vehicle → plate → photos → place → floor → notes → time → login → pay → booked.
   - Live order: searching → on the way → washing → check photos → approve → rate.

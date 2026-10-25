@@ -717,17 +717,17 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  wheelio_firebase:
+  washkrew_firebase:
     dependency: "direct main"
     description:
-      path: "../packages/wheelio_firebase"
+      path: "../packages/washkrew_firebase"
       relative: true
     source: path
     version: "0.1.0"
-  wheelio_ui:
+  washkrew_ui:
     dependency: "direct main"
     description:
-      path: "../packages/wheelio_ui"
+      path: "../packages/washkrew_ui"
       relative: true
     source: path
     version: "0.1.0"

@@ -1,6 +1,6 @@
 # WashKrew brand assets
 
-Supplied by Aman on 25 October 2026. Wheelio is retired; the product and company are **WashKrew** (company written WASHKREW). Website: washkrew.com. Tagline: "Vehicle cleaning, on demand".
+Supplied by Aman on 25 October 2026. WashKrew is retired; the product and company are **WashKrew** (company written WASHKREW). Website: washkrew.com. Tagline: "Vehicle cleaning, on demand".
 
 ## Which file to use
 
@@ -28,6 +28,6 @@ Charcoal `#22282D`; blue gradient `#4E7AE9` (top) to `#0049FF` (bottom). Since 2
 
 ## Where the apps use it
 
-- Flutter: `WLogo` in `apps/flutter/packages/wheelio_ui/lib/src/brand.dart`, PNGs in `lib/brand/` (1x/2x/3x, rendered from these SVGs).
+- Flutter: `WLogo` in `apps/flutter/packages/washkrew_ui/lib/src/brand.dart`, PNGs in `lib/brand/` (1x/2x/3x, rendered from these SVGs).
 - App icons: Customer = door mark on white; Captain = white door mark on charcoal, so the two apps are easy to tell apart on one phone.
 - iPhone launch screen and web splash: hero light lockup on white.

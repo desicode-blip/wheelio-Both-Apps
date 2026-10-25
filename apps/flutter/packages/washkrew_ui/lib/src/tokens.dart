@@ -4,7 +4,7 @@
 import 'package:flutter/widgets.dart';
 
 class Brand {
-  /// Product name. Renamed from Wheelio on 25 Oct 2026. Change it here only.
+  /// Product name. Renamed from WashKrew on 25 Oct 2026. Change it here only.
   static const name = 'WashKrew';
   static const captainApp = 'WashKrew Captain';
   static const tagline = 'Vehicle cleaning, on demand';
@@ -131,7 +131,7 @@ enum WType {
 }
 
 const wFont = 'Roboto';
-const wFontPackage = 'wheelio_ui';
+const wFontPackage = 'washkrew_ui';
 
 /// Text style for a type token; [size] scales the line height with it.
 TextStyle wStyle(WType t, {Color? color, FontWeight? weight, double? size, bool mono = false, double scale = 1}) {

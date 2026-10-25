@@ -37,7 +37,7 @@ class WLogo extends StatelessWidget {
     image: true,
     child: Image.asset(
       'lib/brand/$_file.png',
-      package: 'wheelio_ui',
+      package: 'washkrew_ui',
       height: height,
       fit: BoxFit.contain,
       filterQuality: FilterQuality.medium,

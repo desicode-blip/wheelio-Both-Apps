@@ -2,8 +2,8 @@
 // Ported from apps/ios/Customer. See docs/FLUTTER.md.
 
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
 import 'screens/auth_pay.dart';
@@ -17,7 +17,7 @@ import 'screens/start.dart';
 import 'screens/support.dart';
 import 'screens/firebase_live.dart';
 
-Future<void> main() => launchWheelio(captain: false, demo: const CustomerApp());
+Future<void> main() => launchWashKrew(captain: false, demo: const CustomerApp());
 
 class CustomerApp extends StatefulWidget {
   const CustomerApp({super.key});
@@ -26,7 +26,7 @@ class CustomerApp extends StatefulWidget {
 }
 
 class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
-  final store = AppStore(live: WheelioRuntime.backend);
+  final store = AppStore(live: WashKrewRuntime.backend);
   final router = AppRouter();
 
   @override
@@ -138,7 +138,7 @@ class _GalleryTab extends StatelessWidget {
 }
 
 Widget _destination(R r) {
-  if (WheelioRuntime.backend != null) {
+  if (WashKrewRuntime.backend != null) {
     if ({N.booked, N.live, N.photoCompare, N.rate, N.reportProblem, N.problemPhotos, N.disputeStatus, N.refund, N.bookingDetail, N.refundUPI}.contains(r.n)) {
       return FirebaseOrderScreen(orderId: r.id);
     }

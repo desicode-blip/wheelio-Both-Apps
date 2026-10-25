@@ -1,5 +1,5 @@
 // Razorpay webhook: payment captured / failed / refund processed.
-// Payment is held by Wheelio (Razorpay Route with on-hold transfers) and
+// Payment is held by WashKrew (Razorpay Route with on-hold transfers) and
 // released to the washer's linked account only after approval.
 //
 // Secrets: RAZORPAY_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.

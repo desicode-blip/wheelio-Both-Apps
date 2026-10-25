@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wheelio_customer/data/models.dart';
+import 'package:washkrew_customer/data/models.dart';
 
 void main() {
   test('unpaid and unconfirmed bookings stay visible for checkout recovery', () {

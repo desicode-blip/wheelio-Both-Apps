@@ -3,7 +3,7 @@
 // There is no "call us" button up front. Only safety emergencies call directly.
 
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 import '../data/store.dart';
 import 'parts.dart';

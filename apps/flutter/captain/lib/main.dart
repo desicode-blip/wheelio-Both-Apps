@@ -2,8 +2,8 @@
 // Ported from apps/ios/Captain. See docs/FLUTTER.md.
 
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
 import 'screens/account.dart';
@@ -16,7 +16,7 @@ import 'screens/wash.dart';
 import 'screens/welcome.dart';
 import 'screens/firebase_live.dart';
 
-Future<void> main() => launchWheelio(captain: true, demo: const CaptainApp());
+Future<void> main() => launchWashKrew(captain: true, demo: const CaptainApp());
 
 class CaptainApp extends StatefulWidget {
   const CaptainApp({super.key});
@@ -73,7 +73,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       builder: (context, child) => PhoneFrame(
         child: PaymentEnvironmentLabel(child: DemoLabel(child: child!)),
       ),
-      home: WheelioRuntime.backend == null ? const _Root() : const FirebaseCaptainScreen(),
+      home: WashKrewRuntime.backend == null ? const _Root() : const FirebaseCaptainScreen(),
     ),
   );
 }
