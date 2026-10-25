@@ -24,7 +24,7 @@ Derived files reuse the original paths; only the crop changed or the tagline was
 
 ## Colours in the logo
 
-Charcoal `#22282D`; blue gradient `#4E7AE9` (top) to `#0049FF` (bottom). These differ slightly from the app tokens (navy `#172231`, primary `#3160FF`); the logo keeps its own colours.
+Charcoal `#22282D`; blue gradient `#4E7AE9` (top) to `#0049FF` (bottom). Since 25 Oct 2026 the app palette follows the logo: primary `#0049FF`, pressed `#003BD1`, heading `#22282D`, body `#363D44`, secondary `#5F6870`. The gradient stays in the logo only; app UI uses flat colours.
 
 ## Where the apps use it
 

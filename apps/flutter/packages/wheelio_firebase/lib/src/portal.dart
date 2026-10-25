@@ -55,7 +55,7 @@ class DemoLabel extends StatelessWidget {
                     child: Text(
                       'DEMO · Sample data · No bookings or payments',
                       style: TextStyle(
-                        color: Color(0xFF172231),
+                        color: WColor.heading,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),

@@ -54,7 +54,7 @@ pnpm preview
 
 ## Design rules
 
-- The iOS design system lives in `apps/ios/Shared/DesignSystem/`. Primary blue is `#3160FF`, heading text `#172231`, canvas `#F6F9FD`.
+- The iOS design system lives in `apps/ios/Shared/DesignSystem/`. Since 25 Oct 2026 the Flutter colours follow the WashKrew logo: primary blue `#0049FF`, heading charcoal `#22282D` (tokens in `apps/flutter/packages/wheelio_ui/lib/src/tokens.dart`; the SwiftUI reference still has the old `#3160FF` / `#172231`), canvas `#F6F9FD`.
 - One primary action per app screen. Green is for pay, approve or accept; red is for errors and destructive actions.
 - Colour is never the only signal; pair it with an icon and a word. Touch targets are at least 48 px (64 px for washer controls).
 - The apps keep their phone layout on every screen size (centred phone, grey sides on laptops). On the web, swipes become visible controls.

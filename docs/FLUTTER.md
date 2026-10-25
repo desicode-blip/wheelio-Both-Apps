@@ -4,6 +4,7 @@
 
 ## 25 October 2026: renamed to WashKrew, new logo
 
+- **Palette aligned to the logo.** `WColor.primary` #3160FF → #0049FF (solid end of the logo gradient), `primaryStrong` → #003BD1, `heading` #172231 → #22282D (logo charcoal), `body` → #363D44, `secondary` → #5F6870, `placeholder` → #80878E, `muted` → #9CA2A8, `inverse` and scrim/shadow base → #22282D. Surfaces, borders, success, error and wait colours unchanged. Contrast improves: primary 6.2:1 on white and 5.4:1 on `primaryTint`, so blue text on pale blue now passes AA. PWA `theme_color` → #0049FF.
 - Product and company renamed from Wheelio to **WashKrew** (website washkrew.com, tagline "Vehicle cleaning, on demand"). `Brand.name`, `Brand.captainApp`, `Brand.tagline`, `Brand.website` in `wheelio_ui/lib/src/tokens.dart` carry it; every user-facing literal now uses them (portal, live screens, Razorpay checkout name, error messages, loading text).
 - New `WLogo` widget (`wheelio_ui/lib/src/brand.dart`): `lockup` (hero, with tagline), `wordmark` (no tagline), `mark` (door only), each with an `onDark` version. PNGs at 1x/2x/3x in `wheelio_ui/lib/brand/`, rendered from the SVG masters in `/brand`.
 - Replaced the old blue-square ring mark: Customer `BrandMark` (home header, business-chat avatar), Customer splash (now white with the hero logo, matching the iPhone launch screen), Captain language screen, Captain live header (was the text "wheelio."), prelaunch portal logo.

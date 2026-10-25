@@ -37,7 +37,7 @@ The SwiftUI apps are built and run in Xcode using the Customer or Captain scheme
 
 ## Design rules
 
-- The active iOS design system is in `apps/ios/Shared/DesignSystem/`. Primary blue is `#3160FF`, heading text `#172231`, and canvas `#F6F9FD`.
+- The active iOS design system is in `apps/ios/Shared/DesignSystem/`. Since 25 Oct 2026 the Flutter colours follow the WashKrew logo: primary blue `#0049FF`, heading charcoal `#22282D` (tokens in `apps/flutter/packages/wheelio_ui/lib/src/tokens.dart`; the SwiftUI reference still has the old `#3160FF` / `#172231`), and canvas `#F6F9FD`.
 - One primary action per app screen. Green is reserved for pay, approve or accept; red is for errors and destructive actions.
 - One small decision per screen in the booking flow.
 - Payment screens explain that money is held and released after approval.

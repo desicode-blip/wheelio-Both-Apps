@@ -12,19 +12,23 @@ class Brand {
   static const websiteUrl = 'https://washkrew.com';
 }
 
+/// Colours aligned to the WashKrew logo (25 Oct 2026): blue #0049FF is the solid end of the
+/// logo's "Krew" gradient, charcoal #22282D is "Wash" and the door. Text greys sit in the
+/// same charcoal family. Contrast on white: primary 6.2:1, heading 14.9:1, body 11.0:1,
+/// secondary 5.7:1; primary on primaryTint 5.4:1 (passes for text).
 class WColor {
   // action
-  static const primary = Color(0xFF3160FF);
-  static const primaryStrong = Color(0xFF1F4AD1);
+  static const primary = Color(0xFF0049FF);
+  static const primaryStrong = Color(0xFF003BD1);
   static const success = Color(0xFF4BD08C);
   static const onSuccess = Color(0xFF15352A);
   static const destructive = Color(0xFFB3261E);
   // content
-  static const heading = Color(0xFF172231);
-  static const body = Color(0xFF2B3A4D);
-  static const secondary = Color(0xFF5E7087);
-  static const placeholder = Color(0xFF7E8B9C);
-  static const muted = Color(0xFF9AA6B6);
+  static const heading = Color(0xFF22282D);
+  static const body = Color(0xFF363D44);
+  static const secondary = Color(0xFF5F6870);
+  static const placeholder = Color(0xFF80878E);
+  static const muted = Color(0xFF9CA2A8);
   // surface
   static const white = Color(0xFFFFFFFF);
   static const canvas = Color(0xFFF6F9FD);
@@ -36,7 +40,7 @@ class WColor {
   static const errorTint = Color(0xFFFDECEA);
   static const errorText = Color(0xFF7A1A14);
   static const disabled = Color(0xFFE8ECF2);
-  static const inverse = Color(0xFF1B2533);
+  static const inverse = Color(0xFF22282D);
   static const camera = Color(0xFF0E1520);
   static const cameraPanel = Color(0xFF1C2636);
   static const photo = Color(0xFFE6EAF0);
@@ -51,9 +55,9 @@ class WColor {
   static const dashed = Color(0xFF9FB3D9);
   static const grab = Color(0xFFC9D5E6);
 
-  static const scrim = Color(0x7A172130);
-  static const shadow = Color(0x1F172130);
-  static const shadowCard = Color(0x14172130);
+  static const scrim = Color(0x7A22282D);
+  static const shadow = Color(0x1F22282D);
+  static const shadowCard = Color(0x1422282D);
 }
 
 /// Semantic tone for badges, banners and state circles.
