@@ -1,6 +1,8 @@
 # Flutter iPhone integration — 24 October 2026
 
-The current source connects both Flutter iPhone apps to Firebase by default. It was prepared on Windows; Xcode compilation, signing and physical iPhone acceptance remain for the owner's Mac. The SwiftUI reference apps are unchanged. No Android platform was generated.
+The current source connects both Flutter iPhone apps to Firebase by default. The native integration was prepared on Windows; Xcode compilation, signing and physical iPhone acceptance remain for the owner's Mac. Flutter remains the active app stack; the SwiftUI apps remain references. No Android platform was generated.
+
+The 25 October staging merge includes the WashKrew name, logo and palette. Shared code now lives in `packages/washkrew_firebase` and `packages/washkrew_ui`; iOS bundle IDs and Firebase registrations retain `wheelio` intentionally. The default Firebase build and all native capture/payment functionality below are retained.
 
 ## Build on the Mac
 
@@ -21,7 +23,7 @@ Both apps are registered in `wheelio-apps`, under the existing owner account:
 - Customer: `com.amanmaheshwari.wheelio.customer`, Firebase app `1:763324255731:ios:e608aa639acba895ef9686`.
 - Captain: `com.amanmaheshwari.wheelio.captain`, Firebase app `1:763324255731:ios:a3ecaa80486a8314ef9686`.
 
-`packages/wheelio_firebase/lib/src/ios_options.dart` contains public Firebase identifiers. Native initialization selects the correct app by role and passes explicit options; it does not require adding a plist resource to the Xcode project. Downloaded public `GoogleService-Info.plist` files are retained alongside each Runner for reference. They contain no service account or Razorpay secret. `Info.plist` includes the encoded app-ID URL scheme for Firebase Auth reCAPTCHA, camera/photos/microphone/location descriptions, UPI URL queries and the remote-notification background mode. Firebase delegate swizzling remains enabled.
+`packages/washkrew_firebase/lib/src/ios_options.dart` contains public Firebase identifiers. Native initialization selects the correct app by role and passes explicit options; it does not require adding a plist resource to the Xcode project. Downloaded public `GoogleService-Info.plist` files are retained alongside each Runner for reference. They contain no service account or Razorpay secret. `Info.plist` includes the encoded app-ID URL scheme for Firebase Auth reCAPTCHA, camera/photos/microphone/location descriptions, UPI URL queries and the remote-notification background mode. Firebase delegate swizzling remains enabled.
 
 Phone login uses native `verifyPhoneNumber`, including resend, permission/provider failures, stale callback invalidation and one-use code confirmation. Web continues to use Firebase's browser confirmation flow. Account registration can retry after a verified OTP without consuming the code twice.
 

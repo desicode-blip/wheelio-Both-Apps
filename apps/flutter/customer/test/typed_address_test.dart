@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wheelio_customer/data/models.dart';
+import 'package:washkrew_customer/data/models.dart';
 void main(){
  test('repeating a booking retains the approved typed-address reference',(){
   const society=Society('served','Building','Area','Hyderabad','500089');

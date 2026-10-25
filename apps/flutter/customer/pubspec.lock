@@ -1085,6 +1085,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "15.3.0"
+  washkrew_firebase:
+    dependency: "direct main"
+    description:
+      path: "../packages/washkrew_firebase"
+      relative: true
+    source: path
+    version: "0.1.0"
+  washkrew_ui:
+    dependency: "direct main"
+    description:
+      path: "../packages/washkrew_ui"
+      relative: true
+    source: path
+    version: "0.1.0"
   web:
     dependency: transitive
     description:
@@ -1093,20 +1107,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  wheelio_firebase:
-    dependency: "direct main"
-    description:
-      path: "../packages/wheelio_firebase"
-      relative: true
-    source: path
-    version: "0.1.0"
-  wheelio_ui:
-    dependency: "direct main"
-    description:
-      path: "../packages/wheelio_ui"
-      relative: true
-    source: path
-    version: "0.1.0"
   win32:
     dependency: transitive
     description:

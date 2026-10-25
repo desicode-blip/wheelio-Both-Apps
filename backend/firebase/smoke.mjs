@@ -25,12 +25,12 @@ async function create(label) {
   const { user } = await createUserWithEmailAndPassword(auth, email, password);
   qa.identities.push({ uid: user.uid, email, password }); await checkpoint();
   const path = `users/${user.uid}`;
-  await setDoc(doc(db, path), { name: 'Wheelio QA', email, phone: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  await setDoc(doc(db, path), { name: 'WashKrew QA', email, phone: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
   qa.documents.push(path); await checkpoint(); return user;
 }
 try {
   const alice = await create('customer');
-  await updateDoc(doc(db, `users/${alice.uid}`), { name: 'Wheelio QA Updated', updatedAt: serverTimestamp() });
+  await updateDoc(doc(db, `users/${alice.uid}`), { name: 'WashKrew QA Updated', updatedAt: serverTimestamp() });
   const ref = await addDoc(collection(db, 'washRequests'), { customerId: alice.uid, vehicleType: 'hatchback', registration: 'TS09QA1234', society: 'Disposable QA society',
     parking: 'QA parking', washType: 'wetOutside', preferredDate: '2026-10-25', timeWindow: '8–10 AM', notes: 'Disposable smoke-test request; no service needed.',
     status: 'requested', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -46,7 +46,7 @@ try {
   await assert.rejects(getDoc(ref), error => error.code === 'permission-denied');
   await signOut(auth);
   await signInWithEmailAndPassword(auth, qa.identities[0].email, qa.identities[0].password);
-  assert.equal((await getDoc(doc(db, `users/${alice.uid}`))).data().name, 'Wheelio QA Updated');
+  assert.equal((await getDoc(doc(db, `users/${alice.uid}`))).data().name, 'WashKrew QA Updated');
   await signOut(auth);
   console.log('PASS: live sign-up, profile update, request save/query/cancel, captain application, account isolation, login and logout.');
   console.log('Disposable QA records are listed in .cache/firebase-qa.json for cleanup.');

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wheelio_customer/data/models.dart';
-import 'package:wheelio_customer/data/store.dart';
-import 'package:wheelio_customer/screens/auth_pay.dart';
+import 'package:washkrew_customer/data/models.dart';
+import 'package:washkrew_customer/data/store.dart';
+import 'package:washkrew_customer/screens/auth_pay.dart';
 
 // No Firebase or payment SDK is initialized by this fixture. It supplies the
 // server outcome at the point where checkout returns to the Customer screen.

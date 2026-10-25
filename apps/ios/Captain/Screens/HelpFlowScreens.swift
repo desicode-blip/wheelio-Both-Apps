@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: Support ladder: 1) quick check by the app → 2) sort it out with the owner → 3) Wheelio team
+// MARK: Support ladder: 1) quick check by the app → 2) sort it out with the owner → 3) WashKrew team
 // There is no "call us" button up front. Only safety emergencies call directly.
 
 enum CaptainHelpTopic: String, CaseIterable, Hashable {
@@ -255,7 +255,7 @@ struct HelpFlowScreen: View {
         .padding(.top, 12)
     }
 
-    // MARK: Step 3: Wheelio team (callback, not a direct line)
+    // MARK: Step 3: WashKrew team (callback, not a direct line)
 
     @ViewBuilder var teamStep: some View {
         Text(store.t("Step 3 · Our team", "कदम 3 · हमारी टीम", "దశ 3 · మా బృందం")).wText(.label, color: WColor.secondary)

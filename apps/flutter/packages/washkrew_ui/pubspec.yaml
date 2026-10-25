@@ -1,0 +1,44 @@
+name: washkrew_ui
+description: "WashKrew design system and app shell shared by the Customer and Captain apps."
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.10.7
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  image_picker: ^1.2.3
+  app_settings: ^6.1.1
+  record: ^6.1.2
+  audioplayers: ^6.1.0
+  video_player: ^2.10.0
+  path_provider: ^2.1.5
+  url_launcher: ^6.3.2
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  # WashKrew logo PNGs (1x, 2.0x, 3.0x), rendered from the SVG masters in /brand.
+  assets:
+    - lib/brand/
+  # Roboto ships with the apps (same files as apps/ios/Shared/Fonts), so text looks
+  # the same everywhere and never waits for a download.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: lib/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: lib/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: lib/fonts/Roboto-SemiBold.ttf
+          weight: 600
+        - asset: lib/fonts/Roboto-Bold.ttf
+          weight: 700

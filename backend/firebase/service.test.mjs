@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {before,beforeEach,after,test} from 'node:test';
 import {initializeApp,deleteApp} from './functions/node_modules/firebase-admin/lib/esm/app/index.js';
 import {getFirestore,Timestamp} from './functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
-import {WheelioService} from './functions/src/service.mjs';
+import {WashKrewService} from './functions/src/service.mjs';
 import {signatureMatches,PaymentProviderError} from './functions/src/payments.mjs';
 import {createHmac} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
@@ -25,7 +25,7 @@ beforeEach(async()=>{
     verify:({signature})=>signature==='valid',async payment(id){return this.payments.get(id);},async orderPayments(id){return {items:[...this.payments.values()].filter(p=>p.order_id===id)};},
     async refund({paymentId,amount,refundId}){this.refundCalls++;return {id:`refund_${refundId}`,payment_id:paymentId,amount,status:'processed'};},
   };
-  service=new WheelioService({db,payments:provider,now:()=>clock,evidence:{exists:async()=>true,metadata:async()=>({contentType:'image/jpeg',size:100})}});
+  service=new WashKrewService({db,payments:provider,now:()=>clock,evidence:{exists:async()=>true,metadata:async()=>({contentType:'image/jpeg',size:100})}});
   await db.doc('config/operations').set(config);
   await service.register(customer,{role:'customer',name:'Test Customer'});
   for(const uid of ['captain1','captain2']) {await service.register(auth(uid),{role:'captain',name:`Test ${uid}`});await db.doc(`captains/${uid}`).update({approved:true,online:true,societyIds:['soc_avatar'],lastSeenAt:Timestamp.fromMillis(clock)});}
@@ -56,7 +56,7 @@ test('only one captain wins simultaneous claims; another customer cannot claim o
   const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.status,'onTheWay');assert.ok(['captain1','captain2'].includes(o.captainId));
 });
 
-test('shared-merchant webhooks ignore unrelated payments and still verify Wheelio captures',async()=>{
+test('shared-merchant webhooks ignore unrelated payments and still verify WashKrew captures',async()=>{
   provider.payments.set('pay_trustkeyper',{id:'pay_trustkeyper',order_id:'order_other_app',amount:50000,currency:'INR',status:'captured'});
   provider.payments.set('pay_without_order',{id:'pay_without_order',amount:50000,currency:'INR',status:'captured'});
   assert.deepEqual(await service.captureWebhookPayment('pay_trustkeyper'),{ignored:true});

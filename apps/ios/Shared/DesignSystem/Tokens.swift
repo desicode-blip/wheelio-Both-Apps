@@ -1,14 +1,14 @@
 import SwiftUI
 import CoreText
 
-// Wheelio design system: tokens from the design read-me (designs/Main.dc.html)
+// WashKrew design system: tokens from the design read-me (designs/Main.dc.html)
 // and the Figma "🎨 Design system" page. Both apps share this folder.
 
 // MARK: - Brand
 
 enum Brand {
-    /// data-token="brand/name". "Wheelio" is a working name: change it here only.
-    static let name = "Wheelio"
+    /// data-token="brand/name". "WashKrew" is a working name: change it here only.
+    static let name = "WashKrew"
     static let tagline = "Clean wheels, zero hassle"
 }
 

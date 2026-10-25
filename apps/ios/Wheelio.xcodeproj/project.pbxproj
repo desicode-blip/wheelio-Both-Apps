@@ -200,7 +200,7 @@
 				DEVELOPMENT_TEAM = 8CCQQM7TP3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Wheelio;
+				INFOPLIST_KEY_CFBundleDisplayName = WashKrew;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of the vehicle so the wash can be checked.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find captains near you and confirm where the vehicle is parked.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice note about the gate or parking.";
@@ -233,7 +233,7 @@
 				DEVELOPMENT_TEAM = 8CCQQM7TP3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Wheelio;
+				INFOPLIST_KEY_CFBundleDisplayName = WashKrew;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of the vehicle so the wash can be checked.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find captains near you and confirm where the vehicle is parked.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice note about the gate or parking.";
@@ -266,7 +266,7 @@
 				DEVELOPMENT_TEAM = 8CCQQM7TP3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Wheelio Captain";
+				INFOPLIST_KEY_CFBundleDisplayName = "WashKrew Captain";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of the vehicle so the wash can be checked.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find captains near you and confirm where the vehicle is parked.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice note about the gate or parking.";
@@ -299,7 +299,7 @@
 				DEVELOPMENT_TEAM = 8CCQQM7TP3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Wheelio Captain";
+				INFOPLIST_KEY_CFBundleDisplayName = "WashKrew Captain";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of the vehicle so the wash can be checked.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Find captains near you and confirm where the vehicle is parked.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record a short voice note about the gate or parking.";

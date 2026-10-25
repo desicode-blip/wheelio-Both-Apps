@@ -1,11 +1,11 @@
 {
-    "name": "Wheelio",
-    "short_name": "Wheelio",
+    "name": "WashKrew",
+    "short_name": "WashKrew",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#D9DEE6",
-    "theme_color": "#3160FF",
-    "description": "Wheelio: doorstep, photo-verified washes",
+    "theme_color": "#0049FF",
+    "description": "WashKrew: vehicle cleaning, on demand. Doorstep, photo-verified washes.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

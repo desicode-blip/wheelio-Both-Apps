@@ -1,6 +1,10 @@
-# Current integration update — 24 October 2026
+# Current integration update — 25 October 2026
 
-The latest `staging` source was pulled at `9e49461`. Flutter iPhone builds now select real Firebase by default, with native OTP, Razorpay checkout, real camera/library capture, private recorded notes/video, server-backed address checks, multiple booking windows, mode-separated wallets, cancellation restoration, Captain work-hour preferences and future-job handling. Private support tickets and notification inbox/FCM integration were added. Explicit demo builds remain labelled and isolated.
+The staging integration combines the WashKrew rename/logo/palette with the native Firebase, camera/media, notification and payment-mode work below. Shared package paths and native tests use `washkrew_firebase` / `washkrew_ui`; runtime and service class names follow the rename. The iOS bundle IDs, Firebase project, stored payment modes and explicit `WHEELIO_DEMO` flag are preserved. Default iPhone builds still use Firebase, and explicit demo builds retain their label on phones as well as web. No additional deployment or live-payment activation is part of this Git merge.
+
+Merge verification on 25 October: all four Flutter analyses passed, all 57 backend/rules/payment/notification emulator tests passed, all 8 Customer tests and 5 shared native-login/checkout tests passed, and both release web builds passed. Xcode/device acceptance remains pending on the Mac.
+
+The native integration started from `staging` at `9e49461`; the 25 October merge incorporates the branding work through `31fa906`. Flutter iPhone builds now select real Firebase by default, with native OTP, Razorpay checkout, real camera/library capture, private recorded notes/video, server-backed address checks, multiple booking windows, mode-separated wallets, cancellation restoration, Captain work-hour preferences and future-job handling. Private support tickets and notification inbox/FCM integration were added. Explicit demo builds remain labelled and isolated.
 
 Firebase iOS apps were registered for the existing Customer/Captain bundle IDs. Native options and Auth return schemes are committed. No raw Xcode project changes or Android platform generation were performed. The owner will build and test on their Mac; Windows cannot confirm Xcode signing, physical camera, UPI app switching, GPS or APNs delivery. Read [IOS-FIREBASE.md](IOS-FIREBASE.md) for build commands, acceptance steps and precise remaining setup.
 
@@ -11,6 +15,17 @@ The payment-mode follow-up archives verified test credentials in Secret Manager,
 # Flutter apps (Customer and Captain)
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
+
+## 25 October 2026: renamed to WashKrew, new logo
+
+- **Palette aligned to the logo.** `WColor.primary` #3160FF → #0049FF (solid end of the logo gradient), `primaryStrong` → #003BD1, `heading` #172231 → #22282D (logo charcoal), `body` → #363D44, `secondary` → #5F6870, `placeholder` → #80878E, `muted` → #9CA2A8, `inverse` and scrim/shadow base → #22282D. Surfaces, borders, success, error and wait colours unchanged. Contrast improves: primary 6.2:1 on white and 5.4:1 on `primaryTint`, so blue text on pale blue now passes AA. PWA `theme_color` → #0049FF.
+- Product and company renamed from Wheelio to **WashKrew** (website washkrew.com, tagline "Vehicle cleaning, on demand"). `Brand.name`, `Brand.captainApp`, `Brand.tagline`, `Brand.website` in `washkrew_ui/lib/src/tokens.dart` carry it; every user-facing literal now uses them (portal, live screens, Razorpay checkout name, error messages, loading text).
+- New `WLogo` widget (`washkrew_ui/lib/src/brand.dart`): `lockup` (hero, with tagline), `wordmark` (no tagline), `mark` (door only), each with an `onDark` version. PNGs at 1x/2x/3x in `washkrew_ui/lib/brand/`, rendered from the SVG masters in `/brand`.
+- Replaced the old blue-square ring mark: Customer `BrandMark` (home header, business-chat avatar), Customer splash (now white with the hero logo, matching the iPhone launch screen), Captain language screen, Captain live header (was the text "wheelio."), prelaunch portal logo.
+- App icons: Customer = door mark on white; Captain = white door mark on charcoal #22282D. iPhone launch image = hero logo, 240 pt wide. Web: favicon.png + new favicon.svg, PWA icons, titles, manifest names; captain description no longer says "washers".
+- iOS display names: "WashKrew" and "WashKrew Captain" (the home screen may shorten the second).
+- Not renamed on purpose: package names (`washkrew_ui`, `washkrew_firebase`, `washkrew_customer`, `washkrew_captain`), Dart class names (`WashKrewRuntime`...), `WHEELIO_DEMO`, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, repo and folder names. Changing those needs new App Store Connect and Firebase registrations.
+- The SwiftUI reference (`apps/ios/`), `apps/web` and `apps/hosting` still show WashKrew; they are not the launch target.
 
 ## Verification and publication — 24 October 2026
 
@@ -31,7 +46,7 @@ The payment-mode follow-up archives verified test credentials in Secret Manager,
 - Free washes and credit don't show in the Captain app: pay is always the normal job pay.
 
 
-- Captain welcome (W00) now uses the same carousel as the Customer welcome: `PageView` with swipe, dots that follow the scroll (`CarouselDots`, moved into `wheelio_ui`), fixed Back / Next / Skip.
+- Captain welcome (W00) now uses the same carousel as the Customer welcome: `PageView` with swipe, dots that follow the scroll (`CarouselDots`, moved into `washkrew_ui`), fixed Back / Next / Skip.
 
 - Cancelling (sample app): "Cancel booking" on the Home "Upcoming" card, the Bookings list and the order screen, until the wash starts. No cash refund. Within 15 minutes of booking: 1 free wash. After that: 50% of the booking's value as credit (`Customer.credit`, rupees). Cards show only "Cancel booking"; the sheet states the outcome in one line before confirming ("You get 1 free wash" / "You get ₹75 credit · 50% of ₹149"). After cancelling: toast, notification, a "Booking cancelled" screen, a Home banner for the credit, and the order moves to Past.
 - Credit at checkout: shown only when the customer has credit, as a green card ("₹75 credit · ₹75 off. You pay ₹74.") with a switch, on by default; the total and the amount held use the reduced price. Not combined with a free wash.
@@ -65,7 +80,7 @@ Both release web bundles and the Customer, Captain and shared Firebase package a
 
 The Firebase release build now runs a clean build and validates generated Functions, Storage and location web registrations. A cached prelaunch registry had routed callable requests through a native codec, producing `Int64 accessor not supported by dart2js` on web. The rebuilt hosted Customer draft now calls availability successfully; errors provide Retry, stale errors clear when changing dates, and the empty-capacity explanation appears above the disabled slots. No captain availability is simulated to unblock checkout.
 
-The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing Wheelio screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
+The Customer booking steps now use Firebase phone OTP, a server catalog and capacity, Razorpay checkout, saved orders and private uploaded photos. Live booking details subscribe to assignment/wash/refund states, protected before/after photos and optional captain coordinates. The Captain app uses the existing WashKrew screen components for real phone accounts, private applications, offers, atomic acceptance, arrival, before/after uploads, wash stages and earnings. The full original screen gallery remains isolated behind `?demo=true`.
 
 The owner confirmed real SMS delivery on 21 October and showed the Customer name screen after OTP verification. At their request the existing name was saved in their Chrome session; the signed-in Profile page confirmed account completion. Test-payment browser acceptance was completed on 21–22 October, with fixture boundaries recorded in WEB-ACCEPTANCE.md.
 
@@ -75,7 +90,7 @@ The 20 October entry below describes the earlier deployed prelaunch foundation.
 
 ## 20 October 2026: Firebase web foundation
 
-Both `main.dart` entry points now start the shared `wheelio_firebase` package. Normal URLs open a real prelaunch app: email/password login and reset, saved profiles, customer wash requests/history/cancellation, and Captain applications. Firebase rules enforce per-account access and prevent client-side payment, job-state and KYC approval changes.
+Both `main.dart` entry points now start the shared `washkrew_firebase` package. Normal URLs open a real prelaunch app: email/password login and reset, saved profiles, customer wash requests/history/cancellation, and Captain applications. Firebase rules enforce per-account access and prevent client-side payment, job-state and KYC approval changes.
 
 The complete previous design experiences are preserved behind **`?demo=true`** with a persistent "DEMO · Sample data · No bookings or payments" strip. No sample data or hardcoded OTP is used in the live portal. This is an initial request/application release; the entire designed paid-wash lifecycle is not connected yet.
 
@@ -83,7 +98,7 @@ The complete previous design experiences are preserved behind **`?demo=true`** w
 
 The entries below describe the earlier demo implementation and historical status.
 
-Decided on 15 October 2026: both Wheelio apps, Customer and Captain (washer), are built in Flutter from one codebase. The release order is:
+Decided on 15 October 2026: both WashKrew apps, Customer and Captain (washer), are built in Flutter from one codebase. The release order is:
 
 1. **Web**: the first launch target, available now as a build.
 2. **iOS**: later, from the same code.
@@ -97,7 +112,7 @@ Decided on 15 October 2026: both Wheelio apps, Customer and Captain (washer), ar
 
 ```text
 apps/flutter/
-├── packages/wheelio_ui/   # Shared design system and app shell
+├── packages/washkrew_ui/   # Shared design system and app shell
 │   └── lib/src/
 │       ├── tokens.dart       # Colours, type scale, spacing, radii (from apps/ios/Shared/DesignSystem)
 │       ├── icons.dart        # SF Symbol names mapped to Material icons
@@ -119,7 +134,7 @@ Each app keeps its state in one `ChangeNotifier` store (`data/store.dart`) and a
 
 The apps are **not** redesigned for large screens. On a laptop or desktop, the phone layout sits in the middle of the window and the space on either side is grey. On a phone, the app fills the screen. The web app and the mobile apps therefore look the same.
 
-`PhoneFrame` (in `wheelio_ui`) handles this for both apps:
+`PhoneFrame` (in `washkrew_ui`) handles this for both apps:
 
 | Window width | What you see |
 |---|---|

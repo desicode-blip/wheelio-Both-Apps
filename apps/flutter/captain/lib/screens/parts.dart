@@ -2,7 +2,7 @@
 // vehicle photos, the owner's note player, profile photo, bell, work-area chip, help ladder.
 
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 import '../data/store.dart';
 

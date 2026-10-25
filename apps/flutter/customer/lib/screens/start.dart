@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
 
 import '../data/store.dart';
-import 'common.dart';
 
 // MARK: C01 Splash
 
@@ -31,18 +30,10 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: WColor.primary,
-    child: Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const BrandMark(size: 40, light: true),
-          const SizedBox(height: 14),
-          WText(Brand.tagline, WType.body, color: WColor.white.withValues(alpha: 0.92)),
-        ],
-      ),
-    ),
+  // White, like the iPhone launch screen, with the hero logo (it carries the tagline).
+  Widget build(BuildContext context) => const ColoredBox(
+    color: WColor.white,
+    child: Center(child: WLogo(kind: WLogoKind.lockup, height: 96)),
   );
 }
 

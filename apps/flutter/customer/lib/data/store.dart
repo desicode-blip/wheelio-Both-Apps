@@ -9,8 +9,8 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
-import 'package:wheelio_ui/wheelio_ui.dart';
-import 'package:wheelio_firebase/wheelio_firebase.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
@@ -438,7 +438,7 @@ class AppStore extends ChangeNotifier {
             ];
             liveWindows = [for (final w in config['slotWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())];
             backendReady = types.isNotEmpty;
-            backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen Wheelio.';
+            backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen ${Brand.name}.';
             changed();
           },
           onError: (Object e) {

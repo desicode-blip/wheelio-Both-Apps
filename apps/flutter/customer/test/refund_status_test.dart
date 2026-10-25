@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wheelio_customer/data/refund_status.dart';
+import 'package:washkrew_customer/data/refund_status.dart';
 
 void main() {
   test('a rejected refund is delayed and remains due rather than appearing sent', () {

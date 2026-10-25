@@ -12,7 +12,7 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { RazorpayPayments, signatureMatches } from './payments.mjs';
-import { WheelioService, ServiceError } from './service.mjs';
+import { WashKrewService, ServiceError } from './service.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -26,7 +26,7 @@ const db = getFirestore();
 function service(withPayment = false) {
   const current=withPayment?new RazorpayPayments({keyId:keyId.value(),keySecret:keySecret.value()}):null;
   const test=withPayment?new RazorpayPayments({keyId:testKeyId.value(),keySecret:testKeySecret.value()}):null;
-  return new WheelioService({ db, payments:current, paymentProviders:withPayment?{test,live:current}:undefined,
+  return new WashKrewService({ db, payments:current, paymentProviders:withPayment?{test,live:current}:undefined,
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
       async metadata(path) { const [metadata] = await getStorage().bucket().file(path).getMetadata(); return metadata; },
@@ -42,7 +42,7 @@ function callable(method, payment = false) {
     try { return await service(payment)[method](request.auth, request.data ?? {}); }
     catch (error) {
       if (error instanceof ServiceError) throw new HttpsError(error.code, error.message);
-      logger.error('Wheelio operation failed', { operation: method, code: error.code ?? 'internal' });
+      logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
   });
@@ -147,7 +147,7 @@ export const notifyBookingUpdate = onDocumentUpdated('orders/{orderId}',async ev
 export const notifyJobOffer = onDocumentCreated('jobOffers/{offerId}',async event=>{
   const o=event.data.data();
   if(o.status!=='pending'||o.expiresAt.toMillis()<=Date.now())return;
-  await saveNotice(event.id,{recipientId:o.captainId,role:'captain',kind:'offer',orderId:o.orderId,offerExpiresAt:o.expiresAt,title:'New wash offer',body:'Open Wheelio Captain to review this offer before it expires.'});
+  await saveNotice(event.id,{recipientId:o.captainId,role:'captain',kind:'offer',orderId:o.orderId,offerExpiresAt:o.expiresAt,title:'New wash offer',body:'Open WashKrew Captain to review this offer before it expires.'});
 });
 export const sendInboxPush = onDocumentCreated({document:'notifications/{notificationId}',retry:true},async event=>{
   const notice=event.data.data();

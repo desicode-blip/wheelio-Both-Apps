@@ -4,7 +4,7 @@ import {initializeApp} from './functions/node_modules/firebase-admin/lib/esm/app
 import {getFirestore,Timestamp} from './functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
 import {getAuth} from './functions/node_modules/firebase-admin/lib/esm/auth/index.js';
 import {getStorage} from './functions/node_modules/firebase-admin/lib/esm/storage/index.js';
-import {WheelioService} from './functions/src/service.mjs';
+import {WashKrewService} from './functions/src/service.mjs';
 if(process.env.FIRESTORE_EMULATOR_HOST!=='127.0.0.1:8080'||process.env.FIREBASE_AUTH_EMULATOR_HOST!=='127.0.0.1:9099')throw Error('Both local emulator hosts must be set. Never run against production.');
 initializeApp({projectId:'demo-wheelio',storageBucket:'demo-wheelio.appspot.com'});const db=getFirestore(),auth=getAuth();
 const config=JSON.parse(await readFile(new URL('./operations.test.json',import.meta.url)));
@@ -36,7 +36,7 @@ if(action==='seed'||action==='seed-ready') {
   if(process.env.FIREBASE_STORAGE_EMULATOR_HOST!=='127.0.0.1:9199')throw Error('Local Storage emulator is required.');
   if(!(await db.collection('orders').where('customerId','==','qa-customer').limit(1).get()).empty)throw Error('Use a fresh disposable database for checkpoint replay.');
   const bucket=getStorage().bucket();
-  const service=new WheelioService({db,payments:{keyId:'rzp_test_local_qa',async createOrder({amount,bookingId}){return {id:`order_qa_${bookingId}`,amount,currency:'INR'};}},evidence:{async exists(path){return (await bucket.file(path).exists())[0];},async metadata(path){return (await bucket.file(path).getMetadata())[0];}}});
+  const service=new WashKrewService({db,payments:{keyId:'rzp_test_local_qa',async createOrder({amount,bookingId}){return {id:`order_qa_${bookingId}`,amount,currency:'INR'};}},evidence:{async exists(path){return (await bucket.file(path).exists())[0];},async metadata(path){return (await bucket.file(path).getMetadata())[0];}}});
   const customer={uid:'qa-customer',token:{phone_number:'+919000000001'}},captain={uid:'qa-captain',token:{phone_number:'+919000000002'}};
   const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+86400000));
   await service.captainOnline(captain,{online:true});
@@ -58,13 +58,13 @@ if(action==='seed'||action==='seed-ready') {
 } else if(action==='location') {
   const jobs=await db.collection('orders').where('captainId','==','qa-captain').where('status','in',['onTheWay','washing']).get();
   if(jobs.size!==1)throw Error('Expected one active disposable QA wash.');
-  const service=new WheelioService({db,payments:null,evidence:null});
+  const service=new WashKrewService({db,payments:null,evidence:null});
   const second=process.argv[3]==='second';
   await service.location({uid:'qa-captain',token:{phone_number:'+919000000002'}},{orderId:jobs.docs[0].id,latitude:second?17.386:17.385,longitude:second?78.4877:78.4867,accuracy:10});
   console.log(`Sent ${second?'second':'first'} synthetic Hyderabad location through the real service to the local emulator only.`);
 } else if(action==='capture') {
   const pending=await db.collection('orders').where('customerId','==','qa-customer').where('status','==','pendingPayment').get();
-  const service=new WheelioService({db,payments:{keyId:'rzp_test_local_qa',async createOrder({amount,bookingId}){return {id:`order_qa_${bookingId}`,amount,currency:'INR'};}},evidence:null});
+  const service=new WashKrewService({db,payments:{keyId:'rzp_test_local_qa',async createOrder({amount,bookingId}){return {id:`order_qa_${bookingId}`,amount,currency:'INR'};}},evidence:null});
   for(const doc of pending.docs) {
     const checkout=await service.checkout({uid:'qa-customer',token:{phone_number:'+919000000001'}},{bookingId:doc.id});
     await service.capturePayment({id:`pay_qa_${doc.id}`,order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});

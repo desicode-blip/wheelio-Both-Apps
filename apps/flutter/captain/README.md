@@ -1,4 +1,4 @@
-# Wheelio Captain (Flutter)
+# WashKrew Captain (Flutter)
 
 The Captain (washer) app, ported screen by screen from `apps/ios/Captain`. Web is the first target; iOS and Android come later from the same code.
 

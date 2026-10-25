@@ -1,11 +1,11 @@
 {
-    "name": "Wheelio Captain",
-    "short_name": "Wheelio Captain",
+    "name": "WashKrew Captain",
+    "short_name": "WashKrew Captain",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#D9DEE6",
-    "theme_color": "#3160FF",
-    "description": "Wheelio Captain: the app for washers",
+    "theme_color": "#0049FF",
+    "description": "WashKrew Captain: the app for WashKrew captains",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

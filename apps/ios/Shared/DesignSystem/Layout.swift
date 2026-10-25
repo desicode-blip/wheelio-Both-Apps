@@ -308,7 +308,7 @@ struct WSheetChrome<Content: View>: View {
 }
 
 extension View {
-    /// Present a Wheelio bottom sheet sized to its content.
+    /// Present a WashKrew bottom sheet sized to its content.
     func wSheet<Content: View>(isPresented: Binding<Bool>, height: CGFloat, @ViewBuilder content: @escaping () -> Content) -> some View {
         self.sheet(isPresented: isPresented) {
             WSheetChrome(content: content)

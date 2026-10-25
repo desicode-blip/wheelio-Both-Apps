@@ -154,7 +154,7 @@ enum HelpTopic: String, Hashable, CaseIterable {
 }
 
 /// C48 Help: pick what's going on. Everything goes to the captain first;
-/// only emergencies reach the Wheelio team.
+/// only emergencies reach the WashKrew team.
 struct HelpScreen: View {
     @Environment(Router.self) var router
     @State private var open: Int? = nil
@@ -268,7 +268,7 @@ struct HelpCaptainScreen: View {
     }
 }
 
-/// Only emergencies are connected to the Wheelio team.
+/// Only emergencies are connected to the WashKrew team.
 struct EmergencyHelpScreen: View {
     @Environment(Router.self) var router
 
