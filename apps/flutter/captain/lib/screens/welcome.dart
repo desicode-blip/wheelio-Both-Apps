@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -477,6 +478,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String name = '';
   String number = '';
   int focusNumber = 0;
+  bool sending = false;
 
   @override
   Widget build(BuildContext context) {
@@ -499,13 +501,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: WButton(
             store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
             size: ButtonSize.captain,
-            enabled: valid,
-            onTap: () {
+            enabled: valid && !sending,
+            loading: sending,
+            onTap: () async {
+              final router = context.router;
               store.set(() {
                 if (!login) store.name = name.trim();
                 store.phone = Validators.digitsOnly(number);
               });
-              context.router.push(R(N.otp, flag: login));
+              if (store.isLive) {
+                setState(() => sending = true);
+                try {
+                  await store.liveRequestOtp(store.phone);
+                } catch (_) {
+                  if (mounted) setState(() => sending = false);
+                  return;
+                }
+                if (mounted) setState(() => sending = false);
+              }
+              router.push(R(N.otp, flag: login));
             },
           ),
         ),
@@ -564,6 +578,7 @@ class _WOtpScreenState extends State<WOtpScreen> {
   int secondsLeft = wait;
   int resends = 0;
   bool sending = false;
+  bool verifying = false;
   WTask? _read;
   Timer? _countdown;
 
@@ -578,8 +593,18 @@ class _WOtpScreenState extends State<WOtpScreen> {
     _read?.cancel();
     _countdown?.cancel();
     // No setState here: this also runs from initState.
-    reading = true;
+    // Read without context: this also runs from initState.
+    final live = WashKrewRuntime.backend != null;
+    reading = !live;
     secondsLeft = wait;
+    _countdown = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      setState(() => secondsLeft--);
+      if (secondsLeft <= 0) t.cancel();
+    });
+    // Live: the real SMS code is typed (or filled by iOS from the message).
+    if (live) return;
+    _countdown?.cancel();
     _read = runTask((task) async {
       if (!first) await sleepMs(1500);
       for (final d in '381624'.split('')) {
@@ -604,7 +629,8 @@ class _WOtpScreenState extends State<WOtpScreen> {
       sending = true;
       code = '';
     });
-    Future.delayed(const Duration(milliseconds: 900), () {
+    Future<void> send = store.isLive ? store.liveRequestOtp(store.phone) : Future.delayed(const Duration(milliseconds: 900));
+    send.catchError((Object _) {}).then((_) {
       if (!mounted) return;
       setState(() {
         sending = false;
@@ -702,8 +728,23 @@ class _WOtpScreenState extends State<WOtpScreen> {
         child: WButton(
           store.t('Next', 'आगे', 'తదుపరి'),
           size: ButtonSize.captain,
-          enabled: code.length == 6,
-          onTap: () {
+          enabled: code.length == 6 && !verifying,
+          loading: verifying,
+          onTap: () async {
+            if (store.isLive) {
+              setState(() => verifying = true);
+              try {
+                await store.liveVerifyOtp(code);
+              } catch (_) {
+                if (mounted) setState(() => verifying = false);
+                return;
+              }
+              if (!mounted) return;
+              setState(() => verifying = false);
+              store.finishRegistration();
+              router.home();
+              return;
+            }
             // Demo: a returning captain has already done KYC.
             if (widget.login) store.signedUp = true;
             store.finishRegistration();
@@ -744,7 +785,7 @@ class _WOtpScreenState extends State<WOtpScreen> {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: WOtpField(code: code, onChanged: (v) => setState(() => code = v), boxSize: 46, autofocus: false),
+          child: WOtpField(code: code, onChanged: (v) => setState(() => code = v), boxSize: 46, autofocus: store.isLive),
         ),
         if (reading)
           Container(

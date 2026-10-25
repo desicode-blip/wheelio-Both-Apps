@@ -3,9 +3,11 @@
 // and OwnerNoteScreens.swift.
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -152,7 +154,12 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
       footer: WFooter(
         child: WButton(store.t('Open camera', 'कैमरा खोलें', 'కెమెరా తెరవండి'), icon: WIcon.camera, size: ButtonSize.captain, loading: checking, onTap: () async {
           setState(() => checking = true);
-          await sleepMs(1200);
+          // Live: the selfie is taken; matching it to the KYC photo is P0.
+          if (store.isLive) {
+            await Device.pickImage(camera: true, front: true).catchError((Object _) => null);
+          } else {
+            await sleepMs(1200);
+          }
           if (!mounted) return;
           setState(() => checking = false);
           router.replace(const [R(N.goToVehicle), R(N.beforePhotos)]);
@@ -184,7 +191,7 @@ class JobPhotosScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     final done = after ? store.afterDone : store.beforeDone;
     Widget slot(int i) => done.contains(i)
-        ? WPhotoSlot(label: sideName(store, i), state: PhotoState.done, tag: after ? store.t('After', 'बाद', 'తర్వాత') : store.t('Before', 'पहले', 'ముందు'), tagTone: after ? Tone.ok : Tone.mute, height: 112)
+        ? WPhotoSlot(label: sideName(store, i), state: PhotoState.done, tag: after ? store.t('After', 'बाद', 'తర్వాత') : store.t('Before', 'पहले', 'ముందు'), tagTone: after ? Tone.ok : Tone.mute, height: 112, image: store.shots['${after ? 'after' : 'before'}_$i'])
         : Pressable(
             onTap: () => router.push(R(N.camera, flag: after, index: i)),
             child: DashedBorder(
@@ -204,8 +211,29 @@ class JobPhotosScreen extends StatelessWidget {
       header: WHeader(title: store.current.plate),
       footer: WFooter(
         child: after
-            ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () => router.go(store.aiFlag ? N.aiCheck : N.uploading))
-            : WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () => router.go(N.washing)),
+            ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () async {
+                // Live: finishing sends the photos to the owner (the AI photo check is P0).
+                if (store.isLive) {
+                  try {
+                    await store.liveProgress('finish');
+                  } catch (_) {
+                    return;
+                  }
+                  router.go(N.uploading);
+                  return;
+                }
+                router.go(store.aiFlag ? N.aiCheck : N.uploading);
+              })
+            : WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () async {
+                if (store.isLive && store.liveOrder(store.current.id)?['status'] != 'washing') {
+                  try {
+                    await store.liveProgress('start');
+                  } catch (_) {
+                    return;
+                  }
+                }
+                router.go(N.washing);
+              }),
       ),
       children: [
         Padding(padding: const EdgeInsets.only(top: 4), child: WashStageBar(stage: after ? 2 : 0)),
@@ -235,8 +263,26 @@ class JobCameraScreen extends StatelessWidget {
   final bool after;
   final int side;
 
-  void _shoot(BuildContext context) {
+  Future<void> _shoot(BuildContext context) async {
     final store = context.store, router = context.router;
+    if (store.isLive) {
+      // The phone camera takes the photo; it is uploaded as this side's evidence.
+      Uint8List? bytes;
+      try {
+        bytes = await Device.pickImage(camera: true);
+      } catch (e) {
+        store.set(() => store.toast = e is MediaAccessException ? e.message : backendError(e));
+        return;
+      }
+      if (bytes == null) return;
+      try {
+        await store.liveEvidence(after: after, side: side, bytes: bytes);
+      } catch (_) {
+        return;
+      }
+      store.shots['${after ? 'after' : 'before'}_$side'] = bytes;
+    }
+    if (!context.mounted) return;
     if (store.darkPhoto && side == 2 && !after) {
       store.set(() => store.darkPhoto = false);
       router.swapTop(const R(N.photoDark));
@@ -487,7 +533,7 @@ class UploadingScreen extends StatefulWidget {
 }
 
 class _UploadingScreenState extends State<UploadingScreen> {
-  var progress = [1.0, 1.0, 0.5, 0.55];
+  late var progress = context.store.isLive ? [1.0, 1.0, 1.0, 1.0] : [1.0, 1.0, 0.5, 0.55];
 
   @override
   void initState() {
@@ -504,7 +550,7 @@ class _UploadingScreenState extends State<UploadingScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    Widget slot(int i) => WPhotoSlot(label: sideName(store, i), state: progress[i] >= 1 ? PhotoState.done : PhotoState.uploading, tag: store.t('After', 'बाद', 'తర్వాత'), tagTone: Tone.ok, height: 112);
+    Widget slot(int i) => WPhotoSlot(label: sideName(store, i), state: progress[i] >= 1 ? PhotoState.done : PhotoState.uploading, tag: store.t('After', 'बाद', 'తర్వాత'), tagTone: Tone.ok, height: 112, image: store.shots['after_$i']);
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Sending photos', 'फ़ोटो भेज रहे हैं', 'ఫోటోలు పంపుతోంది'), back: false),
@@ -543,7 +589,11 @@ class JobDoneScreen extends StatelessWidget {
       header: const SizedBox(height: 40),
       footer: WFooter(
         child: WButton(store.t('Next job', 'अगला काम', 'తదుపరి పని'), size: ButtonSize.captain, onTap: () {
-          store.finishJob();
+          if (store.isLive) {
+            store.shots.clear();
+          } else {
+            store.finishJob();
+          }
           store.set(() => store.lateWash = false);
           router.home();
           router.tab = 1;

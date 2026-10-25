@@ -84,4 +84,56 @@ Please treat every item as **P0**. Tick an item only when it works end to end ag
 
 ## Captain app
 
-_(Added as the Captain screens are rebuilt; see below.)_
+The generic `FirebaseCaptainScreen` was removed. `CaptainStore(live: …)` now fills the designed screens
+from Firebase (`data/store.dart`, "Live data" section): sign-up and SMS login, KYC uploads and the
+application, Online/Offline, job offers in the designed job alert, claiming, arrival, before/after photos,
+start and finish, today's and later jobs, earnings, "When I work" and the inbox.
+
+### Sign-up and KYC
+- [ ] **DigiLocker (W05 "Open DigiLocker")**: not connected. The live app photographs the Aadhaar card
+  instead and uploads it as `aadhaar`.
+- [ ] **Aadhaar "photo is not clear" check (W05b)**: no automatic quality check; the screen never appears
+  from real data.
+- [ ] **Bank proof**: the server requires `kyc/{uid}/bank.jpg`, but the designed "Get paid" screen only asks
+  for a UPI ID. The live app asks for a passbook/cheque photo when Save is tapped. Drop the requirement for
+  UPI payouts, or add it to the design.
+- [ ] **Bank-account payouts (W08 "Bank account" tab)**: UPI only on the server. The tab shows the toast.
+- [ ] **Training videos and quiz (W09–W12)**: shown as designed, but completion is kept on the phone only.
+  Store video progress and the quiz result on the server and check them before approval.
+- [ ] **Intro video call and its time (W13 "We’ll call you today", "Change time")**: no scheduling.
+  "Change time" shows the toast.
+- [ ] **Level and job limits (W14 days 1–3, W24 daily limit, W44–W47 level, probation, refresher,
+  blocked)**: no server fields. The app reads `captains.levelDay` and `captains.jobLimit` if present;
+  otherwise the designed defaults show. Add the rules and fields.
+
+### Jobs
+- [ ] **Distance in the job alert ("600 m away")**: offers have no distance. Shown empty.
+- [ ] **Vehicle details in the alert**: offers deliberately hide plate and parking until accepted (Ajay's
+  privacy rule). The designed alert shows them; confirm with Aman which wins.
+- [ ] **Owner’s voice note (W27 "Listen before you start")**: the real note is uploaded by the customer, but
+  the designed player plays a sample. The live app skips this screen. Play the real `note_audio` in the
+  designed player.
+- [ ] **Face check before photos (W28)**: the selfie is taken but not compared with the KYC photo.
+- [ ] **Gate pass (W29 "Can’t get in", gate pass row) and "Can’t find vehicle" (W30)**: no server flow;
+  the designed screens show sample data.
+- [ ] **AI photo check (W36 "Left mirror looks dusty") and dark-photo check (W33)**: not connected; the
+  live app skips them.
+- [ ] **Late timer, slot-over warning, no-show cancellation and penalty (W26 banners, W52)**: no server
+  states. Penalty amounts are placeholders (`[NO-SHOW PENALTY]`).
+- [ ] **Owner cancelled after the captain set off: trip fee (W40, `[CANCELLATION FEE]`)**: the cancellation
+  is shown (job struck through); the trip fee is not paid by the server.
+- [ ] **Live location**: Ajay's location sharing is not in the design; not shown. Needs a design decision.
+- [ ] **Societies after approval ("Where I work")**: approved societies come from operations; changing them
+  in the app only changes which alerts the phone shows. "You’re at … now" needs location matching.
+- [ ] **Distance and place filters ("Within 3 km", "A place I choose")**: no server filter.
+
+### Money
+- [ ] **Payout history and payout detail (W41)**: payouts are sent by operations and not recorded for the
+  app. The designed rows show only for the sample app; live shows today's/week's earnings and held money.
+- [ ] **Held money detail and "Explain by voice" (W42)**: shows sample text.
+- [ ] **Change payout UPI and phone number (W54, W55)**: need OTP and an account update. Show the toast.
+
+### Notifications
+- [ ] **Captain notification kinds**: the server sends only approved / cancelled / disputed. The design
+  also has new job, gate pass, late, window open, finish soon, slot ended, penalty, payout sent, level up,
+  probation, blocked and phone changed. Read/delete are kept on the phone only.

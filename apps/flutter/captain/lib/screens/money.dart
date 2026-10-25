@@ -40,7 +40,7 @@ class _MoneyTabState extends State<MoneyTab> {
       color: WColor.canvas,
       child: ListView(padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top, WSpace.gutterCaptain, 20), children: [
         WTitle(store.t('Money', 'पैसे', 'డబ్బు'), top: 22, bottom: 14),
-        if (!store.signedUp) ...[
+        if (!store.signedUp && !store.isLive) ...[
           GuestNotice(store.t('Example earnings. Your money shows here after your first job, and comes to your UPI every night.', 'उदाहरण कमाई। पहले काम के बाद आपके पैसे यहाँ दिखेंगे और हर रात UPI पर आएंगे।',
               'ఉదాహరణ సంపాదన. మొదటి పని తర్వాత మీ డబ్బు ఇక్కడ కనిపిస్తుంది, ప్రతి రాత్రి UPI కి వస్తుంది.')),
           const SizedBox(height: 14),
@@ -52,17 +52,28 @@ class _MoneyTabState extends State<MoneyTab> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             WText(range == 0 ? store.t('Comes to UPI tonight before 12', 'आज रात 12 से पहले UPI में आएगा', 'ఈ రాత్రి 12 లోపు UPI కి వస్తుంది') : store.t('This week so far', 'इस हफ़्ते अब तक', 'ఈ వారం ఇప్పటి వరకు'), WType.caption),
             const SizedBox(height: 10),
-            WText(Fmt.rupees(range == 0 ? store.earnedToday : 4562), WType.bigMoney, mono: true),
+            WText(Fmt.rupees(range == 0 ? store.earnedToday : store.isLive ? store.weekMoney.$1 : 4562), WType.bigMoney, mono: true),
             const SizedBox(height: 10),
             Row(children: [
-              _tile(WIcon.check, Tone.ok, Fmt.rupees(range == 0 ? store.approvedToday : 4342), store.t('Approved', 'मंज़ूर', 'ఆమోదించబడింది')),
+              _tile(WIcon.check, Tone.ok, Fmt.rupees(range == 0 ? store.approvedToday : store.isLive ? store.weekMoney.$2 : 4342), store.t('Approved', 'मंज़ूर', 'ఆమోదించబడింది')),
               const SizedBox(width: 10),
-              _tile(WIcon.clock, Tone.wait, Fmt.rupees(range == 0 ? store.waitingToday : 220), store.t('Waiting', 'इंतज़ार में', 'వేచి ఉంది')),
+              _tile(WIcon.clock, Tone.wait, Fmt.rupees(range == 0 ? store.waitingToday : store.isLive ? store.weekMoney.$3 : 220), store.t('Waiting', 'इंतज़ार में', 'వేచి ఉంది')),
             ]),
           ]),
         ),
         const SizedBox(height: 14),
-        WCard(
+        // Live: payouts are sent by operations (payout history is P0); held money is real.
+        if (store.isLive && store.heldEarnings.isNotEmpty)
+          WCard(
+            padding: 14,
+            child: Column(children: [
+              for (final (i, e) in store.heldEarnings.indexed) ...[
+                if (i > 0) const WDivider(inset: 54),
+                WListRow(icon: WIcon.lock, tone: Tone.wait, title: '${store.t('On hold', 'रोका गया', 'నిలిపివేయబడింది')} · ${Fmt.rupees((e['amount'] as num? ?? 0).toInt() ~/ 100)}', subtitle: store.t('Owner reported a problem', 'मालिक ने शिकायत की', 'యజమాని సమస్య చెప్పారు'), onTap: () => router.go(N.payoutHeld)),
+              ],
+            ]),
+          ),
+        if (!store.isLive) WCard(
           padding: 14,
           child: Column(children: [
             WListRow(icon: WIcon.receipt, title: '${store.t('Yesterday', 'कल', 'నిన్న')} · ₹1,262', subtitle: '$paid 11:48 PM · ${store.upi}', onTap: () => router.go(N.payoutDetail)),

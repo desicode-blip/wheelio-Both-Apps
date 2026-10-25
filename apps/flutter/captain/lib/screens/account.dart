@@ -432,7 +432,7 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
   bool get canSend => Validators.isValidMobile(phone) && digits != context.store.phone;
 
   Future<void> _send() async {
-    if (!canSend) return;
+    if (!canSend || context.store.blockLive()) return;
     setState(() => loading = true);
     await context.store.requestPhoneChange(digits);
     if (!mounted) return;
@@ -496,7 +496,7 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
               },
             ),
             if (wrong) Padding(padding: const EdgeInsets.only(top: 14), child: WText(store.t('Wrong code. Try again.', 'गलत कोड। फिर कोशिश करें।', 'తప్పు కోడ్. మళ్ళీ ప్రయత్నించండి.'), WType.caption, color: WColor.destructive)),
-            const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
+            if (!context.store.isLive) const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
           ],
         _PhoneStage.done => [
             Expanded(
@@ -540,7 +540,7 @@ class _WEditUPIScreenState extends State<WEditUPIScreen> {
       setState(() => showError = true);
       return;
     }
-    if (same) return;
+    if (same || context.store.blockLive()) return;
     setState(() => loading = true);
     await context.store.requestUPIChange(upi!);
     if (!mounted) return;
@@ -631,7 +631,7 @@ class _WEditUPIScreenState extends State<WEditUPIScreen> {
                 },
               ),
               if (wrong) Padding(padding: const EdgeInsets.only(top: 14), child: WText(store.t('Wrong code. Try again.', 'गलत कोड। फिर कोशिश करें।', 'తప్పు కోడ్. మళ్ళీ ప్రయత్నించండి.'), WType.caption, color: WColor.destructive)),
-              const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
+              if (!context.store.isLive) const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
             ],
     );
   }

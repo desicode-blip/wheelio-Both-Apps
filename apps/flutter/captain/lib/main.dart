@@ -14,7 +14,6 @@ import 'screens/money.dart';
 import 'screens/onboarding.dart';
 import 'screens/wash.dart';
 import 'screens/welcome.dart';
-import 'screens/firebase_live.dart';
 
 Future<void> main() => launchWashKrew(captain: true, demo: const CaptainApp());
 
@@ -25,7 +24,7 @@ class CaptainApp extends StatefulWidget {
 }
 
 class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
-  final store = CaptainStore();
+  final store = CaptainStore(live: WashKrewRuntime.backend);
   final router = WRouterC();
 
   @override
@@ -73,7 +72,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       builder: (context, child) => PhoneFrame(
         child: DemoLabel(child: child!),
       ),
-      home: WashKrewRuntime.backend == null ? const _Root() : const FirebaseCaptainScreen(),
+      home: const _Root(),
     ),
   );
 }
@@ -89,7 +88,7 @@ class _Root extends StatelessWidget {
       child: Stack(
         children: [
           WNavStack<R>(router: router, root: store.signedUp || store.exploring ? const CaptainTabs() : const LanguageScreen(), builder: _destination),
-          const _GalleryTab(),
+          if (!store.isLive) const _GalleryTab(),
           const Positioned.fill(child: WLiveBanner()),
         ],
       ),

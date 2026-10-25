@@ -314,13 +314,13 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
         radio: true,
         onTap: () => setState(() {
           mode = m;
-          if (m == WorkMode.societies && picked.isEmpty) picked = {Society.current.name};
+          if (m == WorkMode.societies && picked.isEmpty) picked = {context.store.hereSociety};
         }),
       );
 
   Widget _societies() {
     final store = context.store;
-    final here = Society.current.name;
+    final here = context.store.hereSociety;
     return FadeIn(
       offset: 0,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -342,7 +342,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
         WCard(
           padding: 14,
           child: Column(children: [
-            for (final (i, s) in Society.all.indexed) ...[
+            for (final (i, s) in store.societyChoices.indexed) ...[
               Pressable(
                 feedback: false,
                 onTap: () => setState(() => picked.contains(s.name) ? picked.remove(s.name) : picked.add(s.name)),
@@ -355,13 +355,13 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         WText(s.name, WType.rowTitle, size: 16.5),
                         const SizedBox(height: 2),
-                        WText('${s.area} · ${s.km < 1 ? '${(s.km * 1000).round()} m' : '${s.km.toStringAsFixed(1)} km'}', WType.caption),
+                        WText(s.km == 0 ? s.area : '${s.area} · ${s.km < 1 ? '${(s.km * 1000).round()} m' : '${s.km.toStringAsFixed(1)} km'}', WType.caption),
                       ]),
                     ),
                   ]),
                 ),
               ),
-              if (i < Society.all.length - 1) const WDivider(inset: 36),
+              if (i < store.societyChoices.length - 1) const WDivider(inset: 36),
             ],
           ]),
         ),
@@ -378,6 +378,9 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
       footer: WFooter(
         child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode != WorkMode.societies || picked.isNotEmpty, onTap: () {
+          if (store.isLive && store.signedUp && !(store.workTimes.length == times.length && store.workTimes.containsAll(times))) {
+            store.liveSetWorkTimes(times).catchError((Object _) {});
+          }
           store.set(() {
             store.workMode = mode;
             store.radiusKm = radius;

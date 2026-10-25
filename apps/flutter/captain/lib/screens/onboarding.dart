@@ -20,8 +20,8 @@ class TestSkipButton extends StatelessWidget {
   final double top;
   @override
   Widget build(BuildContext context) {
-    if (!onboardingSkip) return const SizedBox.shrink();
     final store = context.store;
+    if (!onboardingSkip || store.isLive) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(top: top),
       child: Center(
@@ -95,6 +95,10 @@ class StepsScreen extends StatelessWidget {
         };
 
     void go() {
+      if (store.isLive && store.kycStatus == 'underReview') {
+        router.go(N.underReview);
+        return;
+      }
       switch (store.nextStep) {
         case KycStep.aadhaar:
           router.push(const R(N.aadhaar));
@@ -175,7 +179,20 @@ class AadhaarScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    void done() {
+    Future<void> done() async {
+      if (store.isLive) {
+        // DigiLocker is P0: the live app photographs the Aadhaar card instead.
+        final bytes = await Device.pickImage(camera: true).catchError((Object e) {
+          store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
+          return null;
+        });
+        if (bytes == null) return;
+        try {
+          await store.liveUploadKyc('aadhaar', bytes);
+        } catch (_) {
+          return;
+        }
+      }
       store.complete(KycStep.aadhaar);
       router.replace(const [R(N.steps)]);
     }
@@ -248,7 +265,19 @@ class SelfieScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 22),
             child: Pressable(
               label: 'Take photo',
-              onTap: () {
+              onTap: () async {
+                if (store.isLive) {
+                  final bytes = await Device.pickImage(camera: true, front: true).catchError((Object e) {
+                    store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
+                    return null;
+                  });
+                  if (bytes == null) return;
+                  try {
+                    await store.liveUploadKyc('selfie', bytes);
+                  } catch (_) {
+                    return;
+                  }
+                }
                 store.complete(KycStep.photo);
                 router.replace(const [R(N.steps)]);
               },
@@ -296,7 +325,7 @@ class BankScreen extends StatefulWidget {
 
 class _BankScreenState extends State<BankScreen> {
   int mode = 0;
-  String upi = 'raju.yadav@ybl';
+  late String upi = context.store.isLive ? context.store.upi : 'raju.yadav@ybl';
   String account = '';
 
   @override
@@ -306,8 +335,26 @@ class _BankScreenState extends State<BankScreen> {
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Get paid', 'पैसे पाएं', 'డబ్బు పొందండి')),
       footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode == 0 ? upi.contains('@') : account.length >= 9, onTap: () {
-          store.set(() => store.upi = upi);
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode == 0 ? upi.contains('@') : account.length >= 9, onTap: () async {
+          if (store.isLive) {
+            // Bank-account payouts are P0: the live backend pays to UPI only.
+            if (mode != 0) {
+              store.blockLive(store.t('Bank account payouts aren’t available yet. Add your UPI ID.', 'बैंक खाते में भुगतान अभी उपलब्ध नहीं है। अपना UPI ID डालें।', 'బ్యాంక్ ఖాతాకు చెల్లింపు ఇంకా లేదు. మీ UPI ID ఇవ్వండి.'));
+              return;
+            }
+            // The server still asks for a bank proof photo (P0: drop it for UPI payouts).
+            if (!store.kycUploaded.contains('bank')) {
+              store.set(() => store.toast = store.t('Take a photo of your passbook or a cancelled cheque.', 'अपनी पासबुक या कैंसिल चेक की फ़ोटो लें।', 'మీ పాస్‌బుక్ లేదా రద్దు చేసిన చెక్ ఫోటో తీయండి.'));
+              final bytes = await Device.pickImage(camera: true).catchError((Object _) => null);
+              if (bytes == null) return;
+              try {
+                await store.liveUploadKyc('bank', bytes);
+              } catch (_) {
+                return;
+              }
+            }
+          }
+          store.set(() => store.upi = upi.trim());
           store.complete(KycStep.bank);
           router.replace(const [R(N.steps)]);
         }),
@@ -671,7 +718,18 @@ class RulesScreen extends StatelessWidget {
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Rules', 'नियम', 'నియమాలు')),
-      footer: WFooter(child: WButton(store.t('I agree', 'मैं सहमत हूँ', 'నేను అంగీకరిస్తున్నాను'), icon: WIcon.check, size: ButtonSize.captain, onTap: () => context.router.go(N.underReview))),
+      footer: WFooter(child: WButton(store.t('I agree', 'मैं सहमत हूँ', 'నేను అంగీకరిస్తున్నాను'), icon: WIcon.check, size: ButtonSize.captain, onTap: () async {
+        final router = context.router;
+        // Live: agreeing sends the application to the operations team.
+        if (store.isLive) {
+          try {
+            await store.liveSubmitApplication();
+          } catch (_) {
+            return;
+          }
+        }
+        router.go(N.underReview);
+      })),
       children: [
         WTitle(store.t('How you earn here', 'यहाँ कमाई कैसे होती है', 'ఇక్కడ ఎలా సంపాదిస్తారు'), top: 10, bottom: 14),
         rule(WIcon.rupee, '₹116', Tone.ok, store.t('Your pay for a hatchback. Shown before you accept.', 'हैचबैक के लिए आपकी कमाई। स्वीकार करने से पहले दिखेगी।', 'హ్యాచ్‌బ్యాక్‌కు మీ సంపాదన. అంగీకరించే ముందు చూపిస్తాము.')),
@@ -695,7 +753,7 @@ class UnderReviewScreen extends StatelessWidget {
       gutter: WSpace.gutterCaptain,
       scrolls: false,
       header: WHeader(title: store.t('Get ready', 'तैयार हो जाइए', 'సిద్ధం అవ్వండి'), back: false),
-      footer: WFooter(child: WButton(store.t('Change time', 'समय बदलें', 'సమయం మార్చండి'), kind: ButtonKind.outline, size: ButtonSize.captain)),
+      footer: WFooter(child: WButton(store.t('Change time', 'समय बदलें', 'సమయం మార్చండి'), kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () => store.blockLive())),
       children: [
         const Spacer(),
         const Center(child: WStateCircle(WIcon.phone, size: 112)),
@@ -706,7 +764,9 @@ class UnderReviewScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Container(height: 54, decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)), alignment: Alignment.center, child: WText(store.t('Today, 3 – 5 PM', 'आज, 3 – 5 PM', 'ఈరోజు, 3 – 5 PM'), WType.section, weight: semibold)),
         const SizedBox(height: 16),
-        Center(child: Pressable(onTap: () => context.router.replace(const [R(N.live)]), child: const WText('Demo: call done →', WType.caption, color: WColor.muted))),
+        if (!store.isLive) Center(child: Pressable(onTap: () => context.router.replace(const [R(N.live)]), child: const WText('Demo: call done →', WType.caption, color: WColor.muted))),
+        // Live: approval by the operations team opens "You're in".
+        if (store.isLive && store.signedUp) OnAppear(onAppear: () => context.router.replace(const [R(N.live)]), child: const SizedBox.shrink()),
         const Spacer(),
       ],
     );
@@ -732,7 +792,7 @@ class LiveScreen extends StatelessWidget {
       scrolls: false,
       footer: WFooter(
         child: WButton(store.t('Go to home', 'होम पर जाएं', 'హోమ్‌కి వెళ్ళండి'), size: ButtonSize.captain, onTap: () {
-          store.finishKyc();
+          if (!store.isLive) store.finishKyc();
           context.router.home();
         }),
       ),

@@ -3,10 +3,12 @@
 // BACKEND: when the real services are connected these methods call the captain API
 // (backend/API-CONTRACT.md); screens don't change.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 /// Captain app language. Captains pick it on the first screen (W01).
 enum Lang { en, hi, te }
@@ -265,6 +267,11 @@ class WNotifPrefs {
 // MARK: Store
 
 class CaptainStore extends ChangeNotifier {
+  /// [live] is the Firebase backend; null runs the designed sample app.
+  CaptainStore({this.live}) {
+    if (live != null) _startLive();
+  }
+
   Lang lang = Lang.en;
   String phone = '9876543210';
   String name = 'Raju Yadav';
@@ -351,7 +358,7 @@ class CaptainStore extends ChangeNotifier {
   /// is ~30 min from the end of its window and the next job's window opens in ~40 s.
   final DateTime planRealStart = DateTime.now();
   int planSkipSeconds = 0;
-  DateTime get planNow => startOfDay(DateTime.now())
+  DateTime get planNow => isLive ? DateTime.now().add(Duration(seconds: planSkipSeconds)) : startOfDay(DateTime.now())
       .add(const Duration(hours: 9, minutes: 29, seconds: 20))
       .add(DateTime.now().difference(planRealStart))
       .add(Duration(seconds: planSkipSeconds));
@@ -374,7 +381,7 @@ class CaptainStore extends ChangeNotifier {
   String get firstName => name.split(' ').where((p) => p.isNotEmpty).firstOrNull ?? 'Raju';
   bool get canGoOnline => registered;
   bool get canAccept => signedUp;
-  Job get current => queue.where((j) => j.status == JobStatus.now).firstOrNull ?? sampleQueue()[0];
+  Job get current => queue.where((j) => j.status == JobStatus.now).firstOrNull ?? (isLive && queue.isNotEmpty ? queue.first : sampleQueue()[0]);
   List<Job> get upNext => queue.where((j) => j.status != JobStatus.done).toList();
   KycStep? get nextStep => KycStep.values.where((s) => steps[s] != KycState.done).firstOrNull;
   int get stepsDone => steps.values.where((s) => s == KycState.done).length;
@@ -392,8 +399,8 @@ class CaptainStore extends ChangeNotifier {
   void finishRegistration() {
     registered = true;
     exploring = true;
-    if (notifications.isEmpty) seedNotifications();
-    if (onlineAfterSignUp) online = true;
+    if (notifications.isEmpty && !isLive) seedNotifications();
+    if (onlineAfterSignUp && !isLive) online = true;
     onlineAfterSignUp = false;
     toast = t('Welcome, $firstName!', 'स्वागत है, $firstName!', 'స్వాగతం, $firstName!');
     notifyListeners();
@@ -413,7 +420,12 @@ class CaptainStore extends ChangeNotifier {
         waitingToday = 0;
       });
 
-  void logOut() => set(() {
+  void logOut() {
+    if (isLive) liveSignOut().catchError((Object e) => set(() => toast = backendError(e)));
+    _logOut();
+  }
+
+  void _logOut() => set(() {
         signedUp = false;
         registered = false;
         exploring = false;
@@ -479,7 +491,7 @@ class CaptainStore extends ChangeNotifier {
       case WorkMode.radius:
         return t('Within $radiusKm km', '$radiusKm km के अंदर', '$radiusKm కి.మీ లోపు');
       case WorkMode.societies:
-        final list = Society.all.map((s) => s.name).where(chosenSocieties.contains).toList();
+        final list = societyChoices.map((s) => s.name).where(chosenSocieties.contains).toList();
         if (list.isEmpty) return t('All jobs', 'सभी काम', 'అన్ని పనులు');
         return list.length > 1 ? '${list.first} +${list.length - 1}' : list.first;
       case WorkMode.place:
@@ -536,11 +548,13 @@ class CaptainStore extends ChangeNotifier {
 
   /// BACKEND: send a code to the new number / verify it.
   Future<void> requestPhoneChange(String p) async {
+    if (isLive) throw StateError(notYet);
     await sleepMs(700);
     pendingPhone = p;
   }
 
   Future<bool> confirmPhoneChange(String code) async {
+    if (isLive) throw StateError(notYet);
     await sleepMs(600);
     if (code != '123456') return false;
     phone = pendingPhone;
@@ -550,11 +564,13 @@ class CaptainStore extends ChangeNotifier {
 
   /// BACKEND: payout UPI changes need a code to the registered phone first.
   Future<void> requestUPIChange(String u) async {
+    if (isLive) throw StateError(notYet);
     await sleepMs(700);
     pendingUPI = u.toLowerCase();
   }
 
   Future<bool> confirmUPIChange(String code) async {
+    if (isLive) throw StateError(notYet);
     await sleepMs(600);
     if (code != '123456') return false;
     upi = pendingUPI;
@@ -687,15 +703,19 @@ class CaptainStore extends ChangeNotifier {
     }
   }
 
-  void markRead(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = true);
-  void markUnread(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = false);
+  // Live inbox: read and deleted are kept on this phone (saving them on the server is P0).
+  final Set<String> _readNotifs = {}, _unreadNotifs = {};
+  void markRead(String id) => set(() { _readNotifs.add(id); _unreadNotifs.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = true; });
+  void markUnread(String id) => set(() { _unreadNotifs.add(id); _readNotifs.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = false; });
   void markAllRead() => set(() {
         for (final n in notifications) {
           n.read = true;
+          _readNotifs.add(n.id);
+          _unreadNotifs.remove(n.id);
         }
       });
-  void deleteNotification(String id) => set(() => notifications.removeWhere((n) => n.id == id));
-  void clearNotifications() => set(() => notifications = []);
+  void deleteNotification(String id) => set(() { _deletedNotifs.add(id); notifications.removeWhere((n) => n.id == id); });
+  void clearNotifications() => set(() { _deletedNotifs.addAll(notifications.map((n) => n.id)); notifications = []; });
 
   void setNotifications(bool on) {
     set(() => notificationsOn = on);
@@ -748,6 +768,335 @@ class CaptainStore extends ChangeNotifier {
       _noShowJob = null;
       onCancelled();
     });
+  }
+
+  // MARK: Live data (Firebase)
+  // The designed screens read the same fields as the sample app. With [live] set they are filled
+  // from Firebase, and actions call the backend. Designed parts without a backend are listed as
+  // P0 in docs/P0-BACKEND-FOR-DESIGN.md and show [notYet] instead of pretending.
+
+  final LiveBackend? live;
+  bool get isLive => live != null;
+  String liveUid = '';
+  bool liveLoaded = false;
+  Map<String, dynamic> liveCaptain = {}, liveConfig = {};
+  final Map<String, Map<String, dynamic>> liveOrders = {};
+  List<Job> liveOffers = [];
+  final Map<String, DateTime> offerExpiry = {};
+  List<Map<String, dynamic>> liveEarnings = [];
+  Set<String> kycUploaded = {};
+  String kycStatus = 'notSubmitted';
+  final List<StreamSubscription<dynamic>> _liveSubs = [], _accountSubs = [];
+  Timer? _heartbeat;
+
+  static const notYet = 'This isn’t available yet. Call us and we’ll do it for you.';
+  bool blockLive([String? message]) {
+    if (!isLive) return false;
+    set(() => toast = message ?? t(notYet, 'यह अभी उपलब्ध नहीं है। हमें कॉल करें, हम कर देंगे।', 'ఇది ఇంకా అందుబాటులో లేదు. మాకు కాల్ చేయండి, మేము చేస్తాము.'));
+    return true;
+  }
+
+  void _startLive() {
+    queue = [];
+    notifications = [];
+    online = false;
+    jobsToday = 0;
+    earnedToday = 0;
+    approvedToday = 0;
+    waitingToday = 0;
+    levelDay = 1;
+    rating = 0;
+    name = '';
+    phone = '';
+    upi = '';
+    _liveSubs.add(live!.catalog.listen((s) => set(() => liveConfig = s.data() ?? {}), onError: (Object e) => set(() => toast = backendError(e))));
+    _liveSubs.add(live!.sessions.listen((user) {
+      final uid = user?.phoneNumber != null ? user!.uid : '';
+      if (uid != liveUid) _bindLive(uid);
+    }));
+    _heartbeat = Timer.periodic(const Duration(seconds: 60), (_) {
+      if (isLive && online && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
+    });
+  }
+
+  void _bindLive(String uid) {
+    for (final s in _accountSubs) {
+      s.cancel();
+    }
+    _accountSubs.clear();
+    liveUid = uid;
+    liveLoaded = uid.isEmpty;
+    liveCaptain = {};
+    liveOrders.clear();
+    liveOffers = [];
+    liveEarnings = [];
+    kycUploaded = {};
+    queue = [];
+    notifications = [];
+    registered = false;
+    signedUp = false;
+    online = false;
+    if (uid.isEmpty) {
+      changed();
+      return;
+    }
+    live!.registerPush('captain').catchError((Object _) {});
+    _accountSubs.add(live!.captain(uid).listen((s) {
+      if (liveUid != uid) return;
+      final d = s.data() ?? {};
+      final status = d['kycStatus'] as String? ?? 'notSubmitted';
+      if (status != kycStatus || liveCaptain.isEmpty) {
+        live!.uploadedKyc().then((files) {
+          if (liveUid != uid) return;
+          kycUploaded = files;
+          _applySteps();
+          changed();
+        }).catchError((Object _) {});
+      }
+      liveCaptain = d;
+      liveLoaded = true;
+      kycStatus = status;
+      if (d.isNotEmpty) {
+        name = d['name'] as String? ?? name;
+        phone = (d['phone'] as String? ?? '').replaceFirst('+91', '');
+        upi = d['upi'] as String? ?? upi;
+        rating = (d['ratingCount'] as num? ?? 0) > 0 ? (d['rating'] as num).toDouble() : 0;
+        online = d['online'] == true;
+        registered = true;
+        exploring = true;
+        signedUp = d['approved'] == true;
+        levelDay = (d['levelDay'] as num? ?? levelDay).toInt();
+        jobLimit = (d['jobLimit'] as num? ?? jobLimit).toInt();
+        final windows = (d['workingWindows'] as List? ?? []).map((w) => (w['startHour'] as num).toInt()).toSet();
+        workTimes = windows.length >= 3 ? {} : {for (final w in WorkTime.values) if (windows.contains(w.hours.$1)) w};
+        final societies = [for (final id in (d['societyIds'] as List? ?? d['requestedSocietyIds'] as List? ?? [])) _societyName(id)];
+        if (societies.isNotEmpty) {
+          workMode = WorkMode.societies;
+          chosenSocieties = societies.toSet();
+        }
+      }
+      _applySteps();
+      changed();
+    }, onError: (Object e) => set(() => toast = backendError(e))));
+    _accountSubs.add(live!.orders(uid, captain: true).listen((s) {
+      if (liveUid != uid) return;
+      liveOrders
+        ..clear()
+        ..addAll({for (final d in s.docs) d.id: {...d.data(), 'id': d.id}});
+      _rebuildQueue();
+      changed();
+    }, onError: (Object e) => set(() => toast = backendError(e))));
+    _accountSubs.add(live!.offers(uid).listen((s) {
+      if (liveUid != uid) return;
+      final now = DateTime.now();
+      offerExpiry.clear();
+      liveOffers = [
+        for (final d in s.docs)
+          if (d.data()['status'] == 'pending' && (d.data()['paymentMode'] ?? 'test') == (liveCaptain['paymentMode'] ?? 'test') && _date(d.data()['expiresAt'])?.isAfter(now) == true)
+            _offerJob(d.data()),
+      ];
+      for (final d in s.docs) {
+        final at = _date(d.data()['expiresAt']);
+        if (at != null) offerExpiry[d.data()['orderId'] as String] = at;
+      }
+      changed();
+    }, onError: (Object e) => set(() => toast = backendError(e))));
+    _accountSubs.add(live!.earnings(uid).listen((s) {
+      if (liveUid != uid) return;
+      liveEarnings = [for (final d in s.docs) {...d.data(), 'id': d.id}];
+      _applyEarnings();
+      changed();
+    }, onError: (Object e) => set(() => toast = backendError(e))));
+    _accountSubs.add(live!.inbox(uid).listen((s) {
+      if (liveUid != uid) return;
+      notifications = [
+        for (final d in s.docs)
+          if (d.data()['role'] == 'captain' && !_deletedNotifs.contains(d.id)) _liveNotif(d.id, d.data()),
+      ];
+      changed();
+    }, onError: (Object e) => set(() => toast = backendError(e))));
+    changed();
+  }
+
+  DateTime? _date(dynamic v) => v == null ? null : (v.toDate() as DateTime).toLocal();
+  String _societyName(dynamic id) => (liveConfig['societies'] as List? ?? []).where((s) => s['id'] == id).firstOrNull?['name'] as String? ?? '$id';
+  String _window(int a, int b) => '$a–$b';
+
+  /// KYC as designed: Aadhaar, photo and bank follow the uploads; onboarding is done once submitted.
+  void _applySteps() {
+    final submitted = kycStatus == 'underReview' || kycStatus == 'approved' || liveCaptain['approved'] == true;
+    steps = {
+      if (kycUploaded.contains('aadhaar') || submitted) KycStep.aadhaar: KycState.done,
+      if (kycUploaded.contains('selfie') || submitted) KycStep.photo: KycState.done,
+      if ((kycUploaded.contains('bank') && upi.isNotEmpty) || submitted) KycStep.bank: KycState.done,
+      if (submitted) ...{KycStep.training: KycState.done, KycStep.quiz: KycState.done},
+      if (!submitted) ...{for (final e in steps.entries) if (e.key == KycStep.training || e.key == KycStep.quiz) e.key: e.value},
+    };
+    if (kycStatus == 'changesRequested') steps[KycStep.aadhaar] = KycState.problem;
+  }
+
+  WashType _wash(dynamic w) => switch (w) { 'dryDusting' => WashType.dryDusting, 'wetOutsideDryInside' => WashType.wetOutsideDryInside, _ => WashType.wetOutside };
+
+  Job _orderJob(Map<String, dynamic> o, JobStatus status) {
+    final start = _date(o['slotStart']) ?? DateTime.now(), end = _date(o['slotEnd']) ?? start;
+    final day = startOfDay(start).difference(startOfDay(DateTime.now())).inDays;
+    return Job(
+      id: o['id'] as String,
+      plate: Fmt.plate(o['plate'] as String? ?? ''),
+      type: o['vehicleName'] as String? ?? '',
+      isBike: o['vehicleKind'] == 'bike',
+      pay: (o['captainPayPaise'] as num? ?? 0).toInt() ~/ 100,
+      tower: o['tower'] as String? ?? '',
+      floor: o['floor'] as String? ?? '',
+      slot: o['parking'] as String? ?? '',
+      window: _window(start.hour, end.hour),
+      time: Fmt.time(start).replaceAll(RegExp(r' ?[AP]M'), ''),
+      distance: '—',
+      status: status,
+      reachBy: Fmt.time(start),
+      finishBy: Fmt.time(end),
+      owner: o['customerFirstName'] as String? ?? '',
+      society: o['societyName'] as String? ?? '',
+      wash: _wash(o['washKind']),
+      area: o['area'] as String? ?? '',
+      windows: [for (final w in o['windows'] as List? ?? []) _window((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())],
+      flexible: o['anyTime'] == true,
+      day: day < 0 ? 0 : day,
+      typedAddress: o['manualAddress'] == true,
+      pincode: o['pincode'] as String? ?? '',
+      cancelled: o['status'] == 'cancelled',
+    );
+  }
+
+  // Offers hide plate, tower and parking until accepted (P0: confirm with the design), so they show a dash.
+  Job _offerJob(Map<String, dynamic> o) => _orderJob({'plate': '—', 'tower': '—', 'floor': '—', ...o, 'id': o['orderId']}, JobStatus.next);
+
+  void _rebuildQueue() {
+    final orders = liveOrders.values.toList()..sort((a, b) => (_date(a['slotStart']) ?? DateTime.now()).compareTo(_date(b['slotStart']) ?? DateTime.now()));
+    final active = orders.where((o) => ['onTheWay', 'washing'].contains(o['status']) && !(_date(o['slotStart'])?.isAfter(DateTime.now()) ?? false)).firstOrNull;
+    queue = [
+      for (final o in orders)
+        _orderJob(
+          o,
+          ['photosReady', 'approved', 'disputed'].contains(o['status'])
+              ? JobStatus.done
+              : o['id'] == active?['id']
+              ? JobStatus.now
+              : JobStatus.next,
+        ),
+    ];
+    final cur = queue.where((j) => j.status == JobStatus.now).firstOrNull;
+    final o = cur == null ? null : liveOrders[cur.id];
+    final evidence = o?['evidence'] as Map? ?? {};
+    beforeDone = {for (var i = 0; i < 4; i++) if (evidence['before_$i'] != null) i};
+    afterDone = {for (var i = 0; i < 4; i++) if (evidence['after_$i'] != null) i};
+  }
+
+  void _applyEarnings() {
+    final today = startOfDay(DateTime.now());
+    final todays = liveEarnings.where((e) => (_date(e['createdAt']) ?? _date(e['updatedAt']) ?? DateTime(2000)).isAfter(today)).toList();
+    int sum(Iterable<Map<String, dynamic>> l) => l.fold(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt() ~/ 100);
+    earnedToday = sum(todays.where((e) => e['status'] != 'onHold'));
+    approvedToday = sum(todays.where((e) => e['status'] == 'approved'));
+    waitingToday = sum(todays.where((e) => e['status'] == 'awaitingApproval'));
+    jobsToday = todays.length;
+  }
+
+  /// This week's earnings (live), in rupees: (total, approved, waiting).
+  (int, int, int) get weekMoney {
+    final from = startOfDay(DateTime.now()).subtract(Duration(days: DateTime.now().weekday - 1));
+    final week = liveEarnings.where((e) => (_date(e['createdAt']) ?? _date(e['updatedAt']) ?? DateTime(2000)).isAfter(from));
+    int sum(Iterable<Map<String, dynamic>> l) => l.fold(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt() ~/ 100);
+    return (sum(week.where((e) => e['status'] != 'onHold')), sum(week.where((e) => e['status'] == 'approved')), sum(week.where((e) => e['status'] == 'awaitingApproval')));
+  }
+
+  /// Earnings the owner disputed (live), newest first.
+  List<Map<String, dynamic>> get heldEarnings => liveEarnings.where((e) => e['status'] == 'onHold').toList();
+
+  final Set<String> _deletedNotifs = {};
+  WNotif _liveNotif(String id, Map<String, dynamic> d) {
+    final o = liveOrders[d['orderId']];
+    final kind = switch (d['kind']) {
+      'approved' => WNotifKind.washApproved,
+      'cancelled' => WNotifKind.ownerCancelledEarly,
+      'disputed' => WNotifKind.problemReported,
+      _ => WNotifKind.newJob,
+    };
+    return WNotif(
+      id: id,
+      kind: kind,
+      date: _date(d['createdAt']) ?? DateTime.now(),
+      jobId: d['orderId'] as String?,
+      plate: Fmt.plate(o?['plate'] as String? ?? ''),
+      amount: (o?['captainPayPaise'] as num? ?? 0).toInt() ~/ 100,
+      read: !_unreadNotifs.contains(id) && (d['read'] == true || _readNotifs.contains(id)),
+    );
+  }
+
+  /// Societies to pick from: the live catalogue, or the sample list.
+  List<Society> get societyChoices => isLive
+      ? [for (final s in liveConfig['societies'] as List? ?? []) if (s['active'] == true) Society(s['name'] as String, s['area'] as String? ?? '', 0)]
+      : Society.all;
+
+  /// "You're at … now". Live has no location match yet (P0): the first approved society.
+  String get hereSociety => isLive ? (chosenSocieties.firstOrNull ?? societyChoices.firstOrNull?.name ?? '') : Society.current.name;
+
+  /// Live: photos taken on this phone for the current job, shown in the designed photo boxes.
+  final Map<String, Uint8List> shots = {};
+
+  /// Order data behind a job (evidence, arrival) or null in the sample app.
+  Map<String, dynamic>? liveOrder(String id) => liveOrders[id];
+  bool get currentArrived => liveOrders[current.id]?['arrivedAt'] != null;
+
+  Future<T> _call<T>(Future<T> Function() f) async {
+    try {
+      return await f();
+    } catch (e) {
+      set(() => toast = e is MediaAccessException ? e.message : backendError(e));
+      rethrow;
+    }
+  }
+
+  Future<void> liveRequestOtp(String number) => _call(() => live!.requestOtp(number));
+  Future<void> liveVerifyOtp(String code) => _call(() => live!.verifyOtp(code, role: 'captain', name: name.trim()));
+  Future<void> liveSetOnline(bool on) => _call(() => live!.call('setCaptainOnline', {'online': on}));
+  Future<void> liveClaim(String orderId) => _call(() => live!.call('claimJob', {'orderId': orderId}));
+  Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
+  Future<void> liveProgress(String action) => _call(() => live!.call('updateWashProgress', {'orderId': current.id, 'action': action}));
+  Future<void> liveEvidence({required bool after, required int side, required Uint8List bytes}) =>
+      _call(() => live!.uploadEvidence(orderId: current.id, after: after, side: side, bytes: bytes));
+  Future<void> liveUploadKyc(String kind, Uint8List bytes) async {
+    await _call(() => live!.uploadKyc(kind, bytes));
+    set(() {
+      kycUploaded = {...kycUploaded, kind};
+      _applySteps();
+    });
+  }
+
+  /// Rules accepted: send the application for review (societies from "Where I work", else all).
+  Future<void> liveSubmitApplication() {
+    final all = [for (final s in liveConfig['societies'] as List? ?? []) if (s['active'] == true) s];
+    final chosen = all.where((s) => chosenSocieties.contains(s['name'])).toList();
+    return _call(() => live!.call('submitCaptainApplication', {'societyIds': [for (final s in chosen.isEmpty ? all : chosen) s['id']], 'upi': upi.trim()}));
+  }
+
+  Future<void> liveSetWorkTimes(Set<WorkTime> times) {
+    final chosen = times.isEmpty ? WorkTime.values : times;
+    return _call(() => live!.call('setCaptainPreferences', {'workingWindows': [for (final w in chosen) {'startHour': w.hours.$1, 'endHour': w.hours.$2}]}));
+  }
+
+  Future<void> liveSignOut() async {
+    if (online) await live!.call('setCaptainOnline', {'online': false}).catchError((Object _) => <String, dynamic>{});
+    await live!.signOut();
+  }
+
+  @override
+  void dispose() {
+    _heartbeat?.cancel();
+    for (final s in [..._liveSubs, ..._accountSubs]) {
+      s.cancel();
+    }
+    super.dispose();
   }
 
   /// The captain reached the car in time: no penalty.

@@ -83,9 +83,22 @@ class CaptainHome extends StatefulWidget {
 class _CaptainHomeState extends State<CaptainHome> {
   Timer? _ring;
   String? _ringKey;
+  final Set<String> _rung = {};
 
   /// Demo: a job rings a few seconds after going online (and again each time Home is back on top).
   void _scheduleRing(bool want) {
+    // Live: the alert opens when the server sends this captain a job offer.
+    if (context.store.isLive) {
+      final store = context.store, router = context.router;
+      final fresh = store.liveOffers.where((j) => !_rung.contains(j.id)).toList();
+      if (!want || fresh.isEmpty) return;
+      _rung.addAll(fresh.map((j) => j.id));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || router.path.isNotEmpty || router.tab != 0) return;
+        router.push(const R(N.jobAlert));
+      });
+      return;
+    }
     final key = want ? 'on' : null;
     if (key == _ringKey) return;
     _ringKey = key;
@@ -112,6 +125,14 @@ class _CaptainHomeState extends State<CaptainHome> {
     if (on && !store.registered) {
       store.set(() => store.onlineAfterSignUp = true);
       context.router.push(const R(N.signUp));
+    } else if (store.isLive) {
+      // Only approved captains can go online on the server; others finish KYC first.
+      if (on && !store.signedUp) {
+        context.router.push(const R(N.steps));
+        return;
+      }
+      store.set(() => store.online = on);
+      store.liveSetOnline(on).catchError((Object _) => store.set(() => store.online = !on));
     } else {
       store.set(() => store.online = on);
     }
@@ -773,7 +794,7 @@ class _DayPlanState extends State<DayPlan> {
                 ],
               ),
             ),
-            if (planClockTest)
+            if (planClockTest && !store.isLive)
               // TEST ONLY: jump the plan clock ahead to see the timer states.
               Pressable(
                 onTap: () => store.set(() => store.planSkipSeconds += 5 * 60),
@@ -1163,6 +1184,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
 
   void _run() {
     final store = context.store, router = context.router;
+    if (store.isLive) return _runLive();
     // Only jobs that match "Where I work".
     final pool = offerPool.where(store.wantsJob).toList();
     if (pool.isEmpty) {
@@ -1212,6 +1234,46 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     });
   }
 
+  /// Live: the server's offers ring here; each card's timer is its real expiry.
+  _Offer _liveOffer(Job j) => _Offer(j, (context.store.offerExpiry[j.id] ?? DateTime.now().add(const Duration(seconds: _offerSeconds))).subtract(const Duration(seconds: _offerSeconds)));
+
+  void _runLive() {
+    final store = context.store, router = context.router;
+    if (store.liveOffers.isEmpty) {
+      handled = true;
+      router.pop();
+      return;
+    }
+    setState(() => offers.addAll(store.liveOffers.map(_liveOffer)));
+    _nudge();
+    _tick = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      if (handled || !mounted) return;
+      setState(() => now = DateTime.now());
+      // New offers slide in behind the top card.
+      final fresh = store.liveOffers.where((j) => !offers.any((o) => o.job.id == j.id)).toList();
+      if (fresh.isNotEmpty) {
+        setState(() {
+          offers.addAll(fresh.map(_liveOffer));
+          newPill = true;
+        });
+        _nudge();
+        _timers.add(Timer(const Duration(milliseconds: 1600), () => mounted ? setState(() => newPill = false) : null));
+      }
+      if (offers.where((o) => _isMissed(o) && _missedSeen.add(o.job.id)).isNotEmpty) Device.buzz();
+      final gone = offers.where((o) => now.difference(o.arrived).inSeconds >= _offerSeconds + _missedLinger).toList();
+      if (gone.isEmpty) return;
+      setState(() => offers.removeWhere(gone.contains));
+      if (offers.isEmpty) {
+        handled = true;
+        if (acceptedHere > 0) {
+          router.home();
+        } else {
+          router.replace(const [R(N.jobMissed)]);
+        }
+      }
+    });
+  }
+
   @override
   void dispose() {
     _tick?.cancel();
@@ -1232,6 +1294,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   void _reject() {
     if (handled || offers.isEmpty) return;
     if (offers.length == 1) {
+      if (context.store.isLive) context.store.liveReject(offers.first.job.id).catchError((Object _) {});
       _leave();
       return;
     }
@@ -1260,6 +1323,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     if (handled) return;
     handled = true;
     final store = context.store;
+    if (store.isLive) store.liveSetOnline(false).catchError((Object _) {});
     store.set(() {
       store.online = false;
       store.toast = store.t('You’re offline. No new jobs.', 'आप ऑफ़लाइन हैं। नए काम नहीं आएंगे।', 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. కొత్త పనులు రావు.');
@@ -1310,6 +1374,25 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
       handled = true;
       store.set(() => store.kycFromJob = true);
       router.replace(const [R(N.steps)]);
+      return;
+    }
+    if (store.isLive) {
+      // The server decides who gets it; the card leaves only once the claim succeeds.
+      store.liveClaim(top.job.id).then((_) {
+        if (!mounted) return;
+        Device.buzz();
+        setState(() {
+          offers.removeWhere((o) => o.job.id == top.job.id);
+          acceptedHere++;
+        });
+        if (offers.isEmpty) {
+          handled = true;
+          store.set(() => store.toast = store.t('Added to your jobs', 'आपके कामों में जोड़ा गया', 'మీ పనుల్లో చేర్చబడింది'));
+          Future.delayed(const Duration(milliseconds: 400), router.home);
+        }
+      }).catchError((Object _) {
+        if (mounted) setState(() => offers.removeWhere((o) => o.job.id == top.job.id));
+      });
       return;
     }
     store.acceptOffer(top.job);
@@ -1775,7 +1858,7 @@ class JobsTab extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top, WSpace.gutterCaptain, 20),
         children: [
           WTitle(store.t('Today’s jobs', 'आज के काम', 'ఈరోజు పనులు'), top: 22, bottom: 16),
-          if (!store.signedUp) ...[
+          if (!store.signedUp && !store.isLive) ...[
             GuestNotice(
               store.t(
                 'This is an example day. Your real jobs show here once you start.',
@@ -1914,7 +1997,21 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
             child: WButton(
               store.t('I’m at the vehicle', 'मैं गाड़ी के पास हूँ', 'నేను వాహనం దగ్గర ఉన్నాను'),
               size: ButtonSize.captain,
-              onTap: () {
+              onTap: () async {
+                if (store.isLive) {
+                  // Arrival is saved on the server; then the before photos.
+                  if (!store.currentArrived) {
+                    try {
+                      await store.liveProgress('arrived');
+                    } catch (_) {
+                      return;
+                    }
+                  }
+                  store.captainArrived();
+                  // Playing the owner's real voice note in this screen is P0; the face check comes next.
+                  router.go(N.faceCheck);
+                  return;
+                }
                 store.captainArrived();
                 store.resetJob();
                 store.set(() => store.ownerNoteHeard = false);
