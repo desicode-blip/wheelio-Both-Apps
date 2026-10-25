@@ -6,21 +6,30 @@ Pay-per-wash, photo-verified exterior wash for cars and bikes in Hyderabad gated
 
 ## Active Firebase web app
 
-The web-first release uses Firebase Authentication, Cloud Firestore and Firebase Hosting. The project is **`wheelio-apps`**, created under **`ajay@trustkeyper.com`**. The Flutter code remains shared for future iOS and Android builds.
+The active release uses Firebase Authentication, Cloud Firestore, Cloud Storage, Cloud Functions and Firebase Hosting. The project is **`wheelio-apps`**, under **`ajay@trustkeyper.com`**. Customer and Captain share Flutter code for web and iPhone; Android is not generated.
 
 Live: [website](https://wheelio-apps.web.app/) · [Customer](https://wheelio-apps.web.app/app/) · [Captain](https://wheelio-apps.web.app/captain/).
 
 - `/`: responsive prelaunch website (`apps/hosting/`).
-- `/app/`: Customer account, profile, wash requests, request history and cancellation.
-- `/captain/`: Captain account, profile and application.
+- `/app/`: Customer SMS login, profiles, persisted bookings, test payments/refunds, photo evidence, tracking, approval and rating.
+- `/captain/`: Captain applications, operator approval, atomic job assignment, foreground location, wash evidence, status updates and earnings.
 - Add `?demo=true` to either app URL for the original designed sample-data experience. It is explicitly labeled; no real bookings or payments happen there.
 
-This release collects service requests and Captain interest. Paid bookings, job allocation, KYC, photo storage, push notifications and payouts are still to be connected. The old Neon database has not been migrated. [Firebase setup, validation and release guide](docs/FIREBASE.md).
+Payments remain explicitly **test mode**. Live merchant credentials and a separate signed live webhook are configured; Razorpay website approval, commercial review, approved live-mode captains and device acceptance remain launch gates. Application approval, dispute decisions and payout transfers remain human operations. Native camera/media, OTP and Razorpay integration are included; Apple signing/APNs and physical iPhone checks remain for the Mac. The old Neon database has not been migrated. See [Firebase bookings](docs/FIREBASE-BOOKINGS.md) and [live launch status](docs/LIVE-LAUNCH.md).
+
+**Building on the Mac:** follow [MAC-HANDOFF.md](docs/MAC-HANDOFF.md). Use the Flutter workspaces in `apps/flutter/customer/ios/` and `apps/flutter/captain/ios/`; the older SwiftUI project is a sample-data reference.
+
+```sh
+bash apps/flutter/tool/run-ios.sh --prepare
+# Configure signing in both Flutter Runner.xcworkspace files, then connect iPhone:
+bash apps/flutter/tool/run-ios.sh
+```
 
 ```sh
 # Install Flutter and Firebase CLI first. Copy firebase.example.json to firebase.local.json.
 node apps/flutter/tool/build-firebase.mjs
-firebase deploy --only hosting,firestore,auth --project wheelio-apps --account ajay@trustkeyper.com
+firebase deploy --only functions,firestore,storage,hosting --project wheelio-apps --account ajay@trustkeyper.com
+node backend/firebase/operations.cjs configure-api-access
 ```
 
 The Next.js/Cloudflare/Neon instructions below describe the retained earlier implementation. `pnpm deploy` now deploys Firebase Hosting and Firestore; `pnpm deploy:cloudflare:legacy` retains the old deployment command.

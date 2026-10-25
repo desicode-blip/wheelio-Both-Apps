@@ -1,6 +1,8 @@
 # WashKrew Customer (Flutter)
 
-The Customer app, ported screen by screen from `apps/ios/Customer`. Web is the first target; iOS and Android come later from the same code.
+The active Customer app for Firebase web and iPhone, ported from `apps/ios/Customer`. Use this Flutter project for the connected iPhone release. The SwiftUI project remains a sample-data reference; Android is not generated.
+
+For iPhone preparation, signing, Release installation and final checks, follow [MAC-HANDOFF.md](../../../docs/MAC-HANDOFF.md).
 
 ```sh
 flutter build web --release --pwa-strategy=none

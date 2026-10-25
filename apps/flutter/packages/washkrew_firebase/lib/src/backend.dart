@@ -5,34 +5,28 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-import 'ios_options.dart';
+import 'build_options.dart';
 
 /// No service-account keys belong in an app. These are Firebase public app IDs.
 class WashKrewFirebase {
   static Future<void> initialize({required bool captain}) async {
     const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
-    final nativeIos = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
-    if (projectId.isEmpty && !nativeIos) {
-      throw StateError('Firebase has not been configured for this build.');
-    }
-    await Firebase.initializeApp(
-      options: nativeIos
-          ? iosOptions(captain: captain)
-          : const FirebaseOptions(
-              apiKey: String.fromEnvironment('FIREBASE_API_KEY'),
-              appId: String.fromEnvironment('FIREBASE_APP_ID'),
-              messagingSenderId: String.fromEnvironment(
-                'FIREBASE_MESSAGING_SENDER_ID',
-              ),
-              projectId: projectId,
-              authDomain: String.fromEnvironment('FIREBASE_AUTH_DOMAIN'),
-              storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
-            ),
-    );
     const emulator = bool.fromEnvironment('FIREBASE_USE_EMULATORS');
+    final options = buildOptions(
+      nativeIos: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+      captain: captain,
+      emulator: emulator,
+      projectId: projectId,
+      apiKey: const String.fromEnvironment('FIREBASE_API_KEY'),
+      appId: const String.fromEnvironment('FIREBASE_APP_ID'),
+      messagingSenderId: const String.fromEnvironment(
+        'FIREBASE_MESSAGING_SENDER_ID',
+      ),
+      authDomain: const String.fromEnvironment('FIREBASE_AUTH_DOMAIN'),
+      storageBucket: const String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
+    );
+    await Firebase.initializeApp(options: options);
     if (emulator) {
-      if (!projectId.startsWith('demo-'))
-        throw StateError('Emulator builds require a demo Firebase project.');
       const host = String.fromEnvironment(
         'FIREBASE_EMULATOR_HOST',
         defaultValue: '127.0.0.1',

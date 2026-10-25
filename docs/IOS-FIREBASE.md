@@ -6,13 +6,19 @@ The 25 October staging merge includes the WashKrew name, logo and palette. Share
 
 ## Build on the Mac
 
-After pulling `staging`, from the repository root:
+Use [MAC-HANDOFF.md](MAC-HANDOFF.md) for Mac setup, signing and the final device checklist. After getting the current `staging` source, prepare the Flutter workspaces first:
+
+```sh
+bash apps/flutter/tool/run-ios.sh --prepare
+```
+
+Then, with signing configured and the iPhone connected, from the repository root:
 
 ```sh
 bash apps/flutter/tool/run-ios.sh
 ```
 
-This builds and installs Customer and Captain on a connected, unlocked iPhone. Flutter runs CocoaPods installation for the new plugins; commit the resulting `Podfile.lock` updates after a successful Mac build. The existing lockfiles came from the previous Mac build and do not yet include the new native plugins. Do not use `pod install --deployment` until they have been refreshed.
+This builds and installs Customer and Captain on a connected, unlocked iPhone. The tools check Xcode/iOS SDK/CocoaPods, regenerate Flutter's local files (including copied Windows paths), enforce the Dart locks, refresh CocoaPods specs and verify every native plugin is installed. They use Flutter's bundled Dart, with no Node dependency. Multiple connected phones require `--device ID`; unknown arguments fail instead of silently changing the build. `--no-codesign` compiles without signing/installing, and `--build-number N` supports later releases. Commit the resulting `Podfile.lock` updates after a successful Mac build. The existing lockfiles came from the previous Mac build and do not yet include the new native plugins. Do not use `pod install --deployment` until they have been refreshed.
 
 For hot reload, use `bash apps/flutter/tool/live.sh customer` or `captain`. For an explicitly labelled sample app only, pass `customer --demo` or `captain --demo`. Normal builds never use sample OTPs or lifecycle timers. Scripts validate the app name and use LF line endings.
 

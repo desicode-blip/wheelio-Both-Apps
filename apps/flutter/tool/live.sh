@@ -1,25 +1,9 @@
 #!/bin/bash
-# Live mode: run one app on the connected iPhone with hot reload.
-#
-#   apps/flutter/tool/live.sh customer     (or: captain)
-#
-# Then press  r  in this window to show the latest code changes on the phone
-# within a second,  R  to restart the app, and  q  to stop.
-# A live-mode (debug) app only opens while this window is running. Afterwards,
-# install a normal build with tool/run-ios.sh or Xcode's Run.
+# Hot reload on a physical iPhone; normal Firebase mode unless --demo is explicit.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-export PATH="$HOME/development/flutter/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
-APP="${1:-customer}"
-[[ "$APP" == customer || "$APP" == captain ]] || { echo "Choose customer or captain"; exit 1; }
-DEMO_DEFINE=()
-[[ "${2:-}" == "--demo" ]] && DEMO_DEFINE=(--dart-define=WHEELIO_DEMO=true)
-DEVICE="$(flutter devices --machine 2>/dev/null | node -e '
-let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
-  const d = JSON.parse(s).find(x => x.targetPlatform === "ios" && !x.emulator);
-  if (!d) { console.error("No iPhone found. Plug it in, unlock it and trust this Mac."); process.exit(1); }
-  console.log(d.id);
-});')"
-cd "$ROOT/apps/flutter/$APP"
-echo "=== $APP: starting live mode on your iPhone (first start takes a few minutes) ==="
-exec flutter run -d "$DEVICE" "${DEMO_DEFINE[@]}"
+TOOL_DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$PATH:$HOME/development/flutter/bin:/opt/homebrew/bin:/usr/local/bin"
+FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
+FLUTTER_PATH="$(command -v "$FLUTTER_BIN")" || { echo "Install Flutter 3.38.6 or set FLUTTER_BIN to its executable." >&2; exit 1; }
+export FLUTTER_BIN="$FLUTTER_PATH"
+exec "$(dirname "$FLUTTER_PATH")/dart" "$TOOL_DIR/ios.dart" run "$@"
