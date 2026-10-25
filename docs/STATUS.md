@@ -1,5 +1,13 @@
 # WashKrew build status
 
+## 25 Oct 2026: current Firebase payment and launch status
+
+The active Flutter Customer and Captain source includes native phone OTP, camera/library capture, private media, persisted prepaid bookings, assignment, wash evidence/tracking, customer approval, refunds, wallets, earnings and private notifications. All four Flutter analyses, 57 backend/rules/payment/notification tests, 8 Customer tests, 5 shared native-login/checkout tests and both release web builds passed during the staging integration. The source is on `staging`; the WashKrew-branded web build has been published.
+
+Merchant OTP verification is complete. WashKrew's website is under Razorpay review (24–48 hours shown). Its separate live webhook is enabled, and a matching live key pair recovered from an owner-provided private document has been authenticated and installed in Firebase. Test credentials are archived separately; booking mode remains **test**. No live charge, API-key regeneration or Trustkeyper configuration change was performed. This is technical payment integration, not a claim that real-money operations have launched.
+
+The confirmed remaining launch gates are merchant website approval, owner-reviewed live commercial settings, actual approved live-mode captains (currently zero), and physical iPhone/Apple push acceptance on the owner's Mac. No Android platform was generated. See [LIVE-LAUNCH.md](LIVE-LAUNCH.md), [IOS-FIREBASE.md](IOS-FIREBASE.md) and [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md). Entries below are historical.
+
 ## 20 Oct 2026: Firebase web foundation
 
 - Cloned GitHub branch `dev` into `D:\WashKrew`. The owner selected Firebase project `wheelio-apps` under `ajay@trustkeyper.com`.
