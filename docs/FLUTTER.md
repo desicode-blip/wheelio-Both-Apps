@@ -2,6 +2,16 @@
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
 
+## 25 October 2026: renamed to WashKrew, new logo
+
+- Product and company renamed from Wheelio to **WashKrew** (website washkrew.com, tagline "Vehicle cleaning, on demand"). `Brand.name`, `Brand.captainApp`, `Brand.tagline`, `Brand.website` in `wheelio_ui/lib/src/tokens.dart` carry it; every user-facing literal now uses them (portal, live screens, Razorpay checkout name, error messages, loading text).
+- New `WLogo` widget (`wheelio_ui/lib/src/brand.dart`): `lockup` (hero, with tagline), `wordmark` (no tagline), `mark` (door only), each with an `onDark` version. PNGs at 1x/2x/3x in `wheelio_ui/lib/brand/`, rendered from the SVG masters in `/brand`.
+- Replaced the old blue-square ring mark: Customer `BrandMark` (home header, business-chat avatar), Customer splash (now white with the hero logo, matching the iPhone launch screen), Captain language screen, Captain live header (was the text "wheelio."), prelaunch portal logo.
+- App icons: Customer = door mark on white; Captain = white door mark on charcoal #22282D. iPhone launch image = hero logo, 240 pt wide. Web: favicon.png + new favicon.svg, PWA icons, titles, manifest names; captain description no longer says "washers".
+- iOS display names: "WashKrew" and "WashKrew Captain" (the home screen may shorten the second).
+- Not renamed on purpose: package names (`wheelio_ui`, `wheelio_firebase`, `wheelio_customer`, `wheelio_captain`), Dart class names (`WheelioRuntime`...), `WHEELIO_DEMO`, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, repo and folder names. Changing those needs new App Store Connect and Firebase registrations.
+- The SwiftUI reference (`apps/ios/`), `apps/web` and `apps/hosting` still show Wheelio; they are not the launch target.
+
 ## 24 October 2026: Captain app follows the new customer features
 
 - **Owner cancels:** the job stays in Today's plan, struck through, with "Cancelled by owner" (or "Cancelled · trip paid" if the captain had set off, who then gets the trip fee). The next job becomes current. Notification is short; no explanation of customer credits. (`CaptainStore.ownerCancels`, `_cancelledCard`)

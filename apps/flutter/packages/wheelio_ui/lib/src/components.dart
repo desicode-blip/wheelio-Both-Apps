@@ -1,4 +1,4 @@
-// Wheelio components, ported from apps/ios/Shared/DesignSystem (Buttons, Inputs, Layout, Display).
+// WashKrew components, ported from apps/ios/Shared/DesignSystem (Buttons, Inputs, Layout, Display).
 // One primary action per screen. Green only to pay, approve or accept. Red only for errors and
 // destructive actions. Colour is never the only signal: always pair a tone with an icon and a word.
 
@@ -547,7 +547,7 @@ class WBottomNav extends StatelessWidget {
 
 // MARK: - Sheets, alerts, menus
 
-/// Present a Wheelio bottom sheet with a grab handle. The sheet grows to fit its content
+/// Present a WashKrew bottom sheet with a grab handle. The sheet grows to fit its content
 /// (never cutting it off), up to 90% of the screen; taller content scrolls.
 /// [height] is kept for older call sites and is only the minimum height.
 Future<T?> showWSheet<T>(BuildContext context, {required double height, required WidgetBuilder builder, double gutter = WSpace.gutter}) {

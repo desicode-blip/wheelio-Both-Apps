@@ -54,32 +54,7 @@ class LanguageScreen extends StatelessWidget {
       ),
       children: [
         const SizedBox(height: 24),
-        Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(8)),
-              alignment: Alignment.center,
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: WColor.white, width: 3),
-                ),
-                alignment: Alignment.center,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const WText(Brand.name, WType.screen, size: 25),
-          ],
-        ),
+        const Align(alignment: Alignment.centerLeft, child: WLogo(height: 48)),
         const SizedBox(height: 26),
         const Align(
           alignment: Alignment.centerLeft,

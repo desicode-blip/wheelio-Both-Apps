@@ -228,7 +228,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
                 }),
                 icon: const Icon(Icons.arrow_back),
               ),
-            const WText('wheelio.', WType.section),
+            const WLogo(height: 36),
             const Spacer(),
             const WBadge('Captain', icon: WIcon.user),
           ],
@@ -285,7 +285,7 @@ class _FirebaseCaptainScreenState extends State<FirebaseCaptainScreen> {
 
   List<Widget> login() => [
     WTitleBlock(
-      otpSent ? 'Enter the SMS code' : 'Earn with Wheelio',
+      otpSent ? 'Enter the SMS code' : 'Earn with ${Brand.name}',
       subtitle: otpSent
           ? 'Code sent to +91 $phone'
           : 'Doorstep exterior washes in Hyderabad societies.',

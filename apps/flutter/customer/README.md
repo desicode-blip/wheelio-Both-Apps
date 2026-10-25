@@ -1,4 +1,4 @@
-# Wheelio Customer (Flutter)
+# WashKrew Customer (Flutter)
 
 The Customer app, ported screen by screen from `apps/ios/Customer`. Web is the first target; iOS and Android come later from the same code.
 

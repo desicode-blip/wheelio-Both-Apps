@@ -1,12 +1,15 @@
-// Wheelio design system tokens, ported from apps/ios/Shared/DesignSystem/Tokens.swift.
+// WashKrew design system tokens, ported from apps/ios/Shared/DesignSystem/Tokens.swift.
 // Both apps (Customer and Captain) share this file.
 
 import 'package:flutter/widgets.dart';
 
 class Brand {
-  /// "Wheelio" is a working name: change it here only.
-  static const name = 'Wheelio';
-  static const tagline = 'Clean wheels, zero hassle';
+  /// Product name. Renamed from Wheelio on 25 Oct 2026. Change it here only.
+  static const name = 'WashKrew';
+  static const captainApp = 'WashKrew Captain';
+  static const tagline = 'Vehicle cleaning, on demand';
+  static const website = 'washkrew.com';
+  static const websiteUrl = 'https://washkrew.com';
 }
 
 class WColor {

@@ -431,7 +431,7 @@ class AppStore extends ChangeNotifier {
             ];
             liveWindows = [for (final w in config['slotWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())];
             backendReady = types.isNotEmpty;
-            backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen Wheelio.';
+            backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen ${Brand.name}.';
             changed();
           },
           onError: (Object e) {

@@ -63,7 +63,7 @@ String backendError(Object error) {
       'too-many-requests' => 'Too many attempts. Please wait and try again.',
       'network-request-failed' => 'Check your connection and try again.',
       'operation-not-allowed' =>
-        'This sign-in method is not enabled yet. Please try email sign-in or contact the Wheelio team.',
+        'This sign-in method is not enabled yet. Please try email sign-in or contact the WashKrew team.',
       'invalid-verification-code' =>
         'That code does not match. Check the SMS and try again.',
       'session-expired' => 'The code expired. Request a new code.',
@@ -76,7 +76,7 @@ String backendError(Object error) {
     return switch (error.code) {
       'permission-denied' => 'This action is not allowed for your account.',
       'unavailable' =>
-        'We could not reach Wheelio. Check your connection and try again.',
+        'We could not reach WashKrew. Check your connection and try again.',
       _ => 'Your changes could not be saved. Please try again.',
     };
   }

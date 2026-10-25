@@ -1,8 +1,10 @@
-# Wheelio
+# WashKrew
 
 > **21–22 October 2026: active web release uses Firebase.** Project `wheelio-apps` belongs to `ajay@trustkeyper.com`, with Trustkeyper billing. Flutter Customer and Captain controllers use phone OTP, server-priced bookings, Razorpay verification/refunds, protected uploads, real offers/assignment and wash tracking. Payment credentials and commercial settings remain explicitly **test mode**. Real Customer SMS delivery, OTP verification and account completion are confirmed; test-payment booking, assignment, wash review/earnings, disputes and refunds are accepted in `docs/WEB-ACCEPTANCE.md`. Hosting and refund recovery Functions were deployed on 22 October; 39 backend/rules/payment-adapter tests and 4 Customer tests passed. Both actual test refunds are processed. The latest netbanking refund recovered in full after a virtual test balance payment; safe retry/backoff, existing-refund recovery and Customer refund checks are deployed. Wheelio's separate test webhook preserves Trustkeyper's endpoint and ignores unrelated merchant payments. Physical GPS acceptance and live merchant cutover remain pending. Aman is completing merchant onboarding; the owner will provide live credentials afterward. KYC decisions, disputes and bank payouts require operators. See `docs/FIREBASE-BOOKINGS.md` and the Firebase section in `AGENTS.md` for deployment, including the required post-deploy HTTP gateway step. The Next.js/Neon/Cloudflare sections below are historical. Sample apps require `?demo=true` and remain isolated.
 
-Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
+Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
+
+**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/wheelio_ui/lib/src/brand.dart`) is the only way to show the logo. Technical identifiers still say wheelio (package names, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, repo and folder names) and are left alone on purpose: renaming them needs new App Store and Firebase setup.
 
 ## Current layout (15 October 2026)
 

@@ -49,7 +49,7 @@ Future<Map<String, dynamic>?> openCheckout(
           'order_id': options['orderId'],
           'amount': options['amount'],
           'currency': 'INR',
-          'name': 'Wheelio',
+          'name': 'WashKrew',
           'description': 'Doorstep exterior wash',
           'handler': handler,
           'prefill': {'contact': phone},

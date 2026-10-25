@@ -1,5 +1,5 @@
 name: wheelio_ui
-description: "Wheelio design system and app shell shared by the Customer and Captain apps."
+description: "WashKrew design system and app shell shared by the Customer and Captain apps."
 version: 0.1.0
 publish_to: none
 
@@ -21,6 +21,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # WashKrew logo PNGs (1x, 2.0x, 3.0x), rendered from the SVG masters in /brand.
+  assets:
+    - lib/brand/
   # Roboto ships with the apps (same files as apps/ios/Shared/Fonts), so text looks
   # the same everywhere and never waits for a download.
   fonts:

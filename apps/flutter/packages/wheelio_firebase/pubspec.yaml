@@ -1,5 +1,5 @@
 name: wheelio_firebase
-description: Shared Firebase backend and prelaunch web experience for Wheelio.
+description: Shared Firebase backend and prelaunch web experience for WashKrew.
 version: 0.1.0
 publish_to: none
 environment:

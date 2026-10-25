@@ -11,7 +11,8 @@ import '../data/store.dart';
 
 void callSupport() => Support.call();
 
-/// Brand mark: blue rounded square with the ring, plus the name token.
+/// WashKrew logo. [size] is the old mark size; the logo scales from it.
+/// showName: false gives the door mark alone. light: true is for dark backgrounds.
 class BrandMark extends StatelessWidget {
   const BrandMark({super.key, this.size = 34, this.light = false, this.showName = true});
   final double size;
@@ -19,38 +20,9 @@ class BrandMark extends StatelessWidget {
   final bool showName;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: light ? Colors.transparent : WColor.primary, borderRadius: BorderRadius.circular(size * 0.24)),
-        alignment: Alignment.center,
-        child: Container(
-          width: size * 0.56,
-          height: size * 0.56,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: WColor.white, width: size * 0.1),
-          ),
-          alignment: Alignment.center,
-          child: Container(
-            width: size * 0.2,
-            height: size * 0.2,
-            decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
-          ),
-        ),
-      ),
-      if (showName) ...[
-        SizedBox(width: size * 0.3),
-        Text(
-          Brand.name,
-          style: wStyle(WType.screen, weight: bold, size: size * (light ? 1.2 : 0.8), color: light ? WColor.white : WColor.heading),
-        ),
-      ],
-    ],
-  );
+  Widget build(BuildContext context) => showName
+      ? WLogo(height: size * 1.4, onDark: light)
+      : WLogo(kind: WLogoKind.mark, height: size, onDark: light);
 }
 
 /// Total steps shown in BookingHeader ("Step 1 of 2").

@@ -1,6 +1,7 @@
-/// Wheelio design system and app shell shared by the Customer and Captain apps.
+/// WashKrew design system (package name kept as wheelio_ui) and app shell shared by the Customer and Captain apps.
 library;
 
+export 'src/brand.dart';
 export 'src/components.dart';
 export 'src/device.dart';
 export 'src/fmt.dart';

@@ -1,4 +1,4 @@
-// Wheelio Customer app. One Flutter codebase: web first, then iOS, then Android.
+// WashKrew Customer app. One Flutter codebase: web first, then iOS, then Android.
 // Ported from apps/ios/Customer. See docs/FLUTTER.md.
 
 import 'package:flutter/material.dart';
@@ -84,7 +84,7 @@ class _Root extends StatelessWidget {
     if (store.isLive && !store.backendReady) {
       return WScreen(
         children: [
-          const WTitleBlock('Loading Wheelio…'),
+          const WTitleBlock('Loading ${Brand.name}…'),
           if (store.backendMessage != null) WText(store.backendMessage!, WType.body) else const Center(child: CircularProgressIndicator()),
           if (store.backendMessage != null) ...[
             const Gap(20),WButton('Retry',onTap:() {store.live!.refreshCatalog().catchError((Object e) {store.set(()=>store.backendMessage=backendError(e));});}),

@@ -76,7 +76,7 @@ class _PortalApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
-    title: captain ? 'Wheelio Captain' : 'Wheelio',
+    title: captain ? Brand.captainApp : Brand.name,
     theme: ThemeData(
       fontFamily: wFont,
       useMaterial3: true,
@@ -295,8 +295,8 @@ class _AuthPageState extends State<_AuthPage> {
           const SizedBox(height: 16),
           Text(
             widget.captain
-                ? 'Join the Wheelio Captain list in Hyderabad.'
-                : 'Join Wheelio and request a wash in your society.',
+                ? 'Join the ${Brand.captainApp} list in Hyderabad.'
+                : 'Join ${Brand.name} and book a wash in your society.',
             style: const TextStyle(
               fontSize: 16,
               height: 1.5,
@@ -443,7 +443,7 @@ class _AuthPageState extends State<_AuthPage> {
                     child: Text(
                       register
                           ? 'Already have an account? Log in'
-                          : 'New to Wheelio? Create an account',
+                          : 'New to ${Brand.name}? Create an account',
                     ),
                   ),
                 if (!sms && !register)
@@ -498,22 +498,7 @@ class _AuthPageState extends State<_AuthPage> {
 class _BrandLogo extends StatelessWidget {
   const _BrandLogo();
   @override
-  Widget build(BuildContext context) => const Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Icon(Icons.local_car_wash_rounded, color: WColor.primary, size: 32),
-      SizedBox(width: 8),
-      Text(
-        'wheelio',
-        style: TextStyle(
-          fontSize: 30,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -1,
-          color: WColor.heading,
-        ),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) => const WLogo(kind: WLogoKind.lockup, height: 72);
 }
 
 class _Notice extends StatelessWidget {
@@ -554,7 +539,7 @@ class _DashboardState extends State<_Dashboard> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: Text(widget.captain ? 'Wheelio Captain' : 'Wheelio'),
+      title: Text(widget.captain ? Brand.captainApp : Brand.name),
       backgroundColor: WColor.canvas,
     ),
     body: switch (tab) {
@@ -1011,7 +996,7 @@ class _CaptainApplicationState extends State<_CaptainApplication> {
           const SizedBox(height: 12),
           _Notice(
             data == null
-                ? 'Register your interest in joining Wheelio. We’ll review applications before service starts. No jobs or payouts are live yet.'
+                ? 'Register your interest in joining ${Brand.name}. We’ll review applications before service starts. No jobs or payouts are live yet.'
                 : 'Application received. Your details are saved. Onboarding and identity verification will open before you can accept jobs.',
           ),
           const SizedBox(height: 24),
@@ -1181,7 +1166,7 @@ class _AccountPageState extends State<_AccountPage> {
           ),
           const SizedBox(height: 24),
           const _Notice(
-            'Wheelio is preparing to launch. Your requests and application are private to your account. Payments, captain matching and live wash tracking are not active yet.',
+            '${Brand.name} is preparing to launch. Your requests and application are private to your account. Payments, captain matching and live wash tracking are not active yet.',
           ),
           const SizedBox(height: 24),
           OutlinedButton(

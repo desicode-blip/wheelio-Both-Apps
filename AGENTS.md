@@ -1,6 +1,8 @@
-# Wheelio
+# WashKrew
 
-Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies. "Wheelio" is a working name.
+Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
+
+**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/wheelio_ui/lib/src/brand.dart`) is the only way to show the logo. Technical identifiers still say wheelio (package names, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, repo and folder names) and are left alone on purpose: renaming them needs new App Store and Firebase setup.
 
 ## Firebase web release (21 October 2026)
 

@@ -347,7 +347,7 @@ class FirebaseAccountHelp extends StatelessWidget {
   Widget build(BuildContext context) => WScreen(
     header: WAppBar(onLeading: context.router.pop),
     children: [
-      const WTitleBlock('Your Wheelio account'),
+      const WTitleBlock('Your ${Brand.name} account'),
       WText(context.store.customer?.name ?? '', WType.title),
       WText(
         context.store.customer?.phone ??

@@ -1,4 +1,4 @@
-// Wheelio Captain (washer) app. One Flutter codebase: web first, then iOS, then Android.
+// WashKrew Captain app. One Flutter codebase: web first, then iOS, then Android.
 // Ported from apps/ios/Captain. See docs/FLUTTER.md.
 
 import 'package:flutter/material.dart';
@@ -59,7 +59,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
     store: store,
     router: router,
     child: MaterialApp(
-      title: '${Brand.name} Captain',
+      title: Brand.captainApp,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: wFont,
