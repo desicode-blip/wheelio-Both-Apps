@@ -54,7 +54,7 @@
 
 ### Done
 
-- **Design system** (`legacy/packages/washkrew_ui`): every token from the design read-me (colours, type scale, spacing, radius, control sizes) and the shared components, including buttons, header and progress, footer bar, bottom nav, fields, chips, OTP boxes, tabs, tiles, badges, banners, full-screen states, photo slots, list rows, status steps, sheets, dialogs and snackbars.
+- **Design system** (`legacy/packages/wheelio_ui`): every token from the design read-me (colours, type scale, spacing, radius, control sizes) and the shared components, including buttons, header and progress, footer bar, bottom nav, fields, chips, OTP boxes, tabs, tiles, badges, banners, full-screen states, photo slots, list rows, status steps, sheets, dialogs and snackbars.
 - **Customer app** (`legacy/apps/customer`): all 72 customer screens and states from the designs (C01–C55, CA1–CA4):
   - Booking flow: vehicle → plate → photos → place → floor → notes → time → login → pay → booked.
   - Live order: searching → on the way → washing → check photos → approve → rate.

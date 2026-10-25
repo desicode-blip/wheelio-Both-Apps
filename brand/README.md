@@ -1,6 +1,6 @@
 # WashKrew brand assets
 
-Supplied by Aman on 25 October 2026. WashKrew is retired; the product and company are **WashKrew** (company written WASHKREW). Website: washkrew.com. Tagline: "Vehicle cleaning, on demand".
+Supplied by Aman on 25 October 2026. Wheelio is retired; the product and company are **WashKrew** (company written WASHKREW). Website: washkrew.com. Tagline: "Vehicle cleaning, on demand".
 
 ## Which file to use
 

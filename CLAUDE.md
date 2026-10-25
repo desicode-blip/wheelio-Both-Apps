@@ -4,7 +4,7 @@
 
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
 
-**Name: WashKrew** (renamed from WashKrew on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Technical identifiers still say wheelio (package names, bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, repo and folder names) and are left alone on purpose: renaming them needs new App Store and Firebase setup.
+**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Flutter package and code names were renamed too (`washkrew_ui`, `washkrew_firebase`, `washkrew_customer`, `washkrew_captain`, `WashKrewRuntime`). A few technical identifiers still say wheelio on purpose: bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, the SwiftUI project file `Wheelio.xcodeproj`, and the repo and folder names. Renaming those needs new App Store and Firebase setup.
 
 ## Current layout (15 October 2026)
 
@@ -15,7 +15,7 @@ Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated s
 - `backend/supabase/` — preserved migrations, seed data and edge functions. The application schema is ported to Neon/Drizzle under `apps/web/drizzle/` and verified locally and applied to live Neon, and existing data/edge functions have not been transferred. `backend/NEON-DATABASE.md` records the active migration and identity rules. `backend/API-CONTRACT.md` describes the original service contract.
 - `designs/` — screen design exports. `Main.dc.html` is the design read-me; `wheelio-screens.json` is the navigation map.
 - `docs/` — status, integration checklist, build brief and screen index.
-- `legacy/` — an older, unfinished Flutter customer app from before the iOS apps, preserved for reference. It contains `apps/customer`, `packages/washkrew_ui` and `tool/bootstrap_customer.sh`. It is not used by `apps/flutter/`.
+- `legacy/` — an older, unfinished Flutter customer app from before the iOS apps, preserved for reference. It contains `apps/customer`, `packages/wheelio_ui` and `tool/bootstrap_customer.sh`. It is not used by `apps/flutter/`.
 
 ## Commands
 
