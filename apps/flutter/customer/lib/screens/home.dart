@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
@@ -308,7 +309,6 @@ class _HomeTabState extends State<HomeTab> {
                               StatusBadge(a.status, slotAhead: a.slotAhead),
                             ],
                           ),
-                          if (a.testPayment) const Padding(padding: EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee))),
                           const SizedBox(height: 12),
                           Row(
                             children: [
@@ -471,7 +471,6 @@ class _BookingsTabState extends State<BookingsTab> {
                                   StatusBadge(o.status, slotAhead: o.slotAhead),
                                 ],
                               ),
-                              if (o.testPayment) const Padding(padding: EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee))),
                               const SizedBox(height: 12),
                               Row(
                                 children: [
@@ -529,7 +528,6 @@ class BookingDetailScreen extends StatelessWidget {
       ),
       children: [
         const SizedBox(height: 14),
-        if (o.testPayment) const Padding(padding: EdgeInsets.only(bottom: 8), child: WBadge('Test booking', tone: Tone.wait, icon: WIcon.rupee)),
         Row(
           children: [
             StatusBadge(o.status),
@@ -543,7 +541,8 @@ class BookingDetailScreen extends StatelessWidget {
               for (var i = 0; i < 4; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
                 Expanded(
-                  child: WPhotoPlaceholder(
+                  child: DesignPhoto(
+                    path: o.evidence(i.isEven ? 'before' : 'after', i ~/ 2),
                     height: 70,
                     icon: i.isEven ? WIcon.car : WIcon.sparkle,
                     tag: i.isEven ? 'Before' : 'After',
@@ -604,7 +603,7 @@ class RepeatScreen extends StatelessWidget {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          store.isLive ? 'Continue' : 'Take photos',
+          'Take photos',
           onTap: () {
             store.startRepeat(v, place: place, wash: from?.wash);
             store.set(() => store.draft.note = lastNote.copy());
@@ -642,12 +641,10 @@ class RepeatScreen extends StatelessWidget {
             ('Notes', lastNote.summary),
           ],
         ),
-        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: WText(store.isLive ? 'For this wash' : 'Still needed for this wash', WType.label)),
-        WListRow(icon: WIcon.camera, title: store.isLive ? 'Optional vehicle photos' : '4 fresh photos', subtitle: store.isLive ? 'Your captain takes the official before and after photos' : 'Every wash starts with new photos'),
-        if (!store.isLive) ...[
-          const WDivider(),
-          const WListRow(icon: WIcon.door, title: 'Gate pass', subtitle: 'We’ll ask on WhatsApp after you pay', trailing: 'Later', chevron: false),
-        ],
+        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: const WText('Still needed for this wash', WType.label)),
+        const WListRow(icon: WIcon.camera, title: '4 fresh photos', subtitle: 'Every wash starts with new photos'),
+        const WDivider(),
+        const WListRow(icon: WIcon.door, title: 'Gate pass', subtitle: 'We’ll ask on WhatsApp after you pay', trailing: 'Later', chevron: false),
       ],
     );
   }
@@ -752,27 +749,6 @@ class _ProfileTabState extends State<ProfileTab> {
     final store = context.store, router = context.router;
     final c = store.customer;
     Widget group(List<Widget> rows) => WCard(padding: 14, radius: 16, child: Column(children: rows));
-    if (store.isLive) {
-      return TabScroll(
-        children: [
-          const WTitleBlock('Your profile'),
-          if (c == null) ...[
-            const WText('Verify your mobile number to book and track washes.', WType.body),
-            const Gap(20),
-            WButton('Log in', onTap: () => router.go(N.login)),
-          ] else ...[
-            WText(c.name, WType.section),
-            WText('+91 ${c.phone}', WType.body),
-            const Gap(20),
-            WButton('Edit name', kind: ButtonKind.outline, onTap: () => _editName(store)),
-            const Gap(12),
-            WButton('Account help', kind: ButtonKind.outline, onTap: () => router.go(N.help)),
-            const Gap(12),
-            WButton('Sign out', kind: ButtonKind.outline, onTap: store.signOut),
-          ],
-        ],
-      );
-    }
     return Stack(
       children: [
         TabScroll(
@@ -820,7 +796,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   WListRow(icon: WIcon.rupee, title: 'Refund UPI ID', subtitle: c.refundUPI, onTap: () => router.push(const R(N.refundUPI))),
                   const WDivider(inset: 54),
                 ],
-                const WListRow(icon: WIcon.home, title: 'Saved places', subtitle: 'My Home Avatar, Tower 3'),
+                WListRow(icon: WIcon.home, title: 'Saved places', subtitle: store.isLive ? (store.orders.firstOrNull == null ? 'None yet' : store.orders.first.place.title) : 'My Home Avatar, Tower 3'),
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.bell, title: 'Notifications', subtitle: _notificationSummary(store), onTap: () => router.go(N.notificationSettings)),
               ]),
@@ -902,7 +878,14 @@ class _ProfileTabState extends State<ProfileTab> {
                               kind: ButtonKind.danger,
                               enabled: !deleteBlocked,
                               onTap: () async {
-                                final ok = await store.deleteAccount().catchError((_) => false);
+                                bool ok;
+                                try {
+                                  ok = await store.deleteAccount();
+                                } catch (e) {
+                                  store.set(() => store.toast = backendError(e));
+                                  setState(() => showDelete = false);
+                                  return;
+                                }
                                 if (!mounted) return;
                                 if (ok) {
                                   setState(() => showDelete = false);

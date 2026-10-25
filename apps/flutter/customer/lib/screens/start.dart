@@ -106,9 +106,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     super.dispose();
   }
 
-  (WelcomeArtKind, String, String) _slide(int i) => context.store.isLive && i == 1
-      ? (WelcomeArtKind.trust, 'See your wash clearly', 'Pay securely when booking. Review before and after photos to approve the captain’s earnings.')
-      : slides[i];
+  (WelcomeArtKind, String, String) _slide(int i) => slides[i];
 
   @override
   Widget build(BuildContext context) {

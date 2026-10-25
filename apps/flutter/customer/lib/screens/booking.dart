@@ -340,9 +340,7 @@ class PhotosScreen extends StatelessWidget {
                 onTap: () => showWAlert(
                   context,
                   title: 'Skip the photos?',
-                  message: store.isLive
-                      ? 'Your captain will still take official before and after photos. Your own photos provide an extra record of the vehicle’s condition.'
-                      : 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
+                  message: 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
                   actions: [
                     const AlertAction('Take photos', cancel: true),
                     AlertAction('Skip anyway', onTap: goNext),
@@ -367,6 +365,7 @@ class PhotosScreen extends StatelessWidget {
                 label: a.label,
                 state: slotState(d.photos[a]),
                 height: d.photos.isEmpty ? 126 : 98,
+                image: store.draftPhotoBytes[a],
                 onTap: () => d.photos[a] == UploadState.failed ? store.uploadPhoto(a) : router.push(R(N.camera, angle: a)),
               ),
           ],
@@ -385,18 +384,7 @@ class PhotosScreen extends StatelessWidget {
               },
             ),
           ),
-        if (store.isLive && !kIsWeb) ...[
-          const Gap(16),
-          if(store.draftMedia['vehicle'] != null) MediaPreview(store.draftMedia['vehicle']!,key:ValueKey(store.draftMedia['vehicle'])),
-          WButton(store.draftMedia['vehicle']==null?'Record walk-around video':'Replace walk-around video',kind:ButtonKind.outline,onTap:() async {
-            try {
-              final clip=await captureVideo(context);
-              if(clip!=null)store.set(() { store.draftMedia['vehicle']=clip;store.draft.videoSeconds=clip.seconds; });
-            }catch(e){store.set(()=>store.toast=e is MediaAccessException?e.message:backendError(e));}
-          }),
-          if(store.draftMedia['vehicle']!=null) WLink('Remove video',onTap:()=>store.set((){store.draftMedia.remove('vehicle');store.draft.videoSeconds=null;})),
-        ],
-        if (!store.isLive && d.videoSeconds != null && d.photosComplete)
+        if (d.videoSeconds != null && d.photosComplete)
           Container(
             margin: const EdgeInsets.only(top: 20),
             height: 46,
@@ -411,13 +399,22 @@ class PhotosScreen extends StatelessWidget {
               ],
             ),
           )
-        else if (!store.isLive && !d.hasFailedPhoto)
+        else if (!d.hasFailedPhoto)
           // Optional extra: same look as the photo slots, plus an "Optional" tab on its edge.
           Padding(
             padding: const EdgeInsets.only(top: 30),
             child: Pressable(
               label: 'Optional: walk-around video, 15 seconds',
-              onTap: () => store.set(() => store.draft.videoSeconds = 14),
+              onTap: () async {
+                if (!store.isLive) return store.set(() => store.draft.videoSeconds = 14);
+                if (kIsWeb) return store.set(() => store.toast = 'Record the video from the WashKrew app on your phone.');
+                try {
+                  final clip = await captureVideo(context);
+                  if (clip != null) store.set(() { store.draftMedia['vehicle'] = clip; store.draft.videoSeconds = clip.seconds; });
+                } catch (e) {
+                  store.set(() => store.toast = e is MediaAccessException ? e.message : backendError(e));
+                }
+              },
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
@@ -468,22 +465,24 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   bool denied = false;
   bool busy = false, settings = false;
-  String? error;
   late PhotoAngle current = widget.angle;
 
   Future<void> _shoot({bool gallery = false}) async {
     if (busy) { return; }
     final store = context.store;
     final a = current;
-    setState(() { busy = true; error = null; settings = false; });
+    setState(() { busy = true; settings = false; });
     bool captured;
     try {
       captured = await store.uploadPhoto(a, gallery: gallery);
     } catch (e) {
-      if (mounted) { setState(() {
-        error = e is MediaAccessException ? e.message : backendError(e);
-        settings = e is MediaAccessException && e.settings;
-      }); }
+      if (!mounted) return;
+      if (e is MediaAccessException) {
+        // Same designed "Camera access needed" state; Settings opens when the phone needs it.
+        setState(() { denied = true; settings = e.settings; });
+      } else {
+        store.set(() => store.toast = backendError(e));
+      }
       return;
     } finally {
       if (mounted) setState(() => busy = false);
@@ -500,23 +499,6 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    if (store.isLive || !kIsWeb) {
-      return WScreen(
-        header: const PlainHeader(),
-        children: [
-          WTitleBlock('${current.label} photo', subtitle: 'Choose a clear photo of your vehicle. It will be shared only with your assigned captain.'),
-          if (error != null) ...[
-            WBanner(tone: Tone.error, icon: WIcon.info, text: error!),
-            if (settings) WButton('Open Settings', kind: ButtonKind.outline, onTap: Device.openSettings),
-            const Gap(16),
-          ],
-          WButton(busy ? 'Opening…' : 'Take photo', enabled: !busy, icon: WIcon.camera, onTap: _shoot),
-          const Gap(12),
-          WButton('Choose from photos', enabled: !busy, kind: ButtonKind.outline, onTap: () => _shoot(gallery: true)),
-          if (store.draftPhotoBytes[current] != null) Padding(padding: const EdgeInsets.only(top: 20), child: Image.memory(store.draftPhotoBytes[current]!)),
-        ],
-      );
-    }
     if (denied || widget.forceDenied) {
       return WScreen(
         scrolls: false,
@@ -530,7 +512,7 @@ class _CameraScreenState extends State<CameraScreen> {
               message: 'Photos help the captain find your vehicle. Allow camera to continue.',
               primary: 'Allow camera',
               secondary: 'Skip photos for now',
-              onPrimary: () => setState(() => denied = false),
+              onPrimary: () => settings ? Device.openSettings() : setState(() => denied = false),
               onSecondary: () {
                 store.set(() {
                   for (final a in PhotoAngle.values) {
@@ -670,12 +652,15 @@ class LocationScreen extends StatefulWidget {
 
 class _LocationScreenState extends State<LocationScreen> {
   bool off = false;
-  final place = AppStore.homePlace();
+  // Live: the customer's last place (map and location matching are on the P0 list);
+  // a first-time customer types the address instead.
+  late final place = context.store.isLive ? context.store.orders.firstOrNull?.place : AppStore.homePlace();
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    if (store.isLive) return const AddressSearchScreen();
+    final place = this.place;
+    if (place == null) return const AddressSearchScreen();
     if (off || widget.forceOff) {
       return WScreen(
         scrolls: false,
@@ -704,7 +689,7 @@ class _LocationScreenState extends State<LocationScreen> {
         child: WButton(
           'Yes, it’s here',
           onTap: () {
-            store.set(() => store.draft.place = Place(place.society, tower: place.tower));
+            store.set(() => store.draft.place = Place(place.society, tower: place.tower, addressKey: place.addressKey));
             router.go(N.floorSlot);
           },
         ),
@@ -1121,7 +1106,6 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
   String? recording;
 
   bool get hasRecording => voice != null || video != null;
-  String? mediaError;
   bool mediaBusy = false;
   Future<void> _capture(bool videoNote) async {
     if(mediaBusy)return;
@@ -1132,14 +1116,20 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
       final clip=await recordingFuture;
       if(!mounted||clip==null)return;
       store.set(() {store.draftMedia.remove('note_audio');store.draftMedia.remove('note_video');store.draftMedia[videoNote?'note_video':'note_audio']=clip;});
-      setState((){video=videoNote?clip.seconds:null;voice=videoNote?null:clip.seconds;mediaError=null;});
-    }catch(e){if(mounted)setState(()=>mediaError=e is MediaAccessException?e.message:backendError(e));}
+      setState((){video=videoNote?clip.seconds:null;voice=videoNote?null:clip.seconds;});
+    }catch(e){store.set(()=>store.toast=e is MediaAccessException?e.message:backendError(e));}
     finally{if(mounted)setState(()=>mediaBusy=false);}
   }
 
   /// Demo: a short "recording" then the clip appears. BACKEND: real camera / mic capture.
   void _record(String kind) {
     if (recording != null) return;
+    final store = context.store;
+    if (store.isLive) {
+      if (kIsWeb) return store.set(() => store.toast = 'Record it from the WashKrew app on your phone.');
+      _capture(kind == 'video');
+      return;
+    }
     setState(() => recording = kind);
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (!mounted) return;
@@ -1258,7 +1248,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
               ],
             ),
           ),
-          _deleteButton(() => video = null),
+          _deleteButton(() { video = null; context.store.draftMedia.remove('note_video'); }),
         ],
       ),
     ),
@@ -1302,7 +1292,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
           ),
           const SizedBox(width: 12),
           WText(Fmt.clock(secs), WType.caption, mono: true),
-          _deleteButton(() => voice = null),
+          _deleteButton(() { voice = null; context.store.draftMedia.remove('note_audio'); }),
         ],
       ),
     ),
@@ -1346,22 +1336,11 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
             ],
           ),
         ),
-        if(store.isLive && !kIsWeb) ...[
-          if(mediaError!=null) WBanner(tone:Tone.error,icon:WIcon.warning,text:mediaError!),
-          if(mediaError!=null) WLink('Open Settings',onTap:Device.openSettings),
-          if(store.draftMedia['note_audio']!=null || store.draftMedia['note_video']!=null) ...[
-            MediaPreview((store.draftMedia['note_audio']??store.draftMedia['note_video'])!,key:ValueKey(store.draftMedia['note_audio']??store.draftMedia['note_video'])),
-            WLink('Delete recording',onTap:()=>setState((){store.draftMedia.remove('note_audio');store.draftMedia.remove('note_video');voice=null;video=null;})),
-          ] else ...[
-            WButton('Record video message',enabled:!mediaBusy,kind:ButtonKind.outline,onTap:()=>_capture(true)),
-            const Gap(12), WButton('Record voice note',enabled:!mediaBusy,kind:ButtonKind.outline,onTap:()=>_capture(false)),
-          ],
-        ],
-        if (!store.isLive && video != null)
+        if (video != null)
           _recordedVideo(video!)
-        else if (!store.isLive && voice != null)
+        else if (voice != null)
           _recordedVoice(voice!)
-        else if (!store.isLive)
+        else
           // 1 · Video  2 · Voice note: same weight, pick one.
           Row(children: [_recordTile(WIcon.video, 'Record video', 'video'), const SizedBox(width: 12), _recordTile(WIcon.mic, 'Record voice note', 'voice')]),
         if (hasRecording)
@@ -1516,9 +1495,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
             child: WBanner(
               tone: slotError != null ? Tone.error : Tone.wait,
               icon: slotError != null ? WIcon.warning : WIcon.search,
-              text: store.isLive
-                  ? slotError ?? 'No captains are available in this society for this date. Choose another date or come back later.'
-                  : 'No captains free today in your society. Tomorrow has slots from 6 AM.',
+              text: slotError ?? (store.isLive ? 'No captains free ${dayIndex == 0 ? 'today' : 'on this date'} in your society. Try the next date.' : 'No captains free today in your society. Tomorrow has slots from 6 AM.'),
               actionTitle: slotError != null || dayIndex == days.length - 1 ? 'Retry' : 'Next date',
               onAction: () {
                 if (slotError == null && dayIndex < days.length - 1) {

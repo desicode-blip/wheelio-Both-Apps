@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
@@ -48,9 +51,20 @@ class ProblemPhotosScreen extends StatefulWidget {
 }
 
 class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
-  String note = 'Water streaks on the bonnet and the left mirror wasn’t wiped.';
-  int photos = 2;
+  late String note = context.store.isLive ? '' : 'Water streaks on the bonnet and the left mirror wasn’t wiped.';
+  late int photos = context.store.isLive ? 0 : 2;
   bool sending = false;
+  // Photos the customer adds. Kept on the phone: uploading them is on the P0 backend list.
+  final List<Uint8List> picked = [];
+
+  Future<void> _add() async {
+    if (!context.store.isLive) {
+      setState(() => photos++);
+      return;
+    }
+    final bytes = await Device.pickImage(camera: true);
+    if (bytes != null && mounted) setState(() { picked.add(bytes); photos = picked.length; });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -78,8 +92,8 @@ class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
               if (i > 0) const SizedBox(width: 10),
               Expanded(
                 child: i < photos
-                    ? WPhotoSlot(label: i == 0 ? 'Front' : 'Close-up', state: PhotoState.done, height: 94, icon: i == 0 ? WIcon.car : WIcon.zoom)
-                    : WPhotoSlot(label: 'Add', height: 94, onTap: () => setState(() => photos++)),
+                    ? WPhotoSlot(label: i == 0 ? 'Front' : 'Close-up', state: PhotoState.done, height: 94, icon: i == 0 ? WIcon.car : WIcon.zoom, image: i < picked.length ? picked[i] : null)
+                    : WPhotoSlot(label: 'Add', height: 94, onTap: _add),
               ),
             ],
           ]),
@@ -138,12 +152,12 @@ class DisputeStatusScreen extends StatelessWidget {
           footer: WStackedFooter(children: [WButton('Okay', onTap: router.popToRoot), WButton('Talk to a person', kind: ButtonKind.text, onTap: callSupport)]),
           children: [
             const WTitleBlock('The wash looks complete', subtitle: 'We compared your photos with the captain’s. The marks were there before the wash.', top: 14),
-            const Row(children: [
-              Expanded(child: WPhotoPlaceholder(height: 90, icon: WIcon.car, tag: 'Before')),
-              SizedBox(width: 8),
-              Expanded(child: WPhotoPlaceholder(height: 90, icon: WIcon.sparkle, tag: 'After', tagTone: Tone.ok)),
-              SizedBox(width: 8),
-              Expanded(child: WPhotoPlaceholder(height: 90, icon: WIcon.image, caption: 'Yours')),
+            Row(children: [
+              Expanded(child: DesignPhoto(path: o?.evidence('before', 0), height: 90, icon: WIcon.car, tag: 'Before')),
+              const SizedBox(width: 8),
+              Expanded(child: DesignPhoto(path: o?.evidence('after', 0), height: 90, icon: WIcon.sparkle, tag: 'After', tagTone: Tone.ok)),
+              const SizedBox(width: 8),
+              const Expanded(child: WPhotoPlaceholder(height: 90, icon: WIcon.image, caption: 'Yours')),
             ]),
             const SizedBox(height: 16),
             WBanner(tone: Tone.info, icon: WIcon.info, text: d?.decisionNote ?? ''),

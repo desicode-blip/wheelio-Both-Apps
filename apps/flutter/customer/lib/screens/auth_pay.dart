@@ -74,15 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.only(bottom: 14),
             child: WText(backendMessage!, WType.caption, color: WColor.destructive),
           ),
-        if (store.isLive)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 14),
-            child: WText(
-              'By continuing, you agree to receive an SMS verification code. Your phone number is processed by Firebase for verification and abuse prevention.',
-              WType.small,
-              color: WColor.secondary,
-            ),
-          ),
         WPhoneField(
           number: phone,
           error: showErr && !valid ? 'Enter all 10 digits' : null,
@@ -251,11 +242,10 @@ class _OtpScreenState extends State<OtpScreen> {
           const SizedBox(height: 22),
           WBanner(tone: Tone.wait, icon: WIcon.clock, text: 'That code expired. Get a new one.', actionTitle: 'Resend', onAction: _resend),
           const SizedBox(height: 20),
-          if (!store.isLive)
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: WButton('Get the code on a call instead', kind: ButtonKind.text, fullWidth: false),
-            ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: WButton('Get the code on a call instead', kind: ButtonKind.text, fullWidth: false, onTap: () => store.blockLive()),
+          ),
         ],
         if (backendMessage != null)
           Padding(
@@ -398,9 +388,7 @@ class _PayingScreenState extends State<PayingScreen> {
                 icon: WIcon.receipt,
                 tone: Tone.error,
                 title: 'Payment didn’t go through',
-                message: store.isLive
-                    ? 'Payment could not be confirmed. Check your booking before retrying if money was deducted.'
-                    : 'Your bank declined it. No money was taken. Try again or use another method.',
+                message: 'Your bank declined it. No money was taken. Try again or use another method.',
                 primary: 'Try again',
                 secondary: 'Change method',
                 onPrimary: () {
@@ -416,14 +404,12 @@ class _PayingScreenState extends State<PayingScreen> {
               PayView.pending => WFullState(
                 icon: WIcon.clock,
                 tone: Tone.wait,
-                title: store.isLive ? 'Payment not confirmed' : 'Waiting for your bank',
-                message: store.isLive
-                    ? 'Payment has not been confirmed. Check again, or return home to view the booking and retry checkout.'
-                    : 'We haven’t heard back yet. If money left your account, it will be refunded automatically within 3 days.',
+                title: 'Waiting for your bank',
+                message: 'We haven’t heard back yet. If money left your account, it will be refunded automatically within 3 days.',
                 primary: checking ? 'Checking…' : 'Check again',
-                secondary: store.isLive ? 'Go home' : 'Call support',
+                secondary: 'Call support',
                 onPrimary: _check,
-                onSecondary: store.isLive ? router.popToRoot : callSupport,
+                onSecondary: callSupport,
               ),
             },
           ),

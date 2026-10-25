@@ -15,7 +15,6 @@ import 'screens/notifications.dart';
 import 'screens/problem.dart';
 import 'screens/start.dart';
 import 'screens/support.dart';
-import 'screens/firebase_live.dart';
 
 Future<void> main() => launchWashKrew(captain: false, demo: const CustomerApp());
 
@@ -139,15 +138,35 @@ class _GalleryTab extends StatelessWidget {
 }
 
 Widget _destination(R r) {
-  if (WashKrewRuntime.backend != null) {
-    if ({N.booked, N.live, N.photoCompare, N.rate, N.reportProblem, N.problemPhotos, N.disputeStatus, N.refund, N.bookingDetail, N.refundUPI}.contains(r.n)) {
-      return FirebaseOrderScreen(orderId: r.id);
-    }
-    if ({N.notifications,N.notificationSettings,N.notifyAsk}.contains(r.n)) return Builder(builder:(context)=>WScreen(header:WAppBar(onLeading:context.router.pop),children:[FirebaseInbox(captain:false,onOpen:(id){context.store.set(()=>context.store.currentOrderId=id);context.router.push(R(N.live,id:id));})]));
-    if ({N.whatsApp, N.notifyAsk, N.help, N.helpCaptain, N.helpEmergency, N.changePhone, N.notificationSettings, N.notifications}.contains(r.n)) {
-      return const FirebaseAccountHelp();
-    }
+  // Live data uses the same designed screens; a route with an id opens that booking.
+  if (r.id != null && {N.booked, N.live, N.photoCompare, N.rate, N.reportProblem, N.problemPhotos, N.disputeStatus, N.refund}.contains(r.n)) {
+    return _OpenOrder(id: r.id!, child: _screen(r));
   }
+  return _screen(r);
+}
+
+/// Points the store at one booking (a notification or push opens it by id).
+class _OpenOrder extends StatefulWidget {
+  const _OpenOrder({required this.id, required this.child});
+  final String id;
+  final Widget child;
+  @override
+  State<_OpenOrder> createState() => _OpenOrderState();
+}
+
+class _OpenOrderState extends State<_OpenOrder> {
+  @override
+  void initState() {
+    super.initState();
+    final store = context.store;
+    if (store.currentOrderId != widget.id) WidgetsBinding.instance.addPostFrameCallback((_) => store.set(() => store.currentOrderId = widget.id));
+  }
+
+  @override
+  Widget build(BuildContext context) => context.store.currentOrderId == widget.id ? widget.child : const SizedBox.shrink();
+}
+
+Widget _screen(R r) {
   return switch (r.n) {
     N.welcome => const WelcomeScreen(),
     N.vehicleType => VehicleTypeScreen(large: r.large),

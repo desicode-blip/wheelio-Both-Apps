@@ -167,12 +167,7 @@ class HeldSafelyBanner extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: WRich(
-            context.store.isLive
-                ? [
-                    ('Pay ${Fmt.rupees(amount)} through Razorpay. ', semibold),
-                    ('The captain’s earnings stay pending until you approve the after photos.', null),
-                  ]
-                : [('${Fmt.rupees(amount)} is held safely. ', semibold), ('It’s released to the captain only after you approve the after-photos.', null)],
+            [('${Fmt.rupees(amount)} is held safely. ', semibold), ('It’s released to the captain only after you approve the after-photos.', null)],
             WType.caption,
             color: WColor.inverse,
             size: 14,
@@ -361,15 +356,21 @@ class _CancelSheetState extends State<CancelSheet> {
         WButton('OK', onTap: () => Navigator.of(context).pop()),
       ]);
     }
-    final early = o!.inFreeCancelWindow();
-    final credit = BusinessRules.lateCancelCredit(o.value);
+    // Live bookings follow the server's saved policy; the screen is the same design.
+    final policy = o!.liveCancelPolicy;
+    final wallet = !store.isLive || (policy?['kind'] == 'wallet' && o.paymentStatus == 'captured' && o.price > 0);
+    final early = store.isLive && wallet
+        ? DateTime.now().difference(o.createdAt).inSeconds <= (policy!['freeWashMinutes'] as num).toInt() * 60
+        : o.inFreeCancelWindow();
+    final percent = store.isLive && wallet ? (policy!['lateCreditBps'] as num).toInt() ~/ 100 : BusinessRules.lateCancelCreditPercent;
+    final credit = store.isLive && wallet ? (o.price * percent / 100).round() : BusinessRules.lateCancelCredit(o.value);
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const WText('Cancel this booking?', WType.section, weight: semibold),
         const SizedBox(height: 14),
         // Say exactly what they get back before they confirm.
-        if (store.isLive)
-          WBanner(tone: Tone.info, icon: WIcon.info, text: o.cancellationTerms)
+        if (!wallet)
+          WBanner(tone: Tone.ok, icon: WIcon.rupee, text: o.cancellationTerms)
         else if (early)
           const WBanner(tone: Tone.ok, icon: WIcon.gift, title: 'You get 1 free wash', text: 'For your next booking. No cash refund.')
         else
@@ -377,7 +378,7 @@ class _CancelSheetState extends State<CancelSheet> {
             tone: Tone.ok,
             icon: WIcon.rupee,
             title: 'You get ${Fmt.rupees(credit)} credit',
-            text: '${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}, taken off your next booking. No cash refund.',
+            text: '$percent% of ${Fmt.rupees(o.value)}, taken off your next booking. No cash refund.',
           ),
         const SizedBox(height: 16),
         const WText('Why are you cancelling? (optional)', WType.label),
@@ -393,7 +394,7 @@ class _CancelSheetState extends State<CancelSheet> {
           });
           try {
             await store.cancel(o.id);
-            store.set(() => store.toast = store.isLive ? 'Booking cancelled. Check your booking for the confirmed outcome.' : early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
+            store.set(() => store.toast = !wallet ? 'Booking cancelled.' : early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
             nav.pop();
           } catch (e) {
             setState(() {

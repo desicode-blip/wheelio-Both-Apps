@@ -45,6 +45,52 @@ class _PrivatePhotoState extends State<PrivatePhoto> {
   );
 }
 
+/// A private photo drawn inside the design's photo box (same size, radius and tag).
+/// Shows the design placeholder until the photo arrives, or if there is none.
+class DesignPhoto extends StatefulWidget {
+  const DesignPhoto({super.key, this.path, required this.height, this.icon = WIcon.car, this.tag, this.tagTone = Tone.mute, this.radius = 10, this.caption});
+  final String? path;
+  final double height;
+  final WIcon icon;
+  final String? tag;
+  final Tone tagTone;
+  final double radius;
+  final String? caption;
+  @override
+  State<DesignPhoto> createState() => _DesignPhotoState();
+}
+
+class _DesignPhotoState extends State<DesignPhoto> {
+  Future<Uint8List?>? bytes;
+  void _load() => bytes = widget.path == null || WashKrewRuntime.backend == null ? null : WashKrewRuntime.backend!.photo(widget.path!);
+  @override
+  void initState() { super.initState(); _load(); }
+  @override
+  void didUpdateWidget(covariant DesignPhoto old) { super.didUpdateWidget(old); if (old.path != widget.path) _load(); }
+  @override
+  Widget build(BuildContext context) {
+    final placeholder = WPhotoPlaceholder(height: widget.height, icon: widget.icon, tag: widget.tag, tagTone: widget.tagTone, radius: widget.radius, caption: widget.caption);
+    if (bytes == null) return placeholder;
+    return FutureBuilder<Uint8List?>(
+      future: bytes,
+      builder: (context, snapshot) {
+        final data = snapshot.data;
+        if (data == null) return placeholder;
+        return SizedBox(
+          height: widget.height,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(widget.radius),
+            child: Stack(fit: StackFit.expand, children: [
+              Image.memory(data, fit: BoxFit.cover),
+              if (widget.tag != null) Positioned(left: 6, bottom: 6, child: PhotoTag(widget.tag!, widget.tagTone)),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class CaptainTracking extends StatefulWidget {
   const CaptainTracking(this.orderId, {super.key});
   final String orderId;

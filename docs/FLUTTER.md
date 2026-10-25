@@ -22,6 +22,10 @@ The payment-mode follow-up archives verified test credentials in Secret Manager,
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
 
+## 25 October 2026: real-data apps use the designed screens
+
+Aman's decision: the Firebase (real-data) builds must look exactly like the design reference (staging `31fa906`). Customer: every route uses the designed screen again; `FirebaseOrderScreen`, `FirebaseAccountHelp` and the plain live profile were removed, and `_OpenOrder` (main.dart) opens a booking by id. Real photos appear in the designed photo boxes through `DesignPhoto` (washkrew_firebase) and `WPhotoSlot(image:)`. Ajay's real-data wording variants were replaced by the designed wording. Anything the backend cannot do yet stays on screen as designed and is listed for Ajay as P0 in `docs/P0-BACKEND-FOR-DESIGN.md`; tapping it shows a toast instead of faking success (`AppStore.blockLive`). Captain follows the same rule.
+
 ## 25 October 2026: no payment-mode banner
 
 Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No real money is charged" or any live/test equivalent), at any time, because it broke the top spacing (it added its own safe-area band and pushed every screen down). `PaymentEnvironmentLabel` was removed from `washkrew_firebase` and from both apps' `builder`. The server's `paymentMode` still decides test or live payments; only the on-screen label is gone. Do not add it back.

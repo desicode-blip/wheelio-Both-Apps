@@ -1070,7 +1070,9 @@ enum PhotoState { empty, uploading, done, failed }
 
 /// Photo slot: dashed empty slot with camera, or a placeholder photo with state.
 class WPhotoSlot extends StatelessWidget {
-  const WPhotoSlot({super.key, required this.label, this.state = PhotoState.empty, this.tag, this.tagTone = Tone.mute, this.height = 126, this.showLabelBelow = false, this.icon = WIcon.car, this.onTap});
+  const WPhotoSlot({super.key, required this.label, this.state = PhotoState.empty, this.tag, this.tagTone = Tone.mute, this.height = 126, this.showLabelBelow = false, this.icon = WIcon.car, this.onTap, this.image});
+  /// The real photo, when there is one (drawn under the same check mark and tag).
+  final Uint8List? image;
   final String label;
   final PhotoState state;
   final String? tag;
@@ -1095,9 +1097,10 @@ class WPhotoSlot extends StatelessWidget {
         );
       default:
         inner = Container(
+          clipBehavior: image == null ? Clip.none : Clip.antiAlias,
           decoration: BoxDecoration(color: WColor.photo, borderRadius: BorderRadius.circular(12)),
           child: Stack(children: [
-            Center(child: WIconView(icon, size: 20, color: WColor.secondary)),
+            if (image != null) Positioned.fill(child: Image.memory(image!, fit: BoxFit.cover)) else Center(child: WIconView(icon, size: 20, color: WColor.secondary)),
             if (state == PhotoState.uploading) const Positioned(left: 8, right: 8, bottom: 8, child: ClipRRect(borderRadius: BorderRadius.all(Radius.circular(4)), child: LinearProgressIndicator(minHeight: 4, color: WColor.primary, backgroundColor: WColor.track))),
             if (state == PhotoState.done)
               Positioned(top: 8, right: 8, child: Container(width: 22, height: 22, decoration: const BoxDecoration(color: WColor.success, shape: BoxShape.circle), alignment: Alignment.center, child: const WIconView(WIcon.check, size: 11, color: WColor.onSuccess, weight: bold))),

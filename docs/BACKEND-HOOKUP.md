@@ -1,3 +1,7 @@
+# 25 October 2026: designed screens on real data
+
+The real-data apps now use the designed screens. Every designed feature without a backend is listed as **P0 for Ajay** in [P0-BACKEND-FOR-DESIGN.md](P0-BACKEND-FOR-DESIGN.md). Those screens show no fake success: actions show "This isn’t available yet" and missing server values fall back as described there.
+
 # Current Flutter integration update — 25 October 2026
 
 Mac handoff follow-up: native emulator configuration is validated before any Firebase initialization and uses the supplied `demo-*` project for all SDKs. Normal iPhone builds still use their registered production Firebase apps with server-selected test payments. New Mac build tools validate the public native configuration and plugin installation without adding fake screens, accounts, OTPs, transitions or payment results. See [MAC-HANDOFF.md](MAC-HANDOFF.md) for remaining hardware/signing/APNs acceptance. No new backend service is connected by this change.

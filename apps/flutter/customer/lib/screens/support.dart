@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 
@@ -27,9 +28,14 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
   Future<void> _send() async {
     if (!canSend) return;
     setState(() => loading = true);
+    final store = context.store;
     try {
-      await context.store.requestPhoneChange(digits);
-    } catch (_) {}
+      await store.requestPhoneChange(digits);
+    } catch (e) {
+      store.set(() => store.toast = backendError(e));
+      setState(() => loading = false);
+      return;
+    }
     setState(() {
       loading = false;
       code = '';

@@ -485,6 +485,7 @@ class AppStore extends ChangeNotifier {
     orders = [];
     vehicles = [];
     notifications = [];
+    _inbox = [];
     currentOrderId = null;
     if (uid.isEmpty) {
       changed();
@@ -493,7 +494,8 @@ class AppStore extends ChangeNotifier {
     live!.registerPush('customer').catchError((Object _) {});
     _accountSubscriptions.add(live!.inbox(uid).listen((s){
       if(_liveUid!=uid)return;
-      notifications=[for(final doc in s.docs) if(doc.data()['role']=='customer') AppNotification(id:doc.id,kind:NotificationKind.bookingConfirmed,title:doc.data()['title'],body:doc.data()['body'],date:doc.data()['createdAt']?.toDate() as DateTime? ?? DateTime.now(),orderId:doc.data()['orderId'],read:doc.data()['read']==true)];
+      _inbox=[for(final doc in s.docs) if(doc.data()['role']=='customer') (doc.id, doc.data())];
+      _mapInbox();
       changed();
     },onError:(Object e){backendMessage=backendError(e);changed();}));
     _accountSubscriptions.add(
@@ -525,6 +527,7 @@ class AppStore extends ChangeNotifier {
                 if (!vehicles.any((v) => v.plate == o.vehicle.plate)) vehicles.add(o.vehicle);
               }
               if (currentOrderId == null || !orders.any((o) => o.id == currentOrderId)) currentOrderId = activeOrder?.id;
+              _mapInbox();
               changed();
             },
             onError: (Object e) {
@@ -534,6 +537,32 @@ class AppStore extends ChangeNotifier {
           ),
     );
     changed();
+  }
+
+  List<(String, Map<String, dynamic>)> _inbox = [];
+  void _mapInbox() => notifications = [for (final (id, d) in _inbox) if (!_deletedIds.contains(id)) _liveNotice(id, d)];
+
+  /// A server inbox item in the designed wording, using the booking it belongs to.
+  AppNotification _liveNotice(String id, Map<String, dynamic> d) {
+    final o = order(d['orderId'] as String? ?? '');
+    final name = o?.captain?.name ?? 'Your captain';
+    final price = Fmt.rupees(o?.price ?? 0);
+    final (kind, title, body) = switch (d['kind']) {
+      'searching' => (NotificationKind.bookingConfirmed, 'Booking confirmed', o == null ? 'We’re finding a captain.' : '${o.vehicle.plate} · ${o.slot.full}. We’re finding a captain.'),
+      'onTheWay' => (NotificationKind.captainAssigned, '$name is on the way', o == null ? 'Your captain is on the way.' : 'Arriving by ${Fmt.time(o.arrivesBy ?? o.slot.end)} for ${o.vehicle.plate}.'),
+      'washing' => (NotificationKind.washStarted, 'Washing has started', '$name started at ${Fmt.time(o?.startedAt ?? DateTime.now())}. Photos when he’s done.'),
+      'photosReady' => (NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve to release $price to $name, or tell us if something’s wrong.'),
+      'approved' => (NotificationKind.autoApproved, 'Wash approved', '$price released to $name.'),
+      'cancelled' => (NotificationKind.bookingCancelled, 'Booking cancelled', o?.freeWashGiven == true
+          ? '1 free wash is added to your account. Use it on your next booking.'
+          : (o?.creditGiven ?? 0) > 0
+          ? '${Fmt.rupees(o!.creditGiven)} credit is added. It comes off your next booking.'
+          : 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has started.'),
+      'disputed' => (NotificationKind.disputeDecision, 'We’ve got your report', o == null ? 'We’re checking the photos.' : 'We’re checking the photos for ${o.vehicle.plate}.'),
+      'refund' => (NotificationKind.refundCredited, 'Refund update', 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has an update.'),
+      _ => (NotificationKind.bookingConfirmed, (d['title'] as String? ?? '').replaceFirst('Test · ', ''), d['body'] as String? ?? ''),
+    };
+    return AppNotification(id: id, kind: kind, title: title, body: body, date: d['createdAt']?.toDate() as DateTime? ?? DateTime.now(), orderId: d['orderId'], read: !_unreadIds.contains(id) && (d['read'] == true || _readIds.contains(id)));
   }
 
   Order _liveOrder(String id, Map<String, dynamic> data) {
@@ -547,7 +576,7 @@ class AppStore extends ChangeNotifier {
     final order = Order(
       id: id,
       ref: data['ref'],
-      vehicle: Vehicle('veh_${data['plate']}', data['plate'], type, place),
+      vehicle: Vehicle('veh_${data['plate']}', Fmt.plate(data['plate']), type, place),
       place: place,
       slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt()),
       price: (data['pricePaise'] as num).toInt() ~/ 100,
@@ -625,7 +654,11 @@ class AppStore extends ChangeNotifier {
 
   bool get isLoggedIn => customer != null;
   Order? get currentOrder => orders.where((o) => o.id == currentOrderId).firstOrNull;
-  Order? get activeOrder => orders.where((o) => o.status.isActive).firstOrNull;
+  Order? get activeOrder {
+    final active = orders.where((o) => o.status.isActive).toList()
+      ..sort((a, b) => a.slotAhead == b.slotAhead ? a.slot.start.compareTo(b.slot.start) : (a.slotAhead ? 1 : -1));
+    return active.firstOrNull;
+  }
   List<Order> get upcomingOrders =>
       demo.emptyHistory ? [] : (orders.where((o) => o.status.isUpcoming).toList()..sort((a, b) => a.slot.start.compareTo(b.slot.start)));
   List<Order> get pastOrders => demo.emptyHistory
@@ -780,14 +813,26 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Designed actions the live backend can't do yet (P0 list: docs/P0-BACKEND-FOR-DESIGN.md).
+  /// The screen stays exactly as designed; tapping explains it instead of pretending.
+  static const notYet = 'This isn’t available yet. Call us and we’ll do it for you.';
+  bool blockLive([String message = notYet]) {
+    if (!isLive) return false;
+    toast = message;
+    changed();
+    return true;
+  }
+
   /// BACKEND: send OTP to the new number.
   Future<void> requestPhoneChange(String phone) async {
+    if (isLive) throw StateError(notYet);
     await _latency(700);
     pendingNewPhone = phone;
   }
 
   /// BACKEND: verify OTP, then update the account's phone.
   Future<bool> confirmPhoneChange(String code) async {
+    if (isLive) throw StateError(notYet);
     await _latency(600);
     if (code != demoOtp) return false;
     customer?.phone = pendingNewPhone;
@@ -805,6 +850,7 @@ class AppStore extends ChangeNotifier {
 
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
+    if (isLive) throw StateError(notYet);
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;
     customer = null;
@@ -842,8 +888,8 @@ class AppStore extends ChangeNotifier {
   }
 
   List<PaymentMethod> get paymentMethods {
-    if (isLive) return [const PaymentMethod('razorpay', 'Razorpay checkout', 'Choose UPI, card or another available method securely')];
-    final upi = customer?.phone == samplePhone ? 'UPI · ananya@okhdfc' : 'UPI';
+    // Live: the same designed list; every choice opens Razorpay (passing the choice on is P0).
+    final upi = !isLive && customer?.phone == samplePhone ? 'UPI · ananya@okhdfc' : 'UPI';
     return [
       PaymentMethod('gpay', 'Google Pay', upi),
       const PaymentMethod('phonepe', 'PhonePe', 'UPI'),
@@ -899,6 +945,14 @@ class AppStore extends ChangeNotifier {
   Future<PaymentOutcome> createOrderAndPay() async {
     if (isLive) {
       final d = draft, p = d.place, s = d.slot;
+      // Paying for a booking that already exists (opened from Bookings or a notification).
+      final pending = currentOrder;
+      if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
+        draftBookingId = pending.id;
+        final paid = await live!.pay(pending.id);
+        await _refreshLiveOrder(pending.id);
+        return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+      }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
       final result = await live!.call('createBooking', {
         'requestId': draftRequestId,
@@ -1068,6 +1122,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void answerCantFind(String answer) {
+    if (blockLive()) return;
     final id = currentOrderId;
     if (id == null) return;
     if (answer == 'not_here') {
@@ -1099,6 +1154,7 @@ class AppStore extends ChangeNotifier {
 
   /// Saves the refund UPI ID to the profile and sends any refunds that were waiting for it.
   void saveRefundUPI(String raw) {
+    if (blockLive('Refunds go back to the way you paid. UPI refunds aren’t available yet.')) return;
     final upi = raw.trim().toLowerCase();
     customer?.refundUPI = upi;
     for (final o in orders) {
@@ -1340,15 +1396,19 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  void markRead(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = true);
-  void markUnread(String id) => set(() => notifications.where((n) => n.id == id).firstOrNull?.read = false);
+  // Live inbox: read and deleted are kept on this phone (saving them on the server is P0).
+  final Set<String> _readIds = {}, _unreadIds = {}, _deletedIds = {};
+  void markRead(String id) => set(() { _readIds.add(id); _unreadIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = true; });
+  void markUnread(String id) => set(() { _unreadIds.add(id); _readIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = false; });
   void markAllRead() => set(() {
     for (final n in notifications) {
       n.read = true;
+      _readIds.add(n.id);
+      _unreadIds.remove(n.id);
     }
   });
-  void deleteNotification(String id) => set(() => notifications.removeWhere((n) => n.id == id));
-  void clearNotifications() => set(() => notifications = []);
+  void deleteNotification(String id) => set(() { _deletedIds.add(id); notifications.removeWhere((n) => n.id == id); });
+  void clearNotifications() => set(() { _deletedIds.addAll(notifications.map((n) => n.id)); notifications = []; });
 
   /// Master switch. Turning on asks for permission the first time.
   void setNotifications(bool on) {

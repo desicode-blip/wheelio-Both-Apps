@@ -319,6 +319,8 @@ class Dispute {
 class Order {
   Map<String, String> evidencePaths = {};
   Map<String, String> customerPhotoPaths = {};
+  /// Captain's photo for one side (0 front, 1 back, 2 left, 3 right), stage 'before' or 'after'.
+  String? evidence(String stage, int side) => evidencePaths['${stage}_$side'];
   String paymentStatus = 'unpaid';
   String refundStatus = 'none';
   bool testPayment = false;

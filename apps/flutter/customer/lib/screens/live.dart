@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
+import 'auth_pay.dart';
 import 'common.dart';
 import 'problem.dart';
 
@@ -58,6 +60,8 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
     } else {
       body = switch (o.status) {
         OrderStatus.searching when o.slotAhead => _booked(o),
+        // An unpaid live booking opens the designed payment screen so it can be paid again.
+        OrderStatus.paymentPending || OrderStatus.pendingPayment when store.isLive => const PayingScreen(initial: PayView.failed),
         OrderStatus.searching || OrderStatus.paymentPending || OrderStatus.pendingPayment => _searching(o),
         OrderStatus.noCaptain => _autoCancelled(o, WIcon.search, 'No captain could take your wash', 'We couldn’t find a free captain, so we’ve cancelled the booking.'),
         OrderStatus.captainNoShow => _autoCancelled(o, WIcon.clock, '${o.captain?.name ?? 'Your captain'} didn’t turn up',
@@ -172,7 +176,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         Row(children: [
           for (final a in PhotoAngle.values) ...[
             if (a != PhotoAngle.values.first) const SizedBox(width: 8),
-            Expanded(child: WPhotoPlaceholder(height: 64, icon: o.vehicle.type.icon, tag: a.label.split(' ').first)),
+            Expanded(child: DesignPhoto(path: o.customerPhotoPaths[a.name], height: 64, icon: o.vehicle.type.icon, tag: a.label.split(' ').first)),
           ],
         ]),
         if (notes.isNotEmpty) ...[
@@ -213,7 +217,8 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
   Widget _onTheWay(Order o) {
     final router = context.router;
     final late = o.runningLateMinutes != null;
-    final arrives = o.arrivesBy ?? DateTime.now();
+    // Live bookings have no ETA yet (P0): the slot's end is the latest arrival time.
+    final arrives = o.arrivesBy ?? (context.store.isLive ? o.slot.end : DateTime.now());
     final name = o.captain?.name ?? 'Raju';
     return WScreen(
       canvas: true,
@@ -222,9 +227,9 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         if (late)
           WButton('Call $name', icon: WIcon.phone, kind: ButtonKind.outline, onTap: () => Support.call())
         else if (o.entryPassReceived)
-          WButton('Message on WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => router.go(N.whatsApp))
+          WButton('Message on WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => context.store.blockLive() ? null : router.go(N.whatsApp))
         else
-          WButton('Send pass on WhatsApp', icon: WIcon.whatsapp, onTap: () => router.go(N.whatsApp)),
+          WButton('Send pass on WhatsApp', icon: WIcon.whatsapp, onTap: () => context.store.blockLive() ? null : router.go(N.whatsApp)),
         CancelLink(order: o),
       ]),
       children: [
@@ -252,7 +257,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
               child: Row(children: [const WIconView(WIcon.check, size: 15, color: WColor.onSuccess, weight: semibold), const SizedBox(width: 12), Expanded(child: WText('Entry pass received. $name can get in.', WType.caption, color: WColor.onSuccess, size: 14))]),
             )
           else
-            WBanner(tone: Tone.wait, icon: WIcon.door, title: 'We still need your gate pass.', text: 'Without it $name may be stopped at the gate.', actionTitle: 'Send now', onAction: () => router.go(N.whatsApp)),
+            WBanner(tone: Tone.wait, icon: WIcon.door, title: 'We still need your gate pass.', text: 'Without it $name may be stopped at the gate.', actionTitle: 'Send now', onAction: () => context.store.blockLive() ? null : router.go(N.whatsApp)),
         ],
         const SizedBox(height: 26),
         const WStatusSteps(steps: _liveSteps, current: 1),
@@ -321,9 +326,9 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         WCard(
           outlined: true,
           child: Column(children: [
-            const Row(children: [Expanded(child: WText('Before photos', WType.title)), WText('4 of 4', WType.caption)]),
+            Row(children: [const Expanded(child: WText('Before photos', WType.title)), WText(context.store.isLive ? '${[for (var i = 0; i < 4; i++) o.evidence('before', i)].nonNulls.length} of 4' : '4 of 4', WType.caption)]),
             const SizedBox(height: 12),
-            Row(children: [for (var i = 0; i < 4; i++) ...[if (i > 0) const SizedBox(width: 8), const Expanded(child: WPhotoPlaceholder(height: 56))]]),
+            Row(children: [for (var i = 0; i < 4; i++) ...[if (i > 0) const SizedBox(width: 8), Expanded(child: DesignPhoto(path: o.evidence('before', i), height: 56))]]),
           ]),
         ),
         const SizedBox(height: 24),
@@ -362,15 +367,15 @@ class CheckWashView extends StatefulWidget {
 class _CheckWashViewState extends State<CheckWashView> {
   bool approving = false;
 
-  Widget _pair(String label) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget _pair(String label, int side) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         WText(label, WType.label, color: WColor.heading, weight: medium),
         const SizedBox(height: 8),
         Pressable(
           onTap: () => context.router.go(N.photoCompare),
-          child: const Row(children: [
-            Expanded(child: WPhotoPlaceholder(height: 110, icon: WIcon.car, tag: 'Before')),
-            SizedBox(width: 10),
-            Expanded(child: WPhotoPlaceholder(height: 110, icon: WIcon.sparkle, tag: 'After', tagTone: Tone.ok)),
+          child: Row(children: [
+            Expanded(child: DesignPhoto(path: widget.order.evidence('before', side), height: 110, icon: WIcon.car, tag: 'Before')),
+            const SizedBox(width: 10),
+            Expanded(child: DesignPhoto(path: widget.order.evidence('after', side), height: 110, icon: WIcon.sparkle, tag: 'After', tagTone: Tone.ok)),
           ]),
         ),
       ]);
@@ -405,9 +410,9 @@ class _CheckWashViewState extends State<CheckWashView> {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const WText('Shine restored', WType.section, weight: semibold), WText('Approve to release ${Fmt.rupees(o.price)} to $name', WType.caption)])),
           ]),
         ),
-        _pair('Front'),
+        _pair('Front', 0),
         const SizedBox(height: 14),
-        _pair('Left side'),
+        _pair('Left side', 2),
         const SizedBox(height: 16),
         Align(alignment: Alignment.centerLeft, child: WLink('See all 4 angles', onTap: () => router.go(N.photoCompare))),
       ],
@@ -442,7 +447,7 @@ class _PhotoCompareScreenState extends State<PhotoCompareScreen> {
               count: 4,
               index: page,
               onIndex: (i) => setState(() => page = i),
-              builder: (c, i) => const Padding(padding: EdgeInsets.fromLTRB(16, 0, 16, 16), child: CompareSlider()),
+              builder: (c, i) => Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), child: CompareSlider(before: o?.evidence('before', i), after: o?.evidence('after', i), beforeTime: o?.startedAt, afterTime: o?.finishedAt)),
             ),
           ),
           PageDots(count: 4, index: page, onTap: (i) => setState(() => page = i)),
@@ -477,7 +482,9 @@ class _PhotoCompareScreenState extends State<PhotoCompareScreen> {
 
 /// Before / after split with a draggable divider (drag or click to move it).
 class CompareSlider extends StatefulWidget {
-  const CompareSlider({super.key});
+  const CompareSlider({super.key, this.before, this.after, this.beforeTime, this.afterTime});
+  final String? before, after;
+  final DateTime? beforeTime, afterTime;
   @override
   State<CompareSlider> createState() => _CompareSliderState();
 }
@@ -496,9 +503,12 @@ class _CompareSliderState extends State<CompareSlider> {
             onTapDown: (d) => move(d.localPosition.dx),
             child: Stack(children: [
               const Positioned.fill(child: ColoredBox(color: Color(0xFF2A3A50))),
+              if (widget.before != null) Positioned.fill(child: DesignPhoto(path: widget.before, height: h, radius: 0)),
               Positioned(top: 0, bottom: 0, right: 0, width: w * (1 - split), child: const ColoredBox(color: Color(0xFF33445C))),
-              Positioned(left: w * 0.25 - 23, top: h / 2 - 23, child: WIconView(WIcon.car, size: 46, color: Colors.white.withValues(alpha: 0.55))),
-              Positioned(left: w * 0.75 - 23, top: h / 2 - 23, child: WIconView(WIcon.sparkle, size: 46, color: Colors.white.withValues(alpha: 0.9))),
+              // The after photo is drawn at full width and clipped to the right of the divider.
+              if (widget.after != null) Positioned(top: 0, bottom: 0, right: 0, width: w * (1 - split), child: ClipRect(child: OverflowBox(alignment: Alignment.centerRight, minWidth: w, maxWidth: w, child: DesignPhoto(path: widget.after, height: h, radius: 0)))),
+              if (widget.before == null) Positioned(left: w * 0.25 - 23, top: h / 2 - 23, child: WIconView(WIcon.car, size: 46, color: Colors.white.withValues(alpha: 0.55))),
+              if (widget.after == null) Positioned(left: w * 0.75 - 23, top: h / 2 - 23, child: WIconView(WIcon.sparkle, size: 46, color: Colors.white.withValues(alpha: 0.9))),
               Positioned(left: w * split - 1, top: 0, bottom: 0, child: Container(width: 2, color: WColor.white)),
               Positioned(
                 left: w * split - 22,
@@ -508,8 +518,8 @@ class _CompareSliderState extends State<CompareSlider> {
                   child: Container(width: 44, height: 44, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle), alignment: Alignment.center, child: const WIconView(WIcon.chevron, size: 12)),
                 ),
               ),
-              const Positioned(left: 12, top: 12, child: WBadge('Before · 8:33 AM', tone: Tone.mute, solid: true)),
-              const Positioned(right: 12, top: 12, child: WBadge('After · 8:53 AM', tone: Tone.ok)),
+              Positioned(left: 12, top: 12, child: WBadge('Before · ${widget.beforeTime == null ? '8:33 AM' : Fmt.time(widget.beforeTime!)}', tone: Tone.mute, solid: true)),
+              Positioned(right: 12, top: 12, child: WBadge('After · ${widget.afterTime == null ? '8:53 AM' : Fmt.time(widget.afterTime!)}', tone: Tone.ok)),
             ]),
           ),
         );
