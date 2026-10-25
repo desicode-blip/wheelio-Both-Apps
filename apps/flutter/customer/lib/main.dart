@@ -69,7 +69,7 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
       ),
       // The app keeps its phone layout on every screen size (docs/FLUTTER.md).
       builder: (context, child) => PhoneFrame(
-        child: PaymentEnvironmentLabel(child: DemoLabel(child: child!)),
+        child: DemoLabel(child: child!),
       ),
       home: const _Root(),
     ),

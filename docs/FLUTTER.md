@@ -22,6 +22,10 @@ The payment-mode follow-up archives verified test credentials in Secret Manager,
 
 > Summary of everything that changed on 23–24 Oct 2026 for engineers: `docs/CHANGES-2026-10-24.md`.
 
+## 25 October 2026: no payment-mode banner
+
+Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No real money is charged" or any live/test equivalent), at any time, because it broke the top spacing (it added its own safe-area band and pushed every screen down). `PaymentEnvironmentLabel` was removed from `washkrew_firebase` and from both apps' `builder`. The server's `paymentMode` still decides test or live payments; only the on-screen label is gone. Do not add it back.
+
 ## 25 October 2026: renamed to WashKrew, new logo
 
 - **Palette aligned to the logo.** `WColor.primary` #3160FF → #0049FF (solid end of the logo gradient), `primaryStrong` → #003BD1, `heading` #172231 → #22282D (logo charcoal), `body` → #363D44, `secondary` → #5F6870, `placeholder` → #80878E, `muted` → #9CA2A8, `inverse` and scrim/shadow base → #22282D. Surfaces, borders, success, error and wait colours unchanged. Contrast improves: primary 6.2:1 on white and 5.4:1 on `primaryTint`, so blue text on pale blue now passes AA. PWA `theme_color` → #0049FF.

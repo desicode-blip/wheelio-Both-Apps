@@ -73,7 +73,7 @@ bash apps/flutter/tool/live.sh customer
 
 Use actual consenting test users and an operator-approved **test-mode** captain. Do not seed fake captains or fixed OTPs into production. Prefer two phones, or use the Customer web app with the Captain phone.
 
-- Open both Release apps after disconnecting Xcode. Verify WashKrew branding and the test-payment banner, then real SMS login, resend/edit number, profile and sign-out/reopen.
+- Open both Release apps after disconnecting Xcode. Verify WashKrew branding (there is no test-payment banner; it was removed on 25 Oct at the owner's request), then real SMS login, resend/edit number, profile and sign-out/reopen.
 - Allow/deny/re-enable camera, photos and microphone; cancel capture; replace all four vehicle photos, Captain selfie/KYC and before/after wash photos. Record, preview, delete and retry voice/video uploads. Verify private media from the assigned Captain account.
 - Make a test-payment booking. Check payment cancellation/retry, app switching and lost-callback status recovery. Verify a refundable cancellation reaches its real test-provider refund result. No live funds are required.
 - Claim the offer, confirm the same assignment for both users, share optional foreground GPS, arrive, start/finish with four evidence photos, approve and rate from Customer, then check Captain earnings. Check future-slot restrictions and Customer cancellation while Captain is viewing a job.

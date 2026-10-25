@@ -5,43 +5,6 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'live_backend.dart';
 import 'backend.dart';
 
-/// The payment environment comes from the same server configuration as pricing.
-class PaymentEnvironmentLabel extends StatelessWidget {
-  const PaymentEnvironmentLabel({super.key, required this.child});
-  final Widget child;
-  @override
-  Widget build(BuildContext context) {
-    final backend = WashKrewRuntime.backend;
-    if (backend == null) return child;
-    return StreamBuilder(
-      stream: backend.catalog,
-      builder: (context, snapshot) => Column(
-        children: [
-          if (snapshot.data?.data()?['paymentMode'] != 'live')
-            SafeArea(
-              bottom: false,
-              child: Container(
-                width: double.infinity,
-                color: const Color(0xFFFFE8B0),
-                padding: const EdgeInsets.all(7),
-                child: const Text(
-                  'TEST PAYMENTS · No real money is charged',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5C4200),
-                  ),
-                ),
-              ),
-            ),
-          Expanded(child: child),
-        ],
-      ),
-    );
-  }
-}
-
 /// Authenticated downloads keep wash and identity photos out of public URLs.
 class PrivatePhoto extends StatefulWidget {
   const PrivatePhoto(this.path, {super.key, this.height = 180});
