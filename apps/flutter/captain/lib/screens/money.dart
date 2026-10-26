@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -69,10 +70,11 @@ class _MoneyTabState extends State<MoneyTab> {
             child: Column(children: [
               for (final (i, e) in store.heldEarnings.indexed) ...[
                 if (i > 0) const WDivider(inset: 54),
-                WListRow(icon: WIcon.lock, tone: Tone.wait, title: '${store.t('On hold', 'रोका गया', 'నిలిపివేయబడింది')} · ${Fmt.rupees((e['amount'] as num? ?? 0).toInt() ~/ 100)}', subtitle: store.t('Owner reported a problem', 'मालिक ने शिकायत की', 'యజమాని సమస్య చెప్పారు'), onTap: () => router.go(N.payoutHeld)),
+                WListRow(icon: WIcon.lock, tone: Tone.wait, title: '${store.t('On hold', 'रोका गया', 'నిలిపివేయబడింది')} · ${Fmt.rupees((e['amount'] as num? ?? 0).toInt() ~/ 100)}', subtitle: store.t('Owner reported a problem', 'मालिक ने शिकायत की', 'యజమాని సమస్య చెప్పారు'), onTap: () {store.selectedHeldOrderId=e['orderId'];router.go(N.payoutHeld);} ),
               ],
             ]),
           ),
+        if(store.isLive&&store.payouts.isNotEmpty)WCard(padding:14,child:Column(children:[for(final (i,p) in store.payouts.indexed)...[if(i>0)const WDivider(inset:54),WListRow(icon:WIcon.receipt,title:'${Fmt.date(p['paidAt'].toDate())} · ${Fmt.rupees((p['amount'] as num).toInt()~/100)}',subtitle:'$paid ${Fmt.time(p['paidAt'].toDate())} · ${p['destination']}',onTap:(){store.selectedPayoutId=p['id'];router.go(N.payoutDetail);})]])),
         if (!store.isLive) WCard(
           padding: 14,
           child: Column(children: [
@@ -105,14 +107,16 @@ class PayoutDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
+    final payout=store.selectedPayout;
+    if(store.isLive&&payout==null)return const MoneyTab();
     return WScreen(
       gutter: WSpace.gutterCaptain,
-      header: WHeader(title: store.t('Fri, 9 Oct', 'शुक्र, 9 अक्टू', 'శుక్ర, 9 అక్టో'), subtitle: store.t('Paid 11:48 PM', '11:48 PM पर भेजा', '11:48 PM కి చెల్లించారు')),
+      header: WHeader(title:store.isLive?Fmt.date(payout!['paidAt'].toDate()):store.t('Fri, 9 Oct', 'शुक्र, 9 अक्टू', 'శుక్ర, 9 అక్టో'), subtitle:store.isLive?'${store.t('Paid','भेज दिया','చెల్లించారు')} ${Fmt.time(payout!['paidAt'].toDate())}':store.t('Paid 11:48 PM', '11:48 PM पर भेजा', '11:48 PM కి చెల్లించారు')),
       children: [
         const SizedBox(height: 14),
-        WText('${store.t('Sent to', 'भेजा गया', 'పంపబడింది')} ${store.upi}', WType.caption),
+        WText('${store.t('Sent to', 'भेजा गया', 'పంపబడింది')} ${store.isLive?payout!['destination']:store.upi}', WType.caption),
         const SizedBox(height: 4),
-        const WText('₹1,262', WType.bigMoney, mono: true),
+        WText(store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100):'₹1,262', WType.bigMoney, mono: true),
         Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 18),
           child: Container(
@@ -123,12 +127,12 @@ class PayoutDetailScreen extends StatelessWidget {
           ),
         ),
         WKeyValueCard(rows: [
-          (store.t('9 jobs', '9 काम', '9 పనులు'), '₹1,290'),
-          (store.t('Late (2 jobs)', 'देरी (2 काम)', 'ఆలస్యం (2 పనులు)'), '−₹28'),
-          (store.t('Total', 'कुल', 'మొత్తం'), '₹1,262'),
+          (store.isLive?'${(payout!['earningIds'] as List).length} ${store.t('jobs','काम','పనులు')}':store.t('9 jobs', '9 काम', '9 పనులు'), store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100):'₹1,290'),
+          (store.isLive?store.t('Late (0 jobs)','देरी (0 काम)','ఆలస్యం (0 పనులు)'):store.t('Late (2 jobs)', 'देरी (2 काम)', 'ఆలస్యం (2 పనులు)'), store.isLive?'₹0':'−₹28'),
+          (store.t('Total', 'कुल', 'మొత్తం'),store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100): '₹1,262'),
         ], boldLast: true),
         const SizedBox(height: 18),
-        const WText('UPI ref 4410 2219 8830', WType.caption),
+        WText(store.isLive?'${payout!['reference']}':'UPI ref 4410 2219 8830', WType.caption),
       ],
     );
   }
@@ -141,21 +145,25 @@ class PayoutHeldScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
+    final order=store.selectedHeldOrder;
+    if(store.isLive&&order==null)return const MoneyTab();
+    final amount=store.isLive?Fmt.rupees((order!['captainPayPaise'] as num? ?? 0).toInt()~/100):'₹116';
+    final reason=(order?['dispute'] as Map?)?['note'] as String? ?? '';
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Money held', 'पैसे रोके गए', 'డబ్బు నిలిపివేయబడింది')),
-      footer: WFooter(child: WButton(store.t('Explain by voice', 'आवाज़ में बताएं', 'వాయిస్‌తో వివరించండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () {})),
+      footer: WFooter(child: WButton(store.t('Explain by voice', 'आवाज़ में बताएं', 'వాయిస్‌తో వివరించండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: ()=>store.explainHeld(context))),
       children: [
-        WTitle(store.t('₹116 is on hold', '₹116 रोके गए हैं', '₹116 నిలిపివేయబడింది'), top: 10),
-        WBody(store.t('Owner said the bonnet had water streaks.', 'मालिक ने कहा बोनट पर पानी के निशान थे।', 'బానెట్‌పై నీటి గీతలు ఉన్నాయని యజమాని చెప్పారు.'), top: 6, bottom: 18),
+        WTitle(store.t('$amount is on hold', '$amount रोके गए हैं', '$amount నిలిపివేయబడింది'), top: 10),
+        WBody(store.isLive ? reason : store.t('Owner said the bonnet had water streaks.', 'मालिक ने कहा बोनट पर पानी के निशान थे।', 'బానెట్‌పై నీటి గీతలు ఉన్నాయని యజమాని చెప్పారు.'), top: 6, bottom: 18),
         Row(children: [
-          Expanded(child: WPhotoPlaceholder(height: 96, icon: WIcon.car, tag: store.t('Before', 'पहले', 'ముందు'))),
+          Expanded(child: DesignPhoto(path:order?['evidence']?['before_0']?['path'],height: 96, icon: WIcon.car, tag: store.t('Before', 'पहले', 'ముందు'))),
           const SizedBox(width: 8),
-          Expanded(child: WPhotoPlaceholder(height: 96, icon: WIcon.sparkle, tag: store.t('After', 'बाद', 'తర్వాత'), tagTone: Tone.ok)),
+          Expanded(child: DesignPhoto(path:order?['evidence']?['after_0']?['path'],height: 96, icon: WIcon.sparkle, tag: store.t('After', 'बाद', 'తర్వాత'), tagTone: Tone.ok)),
           const SizedBox(width: 8),
           Expanded(
             child: Stack(children: [
-              const WPhotoPlaceholder(height: 96, icon: WIcon.image),
+              DesignPhoto(path:(order?['dispute']?['photos'] as List?)?.firstOrNull,height: 96, icon: WIcon.image),
               Positioned(left: 0, right: 0, bottom: 14, child: WText(store.t('Owner', 'मालिक', 'యజమాని'), WType.small, align: TextAlign.center)),
             ]),
           ),

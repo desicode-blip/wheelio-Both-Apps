@@ -1,9 +1,26 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedIn() { return request.auth != null; }
+    function signedIn() { return request.auth != null && (!firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) || !firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.keys().hasAny(['deletionStatus'])); }
     function order(orderId) { return firestore.get(/databases/(default)/documents/orders/$(orderId)).data; }
-    function photo() { return request.resource.size <= 8 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)'); }
+    function photo() { return request.resource.size > 0 && request.resource.size <= 8 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)'); }
+    match /profiles/{uid}/{file} {
+      allow read: if signedIn() && uid == request.auth.uid;
+      allow create, update: if signedIn() && uid == request.auth.uid && file.matches('(customer|captain)\\.jpg') && photo();
+      allow delete: if false;
+    }
+    match /orders/{orderId}/problems/{file} {
+      allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
+      allow create, update: if signedIn() && order(orderId).customerId == request.auth.uid && order(orderId).status in ['photosReady', 'approved']
+        && file in [request.auth.uid + '_0.jpg', request.auth.uid + '_1.jpg', request.auth.uid + '_2.jpg'] && photo();
+      allow delete: if false;
+    }
+    match /orders/{orderId}/dispute_response/{file} {
+      allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
+      allow create, update: if signedIn() && order(orderId).captainId == request.auth.uid && order(orderId).status == 'disputed'
+        && file == request.auth.uid + '.m4a' && request.resource.size > 0 && request.resource.size <= 20 * 1024 * 1024 && request.resource.contentType.matches('audio/(mp4|aac)');
+      allow delete: if false;
+    }
     match /orders/{orderId}/customer/{file} {
       allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
       allow create, update: if signedIn() && order(orderId).customerId == request.auth.uid && order(orderId).status == 'pendingPayment'

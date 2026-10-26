@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'device.dart' show Permission;
+Future<void> downloadDocument(Future<String> url) async => throw StateError('Open this document from the app.');
 
 void ding() {}
 Permission notificationPermission() => Permission.unknown;

@@ -1,4 +1,6 @@
-# WashKrew launch status — 25 October 2026
+# WashKrew launch status — 26 October 2026
+
+The 26 October functionality release preserves the staging design, passed 99 automated tests, four analyzers and both web builds, and is published in **test mode**. Current behavior and remaining design/provider/hardware gates are in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Merchant-review observations below are from 25 October; this functionality pass did not recheck or switch the merchant to live bookings.
 
 The live payment integration is connected. Customer checkout deliberately remains in test mode while the external merchant review and real operational setup finish. A successful technical setup is not a completed real-money acceptance test.
 

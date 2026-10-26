@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 
@@ -269,6 +270,12 @@ class VehiclePhotoView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final store=context.store;
+    if(store.isLive){
+      final photos=store.liveOrder(store.current.id)?['customerPhotos'] as Map? ?? {};
+      final path=photos[['front','back','left','right'][side.clamp(0,3)]] as String?;
+      return LayoutBuilder(builder:(c,constraints)=>DesignPhoto(path:path,height:constraints.hasBoundedHeight?constraints.maxHeight:240,radius:0,icon:isBike?WIcon.bike:WIcon.car,caption:path==null?'No owner photo for this side':null));
+    }
     const shape = Color(0xD93B4A5E);
     final size = side >= 2 ? (compact ? const Size(96, 36) : const Size(300, 112)) : (compact ? const Size(82, 62) : const Size(250, 186));
     return DecoratedBox(
@@ -351,6 +358,16 @@ class NotePlayer extends ChangeNotifier {
   bool playing = false;
   double progress = 0;
   bool finishedOnce = false;
+  ClipPlayback? real;
+  String? _realAccount;
+  String? realJob;
+  Future<void> loadReal(MediaClip clip,String account,String jobId)async{
+    stop();real?.dispose();real=ClipPlayback();_realAccount=account;
+    realJob=jobId;
+    finishedOnce=false;progress=0;
+    real!.addListener((){playing=real!.playing;progress=real!.progress;finishedOnce=real!.finishedOnce;notifyListeners();});
+    await real!.load(clip);
+  }
   void Function()? _stop;
   DateTime _started = DateTime.now();
   static const seconds = 12;
@@ -362,6 +379,10 @@ class NotePlayer extends ChangeNotifier {
       };
 
   void play(Lang l) {
+    if(WashKrewRuntime.backend!=null){
+      if(real==null||_realAccount!=WashKrewRuntime.backend!.uid)return;
+      real!.toggle().catchError((Object _){});return;
+    }
     stop();
     playing = true;
     progress = 0;
@@ -385,6 +406,7 @@ class NotePlayer extends ChangeNotifier {
   }
 
   void stop() {
+    real?.pause().catchError((Object _){});
     _stop?.call();
     _stop = null;
     if (playing) {
@@ -412,7 +434,7 @@ class OwnerNoteButton extends StatelessWidget {
       listenable: p,
       builder: (c, _) => Pressable(
         label: 'Play owner’s note again',
-        onTap: () => p.playing ? p.stop() : p.play(store.lang),
+        onTap: () async { if(store.isLive){try{await loadOwnerRecording(store,p);}catch(e){store.set(()=>store.toast=backendError(e));return;}} p.playing ? p.stop() : p.play(store.lang); },
         child: Container(
           height: 32,
           padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -426,6 +448,17 @@ class OwnerNoteButton extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> loadOwnerRecording(CaptainStore store,NotePlayer player)async{
+  final jobId=store.current.id,account=store.liveUid;
+  if(player.realJob==jobId&&player.real?.ready==true)return;
+  final media=store.liveOrder(jobId)?['customerMedia'] as Map?;
+  final recording=media?['note_audio']??media?['note_video'];
+  if(recording is! Map)throw StateError('This booking has no recorded owner note.');
+  final bytes=await store.live!.media(recording['path']);
+  if(store.liveUid!=account||store.current.id!=jobId||bytes==null)throw StateError('Reopen this job to load the owner note.');
+  await player.loadReal(MediaClip(bytes:bytes,contentType:recording['contentType'],seconds:(recording['seconds'] as num).toInt()),account,jobId);
 }
 
 // MARK: Profile photo, bell, work area, help ladder
@@ -443,11 +476,11 @@ class WProfilePhoto extends StatelessWidget {
       label: store.t('Profile photo', 'प्रोफ़ाइल फ़ोटो', 'ప్రొఫైల్ ఫోటో'),
       onTap: () async {
         final d = await Device.pickImage();
-        if (d != null) store.set(() => store.profilePhoto = d);
+        if (d != null) await store.setProfilePhoto(d);
       },
       onLongPress: store.profilePhoto == null
           ? null
-          : () => showWActions(context, actions: [AlertAction(store.t('Remove photo', 'फ़ोटो हटाएं', 'ఫోటో తీసివేయండి'), destructive: true, onTap: () => store.set(() => store.profilePhoto = null))]),
+          : () => showWActions(context, actions: [AlertAction(store.t('Remove photo', 'फ़ोटो हटाएं', 'ఫోటో తీసివేయండి'), destructive: true, onTap: () => store.setProfilePhoto(null))]),
       child: SizedBox(
         width: size,
         height: size,

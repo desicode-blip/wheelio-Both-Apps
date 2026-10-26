@@ -47,6 +47,10 @@ class _OwnerNoteScreenState extends State<OwnerNoteScreen> {
     // Auto-play only the first time, and only while this screen is really on top.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final store = context.store;
+      if(store.isLive){
+        ()async{try{await loadOwnerRecording(store,player);if(mounted&&context.router.isAt(N.ownerNote)&&!store.ownerNoteHeard)player.play(store.lang);}catch(e){if(mounted)store.set(()=>store.toast=backendError(e));}}();
+        return;
+      }
       if (store.ownerNoteHeard) return;
       player.reset();
       Future.delayed(const Duration(milliseconds: 400), () {
@@ -73,7 +77,8 @@ class _OwnerNoteScreenState extends State<OwnerNoteScreen> {
         scrolls: false,
         header: WHeader(title: store.t('Owner’s note', 'मालिक का संदेश', 'యజమాని నోట్')),
         footer: WFooter(
-          child: WButton(store.t('Continue', 'आगे बढ़ें', 'కొనసాగించండి'), size: ButtonSize.captain, enabled: player.finishedOnce, onTap: () {
+          child: WButton(store.t('Continue', 'आगे बढ़ें', 'కొనసాగించండి'), size: ButtonSize.captain, enabled: player.finishedOnce, onTap: () async {
+            if(store.isLive){try{await store.liveProgress('noteHeard');}catch(_){return;}if(!context.mounted)return;}
             player.stop();
             store.set(() => store.ownerNoteHeard = true);
             router.go(N.faceCheck);
@@ -99,6 +104,7 @@ class _OwnerNoteScreenState extends State<OwnerNoteScreen> {
                   child: Stack(alignment: Alignment.center, children: [
                     Transform.scale(scale: player.playing ? 1 + 0.08 * t : 1, child: Container(width: 190, height: 190, decoration: const BoxDecoration(color: WColor.primaryTint, shape: BoxShape.circle))),
                     Container(width: 124, height: 124, decoration: const BoxDecoration(color: WColor.primary, shape: BoxShape.circle)),
+                    if(player.real?.video!=null)SizedBox(width:124,height:124,child:ClipOval(child:ClipVideoSurface(player.real!))),
                     WIconView(player.playing ? WIcon.pause : (player.finishedOnce ? WIcon.replay : WIcon.play), size: 44, color: WColor.white),
                   ]),
                 ),
@@ -156,7 +162,10 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
           setState(() => checking = true);
           // Live: the selfie is taken; matching it to the KYC photo is P0.
           if (store.isLive) {
-            await Device.pickImage(camera: true, front: true).catchError((Object _) => null);
+            try {
+              final image=await Device.pickImage(camera:true,front:true);
+              if(image==null){if(mounted)setState(()=>checking=false);return;}
+            }catch(e){store.set(()=>store.toast=backendError(e));if(mounted)setState(()=>checking=false);return;}
           } else {
             await sleepMs(1200);
           }
@@ -404,6 +413,7 @@ class _WashingScreenState extends State<WashingScreen> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if(context.store.isLive){setState((){});return;}
       if (seconds > 0 && !context.store.lateWash) setState(() => seconds--);
     });
   }
@@ -435,7 +445,9 @@ class _WashingScreenState extends State<WashingScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final late = store.lateWash;
+    final end=store.liveOrder(store.current.id)?['slotEnd']?.toDate() as DateTime?;
+    final remaining=end?.difference(DateTime.now()).inSeconds;
+    final late = store.isLive?(remaining??0)<0:store.lateWash;
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.current.plate),
@@ -446,11 +458,11 @@ class _WashingScreenState extends State<WashingScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 22),
           child: Column(children: [
-            WText(late ? store.t('Should have finished 8:55 AM', '8:55 AM तक ख़त्म होना था', '8:55 AM కి పూర్తవ్వాలి') : store.t('Finish by 8:55 AM', '8:55 AM तक ख़त्म करें', '8:55 AM లోపు పూర్తి చేయండి'), WType.body, size: 16),
+            WText(store.isLive?'${late?'Window ended':'Finish by'} ${end==null?'—':Fmt.time(end)}':late ? store.t('Should have finished 8:55 AM', '8:55 AM तक ख़त्म होना था', '8:55 AM కి పూర్తవ్వాలి') : store.t('Finish by 8:55 AM', '8:55 AM तक ख़त्म करें', '8:55 AM లోపు పూర్తి చేయండి'), WType.body, size: 16),
             const SizedBox(height: 8),
-            WText(late ? '+6:10' : Fmt.clock(seconds), WType.hugeMoney, weight: bold, size: 64, mono: true, color: late ? WColor.destructive : WColor.heading),
+            WText(store.isLive?'${late?'+':''}${Fmt.clock((remaining??0).abs())}':late ? '+6:10' : Fmt.clock(seconds), WType.hugeMoney, weight: bold, size: 64, mono: true, color: late ? WColor.destructive : WColor.heading),
             const SizedBox(height: 8),
-            late ? WBadge(store.t('−₹6 so far', 'अब तक −₹6', 'ఇప్పటి వరకు −₹6'), tone: Tone.error, icon: WIcon.clock) : WBadge(store.t('On time', 'समय पर', 'సమయానికి'), tone: Tone.ok, icon: WIcon.check),
+            late ? WBadge(store.isLive?'Window ended':store.t('−₹6 so far', 'अब तक −₹6', 'ఇప్పటి వరకు −₹6'), tone: Tone.error, icon: WIcon.clock) : WBadge(store.t('On time', 'समय पर', 'సమయానికి'), tone: Tone.ok, icon: WIcon.check),
           ]),
         ),
         Padding(padding: const EdgeInsets.only(bottom: 22), child: BookingVisual(job: store.current)),

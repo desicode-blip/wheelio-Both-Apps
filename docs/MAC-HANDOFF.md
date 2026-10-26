@@ -21,7 +21,7 @@ From the repository root:
 bash apps/flutter/tool/run-ios.sh --prepare
 ```
 
-This checks both native configurations, downloads Flutter iOS artifacts, restores the **locked Dart dependencies**, updates CocoaPods specs and installs every required native plugin. Existing compatible pod versions are retained. The old pod locks lack the new recording, payment and notification plugins; this command refreshes them on the Mac, checks that none are missing and generates Release settings. It does not compile, sign or install an app. Commit the resulting `Podfile.lock` changes after successful compilation. Do not use `pod install --deployment` with the old locks.
+This checks both native configurations, downloads Flutter iOS artifacts, restores the **locked Dart dependencies**, updates CocoaPods specs and installs every required native plugin. Existing compatible pod versions are retained. Staging already includes Mac-resolved pod locks and project changes (`283e39b`). This pass adds no native dependency and preserves those files. Preparation checks native plugins and generates machine-local Release settings. It does not compile, sign or install an app. Commit the resulting `Podfile.lock` changes after successful compilation. Do not use `pod install --deployment` with the old locks.
 
 If enforcing the Dart lock fails on a different Flutter version, use the tested SDK first. Do not resolve the problem by running a broad package upgrade. If CocoaPods reports an incompatible locked pod, retain the failure output and update only the named incompatible pod in that app's `ios` directory; do not delete all project/dependency files.
 

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:washkrew_ui/washkrew_ui.dart' show Brand;
+import 'package:washkrew_ui/washkrew_ui.dart' show Brand, Permission;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -28,6 +28,7 @@ class LiveBackend {
   final functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
   final storage = FirebaseStorage.instance;
   late final PhoneOtpSession _phoneOtp = PhoneOtpSession(auth);
+  late final PhoneOtpSession _accountOtp = PhoneOtpSession(auth);
   String get pendingPhone => _phoneOtp.phone;
   String? get uid => auth.currentUser?.uid;
   bool get phoneVerified => auth.currentUser?.phoneNumber != null;
@@ -64,12 +65,35 @@ class LiveBackend {
 
   void invalidateOtp() {
     _phoneOtp.invalidate();
+    _accountOtp.invalidate();
+  }
+
+  Future<void> requestPhoneChange(String number) =>
+      _accountOtp.request(number, purpose: PhoneOtpPurpose.changeNumber);
+  Future<void> confirmPhoneChange(String code) async {
+    await _accountOtp.confirm(code);
+    await auth.currentUser!.getIdToken(true);
+    await call('syncVerifiedPhone');
+    _accountOtp.registrationCompleted();
+  }
+
+  Future<void> requestAccountVerification() => _accountOtp.request(
+    auth.currentUser!.phoneNumber!,
+    purpose: PhoneOtpPurpose.reauthenticate,
+  );
+  Future<void> confirmAccountVerification(String code) async {
+    await _accountOtp.confirm(code);
+    await auth.currentUser!.getIdToken(true);
   }
 
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _pushOpened;
   bool get supportsPush =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+  Future<Permission> pushPermission()async{
+    final settings=await FirebaseMessaging.instance.getNotificationSettings();
+    return switch(settings.authorizationStatus){AuthorizationStatus.authorized||AuthorizationStatus.provisional=>Permission.allowed,AuthorizationStatus.denied=>Permission.denied,_=>Permission.unknown};
+  }
   Future<void> enablePush(String role) async {
     if (!supportsPush)
       throw StateError(
@@ -109,9 +133,9 @@ class LiveBackend {
     await call('registerPushToken', {'token': token, 'role': role});
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(
-          alert: true,
+          alert: false,
           badge: true,
-          sound: true,
+          sound: false,
         );
     await _tokenRefresh?.cancel();
     _tokenRefresh = FirebaseMessaging.instance.onTokenRefresh.listen((token) {
@@ -198,8 +222,9 @@ class LiveBackend {
     'updatedAt': FieldValue.serverTimestamp(),
   });
 
-  Future<Map<String, dynamic>> pay(String bookingId) async {
+  Future<Map<String, dynamic>> pay(String bookingId, {String? method}) async {
     final options = await call('createCheckout', {'bookingId': bookingId});
+    if (method != null) options['selectedMethod'] = method;
     if (options['paid'] == true)
       return call('checkPayment', {'bookingId': bookingId});
     Map<String, dynamic>? result;
@@ -226,6 +251,60 @@ class LiveBackend {
       'paymentId': result['razorpay_payment_id'],
       'signature': result['razorpay_signature'],
     });
+  }
+
+  Future<void> saveProfilePhoto(String role, Uint8List? bytes) async {
+    final account = uid;
+    if (!['customer', 'captain'].contains(role) || uid == null)
+      throw StateError('Log in to save your photo.');
+    if (bytes != null) {
+      if (bytes.isEmpty || bytes.length > 8 * 1024 * 1024)
+        throw ArgumentError('Choose a photo smaller than 8 MB.');
+      final png = bytes.length > 4 && bytes[0] == 0x89 && bytes[1] == 0x50;
+      await storage
+          .ref('profiles/$uid/$role.jpg')
+          .putData(
+            bytes,
+            SettableMetadata(contentType: png ? 'image/png' : 'image/jpeg'),
+          );
+    }
+    if (uid != account)
+      throw StateError('Your account changed. Choose the photo again.');
+    await call('saveProfilePhoto', {'role': role, 'remove': bytes == null});
+  }
+
+  Future<void> notificationAction(List<String> ids, String action) async {
+    for (var start = 0; start < ids.length; start += 100) {
+      await call('readNotification', {
+        'notificationIds': ids.sublist(
+          start,
+          (start + 100).clamp(0, ids.length),
+        ),
+        'action': action,
+      });
+    }
+  }
+
+  Future<void> uploadProblemPhoto(
+    String orderId,
+    int side,
+    Uint8List bytes,
+  ) async {
+    if (side < 0 || side > 2 || bytes.isEmpty || bytes.length > 8 * 1024 * 1024)
+      throw ArgumentError('Choose a problem photo smaller than 8 MB.');
+    final png = bytes.length > 4 && bytes[0] == 0x89 && bytes[1] == 0x50;
+    await storage
+        .ref('orders/$orderId/problems/${uid}_$side.jpg')
+        .putData(
+          bytes,
+          SettableMetadata(contentType: png ? 'image/png' : 'image/jpeg'),
+        );
+  }
+  Future<void> uploadDisputeResponse(String orderId,Uint8List bytes,int seconds)async{
+    final account=uid;
+    await storage.ref('orders/$orderId/dispute_response/$account.m4a').putData(bytes,SettableMetadata(contentType:'audio/mp4'));
+    if(uid!=account)throw StateError('Your account changed. Reopen the report.');
+    await call('recordCaptainDisputeResponse',{'orderId':orderId,'seconds':seconds});
   }
 
   Future<void> uploadEvidence({
@@ -357,7 +436,7 @@ class LiveBackend {
   Future<Uint8List?> media(String path) =>
       storage.ref(path).getData(20 * 1024 * 1024);
 
-  Future<void> shareLocation(String orderId) async {
+  Future<Position> currentPosition() async {
     var permission = await Geolocator.checkPermission().timeout(
       const Duration(seconds: 5),
     );
@@ -385,6 +464,10 @@ class LiveBackend {
             'Your location could not be found. Check ${Brand.name} location access and try again.',
           ),
         );
+    return position;
+  }
+  Future<void> shareLocation(String orderId) async {
+    final position=await currentPosition();
     await call('updateCaptainLocation', {
       'orderId': orderId,
       'latitude': position.latitude,

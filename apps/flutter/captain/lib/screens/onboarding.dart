@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -337,22 +338,9 @@ class _BankScreenState extends State<BankScreen> {
       footer: WFooter(
         child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode == 0 ? upi.contains('@') : account.length >= 9, onTap: () async {
           if (store.isLive) {
-            // Bank-account payouts are P0: the live backend pays to UPI only.
-            if (mode != 0) {
-              store.blockLive(store.t('Bank account payouts aren’t available yet. Add your UPI ID.', 'बैंक खाते में भुगतान अभी उपलब्ध नहीं है। अपना UPI ID डालें।', 'బ్యాంక్ ఖాతాకు చెల్లింపు ఇంకా లేదు. మీ UPI ID ఇవ్వండి.'));
-              return;
-            }
-            // The server still asks for a bank proof photo (P0: drop it for UPI payouts).
-            if (!store.kycUploaded.contains('bank')) {
-              store.set(() => store.toast = store.t('Take a photo of your passbook or a cancelled cheque.', 'अपनी पासबुक या कैंसिल चेक की फ़ोटो लें।', 'మీ పాస్‌బుక్ లేదా రద్దు చేసిన చెక్ ఫోటో తీయండి.'));
-              final bytes = await Device.pickImage(camera: true).catchError((Object _) => null);
-              if (bytes == null) return;
-              try {
-                await store.liveUploadKyc('bank', bytes);
-              } catch (_) {
-                return;
-              }
-            }
+            try { await store.liveSavePayout(upi:upi.trim(),accountNumber:mode==0?null:account); }
+            catch(_) { return; }
+            if(!context.mounted)return;
           }
           store.set(() => store.upi = upi.trim());
           store.complete(KycStep.bank);
@@ -367,7 +355,7 @@ class _BankScreenState extends State<BankScreen> {
         const SizedBox(height: 22),
         if (mode == 0) ...[
           WTextField(label: 'UPI ID', value: upi, placeholder: 'name@bank', large: true, onChanged: (v) => setState(() => upi = v)),
-          if (upi.contains('@'))
+          if (upi.contains('@') && (!store.isLive || (store.liveCaptain['payout']?['verifiedName'] != null && store.liveCaptain['payout']?['upi']==upi.trim())))
             Container(
               margin: const EdgeInsets.only(top: 20),
               height: 46,
@@ -376,7 +364,7 @@ class _BankScreenState extends State<BankScreen> {
               child: Row(children: [
                 const WIconView(WIcon.check, size: 15, color: WColor.onSuccess),
                 const SizedBox(width: 10),
-                WRich([(store.t('Name matches: ', 'नाम मिलता है: ', 'పేరు సరిపోయింది: '), null), ('RAJU YADAV', bold)], WType.caption, color: WColor.onSuccess, size: 14.5),
+                WRich([(store.t('Name matches: ', 'नाम मिलता है: ', 'పేరు సరిపోయింది: '), null), (store.isLive ? store.liveCaptain['payout']['verifiedName'] as String : 'RAJU YADAV', bold)], WType.caption, color: WColor.onSuccess, size: 14.5),
               ]),
             ),
         ] else
@@ -457,7 +445,7 @@ class _VideoScreenState extends State<VideoScreen> {
   bool playing = true;
   late final Timer _t = Timer.periodic(const Duration(milliseconds: 100), (_) {
     // Demo: a 6-second stand-in for the YouTube player (official player only, never downloaded).
-    if (playing && progress < 1) setState(() => progress = (progress + 1 / 60).clamp(0, 1));
+    if (!context.store.isLive && playing && progress < 1) setState(() => progress = (progress + 1 / 60).clamp(0, 1));
   });
 
   @override
@@ -494,7 +482,10 @@ class _VideoScreenState extends State<VideoScreen> {
             Center(
               child: Pressable(
                 label: playing ? 'Pause' : 'Play',
-                onTap: () => setState(() => playing = !playing),
+                onTap: () {
+                  if (store.isLive) { store.set(() => store.toast = 'Training videos are awaiting approved content.'); return; }
+                  setState(() => playing = !playing);
+                },
                 child: Container(width: 72, height: 72, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white24), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 26, color: WColor.white)),
               ),
             ),
@@ -753,16 +744,20 @@ class UnderReviewScreen extends StatelessWidget {
       gutter: WSpace.gutterCaptain,
       scrolls: false,
       header: WHeader(title: store.t('Get ready', 'तैयार हो जाइए', 'సిద్ధం అవ్వండి'), back: false),
-      footer: WFooter(child: WButton(store.t('Change time', 'समय बदलें', 'సమయం మార్చండి'), kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () => store.blockLive())),
+      footer: WFooter(child: WButton(store.t('Change time', 'समय बदलें', 'సమయం మార్చండి'), kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () async {
+        if(!store.isLive)return;
+        try{await store.live!.call('createSupportRequest',{'requestId':'intro-${DateTime.now().millisecondsSinceEpoch}','kind':'other','note':'Captain requests a different introduction/document review call time.'});store.set(()=>store.toast='Your request is saved. Operations will confirm the review time.');}
+        catch(e){store.set(()=>store.toast=backendError(e));}
+      })),
       children: [
         const Spacer(),
         const Center(child: WStateCircle(WIcon.phone, size: 112)),
         const SizedBox(height: 16),
-        WText(store.t('We’ll call you today', 'हम आज आपको कॉल करेंगे', 'మేము ఈరోజు మీకు కాల్ చేస్తాము'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
+        WText(store.isLive&&store.liveCaptain['introCallLabel']==null?'Your review call is pending':store.t('We’ll call you today', 'हम आज आपको कॉल करेंगे', 'మేము ఈరోజు మీకు కాల్ చేస్తాము'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
         const SizedBox(height: 16),
         WBody(store.t('A 10-minute video call to check your documents. Keep your Aadhaar ready.', 'दस्तावेज़ जाँचने के लिए 10 मिनट की वीडियो कॉल। आधार तैयार रखें।', 'మీ పత్రాలు చూడటానికి 10 నిమిషాల వీడియో కాల్. ఆధార్ సిద్ధంగా ఉంచుకోండి.'), center: true),
         const SizedBox(height: 16),
-        Container(height: 54, decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)), alignment: Alignment.center, child: WText(store.t('Today, 3 – 5 PM', 'आज, 3 – 5 PM', 'ఈరోజు, 3 – 5 PM'), WType.section, weight: semibold)),
+        Container(height: 54, decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)), alignment: Alignment.center, child: WText(store.isLive?store.liveCaptain['introCallLabel'] as String? ?? 'Time awaiting confirmation':store.t('Today, 3 – 5 PM', 'आज, 3 – 5 PM', 'ఈరోజు, 3 – 5 PM'), WType.section, weight: semibold)),
         const SizedBox(height: 16),
         if (!store.isLive) Center(child: Pressable(onTap: () => context.router.replace(const [R(N.live)]), child: const WText('Demo: call done →', WType.caption, color: WColor.muted))),
         // Live: approval by the operations team opens "You're in".

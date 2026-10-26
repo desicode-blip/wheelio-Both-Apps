@@ -1,5 +1,7 @@
 # P0: backend and functionality needed for the designed screens
 
+**26 October update:** this file retains the original design gap checklist for acceptance. Many implementation gaps below are now connected, locally tested and published in test mode; read the current behavior, release checks and remaining gates in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Unticked items are not claims that their implemented server paths are absent. They remain open for their full stated external/native/operational acceptance. Do not replace the staging design to clear this checklist.
+
 **Owner: Ajay. Priority: P0 (first).** Requested by Aman on 25 October 2026.
 
 On 25 October the real-data (Firebase) apps were changed to use **exactly the designed screens** from the

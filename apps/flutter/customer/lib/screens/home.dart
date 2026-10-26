@@ -563,7 +563,7 @@ class BookingDetailScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        const WListRow(icon: WIcon.receipt, title: 'Download receipt'),
+        WListRow(icon: WIcon.receipt, title: 'Download receipt', onTap:()=>store.downloadBookingDocument(o.id,'receipt')),
         const WDivider(),
         if (o.refund != null)
           WListRow(icon: WIcon.rupee, title: 'Track refund', onTap: () => router.go(N.refund))
@@ -796,7 +796,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   WListRow(icon: WIcon.rupee, title: 'Refund UPI ID', subtitle: c.refundUPI, onTap: () => router.push(const R(N.refundUPI))),
                   const WDivider(inset: 54),
                 ],
-                WListRow(icon: WIcon.home, title: 'Saved places', subtitle: store.isLive ? (store.orders.firstOrNull == null ? 'None yet' : store.orders.first.place.title) : 'My Home Avatar, Tower 3'),
+                WListRow(icon: WIcon.home, title: 'Saved places', subtitle: store.isLive ? (store.savedPlaces.firstOrNull?.title ?? 'None yet') : 'My Home Avatar, Tower 3',onTap:()=>router.push(const R(N.addressSearch,savedOnly:true))),
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.bell, title: 'Notifications', subtitle: _notificationSummary(store), onTap: () => router.go(N.notificationSettings)),
               ]),

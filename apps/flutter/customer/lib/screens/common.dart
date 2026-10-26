@@ -252,11 +252,11 @@ class ProfilePhotoPicker extends StatelessWidget {
       label: store.profilePhoto == null ? 'Add a profile photo' : 'Change profile photo',
       onTap: () async {
         final d = await Device.pickImage();
-        if (d != null) store.set(() => store.profilePhoto = d);
+        if (d != null) await store.setProfilePhoto(d);
       },
       onLongPress: store.profilePhoto == null
           ? null
-          : () => showWActions(context, actions: [AlertAction('Remove photo', destructive: true, onTap: () => store.set(() => store.profilePhoto = null))]),
+          : () => showWActions(context, actions: [AlertAction('Remove photo', destructive: true, onTap: () => store.setProfilePhoto(null))]),
       child: SizedBox(
         width: size,
         height: size,

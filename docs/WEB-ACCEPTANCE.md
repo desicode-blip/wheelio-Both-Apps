@@ -1,4 +1,10 @@
-# Web acceptance — 21–22 October 2026
+# Web acceptance — 21–26 October 2026
+
+## 26 October design-preserving release
+
+The functionality implementation and exact remaining gates are recorded in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). This pass passed 77 backend/rules tests, 8 Customer tests, 14 shared account/checkout tests, four analyzers and both release web builds. Separate local Customer and Captain accounts displayed the same assigned booking and exchanged vehicle-help states. Authenticated HTTP checks exercised actual local private evidence uploads and the wash lifecycle through photo review, plus a single-use receipt download. The previous merchant test-payment/refund acceptance below remains a separate record; the local capture fixture used on this pass is not a fresh Razorpay payment test.
+
+The final published apps retain staging's designed screens. All twelve new functions are active, the domain-restricted project's API gateway configuration completed, 35 protected callables reject anonymous requests, invalid document links and webhook signatures fail, and hosted app hashes match the checked builds. The Customer catalog and Captain startup rendered without console warnings/errors. Payment mode is still test; no production QA identity was seeded. Native hardware and the externally gated P0 items remain open.
 
 The release under test is Flutter Customer and Captain using Firebase controllers, not `?demo=true`. Native platform work is deferred. The deployed project remains in test-payment mode.
 

@@ -1,6 +1,7 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { PaymentProviderError } from './payments.mjs';
+import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, worksWindow, windowTimes, normalizedAddress } from './booking-policy.mjs';
 
 export class ServiceError extends Error {
@@ -20,7 +21,7 @@ const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 
 const capacityKey=(society,day,hour,mode)=>hash(`${mode==='live'?'live:':''}${society}:${day}:${hour}`);
 
 export class WashKrewService {
-  constructor({ db, payments, paymentProviders, evidence, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, now }); }
+  constructor({ db, payments, paymentProviders, evidence, accounts, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, now }); }
   getPayments(mode) {
     const provider=this.paymentProviders?.[mode]??this.payments;
     const actual=provider?.keyId?.startsWith('rzp_live_')?'live':provider?.keyId?.startsWith('rzp_test_')?'test':null;
@@ -110,6 +111,7 @@ export class WashKrewService {
         return { bookingId, status: old.status, amount: old.pricePaise };
       }
       const config = cfg.data();
+      if(profile.data()?.deletionStatus)fail('permission-denied','This account is being deleted.');
       if (!config?.bookingsEnabled) fail('failed-precondition', 'Bookings are not open yet. Please try again once service starts.');
       if (!profile.exists || !profile.data().name) fail('failed-precondition', 'Save your name first.');
       const type = config.vehicleTypes?.find(v => v.kind === vehicleKind && v.active !== false);
@@ -348,16 +350,17 @@ export class WashKrewService {
     const cfg = await this.config();
     const seconds = Number.isInteger(cfg.offerTtlSeconds) && cfg.offerTtlSeconds >= 30 ? cfg.offerTtlSeconds : 60;
     const captains = await this.db.collection('captains').where('approved', '==', true).where('online', '==', true).where('societyIds', 'array-contains', o.societyId).limit(50).get();
-    await Promise.all(captains.docs.filter(c=>c.id!==o.customerId && c.data().paymentMode === o.paymentMode && worksWindow(c.data(),o) && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
+    await Promise.all(captains.docs.filter(c=>c.id!==o.customerId && c.data().paymentMode === o.paymentMode && worksWindow(c.data(),o) && areaFits(c.data(),o,cfg.societies) && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
       const offerRef = this.db.doc(`jobOffers/${hash(`${bookingId}:${c.id}`)}`);
       const [booking, captain, prior] = await Promise.all([tx.get(ref), tx.get(c.ref), tx.get(offerRef)]);
-      if (booking.data()?.status !== 'searching' || booking.data().slotKey!==o.slotKey || !captain.data()?.approved || !captain.data()?.online || !worksWindow(captain.data(),o)) return;
+      if (booking.data()?.status !== 'searching' || booking.data().slotKey!==o.slotKey || !captain.data()?.approved || !captain.data()?.online || !worksWindow(captain.data(),o) || !areaFits(captain.data(),o,cfg.societies)) return;
       if (prior.exists && ['rejected','accepted','withdrawn'].includes(prior.data().status)) return;
       if (prior.exists && dateMillis(prior.data().expiresAt) > this.now()) return;
       // Coarse offer only. Vehicle identity, owner's note and exact parking are
       // available exclusively to the captain who wins the claim transaction.
       tx.set(offerRef, { orderId: bookingId, captainId: c.id, societyId: o.societyId, societyName: o.societyName, area: o.area,
         vehicleKind: o.vehicleKind, vehicleName: o.vehicleName, washKind: o.washKind, captainPayPaise: o.captainPayPaise,
+        distanceMetres:metresBetween(captain.data().position,cfg.societies?.find(s=>s.id===o.societyId)?.location),
         paymentMode:o.paymentMode, slotStart: o.slotStart, slotEnd: o.slotEnd, status: 'pending', expiresAt: Timestamp.fromMillis(this.now()+seconds*1000), createdAt: stamp() });
     })));
   }
@@ -388,13 +391,21 @@ export class WashKrewService {
     });
   }
   async captainPreferences(auth,data) {
-    const uid=this.actor(auth), windows=data.workingWindows;
+    const uid=this.actor(auth), windows=data.workingWindows,cfg=await this.config();
     if(!Array.isArray(windows)||!windows.length||windows.length>3||windows.some(w=>![[6,10],[10,14],[14,18]].some(([a,b])=>w?.startHour===a&&w?.endHour===b))||new Set(windows.map(w=>w.startHour)).size!==windows.length)
       fail('invalid-argument','Choose your working hours.');
     await this.db.runTransaction(async tx=>{
       const ref=this.db.doc(`captains/${uid}`),c=(await tx.get(ref)).data();
-      if(!c?.approved)fail('permission-denied','Your captain account needs approval.');
-      tx.update(ref,{workingWindows:windows.map(w=>({startHour:w.startHour,endHour:w.endHour})),updatedAt:stamp()});
+      if(!c||c.deletionStatus)fail('permission-denied','Complete your Captain account first.');
+      const preference=data.areaPreference;
+      if(preference!==undefined){
+        if(!['all','radius','societies','place'].includes(preference?.mode))fail('invalid-argument','Choose an area preference.');
+        const allowed=c.approved?c.societyIds??[]:(cfg.societies??[]).filter(s=>s.active).map(s=>s.id);
+        if(preference.mode==='societies'&&(!Array.isArray(preference.societyIds)||!preference.societyIds.length||preference.societyIds.length>10||preference.societyIds.some(v=>!allowed.includes(v))))fail('permission-denied','Choose available societies within your approval.');
+        if(preference.mode==='radius'&&(!Number.isFinite(preference.radiusKm)||preference.radiusKm<1||preference.radiusKm>50||!validPosition(c.position)))fail('failed-precondition','Allow location access before choosing a distance filter.');
+        if(preference.mode==='place')text(preference.place,2,100,'area');
+      }
+      tx.update(ref,{workingWindows:windows.map(w=>({startHour:w.startHour,endHour:w.endHour})),...(preference?{areaPreference:{mode:preference.mode,...(preference.mode==='societies'?{societyIds:[...new Set(preference.societyIds)]}:preference.mode==='radius'?{radiusKm:preference.radiusKm}:preference.mode==='place'?{place:preference.place.trim()}:{})}}:{}),updatedAt:stamp()});
     });
     return {ok:true};
   }
@@ -417,20 +428,55 @@ export class WashKrewService {
     }
     return { online: data.online };
   }
+  async captainPosition(auth,data){
+    const uid=this.actor(auth);if(!validPosition(data))fail('invalid-argument','Invalid location.');
+    const ref=this.db.doc(`captains/${uid}`);if(!(await ref.get()).exists)fail('permission-denied','Complete your Captain account first.');
+    const {societyId}=await this.serviceLocation(null,data);
+    await ref.update({position:{latitude:data.latitude,longitude:data.longitude,updatedAt:Timestamp.fromMillis(this.now())},locationSocietyId:societyId,updatedAt:stamp()});return {ok:true};
+  }
+  async serviceLocation(_auth,data){
+    if(!validPosition(data))fail('invalid-argument','Invalid location.');
+    const cfg=await this.config();
+    const candidates=(cfg.societies??[]).filter(s=>s.active&&validPosition(s.location)&&Number.isFinite(s.serviceRadiusMetres)&&s.serviceRadiusMetres>0).map(s=>({societyId:s.id,distanceMetres:metresBetween(data,s.location),radius:s.serviceRadiusMetres})).filter(s=>s.distanceMetres<=s.radius).sort((a,b)=>a.distanceMetres-b.distanceMetres);
+    return {societyId:candidates[0]?.societyId??null};
+  }
+  async captainPayout(auth,data) {
+    const uid=this.actor(auth),method=data.method;
+    if(!['upi','bank'].includes(method))fail('invalid-argument','Choose UPI or bank account.');
+    let payout;
+    if(method==='upi'){
+      const upi=text(data.upi,3,100,'payout UPI');
+      if(!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upi))fail('invalid-argument','Check your UPI ID.');
+      payout={method,upi};
+    }else{
+      const accountNumber=text(data.accountNumber,9,18,'bank account').replaceAll(' ','');
+      if(!/^\d{9,18}$/.test(accountNumber))fail('invalid-argument','Check your account number.');
+      payout={method,accountNumber};
+    }
+    const ref=this.db.doc(`captains/${uid}`);
+    await this.db.runTransaction(async tx=>{
+      const c=(await tx.get(ref)).data();
+      if(!c)fail('failed-precondition','Complete your Captain account first.');
+      if(c.approved&&(!Number.isFinite(auth.token.auth_time)||this.now()/1000-auth.token.auth_time>300))fail('failed-precondition','Verify the code sent to your current mobile number before changing payouts.');
+      tx.update(ref,{payout:{...payout,status:'pendingVerification'},upi:method==='upi'?payout.upi:'',updatedAt:stamp()});
+      if(c.approved)tx.set(this.db.doc(`notifications/${hash(`${uid}:payout:${JSON.stringify(payout)}`)}`),{recipientId:uid,role:'captain',kind:'upiChanged',category:'money',title:'Payout details updated',body:'Your new payout details are saved for verification.',read:false,createdAt:stamp()});
+    });return {ok:true,status:'pendingVerification'};
+  }
   async submitCaptainApplication(auth, data) {
     const uid = this.actor(auth), cfg = await this.config();
     const societyIds = [...new Set(data.societyIds ?? [])];
     if (!societyIds.length || societyIds.length > 10 || societyIds.some(s => !cfg.societies?.some(c => c.id === s && c.active))) fail('invalid-argument', 'Choose available societies.');
-    const upi = text(data.upi, 3, 100, 'payout UPI');
-    if (!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(upi)) fail('invalid-argument', 'Check your UPI ID.');
-    for (const kind of ['aadhaar', 'selfie', 'bank']) {
+    const current=(await this.db.doc(`captains/${uid}`).get()).data();
+    const payout=current?.payout??{method:'upi',upi:text(data.upi,3,100,'payout UPI'),status:'pendingVerification'};
+    if(payout.method==='upi'&&!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(payout.upi))fail('invalid-argument','Check your UPI ID.');
+    for (const kind of ['aadhaar', 'selfie']) {
       const meta = await this.evidence.metadata(`kyc/${uid}/${kind}.jpg`);
-      if (!meta || !/^image\/(jpeg|png|webp)$/.test(meta.contentType) || Number(meta.size) > 8 * 1024 * 1024) fail('failed-precondition', 'Upload your identity, selfie and bank proof.');
+      if (!meta || !/^image\/(jpeg|png|webp)$/.test(meta.contentType) || Number(meta.size) <= 0 || Number(meta.size) > 8 * 1024 * 1024) fail('failed-precondition', 'Upload your identity and selfie.');
     }
     await this.db.runTransaction(async tx => {
       const ref = this.db.doc(`captains/${uid}`), c = (await tx.get(ref)).data();
       if (!c || c.approved || !['notSubmitted','changesRequested'].includes(c.kycStatus)) fail('failed-precondition', 'Your application is already under review.');
-      tx.update(ref, { requestedSocietyIds: societyIds, upi, kycStatus: 'underReview', submittedAt: stamp(), updatedAt: stamp() });
+      tx.update(ref, { requestedSocietyIds: societyIds, payout, upi:payout.method==='upi'?payout.upi:'', kycStatus: 'underReview', submittedAt: stamp(), updatedAt: stamp() });
     });
     return { status: 'underReview' };
   }
@@ -445,6 +491,9 @@ export class WashKrewService {
       if (!f || f.status !== 'pending' || dateMillis(f.expiresAt) <= this.now()) fail('deadline-exceeded', 'This offer expired.');
       if (dateMillis(o.slotEnd)<=this.now() || !worksWindow(c,o) || dateMillis(f.slotStart)!==dateMillis(o.slotStart)) fail('failed-precondition','This time window is no longer available.');
       const assigned = await tx.get(this.db.collection('orders').where('captainId','==',uid).where('status','in',['onTheWay','washing','photosReady']));
+      const cfg=(await tx.get(this.db.doc('config/operations'))).data();
+      if(!areaFits(c,o,cfg?.societies))fail('failed-precondition','This job is outside your saved area preference.');
+      if(Number.isInteger(c.jobLimit)&&c.jobLimit>0){const today=await tx.get(this.db.collection('orders').where('captainId','==',uid).where('day','==',o.day));if(today.docs.filter(d=>d.data().status!=='cancelled').length>=c.jobLimit)fail('failed-precondition','Your configured daily job limit is reached.');}
       if (assigned.docs.some(d => dateMillis(d.data().slotStart)<dateMillis(o.slotEnd) && dateMillis(d.data().slotEnd)>dateMillis(o.slotStart)))
         fail('failed-precondition','You already have a job in this time window.');
       tx.update(ref, { captainId: uid, captain: { id: uid, name: c.name.split(' ')[0], rating: c.rating ?? 0, washes: c.completedWashes ?? 0 }, status:'onTheWay', assignedAt:stamp(),updatedAt:stamp() });
@@ -464,6 +513,8 @@ export class WashKrewService {
     const uid=this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`), action=data.action;
     const before=(await ref.get()).data();
     if(!before||before.captainId!==uid)fail('permission-denied','This job is not yours.');
+    const completed=o=>(action==='arrived'&&o.arrivedAt&&active.includes(o.status))||(action==='noteHeard'&&o.noteHeard&&active.includes(o.status))||(action==='start'&&['washing','photosReady','approved','disputed'].includes(o.status))||(action==='finish'&&['photosReady','approved','disputed'].includes(o.status));
+    if(completed(before))return {ok:true};
     if(['arrived','start','finish'].includes(action)&&dateMillis(before.slotStart)>this.now())fail('failed-precondition','This booking window has not opened yet.');
     if(['start','finish'].includes(action)) {
       const stage=action==='start'?'before':'after';
@@ -475,11 +526,15 @@ export class WashKrewService {
     await this.db.runTransaction(async tx=>{
       const s=await tx.get(ref),o=s.data();
       if(o.captainId!==uid)fail('permission-denied','This job is not yours.');
+      if(completed(o))return;
       if(['arrived','start','finish'].includes(action)&&dateMillis(o.slotStart)>this.now())fail('failed-precondition','This booking window has not opened yet.');
       let update={updatedAt:stamp()};
       if(action==='arrived'&&o.status==='onTheWay')update.arrivedAt=stamp();
-      else if(action==='start'&&o.status==='onTheWay'&&o.arrivedAt)update={...update,status:'washing',startedAt:stamp()};
-      else if(action==='finish'&&o.status==='washing')update={...update,status:'photosReady',finishedAt:stamp()};
+      else if(action==='start'&&o.status==='onTheWay'&&o.arrivedAt){
+        if((o.customerMedia?.note_audio||o.customerMedia?.note_video)&&!o.noteHeard)fail('failed-precondition','Listen to the owner note before starting.');
+        update={...update,status:'washing',startedAt:stamp()};
+      }
+      else if(action==='finish'&&o.status==='washing')update={...update,status:'photosReady',finishedAt:stamp(),autoApproveAt:Timestamp.fromMillis(Math.floor((this.now()+19800000)/86400000+1)*86400000-19800000-60000)};
       else if(action==='noteHeard'&&active.includes(o.status))update.noteHeard=true;
       else fail('failed-precondition','This action is not available at the current wash stage.');
       tx.update(ref,update); this.event(tx,ref,action,{status:update.status??o.status,captainId:uid});
@@ -492,7 +547,7 @@ export class WashKrewService {
     if(!['before','after'].includes(stage)||!Number.isInteger(side)||side<0||side>3)fail('invalid-argument','Invalid photo angle.');
     const path=`orders/${orderId}/${uid}/${stage}_${side}.jpg`;
     const metadata=await this.evidence.metadata(path);
-    if(!metadata||!/^image\/(jpeg|png|webp)$/.test(metadata.contentType)||Number(metadata.size)>8*1024*1024)fail('invalid-argument','Upload an image smaller than 8 MB.');
+    if(!metadata||!/^image\/(jpeg|png|webp)$/.test(metadata.contentType)||Number(metadata.size)<=0||Number(metadata.size)>8*1024*1024)fail('invalid-argument','Upload an image smaller than 8 MB.');
     const ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
       const o=(await tx.get(ref)).data();
@@ -542,30 +597,33 @@ export class WashKrewService {
     });
     return {ok:true};
   }
-  async approve(auth,data) {
-    const uid=this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
+  async approve(auth,data,{automatic=false}={}) {
+    const uid=automatic?null:this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
       const s=await tx.get(ref),o=s.data();
-      if(!o||o.customerId!==uid)fail('permission-denied','This booking is not yours.');
+      if(!o||(!automatic&&o.customerId!==uid))fail('permission-denied','This booking is not yours.');
       if(o.status==='approved')return;
       if(o.status!=='photosReady')fail('failed-precondition','The wash is not ready for approval.');
+      if(automatic&&(!o.autoApproveAt||dateMillis(o.autoApproveAt)>this.now()))fail('failed-precondition','The review window has not ended.');
       const c=await tx.get(this.db.doc(`captains/${o.captainId}`));
-      tx.update(ref,{status:'approved',approvedAt:stamp(),updatedAt:stamp()});
+      tx.update(ref,{status:'approved',approvalSource:automatic?'automatic':'customer',approvedAt:stamp(),updatedAt:stamp()});
       tx.update(c.ref,{completedWashes:(c.data()?.completedWashes??0)+1,activeJobCount:Math.max(0,(c.data()?.activeJobCount??1)-1),updatedAt:stamp()});
       tx.set(this.db.doc(`earnings/${orderId}`),{captainId:o.captainId,orderId,paymentMode:o.paymentMode,amount:o.captainPayPaise,status:'approved',updatedAt:stamp()},{merge:true});
-      this.event(tx,ref,'customerApproved',{status:'approved'});
+      this.event(tx,ref,automatic?'autoApproved':'customerApproved',{status:'approved'});
     });
     return {ok:true};
   }
   async rate(auth,data) {
     const uid=this.actor(auth),orderId=id(data.orderId);
     if(!Number.isInteger(data.stars)||data.stars<1||data.stars>5)fail('invalid-argument','Choose 1 to 5 stars.');
+    const tags=data.tags??[];
+    if(!Array.isArray(tags)||tags.length>5||new Set(tags).size!==tags.length||tags.some(t=>!['Spotless','On time','Polite','Missed a spot','Late'].includes(t)))fail('invalid-argument','Choose the available rating tags.');
     await this.db.runTransaction(async tx=>{
       const ref=this.db.doc(`orders/${orderId}`),s=await tx.get(ref),o=s.data();
       if(!o||o.customerId!==uid||o.status!=='approved')fail('permission-denied','Only the customer can rate an approved wash.');
       if(o.rating)fail('already-exists','This wash has already been rated.');
       const c=await tx.get(this.db.doc(`captains/${o.captainId}`)),count=c.data().ratingCount??0,sum=c.data().ratingSum??0;
-      tx.update(ref,{rating:data.stars,updatedAt:stamp()});tx.update(c.ref,{ratingCount:count+1,ratingSum:sum+data.stars,rating:(sum+data.stars)/(count+1),updatedAt:stamp()});
+      tx.update(ref,{rating:data.stars,ratingTags:tags,updatedAt:stamp()});tx.update(c.ref,{ratingCount:count+1,ratingSum:sum+data.stars,rating:(sum+data.stars)/(count+1),updatedAt:stamp()});
     });
     return {ok:true};
   }
@@ -601,11 +659,23 @@ export class WashKrewService {
   async reportProblem(auth,data) {
     const uid=this.actor(auth),orderId=id(data.orderId),kind=id(data.kind),note=text(data.note??'',0,1000,'problem description');
     if(!['notClean','damage','wrongVehicle','noShow'].includes(kind))fail('invalid-argument','Choose a problem.');
+    const photoCount=data.photoCount??0,photos=[];
+    if(!Number.isInteger(photoCount)||photoCount<0||photoCount>3)fail('invalid-argument','Add up to three problem photos.');
+    const prior=(await this.db.doc(`orders/${orderId}`).get()).data();
+    if(!prior||prior.customerId!==uid)fail('permission-denied','This booking is not yours.');
+    const sameReport=o=>o.dispute?.kind===kind&&o.dispute.note===note&&(o.dispute.photos??[]).length===photoCount;
+    if(sameReport(prior))return {ok:true};
+    for(let i=0;i<photoCount;i++){
+      const path=`orders/${orderId}/problems/${uid}_${i}.jpg`,meta=await this.evidence.metadata(path);
+      if(!meta||!/^image\/(jpeg|png|webp)$/.test(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>8*1024*1024)fail('invalid-argument','Upload each problem photo before sending the report.');
+      photos.push(path);
+    }
     await this.db.runTransaction(async tx=>{
       const ref=this.db.doc(`orders/${orderId}`),o=(await tx.get(ref)).data();
+      if(o?.customerId===uid&&sameReport(o))return;
       if(!o||o.customerId!==uid||!['photosReady','approved'].includes(o.status))fail('permission-denied','A problem cannot be opened for this booking.');
-      tx.update(ref,{status:'disputed',dispute:{kind,note,outcome:'underReview',createdAt:Timestamp.fromMillis(this.now())},updatedAt:stamp()});
-      tx.set(this.db.doc(`supportTickets/${orderId}`),{customerId:uid,orderId,captainId:o.captainId,kind,note,status:'open',createdAt:stamp()});
+      tx.update(ref,{status:'disputed',dispute:{kind,note,photos,outcome:kind==='damage'?'damagePriority':'underReview',createdAt:Timestamp.fromMillis(this.now())},updatedAt:stamp()});
+      tx.set(this.db.doc(`supportTickets/${orderId}`),{customerId:uid,orderId,captainId:o.captainId,kind,note,photos,priority:kind==='damage'?'damage':'normal',status:'open',createdAt:stamp()});
       tx.set(this.db.doc(`earnings/${orderId}`),{status:'onHold',updatedAt:stamp()},{merge:true});
       this.event(tx,ref,'problemReported',{status:'disputed'});
     });
@@ -652,8 +722,211 @@ export class WashKrewService {
     return {ok:true};
   }
   async readNotification(auth,data) {
-    const uid=this.actor(auth),ref=this.db.doc(`notifications/${id(data.notificationId)}`);
-    await this.db.runTransaction(async tx=>{const s=await tx.get(ref);if(s.data()?.recipientId!==uid)fail('permission-denied','This update is not yours.');tx.update(ref,{read:true});});
+    const uid=this.actor(auth),action=data.action??'read',ids=data.notificationIds??[data.notificationId];
+    if(!['read','unread','delete'].includes(action)||!Array.isArray(ids)||ids.length<1||ids.length>100)fail('invalid-argument','Choose up to 100 notifications.');
+    const refs=[...new Set(ids.map(v=>id(v)))].map(v=>this.db.doc(`notifications/${v}`));
+    await this.db.runTransaction(async tx=>{
+      const docs=await Promise.all(refs.map(r=>tx.get(r)));
+      if(docs.some(s=>s.data()?.recipientId!==uid))fail('permission-denied','This update is not yours.');
+      for(const doc of docs)tx.update(doc.ref,action==='delete'?{deletedAt:stamp(),read:true}:{read:action==='read'});
+    });
+    return {ok:true};
+  }
+  async notificationPreferences(auth,data) {
+    const uid=this.actor(auth),{role,enabled,soundOn,quietHours,mutedUntil,offCategories}=data;
+    const categories=role==='captain'?['jobs','money','level','account']:['bookings','payments','offers','account'];
+    if(!['captain','customer'].includes(role)||[enabled,soundOn,quietHours].some(v=>typeof v!=='boolean')||!Array.isArray(offCategories)||offCategories.length>3||offCategories.some(v=>!categories.includes(v)||v==='account')||new Set(offCategories).size!==offCategories.length||!(mutedUntil===null||(Number.isInteger(mutedUntil)&&mutedUntil>=0&&mutedUntil<=this.now()+31*86400000)))fail('invalid-argument','Check your notification settings.');
+    const ref=this.db.doc(`users/${uid}`);
+    await this.db.runTransaction(async tx=>{
+      if(!(await tx.get(ref)).exists)fail('failed-precondition','Complete your account first.');
+      tx.update(ref,{[`notificationPreferences.${role}`]:{enabled,soundOn,quietHours,mutedUntil,offCategories},[`${role}PushEnabled`]:enabled,updatedAt:stamp()});
+    });
+    return {ok:true};
+  }
+  // These two operations are deliberately not exported as client callables.
+  // operator.cjs authenticates the project owner through Google IAM.
+  async checkBookingDeadline(orderId){
+    const ref=this.db.doc(`orders/${id(orderId)}`),o=(await ref.get()).data();
+    if(!o)return;
+    if(o.status==='photosReady'&&o.autoApproveAt&&dateMillis(o.autoApproveAt)<=this.now())return this.approve(null,{orderId},{automatic:true});
+    if(o.status==='searching'&&dateMillis(o.lastSlotEnd??o.slotEnd)<=this.now())return this.cancel({uid:o.customerId},{orderId},{expired:true});
+    if(o.status!=='onTheWay'||dateMillis(o.slotEnd)>this.now())return;
+    const deadline=Math.floor((dateMillis(o.slotEnd)+19800000)/86400000+1)*86400000-19800000-60000;
+    if(this.now()>=deadline)return this.cancel({uid:o.customerId},{orderId},{expired:true});
+    await this.db.runTransaction(async tx=>{
+      const fresh=(await tx.get(ref)).data();
+      if(fresh?.status!=='onTheWay')return;
+      tx.update(ref,{noShowChecking:true,runningLateMinutes:Math.max(1,Math.ceil((this.now()-dateMillis(fresh.slotEnd))/60000)),noShowCancelAt:Timestamp.fromMillis(deadline),updatedAt:stamp()});
+      if(!fresh.noShowChecking)this.event(tx,ref,'washStatusCheck');
+    });
+  }
+  async resolveDispute(data) {
+    const orderId=id(data.orderId),outcome=data.outcome,note=text(data.note,5,1000,'review decision'),bonus=data.bonusFreeWashes??0;
+    if(!['upheld','rejected','damagePriority'].includes(outcome)||!Number.isInteger(bonus)||bonus<0||bonus>10||(outcome!=='upheld'&&bonus))fail('invalid-argument','Choose an explicit review decision and bonus.');
+    const ref=this.db.doc(`orders/${orderId}`);
+    await this.db.runTransaction(async tx=>{
+      const o=(await tx.get(ref)).data();
+      if(!o?.dispute)fail('failed-precondition','This booking has no problem report.');
+      if(o.dispute.outcome===outcome&&['upheld','rejected'].includes(outcome))return;
+      if(o.status!=='disputed'||!['underReview','damagePriority'].includes(o.dispute.outcome))fail('failed-precondition','This report is already resolved.');
+      const [captain,wallet,refund]=await Promise.all([tx.get(this.db.doc(`captains/${o.captainId}`)),tx.get(this.walletRef(o.customerId,o.paymentMode)),tx.get(this.db.doc(`refunds/${orderId}`))]);
+      const restore=outcome==='upheld'&&o.walletReserved&&!o.walletReleased;
+      const free=(wallet.data()?.freeWashes??0)+(restore&&o.freeWashUsed?1:0)+bonus;
+      const credit=(wallet.data()?.creditPaise??0)+(restore?o.creditUsedPaise??0:0);
+      tx.update(ref,{status:outcome==='upheld'?'disputeUpheld':outcome==='rejected'?'approved':'disputed',dispute:{...o.dispute,outcome,decisionNote:note,creditsAwarded:bonus,decidedAt:stamp()},...(outcome==='upheld'?{refundStatus:o.pricePaise>0?'queued':'none',refundAmountPaise:o.pricePaise,walletReleased:!!o.walletReserved}:{}),updatedAt:stamp()});
+      tx.set(this.db.doc(`supportTickets/${orderId}`),{status:outcome==='damagePriority'?'open':'resolved',decision:outcome,decisionNote:note,updatedAt:stamp()},{merge:true});
+      if(outcome!=='damagePriority'){
+        tx.set(this.db.doc(`earnings/${orderId}`),{status:outcome==='upheld'?'voided':'approved',updatedAt:stamp()},{merge:true});
+        if(captain.exists&&!o.approvedAt)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),...(outcome==='rejected'?{completedWashes:(captain.data().completedWashes??0)+1}:{}),updatedAt:stamp()});
+      }
+      if(outcome==='upheld'){
+        if(restore||bonus)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:o.paymentMode,freeWashes:free,creditPaise:credit,updatedAt:stamp()},{merge:true});
+        if(o.pricePaise>0&&!refund.exists)tx.set(refund.ref,{bookingId:orderId,customerId:o.customerId,paymentId:o.razorpayPaymentId,amount:o.pricePaise,status:'queued',createdAt:stamp()});
+      }
+      this.event(tx,ref,'disputeReviewed',{outcome});
+    });return {ok:true};
+  }
+  async recordPayout(data) {
+    const captainId=id(data.captainId),mode=data.paymentMode,reference=text(data.reference,6,100,'verified transfer reference'),ids=data.earningIds;
+    if(data.verifiedTransfer!==true||!['test','live'].includes(mode)||!Array.isArray(ids)||!ids.length||ids.length>100||new Set(ids).size!==ids.length)fail('invalid-argument','Confirm a completed transfer and its exact earnings.');
+    const payoutId=hash(`${mode}:${reference}`),ref=this.db.doc(`captains/${captainId}`),payoutRef=this.db.doc(`payoutRecords/${payoutId}`);
+    await this.db.runTransaction(async tx=>{
+      const c=(await tx.get(ref)).data(),earnings=await Promise.all(ids.map(e=>tx.get(this.db.doc(`earnings/${id(e)}`))));
+      const recorded=(await tx.get(payoutRef)).data();
+      if(!c)fail('failed-precondition','Captain not found.');
+      if(recorded){if(recorded.captainId!==captainId||JSON.stringify(recorded.earningIds)!==JSON.stringify(ids))fail('already-exists','This transfer reference is already recorded.');return;}
+      if(earnings.some(e=>!e.exists||e.data().captainId!==captainId||e.data().paymentMode!==mode||e.data().status!=='approved'||e.data().payoutId))fail('failed-precondition','Only approved, unpaid earnings in the selected payment mode can be recorded.');
+      const amount=earnings.reduce((n,e)=>n+e.data().amount,0);
+      if(!Number.isSafeInteger(amount)||amount<=0)fail('failed-precondition','No positive payable amount.');
+      const payout={id:payoutId,paymentMode:mode,amount,earningIds:ids,reference,destination:c.payout?.method==='bank'?`Bank ending ${c.payout.accountNumber.slice(-4)}`:c.upi??'',paidAt:Timestamp.fromMillis(this.now()),status:'paid',adjustmentPaise:0};
+      tx.update(ref,{payouts:[payout,...(c.payouts??[])].slice(0,100),updatedAt:stamp()});
+      tx.create(payoutRef,{...payout,captainId,createdAt:stamp()});
+      for(const e of earnings)tx.update(e.ref,{payoutId,paidAt:stamp(),updatedAt:stamp()});
+      tx.set(this.db.doc(`notifications/${hash(`payout:${payoutId}:${captainId}`)}`),{recipientId:captainId,role:'captain',kind:'payoutSent',payoutId,amount,category:'money',title:'Payout recorded',body:'Open Money to view the completed transfer and reference.',read:false,createdAt:stamp()});
+    });return {ok:true,payoutId};
+  }
+  async captainDisputeResponse(auth,data){
+    const uid=this.actor(auth),orderId=id(data.orderId),seconds=data.seconds,path=`orders/${orderId}/dispute_response/${uid}.m4a`;
+    const o=(await this.db.doc(`orders/${orderId}`).get()).data();
+    if(o?.captainId!==uid||o.status!=='disputed')fail('permission-denied','Only the assigned captain can respond to an open report.');
+    if(!Number.isInteger(seconds)||seconds<1||seconds>30)fail('invalid-argument','Record a response of up to 30 seconds.');
+    const meta=await this.evidence.metadata(path);
+    if(!meta||!['audio/mp4','audio/aac'].includes(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>20*1024*1024)fail('invalid-argument','Upload the voice response first.');
+    await this.db.runTransaction(async tx=>{
+      const ref=this.db.doc(`orders/${orderId}`),fresh=(await tx.get(ref)).data();
+      if(fresh?.captainId!==uid||fresh.status!=='disputed')fail('failed-precondition','This report has already moved on.');
+      tx.update(ref,{'dispute.captainResponse':{path,seconds,contentType:meta.contentType,createdAt:stamp()},updatedAt:stamp()});
+    });return {ok:true};
+  }
+  async createDocument(auth,data) {
+    const uid=this.actor(auth),orderId=id(data.orderId),kind=data.kind;
+    if(!['receipt','evidence'].includes(kind))fail('invalid-argument','Choose a booking document.');
+    const ref=this.db.doc(`orders/${orderId}`),profileRef=this.db.doc(`users/${uid}`),token=randomBytes(32).toString('hex');
+    await this.db.runTransaction(async tx=>{
+      const [snapshot,profile]=await Promise.all([tx.get(ref),tx.get(profileRef)]),o=snapshot.data();
+      if(!o||o.customerId!==uid)fail('permission-denied','This booking is not yours.');
+      if(kind==='receipt'&&o.paymentStatus!=='captured')fail('failed-precondition','A verified payment is needed for a receipt.');
+      if(kind==='evidence'&&!o.dispute)fail('failed-precondition','Open your problem report to download its evidence.');
+      if(dateMillis(profile.data()?.lastDocumentAt)>this.now()-2000)fail('resource-exhausted','Wait a moment before downloading another document.');
+      tx.set(this.db.doc(`documentDownloads/${hash(token)}`),{customerId:uid,orderId,kind,expiresAt:Timestamp.fromMillis(this.now()+600000),createdAt:stamp()});
+      tx.update(profileRef,{lastDocumentAt:Timestamp.fromMillis(this.now())});
+    });
+    const base=process.env.FUNCTIONS_EMULATOR==='true'?'http://127.0.0.1:5001/demo-wheelio/asia-south1/':'https://asia-south1-wheelio-apps.cloudfunctions.net/';
+    return {url:`${base}downloadBookingDocument?token=${token}`};
+  }
+  async consumeDocument(token) {
+    if(typeof token!=='string'||!/^[a-f0-9]{64}$/.test(token))fail('permission-denied','This download link is invalid.');
+    const ref=this.db.doc(`documentDownloads/${hash(token)}`);
+    return this.db.runTransaction(async tx=>{
+      const download=(await tx.get(ref)).data();
+      if(!download||download.usedAt||dateMillis(download.expiresAt)<=this.now())fail('permission-denied','Open the booking and request a fresh download link.');
+      const o=(await tx.get(this.db.doc(`orders/${download.orderId}`))).data();
+      if(!o||o.customerId!==download.customerId)fail('permission-denied','This booking is no longer available.');
+      tx.update(ref,{usedAt:stamp()});return {download,order:o};
+    });
+  }
+  async deleteAccount(auth,data) {
+    const uid=this.actor(auth);
+    if(data.confirm!==true)fail('invalid-argument','Confirm account deletion first.');
+    if(!Number.isFinite(auth.token.auth_time)||this.now()/1000-auth.token.auth_time>300||auth.token.auth_time>this.now()/1000+60)fail('failed-precondition','For your security, sign out and log in again before deleting your account.');
+    if(!this.accounts?.deleteUser||!this.evidence.deletePrefix)fail('failed-precondition','Account deletion is temporarily unavailable. Please try again.');
+    const userRef=this.db.doc(`users/${uid}`),captainRef=this.db.doc(`captains/${uid}`);
+    await this.db.runTransaction(async tx=>{
+      const [customerJobs,captainJobs,profile,captain]=await Promise.all([
+        tx.get(this.db.collection('orders').where('customerId','==',uid)),tx.get(this.db.collection('orders').where('captainId','==',uid)),tx.get(userRef),tx.get(captainRef),
+      ]);
+      if([...customerJobs.docs,...captainJobs.docs].some(d=>['pendingPayment','searching','onTheWay','washing','photosReady','disputed'].includes(d.data().status)))fail('failed-precondition','Finish or cancel your open bookings and resolve reports before deleting your account.');
+      if(!profile.exists)fail('failed-precondition','This account is not available.');
+      tx.update(userRef,{deletionStatus:'pending',updatedAt:stamp()});
+      if(captain.exists)tx.update(captainRef,{approved:false,online:false,deletionStatus:'pending',updatedAt:stamp()});
+    });
+    const commit=async docs=>{for(let i=0;i<docs.length;i+=400){const batch=this.db.batch();for(const [ref,value] of docs.slice(i,i+400))value===null?batch.delete(ref):batch.update(ref,value);await batch.commit();}};
+    // Keep other parties' accounting/evidence usable while removing this user's
+    // ownership and personal booking details. No client chooses the target UID.
+    for(const [field,patch] of [
+      ['customerId',{customerId:null,customerFirstName:'Former customer',plate:'',tower:'',floor:'',parking:'',note:'',customerPhotos:{},customerMedia:{},customerDeletedAt:stamp()}],
+      ['captainId',{captainId:null,captain:{id:'deleted',name:'Former captain',rating:0,washes:0},captainDeletedAt:stamp()}],
+    ]){
+      const docs=await this.db.collection('orders').where(field,'==',uid).get();
+      if(field==='customerId')for(const d of docs.docs){await this.evidence.deletePrefix(`orders/${d.id}/customer/`);await this.evidence.deletePrefix(`orders/${d.id}/problems/`);}
+      await commit(docs.docs.map(d=>[d.ref,patch]));
+    }
+    for(const [collection,field,remove] of [['payments','customerId',false],['refunds','customerId',false],['earnings','captainId',false],['payoutRecords','captainId',false],['supportTickets','customerId',false],['notifications','recipientId',true],['deviceTokens','uid',true],['addressRequests','customerId',true],['documentDownloads','customerId',true]]){
+      const docs=await this.db.collection(collection).where(field,'==',uid).get();
+      await commit(docs.docs.map(d=>[d.ref,remove?null:{[field]:null,...(collection==='supportTickets'?{note:''}:{}),accountDeletedAt:stamp()}]));
+    }
+    for(const prefix of [`profiles/${uid}/`,`kyc/${uid}/`])await this.evidence.deletePrefix(prefix);
+    await commit([[this.walletRef(uid,'test'),null],[this.walletRef(uid,'live'),null],[this.db.doc(`supportState/${uid}`),null],[captainRef,null]]);
+    try{await this.accounts.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
+    await userRef.set({deletionStatus:'completed',deletedAt:stamp(),updatedAt:stamp()});
+    return {ok:true,deleted:true};
+  }
+  async syncVerifiedPhone(auth) {
+    const uid=this.actor(auth),phone=auth.token.phone_number;
+    await this.db.runTransaction(async tx=>{
+      const ref=this.db.doc(`users/${uid}`),captainRef=this.db.doc(`captains/${uid}`),[profile,captain]=await Promise.all([tx.get(ref),tx.get(captainRef)]);
+      if(!profile.exists)fail('failed-precondition','Complete your account first.');
+      if(profile.data().phone===phone)return;
+      tx.update(ref,{phone,updatedAt:stamp()});
+      if(captain.exists)tx.update(captainRef,{phone,updatedAt:stamp()});
+      for(const role of ['customer',...(captain.exists?['captain']:[])])tx.set(this.db.doc(`notifications/${hash(`${uid}:phone:${phone}:${role}`)}`),{recipientId:uid,role,kind:'phoneChanged',category:'account',title:'Phone number changed',body:'Your verified mobile number was updated.',read:false,createdAt:stamp()});
+    });return {ok:true,phone};
+  }
+  async profilePhoto(auth,data) {
+    const uid=this.actor(auth),role=data.role;
+    if(!['customer','captain'].includes(role)||typeof data.remove!=='boolean')fail('invalid-argument','Choose your app profile.');
+    const path=`profiles/${uid}/${role}.jpg`;
+    if(!data.remove){
+      const meta=await this.evidence.metadata(path);
+      if(!meta||!/^image\/(jpeg|png|webp)$/.test(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>8*1024*1024)fail('invalid-argument','Choose a profile photo smaller than 8 MB.');
+    }
+    await this.db.doc(`users/${uid}`).update({[`${role}PhotoPath`]:data.remove?null:path,updatedAt:stamp()});
+    return {path:data.remove?null:path};
+  }
+  async savePlace(auth,data) {
+    const uid=this.actor(auth),cfg=await this.config(),society=cfg.societies?.find(s=>s.id===data.societyId&&s.active);
+    if(!society)fail('failed-precondition','Choose a served society.');
+    const place={societyId:society.id,societyName:society.name,area:society.area??'',city:society.city??'',pincode:society.pincode??'',tower:text(data.tower??'',0,100,'tower'),floor:text(data.floor??'',0,50,'floor'),parking:text(data.parking??'',0,50,'parking')};
+    place.id=hash(`${place.societyId}:${place.tower}:${place.floor}:${place.parking}`);
+    const ref=this.db.doc(`users/${uid}`);
+    await this.db.runTransaction(async tx=>{
+      const profile=(await tx.get(ref)).data();
+      if(!profile)fail('failed-precondition','Complete your account first.');
+      tx.update(ref,{savedPlaces:[place,...(profile.savedPlaces??[]).filter(p=>p.id!==place.id)].slice(0,20),updatedAt:stamp()});
+    });return {place};
+  }
+  async vehicleHelp(auth,data) {
+    const uid=this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`),{action,value}=data;
+    if(!['request','answer'].includes(action)||!(action==='request'?['empty','differentVehicle','floor']:['other_floor','outside','not_here']).includes(value))fail('invalid-argument','Choose one of the displayed answers.');
+    if(action==='answer'&&value==='not_here')return this.cancel(auth,{orderId});
+    await this.db.runTransaction(async tx=>{
+      const o=(await tx.get(ref)).data();
+      if(!o||o.status!=='onTheWay'||(action==='request'?o.captainId:o.customerId)!==uid)fail('permission-denied','This action is not available for this booking.');
+      if(action==='answer'&&o.vehicleHelp?.status!=='waiting')fail('failed-precondition','Your captain has no open vehicle request.');
+      const help=action==='request'?{status:'waiting',reason:value,requestedAt:Timestamp.fromMillis(this.now())}:{...o.vehicleHelp,status:'answered',answer:value,answeredAt:Timestamp.fromMillis(this.now())};
+      tx.update(ref,{vehicleHelp:help,updatedAt:stamp()});
+      this.event(tx,ref,action==='request'?'vehicleHelpRequested':'vehicleHelpAnswered',{answer:value});
+    });
     return {ok:true};
   }
   async applyRefund(bookingId, refund, lease) {

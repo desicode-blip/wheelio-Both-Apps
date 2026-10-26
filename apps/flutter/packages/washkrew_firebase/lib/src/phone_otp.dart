@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 /// One SMS session on either the browser or the native Firebase SDK.
 /// Editing a number invalidates callbacks from older requests.
+enum PhoneOtpPurpose { login, changeNumber, reauthenticate }
+
 class PhoneOtpSession {
   PhoneOtpSession(this.auth, {bool? web}) : web = web ?? kIsWeb;
   final FirebaseAuth auth;
@@ -17,8 +19,13 @@ class PhoneOtpSession {
   bool _confirmed = false;
   Completer<void>? _pendingRequest;
   String phone = '';
+  PhoneOtpPurpose _purpose = PhoneOtpPurpose.login;
+  String? _accountUid;
 
-  Future<void> request(String raw) async {
+  Future<void> request(
+    String raw, {
+    PhoneOtpPurpose purpose = PhoneOtpPurpose.login,
+  }) async {
     final digits = raw.replaceAll(RegExp(r'\D'), '');
     final national = digits.length == 12 && digits.startsWith('91')
         ? digits.substring(2)
@@ -31,8 +38,17 @@ class PhoneOtpSession {
     phone = national;
     final generation = _generation;
     final user = auth.currentUser;
+    _purpose = purpose;
+    if (purpose != PhoneOtpPurpose.login) {
+      if (user == null)
+        throw StateError('Log in before changing your account.');
+      if (purpose == PhoneOtpPurpose.reauthenticate &&
+          user.phoneNumber != '+91$national')
+        throw StateError('Verify your current mobile number.');
+      _accountUid = user.uid;
+    }
     _linkUid = user != null && user.phoneNumber == null ? user.uid : null;
-    if (web) {
+    if (web && purpose == PhoneOtpPurpose.login) {
       final result = _linkUid != null
           ? await user!.linkWithPhoneNumber('+91$national')
           : await auth.signInWithPhoneNumber('+91$national');
@@ -96,7 +112,7 @@ class PhoneOtpSession {
 
   Future<void> confirm(String code) async {
     if (_confirmed) return;
-    if (web) {
+    if (web && _purpose == PhoneOtpPurpose.login) {
       if (_confirmation == null) throw StateError('Request a new SMS code.');
       await _confirmation!.confirm(code);
     } else {
@@ -112,7 +128,14 @@ class PhoneOtpSession {
             verificationId: _verificationId!,
             smsCode: code,
           );
-      if (_linkUid != null) {
+      if (_purpose != PhoneOtpPurpose.login) {
+        if (auth.currentUser?.uid != _accountUid)
+          throw StateError('Your account changed. Request a new code.');
+        if (_purpose == PhoneOtpPurpose.changeNumber)
+          await auth.currentUser!.updatePhoneNumber(credential);
+        else
+          await auth.currentUser!.reauthenticateWithCredential(credential);
+      } else if (_linkUid != null) {
         if (auth.currentUser?.uid != _linkUid)
           throw StateError('Your account changed. Request a new code.');
         await auth.currentUser!.linkWithCredential(credential);
@@ -141,6 +164,8 @@ class PhoneOtpSession {
     _resendToken = null;
     _linkUid = null;
     _confirmed = false;
+    _purpose = PhoneOtpPurpose.login;
+    _accountUid = null;
     phone = '';
   }
 }

@@ -70,6 +70,8 @@ String backendError(Object error) {
       'invalid-verification-code' =>
         'That code does not match. Check the SMS and try again.',
       'session-expired' => 'The code expired. Request a new code.',
+      'requires-recent-login' => 'For your security, sign out and log in again before changing your account.',
+      'credential-already-in-use' || 'phone-number-already-exists' => 'This mobile number is linked to another account. Choose a different number.',
       'quota-exceeded' || 'billing-not-enabled' =>
         'SMS sign-in is currently unavailable. Please use email sign-in.',
       _ => 'Sign-in could not be completed. Please try again.',

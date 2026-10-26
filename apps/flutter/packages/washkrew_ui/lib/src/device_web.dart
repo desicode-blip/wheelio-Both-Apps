@@ -6,6 +6,11 @@ import 'dart:js_interop';
 import 'package:web/web.dart' as web;
 
 import 'device.dart' show Permission;
+Future<void> downloadDocument(Future<String> url) async {
+  final tab=web.window.open('','_blank');
+  try{final target=await url;if(tab!=null){tab.opener=null;tab.location.href=target;}else{web.window.location.href=target;}}
+  catch(_){tab?.close();rethrow;}
+}
 
 web.AudioContext? _audio;
 

@@ -651,17 +651,15 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  bool off = false;
-  // Live: the customer's last place (map and location matching are on the P0 list);
-  // a first-time customer types the address instead.
-  late final place = context.store.isLive ? context.store.orders.firstOrNull?.place : AppStore.homePlace();
+  late bool off = widget.forceOff;
+  late Place? place = context.store.isLive ? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final place = this.place;
-    if (place == null) return const AddressSearchScreen();
-    if (off || widget.forceOff) {
+    if (place == null && !off) return const AddressSearchScreen();
+    if (off) {
       return WScreen(
         scrolls: false,
         header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
@@ -674,7 +672,15 @@ class _LocationScreenState extends State<LocationScreen> {
               message: 'We use it only to find captains in your society. You can also type your address.',
               primary: 'Turn on location',
               secondary: 'Type address',
-              onPrimary: () => setState(() => off = false),
+              onPrimary: () async {
+                if(!store.isLive){setState(()=>off=false);return;}
+                try{
+                  final found=await store.locatePlace();
+                  if(!mounted)return;
+                  if(found==null){store.set(()=>store.toast='Choose your society by address. Location matching is not configured for this area.');router.go(N.addressSearch);return;}
+                  setState((){this.place=found;off=false;});
+                }catch(e){store.set(()=>store.toast=backendError(e));}
+              },
               onSecondary: () => router.go(N.addressSearch),
             ),
           ),
@@ -689,7 +695,7 @@ class _LocationScreenState extends State<LocationScreen> {
         child: WButton(
           'Yes, it’s here',
           onTap: () {
-            store.set(() => store.draft.place = Place(place.society, tower: place.tower, addressKey: place.addressKey));
+            store.set(() => store.draft.place = Place(place!.society, tower: place.tower, floor:place.floor, slot:place.slot, addressKey: place.addressKey));
             router.go(N.floorSlot);
           },
         ),
@@ -711,7 +717,7 @@ class _LocationScreenState extends State<LocationScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [WText('${place.society.name}, ${place.tower}', WType.title), WText(place.addressLine, WType.caption)],
+                    children: [WText('${place!.society.name}, ${place.tower}', WType.title), WText(place.addressLine, WType.caption)],
                   ),
                 ),
                 WLink('Change', onTap: () => router.go(N.addressSearch)),
@@ -807,13 +813,14 @@ class _MapPlaceholderState extends State<MapPlaceholder> {
 // MARK: C09c Address search
 
 class AddressSearchScreen extends StatefulWidget {
-  const AddressSearchScreen({super.key});
+  const AddressSearchScreen({super.key,this.savedOnly=false});
+  final bool savedOnly;
   @override
   State<AddressSearchScreen> createState() => _AddressSearchScreenState();
 }
 
 class _AddressSearchScreenState extends State<AddressSearchScreen> {
-  String query = 'my home av';
+  late String query = context.store.isLive ? '' : 'my home av';
   bool picked = false;
 
   /// Bold the part of the name after the search match.
@@ -828,6 +835,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    final choices=widget.savedOnly?store.savedPlaces.where((p)=>p.title.toLowerCase().contains(query.toLowerCase())).toList():[for(final s in store.searchSocieties(query))Place(s,tower:store.isLive?'':'Tower 3')];
     return WScreen(
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
       footer: WFooterBar(
@@ -838,12 +846,12 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
         const Padding(padding: EdgeInsets.only(top: 20, bottom: 18), child: WText('Where is your vehicle?', WType.screen)),
         WTextField(label: 'Society or building', value: query, leadingIcon: WIcon.search, autofocus: true, onChanged: (v) => setState(() => query = v)),
         const SizedBox(height: 14),
-        for (final s in store.searchSocieties(query)) ...[
+        for (final p in choices) ...[
           Pressable(
             feedback: false,
             onTap: () {
               setState(() => picked = true);
-              store.set(() => store.draft.place = Place(s, tower: store.isLive ? '' : 'Tower 3'));
+              store.set(() => store.draft.place = p);
               router.go(N.floorSlot);
             },
             child: Padding(
@@ -853,7 +861,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
                   const WIconBox(WIcon.location, size: 40, radius: 10),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_highlighted(s.name), WText('${s.area}, ${s.city}', WType.caption)]),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_highlighted(p.society.name), WText(widget.savedOnly?p.parkingShort:'${p.society.area}, ${p.society.city}', WType.caption)]),
                   ),
                 ],
               ),
@@ -1053,13 +1061,15 @@ class _FloorSlotScreenState extends State<FloorSlotScreen> {
         child: WButton(
           'Next',
           enabled: floor != null,
-          onTap: () {
+          onTap: () async {
             store.set(() {
               store.draft.place?.floor = floor;
               store.draft.place?.slot = slot.trim();
               store.draft.place?.tower = tower.trim();
             });
-            context.router.go(N.entryNotes);
+            final router=context.router;
+            try{await store.saveDraftPlace();if(mounted)router.go(N.entryNotes);}
+            catch(e){store.set(()=>store.toast=backendError(e));}
           },
         ),
       ),
@@ -1104,6 +1114,25 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
   late int? video = context.store.draft.note.videoSeconds;
   bool playing = false;
   String? recording;
+  ClipPlayback? _clipPlayer;
+  MediaClip? _playingClip;
+
+  Future<void> _playRecording() async {
+    final store=context.store;
+    if(!store.isLive){setState(()=>playing=!playing);return;}
+    final clip=store.draftMedia['note_audio']??store.draftMedia['note_video'];
+    if(clip==null)return;
+    try{
+      if(!identical(clip,_playingClip)){
+        _clipPlayer?.dispose();_playingClip=clip;final player=ClipPlayback();_clipPlayer=player;
+        player.addListener((){if(mounted)setState(()=>playing=player.playing);});
+        await player.load(clip);
+      }
+      await _clipPlayer!.toggle();
+    }catch(e){store.set(()=>store.toast=backendError(e));}
+  }
+  @override
+  void dispose(){_clipPlayer?.dispose();super.dispose();}
 
   bool get hasRecording => voice != null || video != null;
   bool mediaBusy = false;
@@ -1189,6 +1218,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
   Widget _deleteButton(VoidCallback action) => Pressable(
     label: 'Delete recording',
     onTap: () => setState(() {
+      _clipPlayer?.dispose();_clipPlayer=null;_playingClip=null;
       action();
       playing = false;
     }),
@@ -1208,7 +1238,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
         children: [
           Pressable(
             label: playing ? 'Pause video' : 'Play video',
-            onTap: () => setState(() => playing = !playing),
+            onTap: _playRecording,
             child: Container(
               width: 96,
               height: 72,
@@ -1219,7 +1249,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  const WIconView(WIcon.carFill, size: 26, color: Colors.white38),
+                  if(_clipPlayer?.ready==true) Positioned.fill(child:ClipRRect(borderRadius:BorderRadius.circular(12),child:ClipVideoSurface(_clipPlayer!))) else const WIconView(WIcon.carFill, size: 26, color: Colors.white38),
                   Container(
                     width: 38,
                     height: 38,
@@ -1264,7 +1294,7 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
         children: [
           Pressable(
             label: playing ? 'Pause voice note' : 'Play voice note',
-            onTap: () => setState(() => playing = !playing),
+            onTap: _playRecording,
             child: Container(
               width: 40,
               height: 40,

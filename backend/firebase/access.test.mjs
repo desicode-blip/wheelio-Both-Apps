@@ -16,6 +16,20 @@ beforeEach(async()=>{await env.clearFirestore();await env.clearStorage();await e
   await setDoc(doc(db,'earnings/job'),{captainId:'captain',amount:11600,status:'awaitingApproval'});
 });});
 const actor=uid=>env.authenticatedContext(uid);
+test('profile and problem photos remain private; dispute audio belongs only to the assigned captain',async()=>{
+ const bytes=new Uint8Array([1,2,3]),owner=actor('alice').storage(),captain=actor('captain').storage(),stranger=actor('stranger').storage();
+ await assertSucceeds(uploadBytes(ref(owner,'profiles/alice/customer.jpg'),bytes,{contentType:'image/jpeg'}));
+ await assertFails(getBytes(ref(captain,'profiles/alice/customer.jpg')));
+ await assertFails(uploadBytes(ref(stranger,'profiles/alice/customer.jpg'),bytes,{contentType:'image/jpeg'}));
+ await assertFails(uploadBytes(ref(owner,'profiles/alice/customer.jpg'),new Uint8Array(),{contentType:'image/jpeg'}));
+ await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'orders/job'),{status:'photosReady'}));
+ await assertSucceeds(uploadBytes(ref(owner,'orders/job/problems/alice_0.jpg'),bytes,{contentType:'image/jpeg'}));
+ await assertSucceeds(getBytes(ref(captain,'orders/job/problems/alice_0.jpg')));
+ await assertFails(getBytes(ref(stranger,'orders/job/problems/alice_0.jpg')));
+ await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'orders/job'),{status:'disputed'}));
+ await assertSucceeds(uploadBytes(ref(captain,'orders/job/dispute_response/captain.m4a'),bytes,{contentType:'audio/mp4'}));
+ await assertFails(uploadBytes(ref(owner,'orders/job/dispute_response/captain.m4a'),bytes,{contentType:'audio/mp4'}));
+});
 test('exact booking, private tracking and earnings are visible only to the appropriate parties',async()=>{
   for(const uid of ['alice','captain']) {
     await assertSucceeds(getDoc(doc(actor(uid).firestore(),'orders/job')));
@@ -97,4 +111,9 @@ test('inbox entries are private and tokens remain inaccessible even to clients t
   await assertFails(updateDoc(doc(actor(uid).firestore(),'notifications/n'),{recipientId:uid,read:true}));
  }
  await assertFails(getDoc(doc(actor('stranger').firestore(),'notifications/n')));
+});
+
+test('deleted accounts cannot keep uploading profile images with a cached token',async()=>{
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'users/deleted'),{deletionStatus:'completed'}));
+ await assertFails(uploadBytes(ref(actor('deleted').storage(),'profiles/deleted/customer.jpg'),new Uint8Array([1]),{contentType:'image/jpeg'}));
 });

@@ -5,6 +5,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
+import '../data/refund_status.dart';
 import '../data/store.dart';
 import 'common.dart';
 
@@ -62,8 +63,9 @@ class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
       setState(() => photos++);
       return;
     }
-    final bytes = await Device.pickImage(camera: true);
-    if (bytes != null && mounted) setState(() { picked.add(bytes); photos = picked.length; });
+    try { final bytes = await Device.pickImage(camera: true);
+      if (bytes != null && mounted) setState(() { picked.add(bytes); photos = picked.length; });
+    } catch (e) { if(mounted)context.store.set(()=>context.store.toast=e is MediaAccessException?e.message:backendError(e)); }
   }
 
   @override
@@ -80,8 +82,9 @@ class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
             if (id == null) return;
             setState(() => sending = true);
             try {
-              await store.reportProblem(id, widget.kind, note);
-            } catch (_) {}
+              await store.reportProblem(id, widget.kind, note, picked);
+            } catch (e) { store.set(()=>store.toast=backendError(e)); if(mounted)setState(()=>sending=false); return; }
+            if (!mounted) return;
             router.replace(const [R(N.disputeStatus)]);
           }),
         ),
@@ -141,8 +144,8 @@ class DisputeStatusScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ]),
             WKeyValueCard(rows: [
-              ('Refund', '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 149)} to your UPI'),
-              ('Bonus', '${d?.creditsAwarded ?? 2} free washes added'),
+              ('Refund', '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
+              ('Bonus', '${d?.creditsAwarded ?? (store.isLive?0:2)} free washes added'),
             ]),
           ],
         );
@@ -168,7 +171,7 @@ class DisputeStatusScreen extends StatelessWidget {
       case DisputeOutcome.damagePriority:
         return WScreen(
           header: header('Damage report'),
-          footer: WFooterBar(onCall: callSupport, child: const WButton('Download evidence pack', icon: WIcon.upload, kind: ButtonKind.outline)),
+          footer: WFooterBar(onCall: callSupport, child: WButton('Download evidence pack', icon: WIcon.upload, kind: ButtonKind.outline,onTap:()=>o==null?null:store.downloadBookingDocument(o.id,'evidence'))),
           children: [
             const SizedBox(height: 14),
             Row(children: [const WBadge('Priority', tone: Tone.wait, icon: WIcon.eye), const SizedBox(width: 12), WText('Ref #${d?.ref ?? 'WH-20915'}', WType.caption)]),
@@ -214,18 +217,20 @@ class RefundScreen extends StatelessWidget {
     final o = store.currentOrder;
     final r = o?.refund;
     final started = r?.startedAt ?? DateTime.now();
+    final status=refundStatusText(o?.refundStatus,null);
+    final submitted=['submitted','processed'].contains(o?.refundStatus);
     return WScreen(
       header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Refund', onLeading: router.pop, onTrailing: () => router.go(N.help))),
       footer: WFooterBar(onCall: callSupport, child: WButton('Done', onTap: router.pop)),
       children: [
         const Padding(padding: EdgeInsets.only(top: 18), child: WText('Refund amount', WType.label)),
-        WText(Fmt.rupees(r?.amount ?? 149), WType.bigMoney, mono: true),
+        WText(Fmt.rupees(r?.amount ?? (store.isLive?0:149)), WType.bigMoney, mono: true),
         Container(
           margin: const EdgeInsets.only(top: 10, bottom: 22),
           height: 30,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: const ShapeDecoration(color: WColor.successTint, shape: StadiumBorder()),
-          child: Row(children: [const WIconView(WIcon.rupee, size: 12, color: WColor.onSuccess), const SizedBox(width: 8), WText(r?.credited == true ? 'Refund done' : 'Refund started', WType.label, color: WColor.onSuccess)]),
+          child: Row(children: [const WIconView(WIcon.rupee, size: 12, color: WColor.onSuccess), const SizedBox(width: 8), WText(store.isLive?status.title:r?.credited == true ? 'Refund done' : 'Refund started', WType.label, color: WColor.onSuccess)]),
         ),
         if (r?.awaitingUPI == true)
           Padding(
@@ -241,12 +246,12 @@ class RefundScreen extends StatelessWidget {
               },
             ),
           ),
-        WStatusSteps(spacing: 22, current: r?.credited == true ? 3 : (r?.awaitingUPI == true ? 0 : 1), steps: [
+        WStatusSteps(spacing: 22, current: r?.credited == true ? 3 : (store.isLive?!submitted:(r?.awaitingUPI == true)) ? 0 : 1, steps: [
           ('Refund started', '${Fmt.date(started)} · ${Fmt.time(started)}'),
-          ('With your bank', 'Usually 2 to 3 working days'),
-          ('In your account', r?.method ?? 'Google Pay · ananya@okhdfc'),
+          ('With your bank', store.isLive?status.detail:'Usually 2 to 3 working days'),
+          ('In your account', r?.method ?? (store.isLive?'Original payment method':'Google Pay · ananya@okhdfc')),
         ]),
-        Padding(padding: const EdgeInsets.only(top: 28), child: WText('Bank reference: ${r?.bankRef ?? 'RZP8812093'}. Not received by ${Fmt.date(addDays(DateTime.now(), 4))}? Call us.', WType.caption)),
+        Padding(padding: const EdgeInsets.only(top: 28), child: WText(store.isLive?'Refund reference: ${r?.bankRef??'Pending'}. ${status.detail}':'Bank reference: ${r?.bankRef ?? 'RZP8812093'}. Not received by ${Fmt.date(addDays(DateTime.now(), 4))}? Call us.', WType.caption)),
       ],
     );
   }

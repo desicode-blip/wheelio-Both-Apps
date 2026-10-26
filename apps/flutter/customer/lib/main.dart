@@ -175,7 +175,7 @@ Widget _screen(R r) {
     N.photos => const PhotosScreen(),
     N.camera => CameraScreen(angle: r.angle!, forceDenied: r.denied),
     N.location => LocationScreen(forceOff: r.off),
-    N.addressSearch => const AddressSearchScreen(),
+    N.addressSearch => AddressSearchScreen(savedOnly:r.savedOnly),
     N.manualAddress => const ManualAddressScreen(),
     N.floorSlot => const FloorSlotScreen(),
     N.entryNotes => const EntryNotesScreen(),

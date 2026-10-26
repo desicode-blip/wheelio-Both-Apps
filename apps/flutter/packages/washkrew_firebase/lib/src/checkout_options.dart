@@ -17,6 +17,12 @@ Map<String, dynamic> checkoutOptions(
       'Payment configuration is unavailable. Reopen this booking and try again.',
     );
   }
+  final selected = options['selectedMethod'];
+  if (selected != null &&
+      !['gpay', 'phonepe', 'upi_id', 'card'].contains(selected)) {
+    throw StateError('Choose one of the available payment methods.');
+  }
+  final method = selected == 'card' ? 'card' : 'upi';
   return {
     'key': key,
     'order_id': options['orderId'],
@@ -24,7 +30,32 @@ Map<String, dynamic> checkoutOptions(
     'currency': 'INR',
     'name': Brand.name,
     'description': 'Doorstep exterior wash',
-    'prefill': {'contact': phone},
+    'prefill': {'contact': phone, if (selected != null) 'method': method},
+    if (selected != null)
+      'config': {
+        'display': {
+          'blocks': {
+            'selected': {
+              'name': selected == 'gpay'
+                  ? 'Google Pay'
+                  : selected == 'phonepe'
+                  ? 'PhonePe'
+                  : selected == 'card'
+                  ? 'Card'
+                  : 'UPI',
+              'instruments': [
+                {
+                  'method': method,
+                  if (selected == 'gpay' || selected == 'phonepe')
+                    'apps': [selected == 'gpay' ? 'google_pay' : 'phonepe'],
+                },
+              ],
+            },
+          },
+          'sequence': ['block.selected'],
+          'preferences': {'show_default_blocks': true},
+        },
+      },
     'theme': {'color': '#0049FF'},
   };
 }

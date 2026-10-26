@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -314,7 +315,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
         radio: true,
         onTap: () => setState(() {
           mode = m;
-          if (m == WorkMode.societies && picked.isEmpty) picked = {context.store.hereSociety};
+          if (m == WorkMode.societies && picked.isEmpty && context.store.hereSociety.isNotEmpty) picked = {context.store.hereSociety};
         }),
       );
 
@@ -332,8 +333,8 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                WText(store.t('You’re at $here now', 'आप अभी $here में हैं', 'మీరు ఇప్పుడు $here లో ఉన్నారు'), WType.title, size: 16),
-                WLink(store.t('Only jobs here', 'सिर्फ़ यहाँ के काम', 'ఇక్కడి పనులు మాత్రమే'), k: WType.caption, minHeight: 32, onTap: () => setState(() => picked = {here})),
+                WText(store.isLive&&here.isEmpty?'Location has not been matched yet':store.t('You’re at $here now', 'आप अभी $here में हैं', 'మీరు ఇప్పుడు $here లో ఉన్నారు'), WType.title, size: 16),
+                WLink(store.t('Only jobs here', 'सिर्फ़ यहाँ के काम', 'ఇక్కడి పనులు మాత్రమే'), k: WType.caption, minHeight: 32, onTap: () {if(here.isNotEmpty){setState(()=>picked={here});}else{store.set(()=>store.toast='Choose a served society below.');}}),
               ]),
             ),
           ]),
@@ -377,9 +378,11 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
       footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode != WorkMode.societies || picked.isNotEmpty, onTap: () {
-          if (store.isLive && store.signedUp && !(store.workTimes.length == times.length && store.workTimes.containsAll(times))) {
-            store.liveSetWorkTimes(times).catchError((Object _) {});
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode != WorkMode.societies || picked.isNotEmpty, onTap: () async {
+          if (store.isLive && store.registered) {
+            try { await store.liveSaveWorkPreferences(mode,radius,picked,place,times); }
+            catch(e){store.set(()=>store.toast=backendError(e));return;}
+            if(!context.mounted)return;
           }
           store.set(() {
             store.workMode = mode;

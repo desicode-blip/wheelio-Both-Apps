@@ -81,7 +81,7 @@ class _DesignPhotoState extends State<DesignPhoto> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(widget.radius),
             child: Stack(fit: StackFit.expand, children: [
-              Image.memory(data, fit: BoxFit.cover),
+              Image.memory(data, fit: BoxFit.cover,errorBuilder:(_,error,stack)=>WPhotoPlaceholder(height:widget.height,icon:widget.icon,radius:widget.radius,caption:'Photo unavailable. Reopen to retry.')),
               if (widget.tag != null) Positioned(left: 6, bottom: 6, child: PhotoTag(widget.tag!, widget.tagTone)),
             ]),
           ),

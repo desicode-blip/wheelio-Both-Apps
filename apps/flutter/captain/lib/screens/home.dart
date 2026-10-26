@@ -2008,8 +2008,8 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                     }
                   }
                   store.captainArrived();
-                  // Playing the owner's real voice note in this screen is P0; the face check comes next.
-                  router.go(N.faceCheck);
+                  final media=store.liveOrder(store.current.id)?['customerMedia'] as Map? ?? {};
+                  router.go((media['note_audio']!=null||media['note_video']!=null)&&!store.ownerNoteHeard?N.ownerNote:N.faceCheck);
                   return;
                 }
                 store.captainArrived();
@@ -2092,7 +2092,7 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                                     const SizedBox(height: 8),
                                     Wrap(spacing: 10, crossAxisAlignment: WrapCrossAlignment.center, children: [
                                       _NewAddressTag(),
-                                      WLink(store.t('Get directions', 'रास्ता देखें', 'దారి చూడండి'), k: WType.caption, minHeight: 32, onTap: () => Device.openMapsSearch(j.fullAddress)),
+                                      WLink(store.t('Get directions', 'रास्ता देखें', 'దారి చూడండి'), k: WType.caption, minHeight: 32, onTap: store.openDirections),
                                     ]),
                                   ],
                                 ],
@@ -2136,12 +2136,12 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                                   height: 22,
                                   padding: const EdgeInsets.symmetric(horizontal: 8),
                                   decoration: const ShapeDecoration(color: Color(0x8C000000), shape: StadiumBorder()),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       WIconView(WIcon.photos, size: 10, color: WColor.white, weight: semibold),
                                       SizedBox(width: 4),
-                                      WText('4', WType.small, size: 11, weight: semibold, color: WColor.white),
+                                      WText(store.isLive?'${(store.liveOrder(j.id)?['customerPhotos'] as Map? ?? {}).length}':'4', WType.small, size: 11, weight: semibold, color: WColor.white),
                                     ],
                                   ),
                                 ),
@@ -2191,7 +2191,7 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                 const WIconView(WIcon.door, size: 22),
                 const SizedBox(width: 12),
                 Expanded(child: WText(store.t('Gate pass', 'गेट पास', 'గేట్ పాస్'), WType.title)),
-                WBadge(store.t('Ready', 'तैयार', 'సిద్ధం'), tone: Tone.ok, icon: WIcon.check),
+                WBadge(store.isLive&&store.liveOrder(j.id)?['entryPass']?['status']!='received'?'Pending':store.t('Ready', 'तैयार', 'సిద్ధం'), tone:store.isLive&&store.liveOrder(j.id)?['entryPass']?['status']!='received'?Tone.wait:Tone.ok, icon:store.isLive&&store.liveOrder(j.id)?['entryPass']?['status']!='received'?WIcon.clock:WIcon.check),
                 const SizedBox(width: 12),
                 const WIconView(WIcon.chevron, size: 12, color: WColor.secondary),
               ],
@@ -2220,7 +2220,7 @@ class GateProblemScreen extends StatelessWidget {
         const SizedBox(height: 30),
         const Center(child: WStateCircle(WIcon.door, tone: Tone.wait, size: 112)),
         const SizedBox(height: 12),
-        WText(store.t('Show this at the gate', 'यह गेट पर दिखाएं', 'ఇది గేట్ వద్ద చూపించండి'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
+        WText(store.isLive&&store.liveOrder(store.current.id)?['entryPass']?['status']!='received'?'Waiting for the gate pass':store.t('Show this at the gate', 'यह गेट पर दिखाएं', 'ఇది గేట్ వద్ద చూపించండి'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
         const SizedBox(height: 12),
         WBody(store.t('Owner’s MyGate pass for today.', 'आज के लिए मालिक का MyGate पास।', 'ఈరోజు కోసం యజమాని MyGate పాస్.'), center: true),
         const SizedBox(height: 26),
@@ -2236,7 +2236,7 @@ class GateProblemScreen extends StatelessWidget {
             children: [
               const WIconView(WIcon.image, size: 32, color: WColor.secondary),
               const SizedBox(height: 10),
-              WText('MyGate pass · ${store.current.owner}, ${store.current.tower}', WType.caption),
+              WText(store.isLive&&store.liveOrder(store.current.id)?['entryPass']?['status']!='received'?'No gate pass received yet.':'MyGate pass · ${store.current.owner}, ${store.current.tower}', WType.caption),
             ],
           ),
         ),
@@ -2252,10 +2252,13 @@ class CantFindScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    Widget option(WIcon icon, String title) => Padding(
+    Widget option(WIcon icon, String title, String reason) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Pressable(
-        onTap: () => context.router.go(N.ownerCancelled),
+        onTap: () async {
+          if(store.isLive){try{await store.liveVehicleHelp(reason);if(context.mounted)context.router.pop();}catch(_){}return;}
+          context.router.go(N.ownerCancelled);
+        },
         child: Container(
           height: 84,
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2278,9 +2281,9 @@ class CantFindScreen extends StatelessWidget {
       ),
       children: [
         WTitle(store.t('What do you see?', 'आपको क्या दिख रहा है?', 'మీకు ఏం కనిపిస్తోంది?'), top: 10, bottom: 16),
-        option(WIcon.parking, store.t('Slot is empty', 'स्लॉट खाली है', 'స్లాట్ ఖాళీగా ఉంది')),
-        option(WIcon.car, store.t('Different car in slot', 'स्लॉट में दूसरी गाड़ी है', 'స్లాట్‌లో వేరే కారు ఉంది')),
-        option(WIcon.layers, store.t('Can’t find the floor', 'फ्लोर नहीं मिल रहा', 'ఫ్లోర్ కనబడట్లేదు')),
+        option(WIcon.parking, store.t('Slot is empty', 'स्लॉट खाली है', 'స్లాట్ ఖాళీగా ఉంది'), 'empty'),
+        option(WIcon.car, store.t('Different car in slot', 'स्लॉट में दूसरी गाड़ी है', 'స్లాట్‌లో వేరే కారు ఉంది'), 'differentVehicle'),
+        option(WIcon.layers, store.t('Can’t find the floor', 'फ्लोर नहीं मिल रहा', 'ఫ్లోర్ కనబడట్లేదు'), 'floor'),
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: WText(
@@ -2310,7 +2313,7 @@ class _OwnerCancelledScreenState extends State<OwnerCancelledScreen> {
   void initState() {
     super.initState();
     // The owner cancelled while the captain was on the way: struck through in the plan, trip paid.
-    WidgetsBinding.instance.addPostFrameCallback((_) => context.store.ownerCancels(context.store.current.id, trip: true));
+    WidgetsBinding.instance.addPostFrameCallback((_) { if(!context.store.isLive)context.store.ownerCancels(context.store.current.id, trip: true); });
   }
 
   @override

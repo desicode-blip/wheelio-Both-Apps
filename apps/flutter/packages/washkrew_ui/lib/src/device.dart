@@ -64,7 +64,7 @@ class Device {
   static void systemNotify(String title, String body, {bool silent = false}) =>
       impl.systemNotify(title, body, silent);
 
-  static bool get appIsActive => impl.appIsActive();
+  static bool get appIsActive => kIsWeb ? impl.appIsActive() : WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
 
   /// True when the app runs in a browser on a phone or tablet (touch screen).
   static bool get isTouch => !kIsWeb || impl.isTouchDevice();
@@ -155,6 +155,15 @@ class Device {
 
   static Future<void> openSettings() async {
     if (!kIsWeb) await AppSettings.openAppSettings();
+  }
+  static Future<void> downloadDocument(Future<String> url) async {
+    final checked=url.then((value){
+      final uri=Uri.parse(value);
+      if(!((uri.scheme=='https'&&uri.host=='asia-south1-wheelio-apps.cloudfunctions.net')||(uri.scheme=='http'&&['localhost','127.0.0.1'].contains(uri.host))))throw StateError('The document download is unavailable.');
+      return value;
+    });
+    if(kIsWeb){await impl.downloadDocument(checked);return;}
+    if(!await launchUrl(Uri.parse(await checked),mode:LaunchMode.externalApplication))throw StateError('The document could not open. Try again.');
   }
 
   /// Directions to a typed address in Google Maps.

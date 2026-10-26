@@ -1,9 +1,12 @@
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import { getAuth } from 'firebase-admin/auth';
+import { ZipFile } from 'yazl';
+import { receiptPdf, evidenceFiles } from './documents.mjs';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
-import { orderNotices } from './notifications.mjs';
+import { orderNotices, pushDelivery } from './notifications.mjs';
 import { getStorage } from 'firebase-admin/storage';
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
@@ -30,7 +33,9 @@ function service(withPayment = false) {
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
       async metadata(path) { const [metadata] = await getStorage().bucket().file(path).getMetadata(); return metadata; },
+      async deletePrefix(prefix) { await getStorage().bucket().deleteFiles({prefix}); },
     },
+    accounts:{deleteUser:uid=>getAuth().deleteUser(uid)},
   });
 }
 const cors = ['https://wheelio-apps.web.app', 'https://wheelio-apps.firebaseapp.com', /^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
@@ -39,7 +44,10 @@ function callable(method, payment = false) {
   // configure-api-access operation enables the HTTP gateway after deployment;
   // Firebase ID tokens and service authorization below remain mandatory.
   return onCall({ cors, invoker: 'private', ...(payment ? { secrets: paymentSecrets } : {}) }, async request => {
-    try { return await service(payment)[method](request.auth, request.data ?? {}); }
+    try {
+      if(request.auth?.uid&&method!=='deleteAccount'&&(await db.doc(`users/${request.auth.uid}`).get()).data()?.deletionStatus)throw new ServiceError('permission-denied','This account is being deleted.');
+      return await service(payment)[method](request.auth, request.data ?? {});
+    }
     catch (error) {
       if (error instanceof ServiceError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
@@ -56,7 +64,10 @@ export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
 export const setCaptainOnline = callable('captainOnline');
 export const setCaptainPreferences = callable('captainPreferences');
+export const setCaptainPosition = callable('captainPosition');
+export const matchServiceLocation = callable('serviceLocation');
 export const submitCaptainApplication = callable('submitCaptainApplication');
+export const saveCaptainPayout = callable('captainPayout');
 export const claimJob = callable('claim');
 export const rejectJob = callable('reject');
 export const updateWashProgress = callable('progress');
@@ -68,11 +79,40 @@ export const approveWash = callable('approve');
 export const rateWash = callable('rate');
 export const cancelBooking = callable('cancel');
 export const reportWashProblem = callable('reportProblem');
+export const recordCaptainDisputeResponse = callable('captainDisputeResponse');
 export const createSupportRequest = callable('supportRequest');
 export const registerPushToken = callable('registerPushToken');
 export const setPushPreference = callable('setPushPreference');
 export const removePushToken = callable('removePushToken');
 export const readNotification = callable('readNotification');
+export const saveNotificationPreferences = callable('notificationPreferences');
+export const updateVehicleHelp = callable('vehicleHelp');
+export const saveProfilePhoto = callable('profilePhoto');
+export const saveCustomerPlace = callable('savePlace');
+export const syncVerifiedPhone = callable('syncVerifiedPhone');
+export const deleteOwnAccount = callable('deleteAccount');
+export const createBookingDocument = callable('createDocument');
+export const downloadBookingDocument = onRequest({invoker:'private',cors:false,timeoutSeconds:120},async(request,response)=>{
+  response.set('Cache-Control','private, no-store');response.set('X-Content-Type-Options','nosniff');response.set('Referrer-Policy','no-referrer');
+  if(request.method!=='GET'){response.status(405).send('GET required');return;}
+  try{
+    const {download,order}=await service().consumeDocument(request.query.token);
+    const safeRef=String(order.ref??download.orderId).replace(/[^A-Za-z0-9_-]/g,'');
+    if(download.kind==='receipt'){
+      response.set('Content-Type','application/pdf');response.set('Content-Disposition',`attachment; filename="WashKrew-${safeRef}-receipt.pdf"`);response.send(await receiptPdf(order));return;
+    }
+    const files=evidenceFiles(download.orderId,order),bucket=getStorage().bucket();
+    for(const f of files)if(!(await bucket.file(f.path).exists())[0])throw new ServiceError('failed-precondition','An evidence image is not available. Contact support.');
+    const [events,tracking]=await Promise.all([db.collection(`orders/${download.orderId}/events`).orderBy('createdAt').get(),db.doc(`orders/${download.orderId}/tracking/current`).get()]);
+    const zip=new ZipFile();
+    zip.on('error',()=>response.destroy());response.on('close',()=>{if(!response.writableFinished)zip.outputStream.destroy();});
+    zip.addBuffer(Buffer.from(JSON.stringify({booking:order,events:events.docs.map(d=>d.data()),foregroundLocation:tracking.data()??null,callLogAvailable:false},null,2)),'booking-record.json');
+    zip.addBuffer(await receiptPdf(order),'receipt.pdf');
+    for(const f of files)zip.addReadStreamLazy(f.name,{compress:false},cb=>cb(null,bucket.file(f.path).createReadStream()));
+    response.set('Content-Type','application/zip');response.set('Content-Disposition',`attachment; filename="WashKrew-${safeRef}-evidence.zip"`);
+    await new Promise((resolve,reject)=>{response.once('finish',resolve);response.once('error',reject);response.once('close',resolve);zip.outputStream.once('error',reject);zip.outputStream.pipe(response);zip.end();});
+  }catch(error){if(response.headersSent){response.destroy();return;}response.status(error instanceof ServiceError?403:500).send(error instanceof ServiceError?error.message:'Download unavailable. Open the booking and try again.');}
+});
 
 function paymentWebhook(mode, signatureSecret) {
   return onRequest({ secrets: [...paymentSecrets, signatureSecret], invoker: 'private', cors: false }, async (request, response) => {
@@ -130,8 +170,13 @@ export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeou
   const stalled = await db.collection('orders').where('status', 'in', ['searching', 'onTheWay']).limit(200).get();
   for (const doc of stalled.docs) if ((doc.data().status==='searching' ? doc.data().lastSlotEnd??doc.data().slotEnd : doc.data().slotEnd).toMillis() < now) {
     const o = doc.data();
-    try { await backend.cancel({uid:o.customerId},{orderId:doc.id},{expired:true}); }
+    try { await backend.checkBookingDeadline(doc.id); }
     catch(error) { if (!(error instanceof ServiceError)) throw error; }
+  }
+  const review = await db.collection('orders').where('status','==','photosReady').limit(200).get();
+  for(const doc of review.docs)if(doc.data().autoApproveAt?.toMillis()<=now){
+    try{await backend.approve(null,{orderId:doc.id},{automatic:true});}
+    catch(error){if(!(error instanceof ServiceError))throw error;}
   }
 });
 
@@ -152,11 +197,15 @@ export const notifyJobOffer = onDocumentCreated('jobOffers/{offerId}',async even
 export const sendInboxPush = onDocumentCreated({document:'notifications/{notificationId}',retry:true},async event=>{
   const notice=event.data.data();
   if(notice.offerExpiresAt?.toMillis()<=Date.now())return;
+  const profile=(await db.doc(`users/${notice.recipientId}`).get()).data()??{};
+  const preference=profile.notificationPreferences?.[notice.role];
+  const delivery=pushDelivery(notice,preference,Date.now(),profile[`${notice.role}PushEnabled`]);
+  if(!delivery.send)return;
   const devices=await db.collection('deviceTokens').where('uid','==',notice.recipientId).get();
   const eligible=devices.docs.filter(d=>d.data().role===notice.role).slice(0,50);
   if(!eligible.length)return;
   try {
-    const result=await getMessaging().sendEachForMulticast({tokens:eligible.map(d=>d.data().token),notification:{title:notice.title,body:notice.body},data:{orderId:notice.orderId,role:notice.role},apns:{payload:{aps:{sound:'default'}}}});
+    const result=await getMessaging().sendEachForMulticast({tokens:eligible.map(d=>d.data().token),notification:{title:notice.title,body:notice.body},data:{orderId:notice.orderId??'',role:notice.role},apns:{payload:{aps:delivery.sound?{sound:'default'}:{}}}});
     for(let i=0;i<result.responses.length;i++)if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(result.responses[i].error?.code))await eligible[i].ref.delete();
   }catch(error){logger.error('Push delivery failed; inbox entry retained',{code:error.code??'messaging'});throw error;}
 });

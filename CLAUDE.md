@@ -37,6 +37,8 @@ The SwiftUI apps are built and run in Xcode using the Customer or Captain scheme
 
 ## Design rules
 
+- Owner design lock: preserve current staging screen composition, components, typography, palette and assets. Wire actual data/handlers into the existing Customer and Captain screens. Do not introduce generic Firebase replacement screens, guessed layouts or the deliberately removed payment banner. Backend mode isolation is still required. Current implementation and outstanding gates: `docs/FUNCTIONALITY-2026-10-26.md`.
+
 - The active iOS design system is in `apps/ios/Shared/DesignSystem/`. Since 25 Oct 2026 the Flutter colours follow the WashKrew logo: primary blue `#0049FF`, heading charcoal `#22282D` (tokens in `apps/flutter/packages/washkrew_ui/lib/src/tokens.dart`; the SwiftUI reference still has the old `#3160FF` / `#172231`), and canvas `#F6F9FD`.
 - One primary action per app screen. Green is reserved for pay, approve or accept; red is for errors and destructive actions.
 - One small decision per screen in the booking flow.

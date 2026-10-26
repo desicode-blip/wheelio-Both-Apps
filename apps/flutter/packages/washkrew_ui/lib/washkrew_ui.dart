@@ -11,3 +11,4 @@ export 'src/phone_frame.dart';
 export 'src/tokens.dart';
 
 export 'src/media.dart';
+export 'src/playback.dart';

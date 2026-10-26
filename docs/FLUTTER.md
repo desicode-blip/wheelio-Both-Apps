@@ -1,4 +1,6 @@
-# Current integration update — 25 October 2026
+# Current integration update — 26 October 2026
+
+The functionality pass preserves staging `c1ad2b2` screen composition and native project changes. Existing controls now connect phone/profile/settings persistence, recorded playback, vehicle help, problem evidence, server deadlines, private downloads and operator decision/payout records. See [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md) for checks and precise remaining gates. No generic Firebase screen or removed payment banner was restored; merchant mode remains test. Training and external accounts remain pending at the owner's request.
 
 Mac handoff preparation now uses `tool/ios.dart` through the existing Bash commands, with no Node requirement. It validates both native app configurations, checks Xcode/iOS SDK/CocoaPods, regenerates local Flutter files, restores locked Dart packages, refreshes and checks native pods, supports preparation/unsigned compilation and refuses ambiguous physical-device selection or unknown flags. See [MAC-HANDOFF.md](MAC-HANDOFF.md). Native emulator startup now validates the demo project before Firebase initialization and uses that demo configuration rather than the registered production iOS options. No Xcode project/signing file was edited on Windows; Mac-resolved pod locks and Apple signing/APNs still need the native build.
 

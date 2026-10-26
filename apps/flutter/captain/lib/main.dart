@@ -31,7 +31,14 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    store.onJobCancelled=(id,reason){if(mounted)router.replace([R(reason=='slotExpired'?N.noShowCancelled:N.ownerCancelled)]);};
     store.refreshSystemPermission();
+    store.live?.listenPush('captain',(id){
+      if(!mounted)return;
+      final notice=store.notifications.where((n)=>n.jobId==id).firstOrNull;
+      if(notice!=null){final info=openWNotif(notice,store,router);if(info!=null)store.set(()=>store.toast=info);}
+      else{router.home();router.tab=1;}
+    });
     // On a laptop there's no phone to call from: say so instead of dialling.
     Support.onCallUnavailable = (n) => store.set(
       () => store.toast = store.t(
@@ -44,12 +51,15 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
+    store.foreground(s==AppLifecycleState.resumed);
     if (s == AppLifecycleState.resumed) store.refreshSystemPermission();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    store.dispose();
+    router.dispose();
     super.dispose();
   }
 

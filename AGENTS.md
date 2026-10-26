@@ -55,6 +55,8 @@ pnpm preview
 
 ## Design rules
 
+- Owner design lock: preserve the current `staging` Customer/Captain layouts, components, palette, typography and assets. Connect handlers and actual data in those screens. Never substitute generic Firebase screens or guessed designs. Staging deliberately removed the payment banner; do not restore it without an approved design change. Test/live isolation remains enforced in the backend. See `docs/FUNCTIONALITY-2026-10-26.md` for current functionality and pending gates.
+
 - The iOS design system lives in `apps/ios/Shared/DesignSystem/`. Since 25 Oct 2026 the Flutter colours follow the WashKrew logo: primary blue `#0049FF`, heading charcoal `#22282D` (tokens in `apps/flutter/packages/washkrew_ui/lib/src/tokens.dart`; the SwiftUI reference still has the old `#3160FF` / `#172231`), canvas `#F6F9FD`.
 - One primary action per app screen. Green is for pay, approve or accept; red is for errors and destructive actions.
 - Colour is never the only signal; pair it with an icon and a word. Touch targets are at least 48 px (64 px for washer controls).
@@ -65,4 +67,4 @@ pnpm preview
 
 ## Current state
 
-Normal Flutter URLs use Firebase with explicit test-payment labels. The SwiftUI reference and `?demo=true` remain sample-data experiences; fixed demo codes must never reach real controllers. Customer SMS delivery, OTP verification and account completion are confirmed; test-payment browser acceptance is recorded in `docs/WEB-ACCEPTANCE.md`. Live merchant cutover, commercial review, approved live captains and physical GPS acceptance remain required before live operations. Legacy Next.js auth/database configuration and `/api/health` belong to the historical Neon stack, not the Firebase release.
+Normal Flutter URLs use Firebase; server payment mode remains test. The staging design removed the former payment banners. The SwiftUI reference and `?demo=true` remain sample-data experiences; fixed demo codes must never reach real controllers. Customer SMS delivery, OTP verification and account completion are confirmed; test-payment browser acceptance is recorded in `docs/WEB-ACCEPTANCE.md`. Current functionality and pending external/native checks are recorded in `docs/FUNCTIONALITY-2026-10-26.md`. Live merchant cutover, commercial review, approved live captains and physical GPS acceptance remain required before live operations. Legacy Next.js auth/database configuration and `/api/health` belong to the historical Neon stack, not the Firebase release.

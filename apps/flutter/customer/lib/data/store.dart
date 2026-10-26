@@ -6,6 +6,7 @@
 
 import 'dart:math';
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
@@ -81,6 +82,7 @@ class R {
   const R(
     this.n, {
     this.large = false,
+    this.savedOnly = false,
     this.angle,
     this.denied = false,
     this.off = false,
@@ -93,6 +95,7 @@ class R {
   });
   final N n;
   final bool large;
+  final bool savedOnly;
   final PhotoAngle? angle;
   final bool denied;
   final bool off;
@@ -404,6 +407,11 @@ class AppStore extends ChangeNotifier {
 
   /// Profile photo picked from the library (kept on the device for now).
   Uint8List? profilePhoto;
+  String? _profilePhotoPath;
+  List<Place> savedPlaces = [];
+  Timer? _preferenceSave;
+  bool _disposed=false,_inboxLoaded=false;
+  Future<void> _preferenceQueue = Future.value();
   String pendingNewPhone = '';
 
   int _otpTries = 0;
@@ -481,6 +489,12 @@ class AppStore extends ChangeNotifier {
     }
     _accountSubscriptions.clear();
     customer = null;
+    _inboxLoaded=false;
+    profilePhoto = null;
+    _profilePhotoPath = null;
+    savedPlaces = [];
+    _preferenceSave?.cancel();
+    _readIds.clear(); _unreadIds.clear(); _deletedIds.clear();
     _bindWallet();
     orders = [];
     vehicles = [];
@@ -494,8 +508,11 @@ class AppStore extends ChangeNotifier {
     live!.registerPush('customer').catchError((Object _) {});
     _accountSubscriptions.add(live!.inbox(uid).listen((s){
       if(_liveUid!=uid)return;
+      final oldIds=_inbox.map((e)=>e.$1).toSet();
       _inbox=[for(final doc in s.docs) if(doc.data()['role']=='customer') (doc.id, doc.data())];
       _mapInbox();
+      if(_inboxLoaded){for(final n in notifications.where((n)=>!oldIds.contains(n.id))) { _present(n); }}
+      _inboxLoaded=true;
       changed();
     },onError:(Object e){backendMessage=backendError(e);changed();}));
     _accountSubscriptions.add(
@@ -506,7 +523,18 @@ class AppStore extends ChangeNotifier {
               if (_liveUid != uid) return;
               final data = snapshot.data();
               if (data == null) return;
-              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: _walletFree)..credit = _walletCredit;
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: _walletFree, notificationsOn: data['customerPushEnabled'] == true)..credit = _walletCredit;
+              _restorePreferences(data);
+              final photoPath = data['customerPhotoPath'] as String?;
+              if (photoPath != _profilePhotoPath) {
+                _profilePhotoPath = photoPath;
+                if (photoPath == null) {
+                  profilePhoto = null;
+                } else {
+                  live!.photo(photoPath).then((bytes) { if (_liveUid == uid && photoPath == _profilePhotoPath) { profilePhoto = bytes; changed(); } }).catchError((Object e) { if (_liveUid == uid) set(() => toast = backendError(e)); });
+                }
+              }
+              savedPlaces = [for (final p in data['savedPlaces'] as List? ?? []) Place(Society(p['societyId'],p['societyName'],p['area']??'',p['city']??'',p['pincode']??''),tower:p['tower']??'',floor:p['floor'],slot:p['parking']??'')];
               changed();
             },
             onError: (Object e) {
@@ -540,7 +568,7 @@ class AppStore extends ChangeNotifier {
   }
 
   List<(String, Map<String, dynamic>)> _inbox = [];
-  void _mapInbox() => notifications = [for (final (id, d) in _inbox) if (!_deletedIds.contains(id)) _liveNotice(id, d)];
+  void _mapInbox() => notifications = [for (final (id, d) in _inbox) if (d['deletedAt'] == null) _liveNotice(id, d)];
 
   /// A server inbox item in the designed wording, using the booking it belongs to.
   AppNotification _liveNotice(String id, Map<String, dynamic> d) {
@@ -553,6 +581,11 @@ class AppStore extends ChangeNotifier {
       'washing' => (NotificationKind.washStarted, 'Washing has started', '$name started at ${Fmt.time(o?.startedAt ?? DateTime.now())}. Photos when he’s done.'),
       'photosReady' => (NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve to release $price to $name, or tell us if something’s wrong.'),
       'approved' => (NotificationKind.autoApproved, 'Wash approved', '$price released to $name.'),
+      'autoApproved' => (NotificationKind.autoApproved, 'Wash approved at midnight', '$price released to $name.'),
+      'vehicleHelp' => (NotificationKind.captainCantFind, '$name cannot find your vehicle', 'Open your booking to reply.'),
+      'washStatusCheck' => (NotificationKind.washStatusCheck, 'We’re checking your wash', 'Your slot ended. Open your booking for the latest status.'),
+      'disputeDecision' => (NotificationKind.disputeDecision, 'Your report has an update', o?.dispute?.decisionNote ?? 'Open your report to see the review decision.'),
+      'phoneChanged' => (NotificationKind.phoneChanged, 'Mobile number updated', 'Your verified mobile number was updated.'),
       'cancelled' => (NotificationKind.bookingCancelled, 'Booking cancelled', o?.freeWashGiven == true
           ? '1 free wash is added to your account. Use it on your next booking.'
           : (o?.creditGiven ?? 0) > 0
@@ -562,7 +595,7 @@ class AppStore extends ChangeNotifier {
       'refund' => (NotificationKind.refundCredited, 'Refund update', 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has an update.'),
       _ => (NotificationKind.bookingConfirmed, (d['title'] as String? ?? '').replaceFirst('Test · ', ''), d['body'] as String? ?? ''),
     };
-    return AppNotification(id: id, kind: kind, title: title, body: body, date: d['createdAt']?.toDate() as DateTime? ?? DateTime.now(), orderId: d['orderId'], read: !_unreadIds.contains(id) && (d['read'] == true || _readIds.contains(id)));
+    return AppNotification(id: id, kind: kind, title: title, body: body, date: d['createdAt']?.toDate() as DateTime? ?? DateTime.now(), orderId: d['orderId'], read: d['read'] == true);
   }
 
   Order _liveOrder(String id, Map<String, dynamic> data) {
@@ -580,7 +613,7 @@ class AppStore extends ChangeNotifier {
       place: place,
       slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt()),
       price: (data['pricePaise'] as num).toInt() ~/ 100,
-      status: OrderStatus.values.byName(data['status']),
+      status: data['dispute']?['outcome']=='rejected'?OrderStatus.disputeRejected:data['status'] == 'approved' && data['approvalSource'] == 'automatic' ? OrderStatus.autoApproved : data['status'] == 'cancelled' && data['cancellationReason'] == 'slotExpired' ? data['captainId'] == null ? OrderStatus.noCaptain : OrderStatus.captainNoShow : OrderStatus.values.byName(data['status']),
       createdAt: date(data['createdAt']) ?? DateTime.now(),
       captain: captain == null
           ? null
@@ -594,7 +627,11 @@ class AppStore extends ChangeNotifier {
       startedAt: date(data['startedAt']),
       finishedAt: date(data['finishedAt']),
       autoApproveAt: date(data['autoApproveAt']),
-      entryPassReceived: data['arrivedAt'] != null,
+      entryPassReceived: data['entryPass']?['status'] == 'received',
+      captainCantFind: data['vehicleHelp']?['status'] == 'waiting',
+      runningLateMinutes:(data['runningLateMinutes'] as num?)?.toInt(),
+      noShowChecking:data['noShowChecking']==true,
+      arrivesBy:date(data['arrivalEstimateAt']),
       note: EntryNote(text: data['note'] ?? ''),
       rating: data['rating'] as int?,
       wash: WashKind.values.byName(data['washKind']),
@@ -611,6 +648,7 @@ class AppStore extends ChangeNotifier {
     order.testPayment = data['paymentMode'] == 'test';
     order.evidencePaths = {for (final entry in (data['evidence'] as Map? ?? {}).entries) entry.key as String: entry.value['path'] as String};
     order.customerPhotoPaths = {for (final entry in (data['customerPhotos'] as Map? ?? {}).entries) entry.key as String: entry.value as String};
+    order.customerSkippedPhotos = order.customerPhotoPaths.length < 4;
     if (data['dispute'] is Map) {
       final d = data['dispute'] as Map;
       order.dispute = Dispute(
@@ -618,12 +656,15 @@ class AppStore extends ChangeNotifier {
         kind: ProblemKind.values.byName(d['kind']),
         createdAt: date(d['createdAt']) ?? DateTime.now(),
         note: d['note'] ?? '',
+        outcome: DisputeOutcome.values.where((v) => v.name == d['outcome']).firstOrNull ?? DisputeOutcome.underReview,
+        decisionNote: d['decisionNote'] ?? '',
+        creditsAwarded: (d['creditsAwarded'] as num? ?? 0).toInt(),
       );
     }
     if (order.refundStatus != 'none') {
       order.refund = Refund(
         amount: (data['refundAmountPaise'] as num? ?? data['pricePaise']).toInt() ~/ 100,
-        startedAt: date(data['cancelledAt']) ?? DateTime.now(),
+        startedAt: date(data['cancelledAt']) ?? date(data['dispute']?['resolvedAt']) ?? date(data['dispute']?['createdAt']) ?? DateTime.now(),
         method: 'Original payment method',
         bankRef: data['providerRefundId'] ?? 'Pending',
         credited: order.refundStatus == 'processed',
@@ -634,6 +675,8 @@ class AppStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed=true;_liveUid='';
+    _preferenceSave?.cancel();
     _walletSubscription?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
       s.cancel();
@@ -646,11 +689,57 @@ class AppStore extends ChangeNotifier {
 
   /// Change state from a screen and redraw.
   void set(VoidCallback f) {
+    if(_disposed)return;
+    final before = isLive ? jsonEncode(_preferences()) : '';
     f();
     notifyListeners();
+    if (isLive && before != jsonEncode(_preferences())) _savePreferences();
   }
 
-  void changed() => notifyListeners();
+  Map<String, dynamic> _preferences() => {'role':'customer','enabled':notificationsOn,'soundOn':notificationPrefs.style == AlertStyle.soundAndBanner,'quietHours':notificationPrefs.quietHours,'mutedUntil':notificationPrefs.mutedUntil?.millisecondsSinceEpoch,'offCategories':[for(final c in NotificationCategory.values) if(c != NotificationCategory.account && !notificationPrefs.categories.contains(c)) c.name]};
+  void _restorePreferences(Map<String,dynamic> data) {
+    final p=data['notificationPreferences']?['customer'];
+    if(p is! Map) return;
+    notificationPrefs.style=p['soundOn']==false?AlertStyle.bannerOnly:AlertStyle.soundAndBanner;
+    notificationPrefs.quietHours=p['quietHours']==true;
+    notificationPrefs.mutedUntil=p['mutedUntil'] is num?DateTime.fromMillisecondsSinceEpoch((p['mutedUntil'] as num).toInt()):null;
+    notificationPrefs.categories={for(final c in NotificationCategory.values) if(c==NotificationCategory.account || !(p['offCategories'] as List? ?? []).contains(c.name)) c};
+  }
+  void _savePreferences() {
+    if (!isLive || _liveUid.isEmpty) return;
+    final account=_liveUid, value=_preferences();
+    _preferenceSave?.cancel();
+    _preferenceSave=Timer(const Duration(milliseconds:300),(){
+      _preferenceQueue=_preferenceQueue.then((_) async { if(_liveUid==account) await live!.call('saveNotificationPreferences',value); }).catchError((Object e){if(_liveUid==account) {toast=backendError(e);changed();}});
+    });
+  }
+  Future<void> setProfilePhoto(Uint8List? bytes) async {
+    if (!isLive) { set(()=>profilePhoto=bytes); return; }
+    try { await live!.saveProfilePhoto('customer',bytes); profilePhoto=bytes; changed(); }
+    catch(e) { set(()=>toast=backendError(e)); }
+  }
+  Future<void> saveDraftPlace() async {
+    final p=draft.place;
+    if(!isLive||!isLoggedIn||p==null)return;
+    await live!.call('saveCustomerPlace',{'societyId':p.society.id,'tower':p.tower,'floor':p.floor??'','parking':p.slot});
+  }
+  Future<Place?> locatePlace()async{
+    final position=await live!.currentPosition();
+    final result=await live!.call('matchServiceLocation',{'latitude':position.latitude,'longitude':position.longitude});
+    final society=searchSocieties('').where((s)=>s.id==result['societyId']).firstOrNull;
+    return society==null?null:Place(society);
+  }
+  Future<void> downloadBookingDocument(String orderId,String kind)async{
+    if(!isLive)return;
+    try{await Device.downloadDocument(live!.call('createBookingDocument',{'orderId':orderId,'kind':kind}).then((r)=>r['url'] as String));}
+    catch(e){set(()=>toast=backendError(e));}
+  }
+  Future<void> _notificationAction(List<String> ids,String action) async {
+    try { await live!.notificationAction(ids,action); }
+    catch(e) { set(()=>toast=backendError(e)); }
+  }
+
+  void changed() {if(!_disposed)notifyListeners();}
 
   bool get isLoggedIn => customer != null;
   Order? get currentOrder => orders.where((o) => o.id == currentOrderId).firstOrNull;
@@ -825,14 +914,14 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: send OTP to the new number.
   Future<void> requestPhoneChange(String phone) async {
-    if (isLive) throw StateError(notYet);
+    if (isLive) { await live!.requestPhoneChange(phone); pendingNewPhone=phone; return; }
     await _latency(700);
     pendingNewPhone = phone;
   }
 
   /// BACKEND: verify OTP, then update the account's phone.
   Future<bool> confirmPhoneChange(String code) async {
-    if (isLive) throw StateError(notYet);
+    if (isLive) { try { await live!.confirmPhoneChange(code); pendingNewPhone=''; return true; } catch(e) { set(()=>toast=backendError(e)); return false; } }
     await _latency(600);
     if (code != demoOtp) return false;
     customer?.phone = pendingNewPhone;
@@ -850,7 +939,11 @@ class AppStore extends ChangeNotifier {
 
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
-    if (isLive) throw StateError(notYet);
+    if (isLive) {
+      final result=await live!.call('deleteOwnAccount',{'confirm':true});
+      if(result['deleted']!=true)throw StateError('Account deletion has not finished. Try again.');
+      await live!.signOut();return true;
+    }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;
     customer = null;
@@ -949,7 +1042,7 @@ class AppStore extends ChangeNotifier {
       final pending = currentOrder;
       if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
         draftBookingId = pending.id;
-        final paid = await live!.pay(pending.id);
+        final paid = await live!.pay(pending.id, method: payMethodId);
         await _refreshLiveOrder(pending.id);
         return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
       }
@@ -983,7 +1076,7 @@ class AppStore extends ChangeNotifier {
         await live!.uploadCustomerPhoto(bookingId, entry.key.name, entry.value);
       }
       }
-      final paid = await live!.pay(bookingId);
+      final paid = await live!.pay(bookingId, method: payMethodId);
       await _refreshLiveOrder(bookingId);
       return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }
@@ -1122,9 +1215,12 @@ class AppStore extends ChangeNotifier {
   }
 
   void answerCantFind(String answer) {
-    if (blockLive()) return;
     final id = currentOrderId;
     if (id == null) return;
+    if (isLive) {
+      live!.call('updateVehicleHelp', {'orderId':id,'action':'answer','value':answer}).catchError((Object e) { set(()=>toast=backendError(e)); return <String,dynamic>{}; });
+      return;
+    }
     if (answer == 'not_here') {
       cancel(id);
       return;
@@ -1209,6 +1305,7 @@ class AppStore extends ChangeNotifier {
   Future<void> approve(String id) async {
     if (isLive) {
       await live!.call('approveWash', {'orderId': id});
+      await _refreshLiveOrder(id);
       return;
     }
     await _latency(600);
@@ -1216,9 +1313,10 @@ class AppStore extends ChangeNotifier {
     _update(id, (o) => o.status = OrderStatus.approved);
   }
 
-  Future<void> rate(String id, int stars) async {
+  Future<void> rate(String id, int stars, [Set<String> tags = const {}]) async {
     if (isLive) {
-      await live!.call('rateWash', {'orderId': id, 'stars': stars});
+      await live!.call('rateWash', {'orderId': id, 'stars': stars, 'tags':tags.toList()});
+      await _refreshLiveOrder(id);
       return;
     }
     await _latency(400);
@@ -1226,9 +1324,11 @@ class AppStore extends ChangeNotifier {
   }
 
   /// BACKEND: rpc report_problem.
-  Future<void> reportProblem(String id, ProblemKind kind, String note) async {
+  Future<void> reportProblem(String id, ProblemKind kind, String note, [List<Uint8List> photos = const []]) async {
     if (isLive) {
-      await live!.call('reportWashProblem', {'orderId': id, 'kind': kind.name, 'note': note});
+      for (var i=0;i<photos.length;i++) { await live!.uploadProblemPhoto(id,i,photos[i]); }
+      await live!.call('reportWashProblem', {'orderId': id, 'kind': kind.name, 'note': note, 'photoCount':photos.length});
+      await _refreshLiveOrder(id);
       return;
     }
     await _latency(900);
@@ -1398,27 +1498,35 @@ class AppStore extends ChangeNotifier {
 
   // Live inbox: read and deleted are kept on this phone (saving them on the server is P0).
   final Set<String> _readIds = {}, _unreadIds = {}, _deletedIds = {};
-  void markRead(String id) => set(() { _readIds.add(id); _unreadIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = true; });
-  void markUnread(String id) => set(() { _unreadIds.add(id); _readIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = false; });
-  void markAllRead() => set(() {
+  void markRead(String id) { if (isLive) { _notificationAction([id],'read'); return; } set(() { _readIds.add(id); _unreadIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = true; }); }
+  void markUnread(String id) { if (isLive) { _notificationAction([id],'unread'); return; } set(() { _unreadIds.add(id); _readIds.remove(id); notifications.where((n) => n.id == id).firstOrNull?.read = false; }); }
+  void markAllRead() { if (isLive) { _notificationAction(notifications.where((n)=>!n.read).map((n)=>n.id).toList(),'read'); return; } set(() {
     for (final n in notifications) {
       n.read = true;
       _readIds.add(n.id);
       _unreadIds.remove(n.id);
     }
-  });
-  void deleteNotification(String id) => set(() { _deletedIds.add(id); notifications.removeWhere((n) => n.id == id); });
-  void clearNotifications() => set(() { _deletedIds.addAll(notifications.map((n) => n.id)); notifications = []; });
+  }); }
+  void deleteNotification(String id) { if (isLive) { _notificationAction([id],'delete'); return; } set(() { _deletedIds.add(id); notifications.removeWhere((n) => n.id == id); }); }
+  void clearNotifications() { if (isLive) { _notificationAction(notifications.map((n)=>n.id).toList(),'delete'); return; } set(() { _deletedIds.addAll(notifications.map((n) => n.id)); notifications = []; }); }
 
   /// Master switch. Turning on asks for permission the first time.
   void setNotifications(bool on) {
     customer?.notificationsOn = on;
     notifyListeners();
+    if (isLive) {
+      _savePreferences();
+      if(on && live!.supportsPush) {
+        live!.enablePush('customer').catchError((Object e)=>set(()=>toast=backendError(e)));
+      } else if (!on) { live!.call('setPushPreference',{'role':'customer','enabled':false}).catchError((Object e){set(()=>toast=backendError(e));return <String,dynamic>{};}); }
+      else if(on) { requestSystemPermission(); }
+      return;
+    }
     if (on) requestSystemPermission();
   }
 
   void requestSystemPermission() => Device.requestNotifications().then((p) => set(() => systemPermission = p));
-  void refreshSystemPermission() => set(() => systemPermission = Device.notificationPermission);
+  void refreshSystemPermission() {if(isLive&&live!.supportsPush){live!.pushPermission().then((p)=>set(()=>systemPermission=p)).catchError((Object _){});}else{set(() => systemPermission = Device.notificationPermission);}}
   void mute(int? seconds) => set(() => notificationPrefs.mutedUntil = seconds == null ? null : DateTime.now().add(Duration(seconds: seconds)));
 
   /// Mute until 8 AM tomorrow.

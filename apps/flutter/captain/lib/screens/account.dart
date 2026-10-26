@@ -432,9 +432,10 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
   bool get canSend => Validators.isValidMobile(phone) && digits != context.store.phone;
 
   Future<void> _send() async {
-    if (!canSend || context.store.blockLive()) return;
+    if (!canSend) return;
     setState(() => loading = true);
-    await context.store.requestPhoneChange(digits);
+    try { await context.store.requestPhoneChange(digits); }
+    catch (_) { if(mounted)setState(()=>loading=false);return; }
     if (!mounted) return;
     setState(() {
       loading = false;
@@ -540,9 +541,10 @@ class _WEditUPIScreenState extends State<WEditUPIScreen> {
       setState(() => showError = true);
       return;
     }
-    if (same || context.store.blockLive()) return;
+    if (same) return;
     setState(() => loading = true);
-    await context.store.requestUPIChange(upi!);
+    try { await context.store.requestUPIChange(upi!); }
+    catch(_) {if(mounted)setState(()=>loading=false);return;}
     if (!mounted) return;
     setState(() {
       loading = false;

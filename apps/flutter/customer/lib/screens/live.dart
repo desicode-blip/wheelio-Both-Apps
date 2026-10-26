@@ -3,6 +3,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
+import '../data/refund_status.dart';
 import '../data/store.dart';
 import 'auth_pay.dart';
 import 'common.dart';
@@ -94,7 +95,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
                 icon: WIcon.check,
                 tone: Tone.ok,
                 title: 'Booking cancelled',
-                message: '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
+                message: store.isLive?'${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}':'${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
                 primary: 'Book another time',
                 secondary: 'Track refund',
                 onPrimary: () => _again(o),
@@ -122,7 +123,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
   Widget _autoCancelled(Order o, WIcon icon, String title, String why) {
     final router = context.router;
     final r = o.refund;
-    final waiting = r?.awaitingUPI ?? true;
+    final waiting = !context.store.isLive && (r?.awaitingUPI ?? true);
     return WScreen(
       scrolls: false,
       header: const PlainHeader(),
@@ -141,7 +142,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [const WText('Full refund', WType.label), const Spacer(), WText(Fmt.rupees(r?.amount ?? o.price), WType.valueStrong, mono: true)]),
             const SizedBox(height: 8),
-            WText(waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
+            WText(context.store.isLive?refundStatusText(o.refundStatus,null).detail:waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
           ]),
         ),
       ],
@@ -395,7 +396,7 @@ class _CheckWashViewState extends State<CheckWashView> {
           setState(() => approving = true);
           try {
             await store.approve(o.id);
-          } catch (_) {}
+          } catch (e) {store.set(()=>store.toast=backendError(e));if(mounted)setState(()=>approving=false);return;}
           router.replace(const [R(N.rate)]);
         }),
         const Padding(padding: EdgeInsets.only(top: 6), child: WText('Auto-approves at 12 midnight if you don’t respond', WType.small, color: WColor.muted)),
@@ -469,7 +470,7 @@ class _PhotoCompareScreenState extends State<PhotoCompareScreen> {
                 if (o == null) return;
                 try {
                   await store.approve(o.id);
-                } catch (_) {}
+                } catch (e) {store.set(()=>store.toast=backendError(e));return;}
                 router.replace(const [R(N.rate)]);
               }),
             ]),
@@ -545,8 +546,10 @@ class _RateScreenState extends State<RateScreen> {
     final name = o?.captain?.name ?? 'Raju';
     return WScreen(
       header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(leading: null, trailing: WIcon.close, onTrailing: router.popToRoot)),
-      footer: WFooterBar(showCall: false, child: WButton('Submit', onTap: () {
-        if (o != null) store.rate(o.id, stars);
+      footer: WFooterBar(showCall: false, child: WButton('Submit', onTap: () async {
+        try { if (o != null) await store.rate(o.id, stars, tags); }
+        catch (e) { store.set(()=>store.toast=backendError(e)); return; }
+        if (!context.mounted) return;
         router.popToRoot();
       })),
       children: [

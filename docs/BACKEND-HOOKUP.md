@@ -1,4 +1,10 @@
-# 25 October 2026: designed screens on real data
+# 26 October 2026: connected functionality on the staging design
+
+The implementation and verification record is [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Customer and Captain use the same Firebase orders through the existing designed screens. Profile photos, saved places, notification settings/actions, same-account phone updates, deletion, private note playback, vehicle help, problem photos, review decisions, downloads and recorded payouts now have server paths. Payout transfers and KYC/dispute decisions remain human operations. Publishing status is recorded in that handoff.
+
+No new production fake was added. The training video's six-second completion timer is demo-only and cannot complete live training. Wash countdowns use the stored booking window, photo counters use stored evidence, gate readiness requires actual received status, and no sample penalty, driving ETA, location match or completed payout is substituted. Approved training, legal/support content and third-party account integrations remain deferred by the owner; other incomplete items retain explicit guards/configuration gates.
+
+## Original 25 October design-integration report
 
 The real-data apps now use the designed screens. Every designed feature without a backend is listed as **P0 for Ajay** in [P0-BACKEND-FOR-DESIGN.md](P0-BACKEND-FOR-DESIGN.md). Those screens show no fake success: actions show "This isn’t available yet" and missing server values fall back as described there.
 

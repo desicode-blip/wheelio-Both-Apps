@@ -2,7 +2,7 @@
 
 The current source connects both Flutter iPhone apps to Firebase by default. The native integration was prepared on Windows; Xcode compilation, signing and physical iPhone acceptance remain for the owner's Mac. Flutter remains the active app stack; the SwiftUI apps remain references. No Android platform was generated.
 
-The 25 October staging merge includes the WashKrew name, logo and palette. Shared code now lives in `packages/washkrew_firebase` and `packages/washkrew_ui`; iOS bundle IDs and Firebase registrations retain `wheelio` intentionally. The default Firebase build and all native capture/payment functionality below are retained.
+The 25 October staging merge includes the WashKrew name, logo and palette. Shared code now lives in `packages/washkrew_firebase` and `packages/washkrew_ui`; iOS bundle IDs and Firebase registrations retain `wheelio` intentionally. The 26 October functionality pass preserves those designed screens and the Mac-resolved native files. See [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Windows verification does not replace physical-device checks.
 
 ## Build on the Mac
 
@@ -18,7 +18,7 @@ Then, with signing configured and the iPhone connected, from the repository root
 bash apps/flutter/tool/run-ios.sh
 ```
 
-This builds and installs Customer and Captain on a connected, unlocked iPhone. The tools check Xcode/iOS SDK/CocoaPods, regenerate Flutter's local files (including copied Windows paths), enforce the Dart locks, refresh CocoaPods specs and verify every native plugin is installed. They use Flutter's bundled Dart, with no Node dependency. Multiple connected phones require `--device ID`; unknown arguments fail instead of silently changing the build. `--no-codesign` compiles without signing/installing, and `--build-number N` supports later releases. Commit the resulting `Podfile.lock` updates after a successful Mac build. The existing lockfiles came from the previous Mac build and do not yet include the new native plugins. Do not use `pod install --deployment` until they have been refreshed.
+This builds and installs Customer and Captain on a connected, unlocked iPhone. The tools check Xcode/iOS SDK/CocoaPods, regenerate Flutter's local files (including copied Windows paths), enforce the Dart locks, refresh CocoaPods specs and verify every native plugin is installed. They use Flutter's bundled Dart, with no Node dependency. Multiple connected phones require `--device ID`; unknown arguments fail instead of silently changing the build. `--no-codesign` compiles without signing/installing, and `--build-number N` supports later releases. Commit the resulting `Podfile.lock` updates after a successful Mac build. Staging includes the Mac-resolved pod locks and Xcode project changes from `283e39b`; this functionality pass preserves them and adds no native dependency. Preparation still verifies/regenerates machine-local configuration. Update only a specifically incompatible pod if the Mac reports a failure.
 
 For hot reload, use `bash apps/flutter/tool/live.sh customer` or `captain`. For an explicitly labelled sample app only, pass `customer --demo` or `captain --demo`. Normal builds never use sample OTPs or lifecycle timers. Scripts validate the app name and use LF line endings.
 
@@ -43,7 +43,7 @@ Phone login uses native `verifyPhoneNumber`, including resend, permission/provid
 - Each booking snapshots its configured cancellation policy. Legacy orders retain cash-refund behavior. A configured wallet policy supports the staging screen's early free wash / later percentage credit; it is not enabled by silently changing commercial settings. The client displays the server policy. Entirely wallet-funded cancellations restore the original entitlement and cannot create new rewards.
 - Future bookings stay scheduled; arrival and washing are blocked by server time before the confirmed window opens. Captain jobs show future bookings separately and retain cancelled jobs with a stop-work message. No undecided trip payment is invented.
 - Native Razorpay checkout uses the server's amount/order/key and sends signatures to the existing server verifier. Lost callbacks are reconciled against the provider; no SDK success response alone confirms payment. UPI app switching is configured in both iOS plists.
-- General support, phone-change and deletion requests create private operations tickets. They do not claim to have changed a phone number, deleted an account or arranged a callback. KYC approval, dispute decisions, legal/commercial settings, payouts and Razorpay Route linked-account onboarding remain reviewed operations.
+- General support and intro-time changes create private operations requests without claiming an arranged callback. Phone changes verify the new number on the same Firebase UID; approved Captain payout changes require recent verification. Customer deletion checks recent authentication and unresolved work, removes private account material and blocks cached tokens. KYC approval, dispute decisions, commercial settings, transfers and Razorpay Route linked-account onboarding remain reviewed operations.
 
 ## Notifications and Apple setup
 
@@ -61,7 +61,7 @@ Test reservations retain their original capacity keys; live reservations have a 
 
 ## Physical acceptance checklist
 
-1. Install both Release apps; reopen without Xcode attached. Verify the test-payment label.
+1. Install both Release apps; reopen without Xcode attached. Confirm the backend payment mode is test before payment testing; the staging design intentionally has no payment banner.
 2. Real SMS OTP, resend/edit number, existing account, new account and sign-out/reopen.
 3. Camera allow/deny/re-enable, library-only access, cancellation, all four Customer photos, Captain selfie/KYC and before/after replacement. Camera tests require hardware.
 4. Real optional voice/video capture, cancel/delete/re-record, preview, private assigned-Captain playback, interrupted upload and retry.
