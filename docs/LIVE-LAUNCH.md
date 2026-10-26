@@ -1,6 +1,16 @@
 # WashKrew launch status — 26 October 2026
 
-The 26 October functionality release preserves the staging design, passed 99 automated tests, four analyzers and both web builds, and is published in **test mode**. Current behavior and remaining design/provider/hardware gates are in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Merchant-review observations below are from 25 October; this functionality pass did not recheck or switch the merchant to live bookings.
+The 26 October functionality release preserves the staging design, passed 99 automated tests, four analyzers and both web builds, and is published in **test mode**. Current behavior and remaining design/provider/hardware gates are in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). The functionality release did not switch the merchant to live bookings. Merchant verification was followed up separately as recorded below.
+
+## 26 October verification follow-up
+
+The owner reported that Razorpay's verification call could not proceed because TrustKeyper's website was unavailable. In the signed-in shared merchant dashboard, the primary `https://trustkeyper.com/` still showed **Approved**, but the additional `https://wheelio-apps.web.app/` request showed **Needs clarification**. Razorpay's actual clarification asked for a direct dashboard reply once the primary website was accessible.
+
+Current checks found `https://trustkeyper.com/` and `https://www.trustkeyper.com/` returning HTTP 200, with the primary homepage rendering in a browser. Its linked About Us, Privacy Policy and Terms & Conditions URLs also returned HTTP 200. These are availability observations at the time of checking, not a guarantee of future uptime or full property-app acceptance.
+
+At the owner's request, a reply was submitted to that existing clarification confirming the public website was accessible and requesting another website review/verification call if necessary. Razorpay accepted the reply: the additional website changed to **Under review**, displaying an expected update in **24–48 hours**. No callback appointment or approval was confirmed. No merchant key, linked account, webhook, bank configuration or payment mode was changed.
+
+`https://washkrew.com/` currently returns a **Coming Soon** page; it is not the published application. Customer and Captain remain at the Firebase `/app/` and `/captain/` URLs. Both app URLs returned HTTP 200, the hosted bundles still match the checked release, all 35 protected callables still reject anonymous requests, and invalid document tokens/webhook signatures are rejected. App launch gates below remain open.
 
 The live payment integration is connected. Customer checkout deliberately remains in test mode while the external merchant review and real operational setup finish. A successful technical setup is not a completed real-money acceptance test.
 
