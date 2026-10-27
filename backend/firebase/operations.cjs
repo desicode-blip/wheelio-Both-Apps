@@ -40,7 +40,13 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-account-deletion') {
+  if(command==='configure-captain-reviewers') {
+    if(!uid)throw Error('Usage: configure-captain-reviewers PRIVATE_REVIEWERS_JSON');
+    const input=JSON.parse(readFileSync(uid,'utf8')),emails=input.emails?.map(v=>typeof v==='string'?v.trim().toLowerCase():'');
+    if(!Array.isArray(emails)||!emails.length||emails.length>20||new Set(emails).size!==emails.length||emails.some(e=>! /^[a-z0-9.!#$%&'+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(e)))throw Error('Supply distinct approved reviewer Google emails.');
+    await api('/privateConfig/captainReviewers?updateMask.fieldPaths=emails&updateMask.fieldPaths=updatedAt','PATCH',{fields:{...fields({emails}),updatedAt:{timestampValue:new Date().toISOString()}}});
+    console.log(`Configured ${emails.length} authorized Captain reviewers. No Captain was approved and no project IAM access was granted.`);
+  } else if(command==='configure-account-deletion') {
     const headers={Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'};
     async function cloud(url,method='GET',body){const response=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)}),result=await response.json();if(!response.ok)throw Error(`${response.status}: ${result.error?.message??'Runtime permission setup failed'}`);return result;}
     const fn=await cloud('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/deleteOwnAccount'),account=fn.serviceConfig.serviceAccountEmail;
@@ -88,7 +94,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook'];
+    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;
@@ -138,6 +144,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Review identity and bank proof in Firebase Console before approval.');
+  } else throw Error('Commands: configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

@@ -1,3 +1,16 @@
+# Current update — 28 October 2026
+
+[ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) supersedes the older
+pending-integration status below. The separate WashKrew merchant showed the
+website approved; its downloaded live pair is authenticated and stored under
+separate secrets, and its own live webhook is registered. Historical bookings
+and refunds retain their original merchant routing. New live checkout cannot
+use the retired shared merchant. Booking mode remains **test**, using archived
+test credentials; no live charge/refund or new-merchant acceptance is claimed.
+The private Captain admin page and the owner's Google reviewer access work;
+real Captain eligibility/payout decisions, approved content/operations,
+app-origin/provider acceptance and physical iPhone/APNs checks remain gates.
+
 # WashKrew launch status — 26 October 2026
 
 **Latest owner decision, 27 October:** the owner reports Razorpay requires a separate WashKrew merchant account. Aman is handling that account's documents/onboarding/access. Earlier shared-merchant live-key/webhook setup below is historical and must not be used to activate WashKrew. New merchant integration, preserved historical payment/refund routing and fresh acceptance are pending; payment mode stays test. Do not duplicate Aman's merchant application. Read [the current Mac continuation report](CLAUDE-MAC-CONTINUATION-2026-10-27.md), which also records Aman's temporary training-placeholder plan and other launch gates.

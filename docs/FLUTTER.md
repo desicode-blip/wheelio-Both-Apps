@@ -1,3 +1,13 @@
+# Private Captain review and merchant follow-up — 28 October 2026
+
+[ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) records the separate
+admin page, approved Google reviewers, actual correction/approval notifications
+and waiting-state recovery in Flutter, and the separate WashKrew live credentials
+and webhook with historical merchant-safe payment/refund routing. Both release
+web builds and Captain analysis/tests passed and are published. Customer/Captain
+staging composition/styles/assets are unchanged. Server payments remain test;
+new-merchant live acceptance, approved content and physical iPhone checks remain.
+
 # Booking and Captain preference follow-up — 27 October 2026
 
 See [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md) for the integration of

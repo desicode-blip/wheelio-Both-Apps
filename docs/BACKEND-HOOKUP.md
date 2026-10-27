@@ -1,3 +1,17 @@
+# Captain reviews and merchant routing — 28 October 2026
+
+[ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) records the deployed
+private Google-authorized Captain review page and real Flutter review inbox,
+correction items and waiting-popup recovery. Human decisions are audited; no
+timer, clear-photo result or placeholder grants approval/training. The four
+reviewers are server-configured. Separate WashKrew live credentials/webhook are
+installed, and historical merchant/mode routing is preserved; payments remain
+test. No new production fake, sample identity, lifecycle timer or automatic KYC
+decision was introduced. Disposable local approval/evidence, synthetic location,
+shifted booking time and simulated-capture HTTP integration are explicitly
+recorded as test fixtures, not production/device/payment acceptance. Chrome
+upload and embedded checkout limitations are recorded with the manual checks.
+
 # Connected follow-up to Aman's UI — 27 October 2026
 
 [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md) supersedes the disconnected

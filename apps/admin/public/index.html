@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>WashKrew · Captain reviews</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="styles.css"><script type="module" src="admin.mjs"></script></head>
+<body>
+  <header><a href="/admin/" aria-label="WashKrew Captain reviews"><img src="logo.svg" alt="WashKrew" width="170" height="42"></a><span class="private-label">Private operations</span><span id="email"></span><button id="signout" hidden>Sign out</button></header>
+  <main>
+    <section id="signin" class="card login"><span class="eyebrow">CAPTAIN REVIEWS</span><h1>Your crew starts here.</h1><p>Sign in with your approved Google account to review Captain applications. Documents and decisions are available only to authorized reviewers.</p><button class="primary" id="google">Continue with Google</button></section>
+    <p id="message" role="status" aria-live="polite" hidden></p>
+    <section id="workspace" hidden>
+      <div class="heading"><div><span class="eyebrow">CAPTAIN REVIEWS</span><h1>Review applications</h1></div><div class="tools"><span id="mode" class="badge"></span><button id="reauth">Verify Google session</button><button id="refresh">Refresh</button></div></div>
+      <div class="layout">
+        <aside class="card"><label for="status">Applications</label><select id="status"><option value="underReview">Awaiting review</option><option value="changesRequested">Corrections requested</option><option value="approved">Approved</option><option value="notSubmitted">Not submitted</option><option value="all">All applications</option></select><div id="applications" aria-live="polite"></div><button id="more" hidden>Load more</button></aside>
+        <article id="detail" class="card"><div class="empty"><h2>Select an application</h2><p>Review the submitted photos, training status, payout details and requested societies before making a decision.</p></div></article>
+      </div>
+    </section>
+  </main>
+  <footer>WashKrew operations · Human review required. Photo quality is not identity verification, and payout details are not automatically verified with a bank.</footer>
+</body></html>

@@ -21,6 +21,7 @@ import { TrainingError } from './training.mjs';
 import {PrivatePhotoChecks,PhotoCheckError} from './photo-checks.mjs';
 import {removedAppAccess} from './account-access.mjs';
 import {readObjectMetadata} from './storage-evidence.mjs';
+import {CaptainReviewError} from './captain-review.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -29,13 +30,15 @@ setGlobalOptions({ region: 'asia-south1', maxInstances: 5, minInstances: 0, memo
 const keyId = defineSecret('RAZORPAY_KEY_ID'), keySecret = defineSecret('RAZORPAY_KEY_SECRET'), webhookSecret = defineSecret('RAZORPAY_WEBHOOK_SECRET');
 const testKeyId=defineSecret('RAZORPAY_TEST_KEY_ID'),testKeySecret=defineSecret('RAZORPAY_TEST_KEY_SECRET');
 const liveWebhookSecret=defineSecret('RAZORPAY_LIVE_WEBHOOK_SECRET');
-const paymentSecrets=[keyId,keySecret,testKeyId,testKeySecret];
+const washkrewLiveKeyId=defineSecret('WASHKREW_RAZORPAY_LIVE_KEY_ID'),washkrewLiveKeySecret=defineSecret('WASHKREW_RAZORPAY_LIVE_KEY_SECRET'),washkrewWebhookSecret=defineSecret('WASHKREW_RAZORPAY_LIVE_WEBHOOK_SECRET');
+const paymentSecrets=[keyId,keySecret,testKeyId,testKeySecret,washkrewLiveKeyId,washkrewLiveKeySecret];
 const db = getFirestore();
 const mapsKey = defineSecret('GOOGLE_MAPS_SERVER_KEY');
 function service(withPayment = false, withMaps = false) {
   const current=withPayment?new RazorpayPayments({keyId:keyId.value(),keySecret:keySecret.value()}):null;
   const test=withPayment?new RazorpayPayments({keyId:testKeyId.value(),keySecret:testKeySecret.value()}):null;
-  return new WashKrewService({ db, payments:current, paymentProviders:withPayment?{test,live:current}:undefined,
+  const washkrew=withPayment?new RazorpayPayments({keyId:washkrewLiveKeyId.value(),keySecret:washkrewLiveKeySecret.value()}):null;
+  return new WashKrewService({ db, payments:current, paymentProviders:withPayment?{test,live:current,'washkrew:live':washkrew}:undefined,
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
       metadata: path => readObjectMetadata(getStorage().bucket().file(path)),
@@ -58,7 +61,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {});
     }
     catch (error) {
-      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError) throw new HttpsError(error.code, error.message);
+      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -107,6 +110,25 @@ export const saveCustomerPlace = callable('savePlace');
 export const syncVerifiedPhone = callable('syncVerifiedPhone');
 export const deleteOwnAccount = callable('deleteAccount');
 export const createBookingDocument = callable('createDocument');
+export const listCaptainApplications = callable('listCaptainApplications');
+export const getCaptainApplication = callable('getCaptainApplication');
+export const reviewCaptainApplication = callable('reviewCaptainApplication');
+export const captainApplicationPhoto = onRequest({invoker:'private',cors,timeoutSeconds:60},async(request,response)=>{
+  response.set('Cache-Control','private, no-store');response.set('X-Content-Type-Options','nosniff');response.set('Referrer-Policy','no-referrer');
+  if(request.method!=='GET'){response.status(405).send('GET required');return;}
+  try{
+    const token=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+    if(!token){response.status(401).send('Sign in with your approved Google account.');return;}
+    let decoded;
+    try{decoded=await getAuth().verifyIdToken(token);}catch{response.status(401).send('Sign in again.');return;}
+    const backend=service(),photo=await backend.captainReviewEvidence({uid:decoded.uid,token:decoded},request.query);
+    const bytes=await backend.evidence.read(photo.path,photo.generation);
+    response.set('Content-Type',photo.contentType);response.status(200).send(bytes);
+  }catch(error){
+    if(error instanceof CaptainReviewError){response.status(error.code==='not-found'?404:error.code==='invalid-argument'?400:error.code==='unauthenticated'?401:403).send(error.message);return;}
+    logger.error('Captain review photo unavailable',{code:error.code??'internal'});response.status(503).send('The private photo could not be loaded. Try again.');
+  }
+});
 export const downloadBookingDocument = onRequest({invoker:'private',cors:false,timeoutSeconds:120},async(request,response)=>{
   response.set('Cache-Control','private, no-store');response.set('X-Content-Type-Options','nosniff');response.set('Referrer-Policy','no-referrer');
   if(request.method!=='GET'){response.status(405).send('GET required');return;}
@@ -129,7 +151,7 @@ export const downloadBookingDocument = onRequest({invoker:'private',cors:false,t
   }catch(error){if(response.headersSent){response.destroy();return;}response.status(error instanceof ServiceError?403:500).send(error instanceof ServiceError?error.message:'Download unavailable. Open the booking and try again.');}
 });
 
-function paymentWebhook(mode, signatureSecret) {
+function paymentWebhook(mode, signatureSecret,merchant='trustkeyper') {
   return onRequest({ secrets: [...paymentSecrets, signatureSecret], invoker: 'private', cors: false }, async (request, response) => {
     if (request.method !== 'POST') { response.status(405).send('POST required'); return; }
     if (!signatureMatches(request.rawBody, request.get('x-razorpay-signature'), signatureSecret.value())) { response.status(401).send('Invalid signature'); return; }
@@ -140,11 +162,11 @@ function paymentWebhook(mode, signatureSecret) {
         if (!paymentId) { response.status(400).send('Missing payment'); return; }
         // A callback alone cannot prove capture. The service fetches the payment
         // with the matching mode's keys and verifies the server-owned booking.
-        await service(true).captureWebhookPayment(paymentId, mode, event.payload?.payment?.entity?.order_id ?? null);
+        await service(true).captureWebhookPayment(paymentId, mode, event.payload?.payment?.entity?.order_id ?? null,merchant);
       } else if (event.event === 'refund.processed') {
         const refund = event.payload?.refund?.entity;
         if (!refund?.id) { response.status(400).send('Missing refund'); return; }
-        await service(true).refundWebhook(refund, mode);
+        await service(true).refundWebhook(refund, mode,merchant);
       }
       response.status(200).send('OK');
     } catch (error) { logger.error('Payment webhook failed', { code: error.code ?? 'internal', event: event.event }); response.status(500).send('Retry later'); }
@@ -152,6 +174,7 @@ function paymentWebhook(mode, signatureSecret) {
 }
 export const razorpayWebhook=paymentWebhook('test',webhookSecret);
 export const razorpayLiveWebhook=paymentWebhook('live',liveWebhookSecret);
+export const washkrewRazorpayLiveWebhook=paymentWebhook('live',washkrewWebhookSecret,'washkrew');
 
 export const dispatchPaidBooking = onDocumentUpdated('orders/{orderId}', async event => {
   if (event.data.after.data().status === 'searching') await service().dispatch(event.params.orderId);

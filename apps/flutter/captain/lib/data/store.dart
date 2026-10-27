@@ -241,12 +241,12 @@ enum WNotifCategory { jobs, money, level, account }
 
 enum WNotifKind {
   newJob, jobTaken, ownerCancelled, ownerCancelledEarly, gatePassReady, runningLate, slotEnded, noShowPenalty, windowOpen, finishSoon, washApproved, problemReported, payoutSent, upiChanged,
-  levelUp, probation, blocked, phoneChanged, vehicleHelpAnswered;
+  levelUp, probation, blocked, phoneChanged, vehicleHelpAnswered, applicationReview;
 
   WNotifCategory get category => switch (this) {
         washApproved || problemReported || payoutSent || upiChanged => WNotifCategory.money,
         levelUp || probation => WNotifCategory.level,
-        blocked || phoneChanged => WNotifCategory.account,
+        blocked || phoneChanged || applicationReview => WNotifCategory.account,
         _ => WNotifCategory.jobs,
       };
 
@@ -264,6 +264,7 @@ enum WNotifKind {
         payoutSent || upiChanged => WIcon.rupee,
         levelUp => WIcon.star,
         probation => WIcon.calendar,
+        applicationReview => WIcon.idCard,
       };
 
   Tone get tone => switch (this) {
@@ -275,7 +276,8 @@ enum WNotifKind {
 }
 
 class WNotif {
-  WNotif({required this.id, required this.kind, required this.date, this.jobId, this.payoutId, this.plate = '', this.amount = 0, this.read = false});
+  WNotif({required this.id, required this.kind, required this.date, this.jobId, this.payoutId, this.plate = '', this.amount = 0, this.read = false, this.reviewTitle, this.reviewBody});
+  final String? reviewTitle, reviewBody;
   final String id;
   final WNotifKind kind;
   final DateTime date;
@@ -472,7 +474,7 @@ class CaptainStore extends ChangeNotifier {
   DateTime? get reviewStartedAt => (isLive ? _date(liveCaptain['submittedAt']) : null) ?? _reviewStartedLocal;
 
   /// Application sent (or agreed to, when testing) and not yet approved.
-  bool get underReview => registered && !signedUp && (reviewStartedAt != null || kycStatus == 'underReview');
+  bool get underReview => registered && !signedUp && (isLive ? kycStatus == 'underReview' : reviewStartedAt != null);
 
   /// Time left before the call option shows (zero once 30 minutes have passed).
   Duration get callUnlocksIn {
@@ -730,8 +732,10 @@ class CaptainStore extends ChangeNotifier {
   // MARK: Notification copy (English · Hindi · Telugu)
 
   String title(WNotif n) {
+    if(n.kind==WNotifKind.applicationReview&&n.reviewTitle!=null)return n.reviewTitle!;
     final rs = Fmt.rupees(n.amount);
     return switch (n.kind) {
+      WNotifKind.applicationReview => 'Your Captain application has an update',
       WNotifKind.newJob => t('New job: $rs', 'नया काम: $rs', 'కొత్త పని: $rs'),
       WNotifKind.jobTaken => t('Job went to someone else', 'काम किसी और को मिल गया', 'పని వేరొకరికి వెళ్ళింది'),
       WNotifKind.ownerCancelled || WNotifKind.ownerCancelledEarly => t('Owner cancelled ${n.plate}', 'मालिक ने ${n.plate} रद्द किया', 'యజమాని ${n.plate} రద్దు చేశారు'),
@@ -754,8 +758,10 @@ class CaptainStore extends ChangeNotifier {
   }
 
   String body(WNotif n) {
+    if(n.kind==WNotifKind.applicationReview&&n.reviewBody!=null)return n.reviewBody!;
     final rs = Fmt.rupees(n.amount);
     return switch (n.kind) {
+      WNotifKind.applicationReview => 'Open your application for the latest review.',
       WNotifKind.newJob => '${n.plate} · ${t('Tap to see', 'देखने के लिए दबाएं', 'చూడటానికి నొక్కండి')}',
       WNotifKind.jobTaken => t('Keep the app open. Next job comes soon.', 'ऐप खुला रखें। अगला काम जल्दी आएगा।', 'యాప్ తెరిచి ఉంచండి. తదుపరి పని త్వరలో వస్తుంది.'),
       WNotifKind.ownerCancelled => t('You get ₹[CANCELLATION FEE] for the trip.', 'सफ़र के ₹[CANCELLATION FEE] मिलेंगे।', 'ప్రయాణానికి ₹[CANCELLATION FEE] వస్తుంది.'),
@@ -1176,7 +1182,13 @@ class CaptainStore extends ChangeNotifier {
       if (liveCaptain['trainingVersion']==liveConfig['training']?['version'] && liveCaptain['trainingCompletedAt'] != null) KycStep.training: KycState.done,
       if (liveCaptain['trainingVersion']==liveConfig['training']?['version'] && liveCaptain['quizPassedAt'] != null) KycStep.quiz: KycState.done,
     };
-    if (kycStatus == 'changesRequested') steps[KycStep.aadhaar] = KycState.problem;
+    if (kycStatus == 'changesRequested') {
+      final issues=liveCaptain['reviewIssues'] as List? ?? ['aadhaar'];
+      for(final issue in issues) {
+        final step=switch(issue){'selfie'=>KycStep.photo,'payout'=>KycStep.bank,_=>KycStep.aadhaar};
+        steps[step]=KycState.problem;
+      }
+    }
     for (final s in testSkipped) {
       steps[s] = KycState.done;
     }
@@ -1282,6 +1294,7 @@ class CaptainStore extends ChangeNotifier {
       'payoutSent' => WNotifKind.payoutSent,
       'upiChanged' => WNotifKind.upiChanged,
       'phoneChanged' => WNotifKind.phoneChanged,
+      'applicationReview' => WNotifKind.applicationReview,
       'slotEnded' => WNotifKind.slotEnded,
       'vehicleHelpAnswered' => WNotifKind.vehicleHelpAnswered,
       'levelUp'=>WNotifKind.levelUp,
@@ -1298,6 +1311,8 @@ class CaptainStore extends ChangeNotifier {
       plate: Fmt.plate(o?['plate'] as String? ?? ''),
       amount: (d['amount'] as num? ?? o?['captainPayPaise'] as num? ?? 0).toInt() ~/ 100,
       read: d['read'] == true,
+      reviewTitle: d['kind']=='applicationReview'?d['title'] as String?:null,
+      reviewBody: d['kind']=='applicationReview'?d['body'] as String?:null,
     );
   }
 
@@ -1446,6 +1461,8 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
     case WNotifKind.phoneChanged || WNotifKind.upiChanged:
       router.home();
       router.tab = 3;
+    case WNotifKind.applicationReview:
+      if(store.kycStatus=='changesRequested') {router.go(N.steps);} else {router.home();}
   }
   return null;
 }

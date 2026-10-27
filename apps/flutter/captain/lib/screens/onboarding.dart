@@ -997,7 +997,7 @@ class _ReviewNoticeState extends State<_ReviewNotice> {
 
   /// Approved while the pop-up is open: close it (Home goes online by itself).
   void _approved() {
-    if (widget.store.signedUp) _close();
+    if (widget.store.signedUp || !widget.store.underReview) _close();
   }
 
   @override

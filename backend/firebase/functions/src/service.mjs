@@ -5,6 +5,7 @@ import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import {startTraining,trainingHeartbeat,submitQuiz,trainingConfig} from './training.mjs';
 import {beginIdentity,verifyIdentity,reviewIdentity} from './identity.mjs';
 import {checkWashPhotos,photoFingerprint} from './wash-photo-review.mjs';
+import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
 
 export class ServiceError extends Error {
@@ -26,8 +27,10 @@ const capacityKey=(society,day,hour,mode)=>hash(`${mode==='live'?'live:':''}${so
 
 export class WashKrewService {
   constructor({ db, payments, paymentProviders, evidence, accounts, maps, photoChecks, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, photoChecks, now }); }
-  getPayments(mode) {
-    const provider=this.paymentProviders?.[mode]??this.payments;
+  getPayments(mode,merchant='trustkeyper') {
+    merchant=merchant??'trustkeyper';
+    if(!['trustkeyper','washkrew'].includes(merchant))fail('failed-precondition','This booking merchant is not configured. Contact support.');
+    const provider=merchant==='trustkeyper'?(this.paymentProviders?.[mode]??this.payments):this.paymentProviders?.[`washkrew:${mode}`];
     const actual=provider?.keyId?.startsWith('rzp_live_')?'live':provider?.keyId?.startsWith('rzp_test_')?'test':null;
     if(!['test','live'].includes(mode)||actual!==mode)fail('failed-precondition','Payments are not configured for this booking. Contact support.');
     return provider;
@@ -46,6 +49,10 @@ export class WashKrewService {
     return worksWindow(captain, window, elapsed);
   }
   startTraining(auth,data){return startTraining(this,auth,data);}
+  listCaptainApplications(auth,data){return listCaptainApplications(this,auth,data);}
+  getCaptainApplication(auth,data){return getCaptainApplication(this,auth,data);}
+  reviewCaptainApplication(auth,data){return reviewCaptainApplication(this,auth,data);}
+  captainReviewEvidence(auth,data){return captainReviewEvidence(this,auth,data);}
   trainingHeartbeat(auth,data){return trainingHeartbeat(this,auth,data);}
   submitQuiz(auth,data){return submitQuiz(this,auth,data);}
   checkWashPhotos(auth,data){return checkWashPhotos(this,auth,data);}
@@ -155,6 +162,8 @@ export class WashKrewService {
         return { bookingId, status: old.status, amount: old.pricePaise };
       }
       const config = cfg.data();
+      if(config?.paymentMode==='live'&&config.paymentMerchant!=='washkrew')fail('failed-precondition','New live bookings require the separate WashKrew merchant.');
+      if(config?.paymentMerchant&&!['washkrew','trustkeyper'].includes(config.paymentMerchant))fail('failed-precondition','The booking merchant is not configured.');
       if(profile.data()?.deletionStatus)fail('permission-denied','This account is being deleted.');
       if(profile.data()?.deletedRoles?.customer||profile.data()?.deletingRole==='customer')fail('permission-denied','Log in with a fresh SMS code to create your Customer account again.');
       if (!config?.bookingsEnabled) fail('failed-precondition', 'Bookings are not open yet. Please try again once service starts.');
@@ -217,7 +226,7 @@ export class WashKrewService {
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
         ...pricing, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
-        captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode,
+        captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
         evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
       });
@@ -256,7 +265,8 @@ export class WashKrewService {
       await this.dispatch(bookingId);
       return {bookingId,paid:true};
     }
-    const payments=this.getPayments(order.paymentMode);
+    if(order.paymentMode==='live'&&(order.paymentMerchant??'trustkeyper')!=='washkrew')fail('failed-precondition','New checkout on the historical shared live merchant is disabled. Contact support.');
+    const payments=this.getPayments(order.paymentMode,order.paymentMerchant);
     let providerId = order.razorpayOrderId;
     if (!providerId) {
       const created = await payments.createOrder({ amount: order.pricePaise, receipt: order.ref, bookingId });
@@ -265,7 +275,7 @@ export class WashKrewService {
         const latest = (await tx.get(ref)).data();
         if (latest.checkoutLease !== lease || latest.status !== 'pendingPayment') fail('aborted', 'Booking changed while preparing payment.');
         tx.update(ref, { razorpayOrderId: created.id, nextPaymentCheckAt: Timestamp.fromMillis(this.now()+120000), checkoutLeaseUntil: Timestamp.fromMillis(0), updatedAt: stamp() });
-        tx.set(this.db.doc(`paymentOrders/${created.id}`), { bookingId, paymentMode:order.paymentMode });
+        tx.set(this.db.doc(`paymentOrders/${created.id}`), { bookingId, paymentMode:order.paymentMode,paymentMerchant:order.paymentMerchant??'trustkeyper' });
       });
       providerId = created.id;
     }
@@ -274,19 +284,19 @@ export class WashKrewService {
   async verifyPayment(auth, data) {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
     if (!order || order.customerId !== uid) fail('permission-denied', 'This booking is not yours.');
-    const paymentId = id(data.paymentId, 'payment'),payments=this.getPayments(order.paymentMode);
+    const paymentId = id(data.paymentId, 'payment'),payments=this.getPayments(order.paymentMode,order.paymentMerchant);
     if (data.orderId !== order.razorpayOrderId || !payments.verify({ orderId: order.razorpayOrderId, paymentId, signature: data.signature }))
       fail('permission-denied', 'Payment verification failed.');
     const payment = await payments.payment(paymentId);
-    await this.capturePayment(payment,order.paymentMode);
+    await this.capturePayment(payment,order.paymentMode,order.paymentMerchant);
     const latest = (await this.db.doc(`orders/${bookingId}`).get()).data();
     return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus };
   }
   async reconcilePayment(bookingId) {
     const ref=this.db.doc(`orders/${id(bookingId)}`),o=(await ref.get()).data();
     if(!o?.razorpayOrderId||o.paymentStatus==='captured')return;
-    const result=await this.getPayments(o.paymentMode).orderPayments(o.razorpayOrderId);
-    for(const p of result.items??[])if(p.status==='captured')await this.capturePayment(p,o.paymentMode);
+    const result=await this.getPayments(o.paymentMode,o.paymentMerchant).orderPayments(o.razorpayOrderId);
+    for(const p of result.items??[])if(p.status==='captured')await this.capturePayment(p,o.paymentMode,o.paymentMerchant);
     // Reconcile lost browser callbacks/webhooks without creating payments.
     // Stop polling after two days; signed webhooks and owner checks still work.
     const fresh=(await ref.get()).data();
@@ -296,8 +306,8 @@ export class WashKrewService {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
     if (!order || order.customerId !== uid) fail('permission-denied', 'This booking is not yours.');
     if (order.razorpayOrderId && order.paymentStatus !== 'captured') {
-      const payments = await this.getPayments(order.paymentMode).orderPayments(order.razorpayOrderId);
-      for (const payment of payments.items ?? []) if (payment.status === 'captured') await this.capturePayment(payment,order.paymentMode);
+      const payments = await this.getPayments(order.paymentMode,order.paymentMerchant).orderPayments(order.razorpayOrderId);
+      for (const payment of payments.items ?? []) if (payment.status === 'captured') await this.capturePayment(payment,order.paymentMode,order.paymentMerchant);
     }
     if (order.status === 'cancelled' && order.paymentStatus === 'captured') {
       // Customer checks can fetch an existing refund, never bypass POST retry
@@ -308,40 +318,43 @@ export class WashKrewService {
     const latest = (await this.db.doc(`orders/${bookingId}`).get()).data();
     return { bookingId, status: latest.status, paymentStatus: latest.paymentStatus, refundStatus: latest.refundStatus ?? 'none' };
   }
-  async captureWebhookPayment(paymentId,mode='test',hintOrderId=null) {
+  async captureWebhookPayment(paymentId,mode='test',hintOrderId=null,merchant='trustkeyper') {
     // A signed hint can rule out unrelated merchant traffic before an API call;
     // it never proves payment. Known orders are fetched and verified below.
     if(hintOrderId) {
       const mapping=(await this.db.doc(`paymentOrders/${id(hintOrderId)}`).get()).data();
       if(!mapping)return {ignored:true};
       if(mapping.paymentMode && mapping.paymentMode!==mode)fail('permission-denied','Payment mode does not match.');
+      if((mapping.paymentMerchant??'trustkeyper')!==merchant)fail('permission-denied','Payment merchant does not match.');
     }
-    const payment = await this.getPayments(mode).payment(id(paymentId));
+    const payment = await this.getPayments(mode,merchant).payment(id(paymentId));
     // The merchant is shared with Trustkeyper. A signed merchant event alone
     // does not make its order a WashKrew booking; acknowledge unrelated events.
     if (!payment?.order_id || !(await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).exists) return { ignored: true };
-    await this.capturePayment(payment,mode);
+    await this.capturePayment(payment,mode,merchant);
     return { ignored: false };
   }
-  async refundWebhook(refund,mode='test') {
+  async refundWebhook(refund,mode='test',merchant='trustkeyper') {
     const pending=await this.db.collection('refunds').where('providerRefundId','==',id(refund.id,'refund')).limit(1).get();
     if(pending.empty)return {ignored:true};
     const record=pending.docs[0],expected=record.data();
     const order=(await this.db.doc(`orders/${record.id}`).get()).data();
-    if(order?.paymentMode!==mode || refund.payment_id!==expected.paymentId || refund.amount!==expected.amount)
+    if(order?.paymentMode!==mode || (order?.paymentMerchant??'trustkeyper')!==merchant || refund.payment_id!==expected.paymentId || refund.amount!==expected.amount)
       fail('permission-denied','Refund does not match this booking.');
-    await this.applyRefund(record.id,await this.getPayments(mode).fetchRefund(refund.id));
+    await this.applyRefund(record.id,await this.getPayments(mode,merchant).fetchRefund(refund.id));
     return {ignored:false};
   }
-  async capturePayment(payment,mode='test') {
+  async capturePayment(payment,mode='test',merchant='trustkeyper') {
+    merchant=merchant??'trustkeyper';
     if (payment.status !== 'captured') return;
     const mapping = (await this.db.doc(`paymentOrders/${id(payment.order_id)}`).get()).data();
     if (!mapping) fail('not-found', 'Unknown payment order.');
+    if((mapping.paymentMerchant??'trustkeyper')!==merchant)fail('permission-denied','Payment merchant does not match.');
     const ref = this.db.doc(`orders/${mapping.bookingId}`);
     await this.db.runTransaction(async tx => {
       const [s, cfg] = await Promise.all([tx.get(ref), tx.get(this.db.doc('config/operations'))]);
       const o = s.data();
-      if (!o || o.paymentMode!==mode || payment.order_id !== o.razorpayOrderId || payment.amount !== o.pricePaise || payment.currency !== o.currency)
+      if (!o || o.paymentMode!==mode || (o.paymentMerchant??'trustkeyper')!==merchant || payment.order_id !== o.razorpayOrderId || payment.amount !== o.pricePaise || payment.currency !== o.currency)
         fail('permission-denied', 'Payment amount or order does not match.');
       if (o.paymentStatus === 'captured') {
         if (o.razorpayPaymentId !== payment.id) fail('already-exists', 'This booking already has a captured payment.');
@@ -374,7 +387,7 @@ export class WashKrewService {
     if(canReserve)tx.set(slots[selected].ref,{reserved:(slots[selected].data()?.reserved??0)+1},{merge:true});
     else {
       this.restoreWallet(tx,wallet,o);
-      if(cashRefund)tx.set(this.db.doc(`refunds/${ref.id}`),{bookingId:ref.id,customerId:o.customerId,paymentId,amount:o.pricePaise,status:'queued',createdAt:stamp()});
+      if(cashRefund)tx.set(this.db.doc(`refunds/${ref.id}`),{bookingId:ref.id,customerId:o.customerId,paymentId,amount:o.pricePaise,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
     }
     this.event(tx,ref,'paymentCaptured',{status:canReserve?'searching':'cancelled'});
   }
@@ -737,7 +750,7 @@ export class WashKrewService {
       if(slot)tx.set(slot.ref,{reserved:Math.max(0,(slot.data()?.reserved??1)-1)},{merge:true});
       if(captain?.exists)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),updatedAt:stamp()});
       for(const offer of offers.docs)tx.update(offer.ref,{status:'withdrawn',updatedAt:stamp()});
-      if(refund)tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:o.pricePaise-fee,status:'queued',createdAt:stamp()});
+      if(refund)tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:o.pricePaise-fee,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
       this.event(tx,ref,'customerCancelled',{status:'cancelled'});
     });
     return {ok:true};
@@ -867,7 +880,7 @@ export class WashKrewService {
       }
       if(outcome==='upheld'){
         if(restore||bonus)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:o.paymentMode,freeWashes:free,creditPaise:credit,updatedAt:stamp()},{merge:true});
-        if(o.pricePaise>0&&!refund.exists)tx.set(refund.ref,{bookingId:orderId,customerId:o.customerId,paymentId:o.razorpayPaymentId,amount:o.pricePaise,status:'queued',createdAt:stamp()});
+        if(o.pricePaise>0&&!refund.exists)tx.set(refund.ref,{bookingId:orderId,customerId:o.customerId,paymentId:o.razorpayPaymentId,amount:o.pricePaise,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
       }
       this.event(tx,ref,'disputeReviewed',{outcome});
     });return {ok:true};
@@ -1067,7 +1080,7 @@ export class WashKrewService {
       tx.update(this.db.doc(`orders/${bookingId}`),{refundStatus:'processed',refundIssue:FieldValue.delete(),refundAmountPaise:0,updatedAt:stamp()});});return;}
     try {
       const order=(await this.db.doc(`orders/${bookingId}`).get()).data();
-      const payments=this.getPayments(order?.paymentMode??'test');
+      const payments=this.getPayments(order?.paymentMode??data.paymentMode??'test',order?.paymentMerchant??data.paymentMerchant);
       const request={paymentId:data.paymentId,amount:data.amount,refundId:`wh_${bookingId}`};
       const refund=data.providerRefundId ? await payments.fetchRefund(data.providerRefundId)
         : await payments.findRefund(request) ?? await payments.refund(request);

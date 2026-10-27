@@ -125,6 +125,7 @@ class _CaptainHomeState extends State<CaptainHome> {
     final store = context.store;
     // Profile sent and not approved yet: explain, with the call option after 30 minutes.
     if (on && store.underReview) {
+      store.awaitingApproval = true;
       showReviewNotice(context);
       return;
     }

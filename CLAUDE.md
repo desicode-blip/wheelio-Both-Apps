@@ -2,6 +2,14 @@
 
 ## Owner handoff update - 27 October 2026
 
+**28 October follow-up:** `docs/ADMIN-MERCHANT-2026-10-28.md` supersedes the older
+pending merchant-integration and CLI-only Captain-approval status. Separate
+WashKrew live secrets/webhook and merchant-safe historical routing are deployed;
+payments remain test. The separate `/admin/` page supports human reviews by the
+four approved Google accounts, with actual Flutter inbox/correction state.
+New-merchant acceptance, real human approvals, approved content and physical
+iPhone/APNs checks remain gates. Preserve the Customer/Captain staging design.
+
 Read `docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md` (PDF in `output/pdf/`) and `docs/MAC-HANDOFF.md` first. These current owner decisions supersede conflicting historical paragraphs below:
 
 - Preserve the staging design and use the active Flutter Customer/Captain apps. Compile/sign/test on Aman's Mac; do not use the SwiftUI sample project or generate Android.

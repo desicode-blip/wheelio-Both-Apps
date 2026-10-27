@@ -2,6 +2,13 @@
 
 ## Owner handoff update - 27 October 2026
 
+- **28 October follow-up:** read `docs/ADMIN-MERCHANT-2026-10-28.md`. Separate
+  WashKrew live secrets/webhook and merchant-safe historical routing are now
+  implemented/deployed; payments stay test and new-merchant live acceptance is
+  pending. `/admin/` provides private human Captain review for the four approved
+  Google reviewers. This supersedes pending-integration/CLI-only statements
+  below, without approving any real Captain or bypassing training/device gates.
+
 - Read `docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md` and its PDF in `output/pdf/` before continuing on Aman's Mac. It records current remaining work and supersedes historical setup notes where they conflict.
 - Aman will supply temporary training design placeholders instead of videos for now. Use his assets in the existing training regions without redesigning screens. A placeholder must never award server watch progress, quiz success, training/KYC approval or a fake playback result. Approved real training remains pending.
 - The owner reports Razorpay requires a **separate WashKrew merchant account**. Aman is handling that onboarding/documents/access. Do not launch WashKrew using Trustkeyper's old shared live pair, duplicate Aman's application or switch payments to live. Old credentials/webhooks are historical and existing test records still need safe reconciliation. New merchant integration and merchant-aware historical payment/refund routing remain to be completed after access is supplied.

@@ -23,4 +23,19 @@ void main() {
     expect(mergeSlots([(1230,1320),(240,300),(270,330),(540,600)]),[(240,330),(540,600),(1230,1320)]);
     expect(workDayStart,240);expect(workDayEnd,1320);
   });
+  test('a correction request does not remain in the waiting-for-approval state', () {
+    final store=FirebaseStateStore()..registered=true;
+    store.kycStatus='underReview';
+    store.startReview();
+    expect(store.underReview,isTrue);
+    store.kycStatus='changesRequested';
+    expect(store.underReview,isFalse);
+    final n=WNotif(id:'review',kind:WNotifKind.applicationReview,date:DateTime.now(),reviewTitle:'Your application needs corrections',reviewBody:'Please upload a clear selfie.');
+    expect(store.title(n),'Your application needs corrections');
+    expect(store.body(n),'Please upload a clear selfie.');
+    final router=WRouterC();
+    openWNotif(n,store,router);
+    expect(router.last?.n,N.steps);
+    store.dispose();router.dispose();
+  });
 }

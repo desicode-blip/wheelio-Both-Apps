@@ -68,5 +68,7 @@ for (const [app, path] of [['customer', 'app'], ['captain', 'captain']]) {
 }
 await cp(join(root, 'apps/hosting'), output, { recursive: true });
 await cp(join(root, 'apps/flutter/packages/washkrew_ui/lib/fonts'), join(output, 'fonts'), { recursive: true });
-await writeFile(join(output, 'robots.txt'), 'User-agent: *\nDisallow: /app/\nDisallow: /captain/\n');
+const {buildAdmin}=await import('../../admin/build.mjs');
+await buildAdmin(config,join(output,'admin'));
+await writeFile(join(output, 'robots.txt'), 'User-agent: *\nDisallow: /app/\nDisallow: /captain/\nDisallow: /admin/\n');
 console.log(`Firebase Hosting build ready: ${output}`);

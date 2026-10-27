@@ -1,5 +1,11 @@
 # WashKrew
 
+**28 October continuation:** [ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md)
+supersedes this report/PDF's pending merchant integration and CLI-only Captain
+review status. Separate merchant credentials/webhook, historical routing and a
+private human review page are deployed in test mode. The original PDF remains a
+historical snapshot; preserve its Mac/device/content gates and the staging design.
+
 **Later app follow-up:** read [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md)
 and [Aman's UI report](CHANGES-2026-10-27-UI.md) with this historical handoff. They
 record the merged Mac/UI changes, availability fixes and the owner's 4 AM–10 PM /

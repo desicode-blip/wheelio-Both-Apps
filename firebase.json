@@ -1,6 +1,6 @@
 {
-  "auth": { "providers": { "emailPassword": true } },
-  "functions": [{ "source": "backend/firebase/functions", "codebase": "wheelio", "runtime": "nodejs24" }],
+  "auth": { "providers": { "emailPassword": true, "googleSignIn": { "oAuthBrandDisplayName": "WashKrew operations", "supportEmail": "ajay@trustkeyper.com" } } },
+  "functions": [{ "source": "backend/firebase/functions", "codebase": "wheelio", "runtime": "nodejs24", "ignore": ["node_modules", ".git", ".secret.local", "firebase-debug.log", "firebase-debug.*.log"] }],
   "storage": { "rules": "backend/firebase/storage.rules" },
   "firestore": {
     "rules": "backend/firebase/firestore.rules",

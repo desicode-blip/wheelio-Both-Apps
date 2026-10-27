@@ -291,6 +291,28 @@ test('historical test callbacks and refunds keep their original credentials afte
   assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().refundStatus,'processed');
 });
 
+test('merchant snapshots keep historical refunds on archived keys and reject cross-merchant capture',async()=>{
+  const old=await paid('historical-merchant');
+  const legacy=(await db.doc(`orders/${old.bookingId}`).get()).data();delete legacy.paymentMerchant;await db.doc(`orders/${old.bookingId}`).set(legacy);
+  const nextProvider={...provider,keyId:'rzp_test_new_merchant',payments:new Map(),refundCalls:0,async createOrder({amount}){return {id:`order_new_${++counter}`,amount,currency:'INR'};}};
+  service.paymentProviders={test:provider,'washkrew:test':nextProvider};service.payments=nextProvider;
+  await db.doc('config/operations').update({paymentMerchant:'washkrew'});
+  const b=await service.createBooking(customer,input('new-merchant')),checkout=await service.checkout(customer,b);
+  assert.equal(checkout.keyId,'rzp_test_new_merchant');
+  const payment={id:'pay_new_merchant',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};nextProvider.payments.set(payment.id,payment);
+  await assert.rejects(service.captureWebhookPayment(payment.id,'test',checkout.orderId),{code:'permission-denied'});
+  await service.captureWebhookPayment(payment.id,'test',checkout.orderId,'washkrew');
+  await service.cancel(customer,{orderId:old.bookingId});await service.processRefund(old.bookingId);
+  assert.equal(provider.refundCalls,1);assert.equal(nextProvider.refundCalls,0);
+  await service.cancel(customer,{orderId:b.bookingId});await service.processRefund(b.bookingId);
+  assert.equal(nextProvider.refundCalls,1);assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).data().paymentMerchant,'washkrew');
+});
+
+test('new live bookings cannot launch on the historical shared merchant',async()=>{
+  await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'trustkeyper'});
+  await assert.rejects(service.createBooking(customer,input('forbidden-shared-live')),{code:'failed-precondition'});
+});
+
 test('a test reservation cannot consume live capacity and historical test slot keys stay valid',async()=>{
   await db.doc('config/operations').update({capacityPerSlot:1});
   const b=await paid(),old=(await db.doc(`orders/${b.bookingId}`).get()).data();
@@ -298,15 +320,15 @@ test('a test reservation cannot consume live capacity and historical test slot k
   const {createHash}=await import('node:crypto');
   assert.equal(old.slotKey,createHash('sha256').update('soc_avatar:2026-11-01:8').digest('hex').slice(0,32));
   const live={...provider,keyId:'rzp_live_fake',payments:new Map()};
-  service.paymentProviders={test:provider,live};service.payments=live;
+  service.paymentProviders={test:provider,live,'washkrew:live':live};service.payments=live;
   await db.doc('captains/captain2').update({paymentMode:'live'});
-  await db.doc('config/operations').update({paymentMode:'live'});
+  await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'washkrew'});
   assert.equal((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.find(s=>s.startHour===8).available,true);
   const next=await service.createBooking(customer,input('live-request')),checkout=await service.checkout(customer,next);
   assert.equal(checkout.keyId,'rzp_live_fake');assert.equal(checkout.testMode,false);
   const capture={id:'pay_live',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};
   live.payments.set(capture.id,capture);
-  await service.captureWebhookPayment(capture.id,'live',checkout.orderId);
+  await service.captureWebhookPayment(capture.id,'live',checkout.orderId,'washkrew');
   const current=(await db.doc(`orders/${next.bookingId}`).get()).data();
   assert.notEqual(current.slotKey,old.slotKey);
   for(const key of [old.slotKey,current.slotKey])assert.equal((await db.doc(`slotCapacity/${key}`).get()).data().reserved,1);
@@ -326,7 +348,7 @@ test('wrong-mode captures and unconfigured live checkout cannot use test keys',a
   assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().paymentStatus,'unpaid');
   assert.throws(()=>service.getPayments('live'),{code:'failed-precondition'});
   await service.cancel(customer,{orderId:b.bookingId});
-  await db.doc('config/operations').update({paymentMode:'live'});
+  await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'washkrew'});
   await db.doc('captains/captain1').update({paymentMode:'live'});
   const liveBooking=await service.createBooking(customer,input('missing-live-keys'));
   await assert.rejects(service.checkout(customer,liveBooking),{code:'failed-precondition'});
