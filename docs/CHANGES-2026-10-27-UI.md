@@ -1,14 +1,80 @@
-# UI changes from Aman's session — 27 October 2026 (for Ajay)
+# App changes from Aman's session — 27 October 2026 (for Ajay)
 
-**Read this first, Ajay.** Today Aman is changing the **UI only** on top of staging `752e222`.
-**The backend was not changed** (no Firebase functions, rules or config). Every item below says
-what still needs connecting on the backend side. Treat the "Backend needed" items as **P0**.
+**Read this first, Ajay.** Aman changed the **apps' UI only**, on top of your staging `752e222`
+(the Mac also resolved iOS pod locks, `a1dd4db`). **No backend was changed**: no Firebase
+functions, rules, config or secrets. Every item says what still needs connecting on your side.
+Treat every "Backend needed" item as **P0**.
 
-Until you connect an item, its real-data (Firebase) build shows the toast or dialog message
-"This isn’t available yet. Call us and we’ll do it for you." It never fakes success.
-The sample (demo) build shows the full designed flow.
+Where a feature has no backend yet, the real-data (Firebase) app says "This isn’t available yet.
+Call us and we’ll do it for you." It never fakes success. The sample (demo) build shows the full
+designed flow. Both apps were built, installed and tried on Aman's iPhone (Release).
 
-New items are added to this list as the session goes on.
+The **Customer app has no changes today** apart from the shared code it compiles with. All the
+work below is in the **Captain app** (plus one shared dialog in `washkrew_ui`).
+
+## At a glance
+
+| # | What changed (Captain) | Backend needed |
+|---|---|---|
+| 1 | **Delete account** row in Me, with the designed dialog | Connect deletion; add a fresh SMS check (5-minute login rule); decide what happens to a number used in both apps |
+| 2 | **Aadhaar upload**: camera or gallery → "Checking your photo" → clear / not clear | Real Aadhaar document check; front + back?; are gallery photos allowed? |
+| 3 | **Skip this step (testing)** on every onboarding stage | None; turn off before launch |
+| 4 | **I agree** no longer stops at "INTERNAL" | Fix the missing-photo crash in `submitCaptainApplication` |
+| 5 | **Review-call screen removed.** Under-review pop-up with a 30-minute countdown, then **Call our team**; online automatically once approved | **Automatic review within 30 minutes**; drop the intro call; publish the support number |
+| 6 | **Skip 30 min (testing)** on that pop-up | None; turn off before launch |
+| 7 | **First-time work profile**: two questions, then the answers shrink into Home's "Jobs from" chip | Let preferences save while under review |
+| 8 | **Time sliders + Add more time** (breaks), left-to-right slide, **"You’re in" removed** | **Store exact working times**; the server takes only 6–10 / 10–14 / 14–18 today |
+| 9 | Slider **4 AM – 10 PM** with a sun/moon sky | Accept 4 AM – 10 PM when storing exact times |
+
+## New Captain onboarding flow (end to end)
+
+Steps (Aadhaar → selfie → bank/UPI → training + quiz) → Rules **I agree** (sends the
+application; the 30-minute review countdown starts) → **Your work profile**: "Which jobs should
+ring?" → **Next** → "When do you work?" (sliders, Add more time) → **Done** → the questionnaire
+shrinks into Home's **"Jobs from · Change"** chip, which glows → approved: **online
+automatically**; not yet: **"Your profile is under review"** pop-up (countdown, then **Call our
+team**). Removed screens: W13 "Get ready / review call" and W14 "You’re in".
+
+## Backend checklist (P0, in order of impact)
+
+1. **Automatic captain review within 30 minutes** of `submittedAt`: documents readable and an
+   Aadhaar, selfie matches Aadhaar, training/quiz done, UPI valid → `approved: true`. If unsure,
+   send to a human and tell Aman so it can be designed. Rejections → `kycStatus:
+   'changesRequested'` with a reason. (Item 5)
+2. **Fix the missing-file crash** in `submitCaptainApplication` (`getMetadata()` 404 → generic
+   "INTERNAL"). Return "Upload your identity and selfie." Check other `evidence.metadata` callers.
+   (Item 4)
+3. **Store exact working times** (several ranges a day, 30-minute steps, 4 AM – 10 PM) and offer
+   jobs that overlap them. Until then the app sends every whole window the ranges touch. (Items 8, 9)
+4. **Real Aadhaar check** (OCR/document check or DigiLocker). Decide front + back and gallery
+   uploads. (Item 2)
+5. **Connect Captain account deletion**, with a fresh SMS check before deleting in **both** apps.
+   Decide one-number-two-roles. (Item 1)
+6. **`setCaptainPreferences` must work before approval** (first-time work profile). (Item 7)
+7. **Publish `config.support.phone`** so "Call our team" dials. (Item 5)
+8. **Drop the intro-call step** (`schedule-intro`, `introCallLabel`) from operations. (Item 5)
+
+## Before launch (app switches)
+
+- `onboardingSkip = false` in `captain/lib/screens/onboarding.dart`. This hides "Skip this step
+  (testing)" and "Skip 30 min (testing)". The test approval and skips are phone-only and never
+  reach the server.
+- `planClockTest = false` (same file): the "TEST +5 min" button on Today's plan.
+
+## Where the code is
+
+- Captain store (`captain/lib/data/store.dart`): "Review after I agree" section (`reviewWait`,
+  `underReview`, `callUnlocksIn`, `startReview`, `goOnlineAfterApproval`, `testApproved`);
+  `workSlots` / `serverWindowsFor` / `mergeSlots` / `fmtClock`; `deleteAccount` (marked BACKEND);
+  `testSkipped`.
+- Screens: `onboarding.dart` (Aadhaar flow, test skips, Rules, under-review pop-up
+  `showReviewNotice`); `help.dart` (`WorkAreaScreen(setup:)`, `WorkSlotsEditor`, `_SkyArc`);
+  `home.dart` (`playWorkProfileLanding`, chip glow, pop-up timing); `money.dart` (Delete account
+  row).
+- Shared: `packages/washkrew_ui/lib/src/delete_account.dart` (`showDeleteAccountDialog`).
+- Sample gallery: W12w (work profile), W14r (under-review pop-up).
+
+The detailed notes per item follow.
 
 ---
 
