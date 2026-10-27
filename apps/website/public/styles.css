@@ -16,6 +16,7 @@
   --success: #4BD08C;
   --on-success: #15352A;
   --success-tint: #E6F8EF;
+  --star: #F0A030;
   --wait: #8A4500;
   --wait-tint: #FFF3E0;
   --on-dark: #FFFFFF;
@@ -72,7 +73,6 @@ a { color: var(--primary); }
 .btn-secondary:hover { background: var(--canvas); }
 .btn-dark { background: var(--heading); color: var(--white); }
 .btn-dark:hover { background: #000; }
-.btn-approve { background: var(--success); color: var(--on-success); }
 .btn-small { min-height: 44px; padding: 0 18px; font-size: 15px; }
 .btn-block { display: flex; width: 100%; }
 
@@ -103,7 +103,7 @@ a { color: var(--primary); }
 /* Hero */
 .hero { padding: 72px 0 88px; background: var(--white); }
 .hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 64px; align-items: center; }
-.hero h1 { font-size: 64px; line-height: 68px; font-weight: 700; letter-spacing: -0.025em; max-width: 11ch; }
+.hero h1 { font-size: 60px; line-height: 64px; font-weight: 700; letter-spacing: -0.025em; text-wrap: balance; }
 .lead { font-size: 18px; line-height: 30px; color: var(--body); margin-top: 24px; max-width: 34em; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
 .hero-note { display: flex; align-items: center; gap: 8px; margin-top: 24px; font-size: 15px; color: var(--secondary); }
@@ -120,7 +120,11 @@ a { color: var(--primary); }
 .record-time { font-size: 13px; color: var(--secondary); font-variant-numeric: tabular-nums; }
 .record-title { margin-top: 12px; font-size: 17px; line-height: 22px; font-weight: 600; color: var(--heading); }
 .record-meta { font-size: 14px; line-height: 20px; color: var(--secondary); }
-.record-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 14px; line-height: 20px; color: var(--body); }
+.record-row { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 20px; color: var(--body); }
+.record-photos { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.record-rating { margin-top: 10px; }
+.stars { display: inline-flex; gap: 2px; }
+.star { width: 18px; height: 18px; fill: var(--star); stroke: none; }
 .record-row .ico { width: 20px; height: 20px; color: var(--primary); }
 
 /* One moment of motion: the check draws once, like the app's job-complete moment. */
@@ -204,7 +208,6 @@ a { color: var(--primary); }
   .header-inner { justify-content: space-between; }
   .hero { padding: 40px 0 64px; }
   .hero-grid, .how-grid, .crew-grid, .captains-grid { grid-template-columns: minmax(0, 1fr); }
-  .hero h1 { max-width: 14ch; }
   .how-intro { position: static; }
   .service-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .service-note { grid-column: 1 / -1; max-width: none; padding: 0; }
