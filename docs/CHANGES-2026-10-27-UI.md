@@ -138,3 +138,53 @@ message ("Upload your identity and selfie.") never reaches the app.
    `getMetadata()` (or check `file.exists()` first) and `fail('failed-precondition', 'Upload your
    identity and selfie.')`. Other places that call `evidence.metadata` probably have the same issue.
 2. Please make sure every refusal reaches the app as a clear message, never "INTERNAL".
+
+---
+
+## 5. Captain: the review-call screen (W13 "Get ready") is removed. After "I agree" → "You’re in" → Home
+
+**What Aman decided:** there is **no separate verification or video-call round**. Once the
+documents are done and the captain agrees to the rules, he goes straight to the celebration
+screen with the day 1 / day 2 / day 3 job counts (W14 "You’re in"), then Home.
+- **Verified:** he goes **online automatically**.
+- **Not verified yet:** a pop-up says **"Your profile is under review"**. The review is meant
+  to be **automatic, within 30 minutes**. The pop-up counts down from 30:00 from when the
+  application was sent. When it reaches zero, a **Call our team** button appears.
+
+**What changed (Captain app)**
+- Removed: `UnderReviewScreen` (W13 "Get ready / Your review call is pending / Change time"), its
+  route `N.underReview` and its gallery entry. The app no longer shows the intro-call time
+  (`introCallLabel`) or sends the "Change time" support request.
+- Rules **I agree** (real data): sends the application (`submitCaptainApplication`, as before),
+  then opens W14 "You’re in". The testing path (skipped stages) also goes to W14, without sending.
+- W14 **Go to home**:
+  - approved (`captains.approved == true`): calls your existing `setCaptainOnline {online: true}`
+    and opens Home online;
+  - not approved: opens Home and shows the pop-up.
+- If approval arrives later in the same session, the app goes online by itself (same call) and
+  closes the pop-up.
+- Pop-up: `showReviewNotice` in `captain/lib/screens/onboarding.dart`. The countdown uses
+  `captains.submittedAt` (falls back to the time "I agree" was tapped). **Call our team** uses
+  `Support.call()` (the published support number). Tapping **Go online** while under review shows
+  the same pop-up. The steps list's Continue (when already sent) opens Home with the pop-up.
+- Sample app: approves straight away and goes online. To see the pop-up: Screens → W14r
+  "Home: profile under review (pop-up)".
+- Store: `CaptainStore` "Review after I agree" section (`reviewWait` = 30 min, `underReview`,
+  `callUnlocksIn`, `startReview`, `goOnlineAfterApproval`).
+
+**Backend needed (P0)**
+1. **Automatic review within 30 minutes.** Today approval is a human operator action
+   (`review-identity` / manual). Build the automatic check: Aadhaar photo readable and an Aadhaar,
+   selfie matches the Aadhaar photo, training/quiz done, payout UPI valid. Approve (`approved:
+   true`, `kycStatus: 'approved'`) within 30 minutes of `submittedAt`. Send to a human only when
+   unsure, and say so in the app (tell Aman so it can be designed).
+2. **Drop the intro-call step.** `schedule-intro`, `introCallLabel` and the intro-call wording in
+   operator tools and docs are no longer part of the flow. Approval must not wait for a call.
+3. **Support number.** The **Call our team** button needs `config.support.phone` published
+   (E.164, e.g. +91…); until then it shows "The support number is awaiting publication."
+4. **Rejections.** If the automatic review rejects something, set `kycStatus: 'changesRequested'`
+   with a reason the app can show (the steps list already marks Aadhaar as "1 thing to fix").
+   Send Aman the reasons so the messages can be written.
+5. **Go online on approval.** The app calls `setCaptainOnline true` itself right after approval.
+   Make sure an approved captain with no work-time/area preference set can go online, or send a
+   clear error message.

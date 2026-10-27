@@ -122,6 +122,11 @@ class _CaptainHomeState extends State<CaptainHome> {
   /// Guests sign up (name, number, code) before going online.
   void _setOnline(bool on) {
     final store = context.store;
+    // Profile sent and not approved yet: explain, with the call option after 30 minutes.
+    if (on && store.underReview) {
+      showReviewNotice(context);
+      return;
+    }
     if (on && !store.registered) {
       store.set(() => store.onlineAfterSignUp = true);
       context.router.push(const R(N.signUp));
@@ -185,6 +190,13 @@ class _CaptainHomeState extends State<CaptainHome> {
     final limitReached = store.jobLimit>0 && store.jobsToday >= store.jobLimit;
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
     _scheduleRing(store.online && isTopScreen(context) && router.tab == 0 && !limitReached);
+    // After "Go to home" on "You're in" while not approved yet.
+    if (store.reviewNoticePending && isTopScreen(context) && router.tab == 0) {
+      store.reviewNoticePending = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && context.store.underReview) showReviewNotice(context);
+      });
+    }
     final pad = MediaQuery.paddingOf(context);
     return ColoredBox(
       color: WColor.canvas,

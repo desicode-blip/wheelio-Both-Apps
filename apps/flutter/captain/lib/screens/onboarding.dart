@@ -109,8 +109,9 @@ class StepsScreen extends StatelessWidget {
         };
 
     void go() {
-      if (store.isLive && store.kycStatus == 'underReview') {
-        router.go(N.underReview);
+      if (store.underReview) {
+        store.set(() => store.reviewNoticePending = true);
+        router.home();
         return;
       }
       switch (store.nextStep) {
@@ -912,28 +913,28 @@ class RulesScreen extends StatelessWidget {
       header: WHeader(title: store.t('Rules', 'नियम', 'నియమాలు')),
       footer: WFooter(child: WButton(store.t('I agree', 'मैं सहमत हूँ', 'నేను అంగీకరిస్తున్నాను'), icon: WIcon.check, size: ButtonSize.captain, onTap: () async {
         final router = context.router;
-        // Live: agreeing sends the application to the operations team.
+        // Live: agreeing sends the application for review.
         if (store.isLive) {
           // TESTING (remove with onboardingSkip): skipped stages were never sent to the server,
           // so it would refuse the application. Don't send it; move on so the flow can be tested.
           if (store.testSkipped.isNotEmpty) {
             store.set(() => store.toast = 'Testing: you skipped steps, so the application was not sent.');
-            router.go(N.underReview);
-            return;
-          }
-          // The server needs both photos; say so instead of its generic error.
-          if (!store.kycUploaded.contains('aadhaar') || !store.kycUploaded.contains('selfie')) {
-            store.set(() => store.toast = store.t('Upload your Aadhaar and selfie first.', 'पहले आधार और सेल्फ़ी अपलोड करें।', 'ముందు ఆధార్, సెల్ఫీ అప్‌లోడ్ చేయండి.'));
-            router.replace(const [R(N.steps)]);
-            return;
-          }
-          try {
-            await store.liveSubmitApplication();
-          } catch (_) {
-            return;
+          } else {
+            // The server needs both photos; say so instead of its generic error.
+            if (!store.kycUploaded.contains('aadhaar') || !store.kycUploaded.contains('selfie')) {
+              store.set(() => store.toast = store.t('Upload your Aadhaar and selfie first.', 'पहले आधार और सेल्फ़ी अपलोड करें।', 'ముందు ఆధార్, సెల్ఫీ అప్‌లోడ్ చేయండి.'));
+              router.replace(const [R(N.steps)]);
+              return;
+            }
+            try {
+              await store.liveSubmitApplication();
+            } catch (_) {
+              return;
+            }
           }
         }
-        router.go(N.underReview);
+        store.startReview();
+        router.go(N.live);
       })),
       children: [
         WTitle(store.t('How you earn here', 'यहाँ कमाई कैसे होती है', 'ఇక్కడ ఎలా సంపాదిస్తారు'), top: 10, bottom: 14),
@@ -947,38 +948,99 @@ class RulesScreen extends StatelessWidget {
   }
 }
 
-// MARK: W13 Under review (video call)
+// MARK: Profile under review (pop-up on Home)
+// Replaces the W13 review-call screen (removed 27 Oct). Shown on Home while the profile is
+// not approved. The call option appears once the 30-minute automatic review time is over.
 
-class UnderReviewScreen extends StatelessWidget {
-  const UnderReviewScreen({super.key});
+Future<void> showReviewNotice(BuildContext context) {
+  final store = context.store;
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Close',
+    barrierColor: WColor.scrim,
+    transitionDuration: const Duration(milliseconds: 180),
+    pageBuilder: (_, _, _) => _ReviewNotice(store: store),
+    transitionBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
+  );
+}
+
+class _ReviewNotice extends StatefulWidget {
+  const _ReviewNotice({required this.store});
+  final CaptainStore store;
+  @override
+  State<_ReviewNotice> createState() => _ReviewNoticeState();
+}
+
+class _ReviewNoticeState extends State<_ReviewNotice> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    widget.store.addListener(_approved);
+  }
+
+  /// Approved while the pop-up is open: close it (Home goes online by itself).
+  void _approved() {
+    if (mounted && widget.store.signedUp) Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    widget.store.removeListener(_approved);
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final store = context.store;
-    return WScreen(
-      gutter: WSpace.gutterCaptain,
-      scrolls: false,
-      header: WHeader(title: store.t('Get ready', 'तैयार हो जाइए', 'సిద్ధం అవ్వండి'), back: false),
-      footer: WFooter(child: WButton(store.t('Change time', 'समय बदलें', 'సమయం మార్చండి'), kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () async {
-        if(!store.isLive)return;
-        try{await store.live!.call('createSupportRequest',{'requestId':'intro-${DateTime.now().millisecondsSinceEpoch}','kind':'other','note':'Captain requests a different introduction/document review call time.'});store.set(()=>store.toast='Your request is saved. Operations will confirm the review time.');}
-        catch(e){store.set(()=>store.toast=backendError(e));}
-      })),
-      children: [
-        const Spacer(),
-        const Center(child: WStateCircle(WIcon.phone, size: 112)),
-        const SizedBox(height: 16),
-        WText(store.isLive?(store.liveCaptain['introCallLabel']==null?'Your review call is pending':'Your review call is scheduled'):store.t('We’ll call you today', 'हम आज आपको कॉल करेंगे', 'మేము ఈరోజు మీకు కాల్ చేస్తాము'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
-        const SizedBox(height: 16),
-        WBody(store.t('A 10-minute video call to check your documents. Keep your Aadhaar ready.', 'दस्तावेज़ जाँचने के लिए 10 मिनट की वीडियो कॉल। आधार तैयार रखें।', 'మీ పత్రాలు చూడటానికి 10 నిమిషాల వీడియో కాల్. ఆధార్ సిద్ధంగా ఉంచుకోండి.'), center: true),
-        const SizedBox(height: 16),
-        Container(height: 54, decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)), alignment: Alignment.center, child: WText(store.isLive?store.liveCaptain['introCallLabel'] as String? ?? 'Time awaiting confirmation':store.t('Today, 3 – 5 PM', 'आज, 3 – 5 PM', 'ఈరోజు, 3 – 5 PM'), WType.section, weight: semibold)),
-        const SizedBox(height: 16),
-        if (!store.isLive) Center(child: Pressable(onTap: () => context.router.replace(const [R(N.live)]), child: const WText('Demo: call done →', WType.caption, color: WColor.muted))),
-        // Live: approval by the operations team opens "You're in".
-        if (store.isLive && store.signedUp) OnAppear(onAppear: () => context.router.replace(const [R(N.live)]), child: const SizedBox.shrink()),
-        const Spacer(),
-        const TestSkipButton(next: N.live),
-      ],
+    final store = widget.store;
+    final left = store.callUnlocksIn;
+    final mmss = '${left.inMinutes.toString().padLeft(2, '0')}:${(left.inSeconds % 60).toString().padLeft(2, '0')}';
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: WSpace.gutter),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(28)),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const WIconBox(WIcon.clock, size: 52, tone: Tone.wait, radius: 26),
+            const SizedBox(height: 12),
+            WText(store.t('Your profile is under review', 'आपकी प्रोफ़ाइल की जाँच हो रही है', 'మీ ప్రొఫైల్ పరిశీలనలో ఉంది'), WType.section, weight: semibold),
+            const SizedBox(height: 12),
+            WText(
+              store.t(
+                'We’re checking your documents. This usually takes up to 30 minutes. You’ll go online by yourself once it’s approved.',
+                'हम आपके दस्तावेज़ जाँच रहे हैं। आमतौर पर 30 मिनट तक लगते हैं। मंज़ूरी मिलते ही आप अपने आप ऑनलाइन हो जाएंगे।',
+                'మేము మీ పత్రాలు చూస్తున్నాం. సాధారణంగా 30 నిమిషాల వరకు పడుతుంది. ఆమోదం రాగానే మీరు ఆటోమేటిక్‌గా ఆన్‌లైన్ అవుతారు.',
+              ),
+              WType.body,
+            ),
+            const SizedBox(height: 18),
+            if (left > Duration.zero)
+              Container(
+                height: 54,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [
+                  const WIconView(WIcon.phone, size: 17, color: WColor.secondary),
+                  const SizedBox(width: 12),
+                  Expanded(child: WText(store.t('Call option in', 'कॉल का विकल्प', 'కాల్ ఆప్షన్'), WType.caption, color: WColor.heading, size: 14.5)),
+                  WText(mmss, WType.section, weight: semibold, mono: true),
+                ]),
+              )
+            else
+              WButton(store.t('Call our team', 'हमारी टीम को कॉल करें', 'మా టీమ్‌కి కాల్ చేయండి'), icon: WIcon.phone, size: ButtonSize.captain, onTap: () => Support.call()),
+            const SizedBox(height: 12),
+            WButton(store.t('OK', 'ठीक है', 'సరే'), kind: ButtonKind.text, size: ButtonSize.captain, onTap: () => Navigator.of(context).pop()),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -1002,7 +1064,13 @@ class LiveScreen extends StatelessWidget {
       scrolls: false,
       footer: WFooter(
         child: WButton(store.t('Go to home', 'होम पर जाएं', 'హోమ్‌కి వెళ్ళండి'), size: ButtonSize.captain, onTap: () {
+          // Sample app: approved at once. Real data: the server approves (automatic review).
           if (!store.isLive) store.finishKyc();
+          if (store.signedUp) {
+            store.goOnlineAfterApproval();
+          } else {
+            store.set(() => store.reviewNoticePending = true);
+          }
           context.router.home();
         }),
       ),

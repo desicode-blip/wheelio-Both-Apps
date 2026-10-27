@@ -167,7 +167,7 @@ enum HelpTopic { money, job, rating, app }
 
 /// One route per captain screen ID (W01–W57).
 enum N {
-  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, underReview, live, jobAlert, jobMissed,
+  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, live, jobAlert, jobMissed,
   goToVehicle, gateProblem, cantFind, ownerCancelled, faceCheck, beforePhotos, camera, photoDark, washing, afterPhotos, aiCheck, uploading,
   jobDone, payoutDetail, payoutHeld, level, probationExtended, refresher, blocked, help, notifications, notificationSettings, changePhone,
   editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery,
@@ -413,6 +413,46 @@ class CaptainStore extends ChangeNotifier {
   }
 
   /// KYC approved: jobs can be accepted now.
+  // MARK: Review after "I agree" (27 Oct: the W13 review-call screen was removed)
+  // The captain sees "You're in" (W14) and goes Home. Approved: online straight away.
+  // Not yet: the "Your profile is under review" pop-up; its call option shows after 30 minutes.
+
+  /// Automatic review is expected within this time; then the captain may call the team.
+  static const reviewWait = Duration(minutes: 30);
+  DateTime? _reviewStartedLocal;
+
+  /// Set when the captain agrees to the rules; going online happens once approval arrives.
+  bool awaitingApproval = false;
+
+  /// Home shows the under-review pop-up once when this is set.
+  bool reviewNoticePending = false;
+
+  DateTime? get reviewStartedAt => (isLive ? _date(liveCaptain['submittedAt']) : null) ?? _reviewStartedLocal;
+
+  /// Application sent (or agreed to, when testing) and not yet approved.
+  bool get underReview => registered && !signedUp && (reviewStartedAt != null || kycStatus == 'underReview');
+
+  /// Time left before the call option shows (zero once 30 minutes have passed).
+  Duration get callUnlocksIn {
+    final start = reviewStartedAt;
+    if (start == null) return Duration.zero;
+    final left = start.add(reviewWait).difference(DateTime.now());
+    return left.isNegative ? Duration.zero : left;
+  }
+
+  void startReview() => set(() {
+        _reviewStartedLocal ??= DateTime.now();
+        awaitingApproval = true;
+      });
+
+  /// Approved: go online without the captain having to tap anything.
+  void goOnlineAfterApproval() {
+    awaitingApproval = false;
+    if (online) return;
+    set(() => online = true);
+    if (isLive) liveSetOnline(true).catchError((Object _) => set(() => online = false));
+  }
+
   void finishKyc() => set(() {
         signedUp = true;
         registered = true;
@@ -432,6 +472,9 @@ class CaptainStore extends ChangeNotifier {
   }
 
   void _logOut() => set(() {
+        _reviewStartedLocal = null;
+        awaitingApproval = false;
+        reviewNoticePending = false;
         testSkipped.clear();
         signedUp = false;
         registered = false;
@@ -982,7 +1025,10 @@ class CaptainStore extends ChangeNotifier {
         online = d['online'] == true;
         registered = true;
         exploring = true;
+        final wasApproved = signedUp;
         signedUp = d['approved'] == true;
+        // Approved while waiting after 'I agree': go online by itself.
+        if (!wasApproved && signedUp && awaitingApproval) Future.microtask(goOnlineAfterApproval);
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();
         jobLimit = (d['jobLimit'] as num? ?? 0).toInt();
         final windows = (d['workingWindows'] as List? ?? []).map((w) => (w['startHour'] as num).toInt()).toSet();

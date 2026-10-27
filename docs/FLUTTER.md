@@ -50,6 +50,7 @@ Aman's UI changes on staging `752e222`, with no backend changes. The running lis
 - Captain W05 Aadhaar: "Upload Aadhaar photo" (no "instead") opens a camera/gallery sheet, then shows "Checking your photo" on the real image (at least ~2 s), then "Photo is clear" (Continue) or W05b with the real photo and reason. Clear or not comes from the on-phone `checkPhotoQuality`; real data still uploads with `liveUploadKyc`.
 - Testing: the orange "TEST ONLY · Skip onboarding" pill became a small "Skip this step (testing)" text link on every onboarding stage. It skips one stage at a time, in the sample and real-data apps (real data: kept on the phone in `testSkipped`, not sent to the server). Turn `onboardingSkip` off before launch.
 - Captain Rules "I agree" (real data): with test-skipped stages it doesn't submit (toast, then W13); without both KYC photos it says "Upload your Aadhaar and selfie first." and returns to the steps. W13 has the test skip link to W14. The server's missing-photo 404 crash ("INTERNAL") is for Ajay.
+- Decision (Aman, 27 Oct): no review-call round. W13 "Get ready" (`UnderReviewScreen`, `N.underReview`) is removed. Rules "I agree" → W14 "You're in" → Home. Approved: online automatically (`goOnlineAfterApproval`). Not approved: "Your profile is under review" pop-up (`showReviewNotice`) with a 30-minute countdown from `submittedAt`, then a "Call our team" button. Preview: gallery W14r.
 
 ## 25 October 2026: renamed to WashKrew, new logo
 
