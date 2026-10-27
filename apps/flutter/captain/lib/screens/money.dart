@@ -461,6 +461,30 @@ class MeTab extends StatelessWidget {
                   router.home();
                 },
               ),
+              const WDivider(inset: 54),
+              WListRow(
+                icon: WIcon.trash,
+                tone: Tone.error,
+                title: store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
+                onTap: () async {
+                  final gone = await showDeleteAccountDialog(
+                    context,
+                    size: ButtonSize.captain,
+                    text: DeleteAccountText(
+                      title: store.t('Delete your account?', 'अपना अकाउंट हटाएं?', 'మీ ఖాతాను తొలగించాలా?'),
+                      message: store.t(
+                        'Your profile, KYC documents and job history go with it. You can’t do this while you have a job in progress.',
+                        'आपकी प्रोफ़ाइल, KYC दस्तावेज़ और काम का इतिहास भी हट जाएगा। कोई काम चल रहा हो तो आप ऐसा नहीं कर सकते।',
+                        'మీ ప్రొఫైల్, KYC పత్రాలు, పనుల చరిత్ర కూడా తొలగిపోతాయి. ఏదైనా పని జరుగుతుంటే మీరు ఇది చేయలేరు.',
+                      ),
+                      delete: store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
+                      keep: store.t('Keep my account', 'अकाउंट रखें', 'ఖాతాను ఉంచండి'),
+                    ),
+                    delete: store.deleteAccount,
+                  );
+                  if (gone) router.home();
+                },
+              ),
             ],
           ]),
         ),

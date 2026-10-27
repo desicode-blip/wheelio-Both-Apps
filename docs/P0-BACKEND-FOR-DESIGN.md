@@ -8,6 +8,8 @@
 
 **Owner: Ajay. Priority: P0 (first).** Requested by Aman on 25 October 2026.
 
+**27 October update:** Aman's Captain UI changes and their backend needs (automatic 30-minute review, exact working times, Aadhaar check, account deletion, missing-photo crash) are in [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md). Start with its "Backend checklist". The W13 review-call and W14 "You’re in" screens no longer exist.
+
 On 25 October the real-data (Firebase) apps were changed to use **exactly the designed screens** from the
 design reference (staging commit `31fa906`, 25 Oct 09:25 IST). Before this, the real-data builds replaced
 many designed screens with plain generic ones (Customer: one order screen for everything after payment,

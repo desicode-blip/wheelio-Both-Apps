@@ -2,11 +2,15 @@
 // Ported from apps/ios/Captain/Screens/HelpFlowScreens.swift and WorkAreaScreen.swift.
 // There is no "call us" button up front. Only safety emergencies call directly.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
+import 'home.dart' show playWorkProfileLanding;
 import 'parts.dart';
 
 /// App problems skip the owner step.
@@ -280,8 +284,14 @@ class _HelpFlowScreenState extends State<HelpFlowScreen> {
 
 /// Four simple choices: all jobs, chosen societies, a distance, or one place.
 /// The society the phone is in right now is suggested first.
+///
+/// [setup]: first-time onboarding only (after "I agree", while the documents are reviewed).
+/// The same two questions, one per screen: "Which jobs should ring?" then "When do you work?".
+/// Done → the questionnaire shrinks into Home's "Jobs from" chip, where the answers can be
+/// changed later.
 class WorkAreaScreen extends StatefulWidget {
-  const WorkAreaScreen({super.key});
+  const WorkAreaScreen({super.key, this.setup = false});
+  final bool setup;
   @override
   State<WorkAreaScreen> createState() => _WorkAreaScreenState();
 }
@@ -291,8 +301,15 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
   int radius = 3;
   Set<String> picked = {};
   String place = 'Narsingi';
-  Set<WorkTime> times = {};
+  List<WorkSlot> slots = [];
   bool loaded = false;
+
+  /// Setup only: 0 = which jobs, 1 = when.
+  int page = 0;
+
+  /// Direction of the last page change, for the slide.
+  bool forward = true;
+  bool saving = false;
 
   @override
   void didChangeDependencies() {
@@ -304,7 +321,8 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     radius = store.radiusKm;
     picked = {...store.chosenSocieties};
     place = store.workPlace;
-    times = {...store.workTimes};
+    // Empty means any time: the editor starts with the whole day (setup: a typical 9 to 6).
+    slots = store.workSlots.isNotEmpty ? [...store.workSlots] : [widget.setup ? (9 * 60, 18 * 60) : (workDayStart, workDayEnd)];
   }
 
   Widget _choice(WorkMode m, WIcon icon, String title, String sub) => WSelectionTile(
@@ -370,34 +388,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final store = context.store, router = context.router;
-    return WScreen(
-      canvas: true,
-      gutter: WSpace.gutterCaptain,
-      header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
-      footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode != WorkMode.societies || picked.isNotEmpty, onTap: () async {
-          if (store.isLive && store.registered) {
-            try { await store.liveSaveWorkPreferences(mode,radius,picked,place,times); }
-            catch(e){store.set(()=>store.toast=backendError(e));return;}
-            if(!context.mounted)return;
-          }
-          store.set(() {
-            store.workMode = mode;
-            store.radiusKm = radius;
-            store.chosenSocieties = picked;
-            store.workPlace = place;
-            store.workTimes = times;
-          });
-          store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
-          router.pop();
-        }),
-      ),
-      children: [
-        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 10),
-        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+  List<Widget> _jobChoices(CaptainStore store) => [
         for (final w in [
           _choice(WorkMode.all, WIcon.layers, store.t('All jobs', 'सभी काम', 'అన్ని పనులు'), store.t('Any job near you', 'आपके आस-पास का कोई भी काम', 'మీ దగ్గర ఏ పనైనా')),
           _choice(WorkMode.societies, WIcon.building, store.t('My societies', 'मेरी सोसाइटी', 'నా సొసైటీలు'), store.t('Only buildings you pick', 'सिर्फ़ आपकी चुनी बिल्डिंग', 'మీరు ఎంచుకున్న భవనాలు మాత్రమే')),
@@ -416,29 +407,366 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           w,
           const SizedBox(height: 12),
         ],
+      ];
+
+  bool get _jobsAnswered => mode != WorkMode.societies || picked.isNotEmpty;
+
+  /// Saves on the server (real data) and in the store. Returns false if saving failed.
+  Future<bool> _save(CaptainStore store) async {
+    if (store.isLive && store.registered) {
+      try { await store.liveSaveWorkPreferences(mode,radius,picked,place,mergeSlots(slots)); }
+      catch(e){store.set(()=>store.toast=backendError(e));return false;}
+    }
+    store.set(() {
+      store.workMode = mode;
+      store.radiusKm = radius;
+      store.chosenSocieties = picked;
+      store.workPlace = place;
+      store.workSlots = mergeSlots(slots);
+    });
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.setup) return _setup(context);
+    final store = context.store, router = context.router;
+    return WScreen(
+      canvas: true,
+      gutter: WSpace.gutterCaptain,
+      header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
+      footer: WFooter(
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () async {
+          if (!await _save(store) || !context.mounted) return;
+          store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
+          router.pop();
+        }),
+      ),
+      children: [
+        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 10),
+        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+        ..._jobChoices(store),
         // When I work: only decides which jobs ring. Each job is still the captain's choice.
         WTitle(store.t('When do you work?', 'आप कब काम करते हैं?', 'మీరు ఎప్పుడు పని చేస్తారు?'), top: 14),
-        WBody(store.t('Pick one or more. Leave all off for any time.', 'एक या ज़्यादा चुनें। कभी भी के लिए कुछ न चुनें।', 'ఒకటి లేదా ఎక్కువ ఎంచుకోండి. ఎప్పుడైనా అంటే ఏదీ ఎంచుకోకండి.'), top: 4, bottom: 12),
-        Row(children: [
-          for (final (i, t) in WorkTime.values.indexed) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(
-              child: WChip(
-                switch (t) {
-                  WorkTime.morning => store.t('6–10 AM', 'सुबह 6–10', 'ఉ. 6–10'),
-                  WorkTime.midday => store.t('10 AM–2 PM', 'दिन 10–2', 'ఉ. 10–మ. 2'),
-                  WorkTime.afternoon => store.t('2–6 PM', 'दोपहर 2–6', 'మ. 2–6'),
-                },
-                selected: times.contains(t),
-                height: 48,
-                fill: true,
-                onTap: () => setState(() => times.contains(t) ? times.remove(t) : times.add(t)),
-              ),
-            ),
-          ],
-        ]),
+        WBody(store.t('Set when you start and finish. Taking a break? Add more time.', 'काम शुरू और ख़त्म करने का समय चुनें। बीच में ब्रेक? और समय जोड़ें।', 'మొదలు, ముగింపు సమయం ఎంచుకోండి. మధ్యలో విరామం? మరింత సమయం జోడించండి.'), top: 4, bottom: 12),
+        WorkSlotsEditor(slots: slots, onChanged: (v) => setState(() => slots = v)),
         const SizedBox(height: 24),
       ],
     );
   }
+
+  /// First-time setup: one question per screen.
+  Widget _setup(BuildContext context) {
+    final store = context.store, router = context.router;
+    final header = WAppBar(
+      title: store.t('Your work profile', 'आपकी काम की प्रोफ़ाइल', 'మీ పని ప్రొఫైల్'),
+      leading: page == 1 ? WIcon.left : null,
+      trailing: null,
+      onLeading: () => setState(() {
+        forward = false;
+        page = 0;
+      }),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+    );
+    final footer = page == 0
+        ? WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () => setState(() {
+            forward = true;
+            page = 1;
+          }))
+        : WButton(store.t('Done', 'हो गया', 'పూర్తయింది'), icon: WIcon.check, size: ButtonSize.captain, loading: saving, onTap: () async {
+            setState(() => saving = true);
+            // Keep going even if saving fails: it can be changed from Home ("Jobs from").
+            await _save(store);
+            if (!mounted) return;
+            setState(() => saving = false);
+            // "You're in" was removed (27 Oct): the questionnaire closes straight into Home.
+            if (!store.isLive) store.finishKyc(); // sample app: approved at once
+            if (store.signedUp) {
+              store.goOnlineAfterApproval();
+            } else {
+              store.set(() => store.reviewNoticePending = true);
+            }
+            playWorkProfileLanding(this.context);
+            router.home();
+          });
+    final pages = [
+      Column(key: const ValueKey(0), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // Documents are with the team; this keeps the captain busy with his own profile.
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const WIconView(WIcon.check, size: 17, color: WColor.onSuccess),
+            const SizedBox(width: 12),
+            Expanded(child: WText(store.t('Documents sent. While we check them, set up how you work.', 'दस्तावेज़ भेज दिए। जब तक हम जाँचते हैं, बताइए आप कैसे काम करेंगे।', 'పత్రాలు పంపారు. మేము చూస్తున్నంతలో, మీరు ఎలా పని చేస్తారో చెప్పండి.'), WType.caption, color: WColor.onSuccess, size: 14.5)),
+          ]),
+        ),
+        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 18),
+        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+        ..._jobChoices(store),
+      ]),
+      Column(key: const ValueKey(1), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        WTitle(store.t('When do you work?', 'आप कब काम करते हैं?', 'మీరు ఎప్పుడు పని చేస్తారు?'), top: 14),
+        WBody(store.t('Set when you start and finish. Taking a break? Add more time.', 'काम शुरू और ख़त्म करने का समय चुनें। बीच में ब्रेक? और समय जोड़ें।', 'మొదలు, ముగింపు సమయం ఎంచుకోండి. మధ్యలో విరామం? మరింత సమయం జోడించండి.'), top: 4, bottom: 16),
+        WorkSlotsEditor(slots: slots, onChanged: (v) => setState(() => slots = v)),
+      ]),
+    ];
+    return WScreen(
+      canvas: true,
+      gutter: WSpace.gutterCaptain,
+      header: header,
+      footer: WFooter(child: footer),
+      children: [
+        Padding(padding: const EdgeInsets.only(top: 6), child: WSegmentBar(filled: page + 1, total: 2)),
+        // Pages move left to right, the way the progress bar fills (right to left going back).
+        ClipRect(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 340),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            layoutBuilder: (current, previous) => Stack(alignment: Alignment.topLeft, children: [...previous, ?current]),
+            transitionBuilder: (child, a) {
+              final incoming = child.key == ValueKey(page);
+              final from = incoming ? (forward ? -1.0 : 1.0) : (forward ? 1.0 : -1.0);
+              return SlideTransition(position: Tween(begin: Offset(from, 0), end: Offset.zero).animate(a), child: child);
+            },
+            child: pages[page],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+
+
+/// "When do you work?": one card per time range, each with a start–end slider
+/// (6 AM to 9 PM, 30-minute steps), and "Add more time" for a second range after a break.
+class WorkSlotsEditor extends StatelessWidget {
+  const WorkSlotsEditor({super.key, required this.slots, required this.onChanged});
+  final List<WorkSlot> slots;
+  final ValueChanged<List<WorkSlot>> onChanged;
+  static const maxSlots = 4;
+
+  /// A new range one hour after the last one ends, up to three hours long.
+  WorkSlot? get _nextFree {
+    final last = slots.isEmpty ? workDayStart : slots.map((s) => s.$2).reduce((a, b) => a > b ? a : b);
+    final start = last + 60;
+    if (start + 60 > workDayEnd) return null;
+    return (start, start + 180 > workDayEnd ? workDayEnd : start + 180);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final sorted = [...slots]..sort((a, b) => a.$1.compareTo(b.$1));
+    final overlap = [for (var i = 1; i < sorted.length; i++) sorted[i].$1 < sorted[i - 1].$2].any((x) => x);
+    final free = slots.length < maxSlots ? _nextFree : null;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (final (i, s) in slots.indexed) ...[
+        _SlotCard(
+          label: store.t('Time ${i + 1}', 'समय ${i + 1}', 'సమయం ${i + 1}'),
+          slot: s,
+          onChanged: (v) => onChanged([...slots]..[i] = v),
+          onRemove: slots.length > 1 ? () => onChanged([...slots]..removeAt(i)) : null,
+        ),
+        const SizedBox(height: 12),
+      ],
+      if (overlap)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(children: [
+            const WIconView(WIcon.info, size: 15, color: WColor.secondary),
+            const SizedBox(width: 8),
+            Expanded(child: WText(store.t('Times that overlap will be joined.', 'एक-दूसरे में आने वाले समय जोड़ दिए जाएंगे।', 'ఒకదానిలో ఒకటి వచ్చే సమయాలు కలిపేస్తాం.'), WType.caption)),
+          ]),
+        ),
+      if (free != null)
+        WButton(store.t('Add more time', 'और समय जोड़ें', 'మరింత సమయం జోడించండి'), icon: WIcon.plus, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () => onChanged([...slots, free])),
+    ]);
+  }
+}
+
+class _SlotCard extends StatelessWidget {
+  const _SlotCard({required this.label, required this.slot, required this.onChanged, this.onRemove});
+  final String label;
+  final WorkSlot slot;
+  final ValueChanged<WorkSlot> onChanged;
+  final VoidCallback? onRemove;
+
+  /// RangeSlider insets its track by the overlay radius; the sky and the labels use the same.
+  static const _inset = 28.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final hours = (slot.$2 - slot.$1) / 60;
+    final hoursText = hours == hours.roundToDouble() ? '${hours.toInt()}' : '$hours';
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: outlinedDecoration(radius: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          WText(label, WType.label, color: WColor.secondary),
+          const SizedBox(width: 8),
+          WText(store.t('$hoursText h', '$hoursText घंटे', '$hoursText గం.'), WType.caption),
+          const Spacer(),
+          if (onRemove != null)
+            Pressable(
+              label: store.t('Remove this time', 'यह समय हटाएं', 'ఈ సమయం తీసివేయండి'),
+              onTap: onRemove,
+              child: const SizedBox(width: 48, height: 40, child: Center(child: WIconView(WIcon.close, size: 18, color: WColor.secondary))),
+            )
+          else
+            const SizedBox(height: 40),
+        ]),
+        Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: WText('${fmtClock(slot.$1)}  –  ${fmtClock(slot.$2)}', WType.section, weight: semibold, size: 22),
+        ),
+        const SizedBox(height: 8),
+        // The sky: sun or moon at each end rides an arc as the handles move.
+        _SkyArc(slot: slot, inset: _inset),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 6,
+            activeTrackColor: WColor.primary,
+            inactiveTrackColor: WColor.border,
+            thumbColor: WColor.white,
+            overlayColor: WColor.primary.withValues(alpha: 0.12),
+            rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 14, elevation: 2),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: _inset),
+            showValueIndicator: ShowValueIndicator.never,
+            activeTickMarkColor: Colors.transparent,
+            inactiveTickMarkColor: Colors.transparent,
+          ),
+          child: RangeSlider(
+            min: workDayStart.toDouble(),
+            max: workDayEnd.toDouble(),
+            divisions: (workDayEnd - workDayStart) ~/ 30,
+            values: RangeValues(slot.$1.toDouble(), slot.$2.toDouble()),
+            semanticFormatterCallback: (v) => fmtClock(v.round()),
+            onChanged: (v) {
+              final a = v.start.round(), b = v.end.round();
+              if (b - a < 60) return; // at least one hour
+              if ((a, b) != slot) HapticFeedback.selectionClick();
+              onChanged((a, b));
+            },
+          ),
+        ),
+        SizedBox(
+          height: 18,
+          child: LayoutBuilder(builder: (context, c) {
+            final w = c.maxWidth - 2 * _inset;
+            return Stack(clipBehavior: Clip.none, children: [
+              for (final m in [4 * 60, 10 * 60, 16 * 60, 22 * 60])
+                Positioned(
+                  left: _inset + w * (m - workDayStart) / (workDayEnd - workDayStart) - 24,
+                  width: 48,
+                  child: WText(fmtClock(m), WType.small, color: WColor.secondary, align: TextAlign.center),
+                ),
+            ]);
+          }),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Sun between 6 AM and 6 PM, moon otherwise.
+bool _isDay(int minutes) => minutes >= 6 * 60 && minutes < 18 * 60;
+
+const _sunColor = Color(0xFFF59E0B), _moonColor = Color(0xFF6B5BD2);
+
+/// Soft sky for the middle of the slot: lavender night, peach dawn/dusk, blue day.
+Color _skyFor(int minutes) {
+  final h = minutes / 60;
+  if (h < 5.5 || h >= 19.5) return const Color(0xFFEDEBFA);
+  if (h < 8 || h >= 17) return const Color(0xFFFFF1E2);
+  return const Color(0xFFEAF4FF);
+}
+
+class _SkyArc extends StatelessWidget {
+  const _SkyArc({required this.slot, required this.inset});
+  final WorkSlot slot;
+  final double inset;
+  static const height = 64.0, glyph = 26.0;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth;
+        Offset at(int minutes) {
+          final t = ((minutes - workDayStart) / (workDayEnd - workDayStart)).clamp(0.0, 1.0);
+          return Offset(inset + t * (w - 2 * inset), height - 10 - math.sin(math.pi * t) * (height - 26));
+        }
+
+        Widget body(int minutes) {
+          final p = at(minutes), day = _isDay(minutes);
+          return Positioned(
+            left: p.dx - glyph / 2,
+            top: p.dy - glyph / 2,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: child)),
+              child: Container(
+                key: ValueKey(day),
+                width: glyph,
+                height: glyph,
+                decoration: BoxDecoration(
+                  color: WColor.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: (day ? _sunColor : _moonColor).withValues(alpha: 0.35), blurRadius: 10, spreadRadius: 1)],
+                ),
+                alignment: Alignment.center,
+                child: WIconView(day ? WIcon.sun : WIcon.moon, size: 16, color: day ? _sunColor : _moonColor),
+              ),
+            ),
+          );
+        }
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          height: height,
+          decoration: BoxDecoration(color: _skyFor((slot.$1 + slot.$2) ~/ 2), borderRadius: BorderRadius.circular(12)),
+          child: Stack(clipBehavior: Clip.none, children: [
+            Positioned.fill(child: CustomPaint(painter: _ArcPainter(at: at, slot: slot))),
+            body(slot.$1),
+            body(slot.$2),
+          ]),
+        );
+      });
+}
+
+/// Dotted path for the whole day, solid colour for the chosen time.
+class _ArcPainter extends CustomPainter {
+  _ArcPainter({required this.at, required this.slot});
+  final Offset Function(int minutes) at;
+  final WorkSlot slot;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dot = Paint()..color = WColor.muted.withValues(alpha: 0.5);
+    for (var m = workDayStart; m <= workDayEnd; m += 20) {
+      canvas.drawCircle(at(m), 1.4, dot);
+    }
+    final path = Path()..moveTo(at(slot.$1).dx, at(slot.$1).dy);
+    for (var m = slot.$1; m <= slot.$2; m += 5) {
+      final p = at(m);
+      path.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..shader = LinearGradient(colors: [_isDay(slot.$1) ? _sunColor : _moonColor, _isDay(slot.$2) ? _sunColor : _moonColor])
+            .createShader(Rect.fromPoints(at(slot.$1), at(slot.$2)).inflate(1)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) => old.slot != slot;
 }

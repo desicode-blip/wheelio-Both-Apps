@@ -1,3 +1,7 @@
+# UI-only changes — 27 October 2026 (Aman's session)
+
+Aman is changing the UI only; the backend is unchanged. Everything that still needs a backend is listed for Ajay as **P0** in [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md). New guarded (not yet connected) action: Captain **Delete account** (Me tab) shows "This isn’t available yet" on real data. Testing shortcut: "Skip this step (testing)" on Captain onboarding marks a stage done on the phone only (also on real data); turn `onboardingSkip` off before launch. Aadhaar "clear" is only the on-phone photo-quality check, not a document check. The W13 review-call screen is removed; the under-review pop-up's 30-minute countdown expects Ajay's automatic review (item 5 of the changes list).
+
 # Software follow-up — 27 October 2026
 
 **Latest owner handoff:** [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) records Aman's planned training design placeholders and separate Razorpay merchant onboarding. No placeholder or new merchant is implemented by this documentation handoff. Future placeholders must be explicit and cannot emit real training completion, quiz success or approval. The old shared live merchant is not a launch path; preserve existing test refund obligations until reviewed migration. No new runtime fake was added.

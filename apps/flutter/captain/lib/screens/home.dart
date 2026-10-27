@@ -82,6 +82,7 @@ class CaptainHome extends StatefulWidget {
 
 class _CaptainHomeState extends State<CaptainHome> {
   Timer? _ring;
+
   String? _ringKey;
   final Set<String> _rung = {};
 
@@ -122,6 +123,11 @@ class _CaptainHomeState extends State<CaptainHome> {
   /// Guests sign up (name, number, code) before going online.
   void _setOnline(bool on) {
     final store = context.store;
+    // Profile sent and not approved yet: explain, with the call option after 30 minutes.
+    if (on && store.underReview) {
+      showReviewNotice(context);
+      return;
+    }
     if (on && !store.registered) {
       store.set(() => store.onlineAfterSignUp = true);
       context.router.push(const R(N.signUp));
@@ -132,6 +138,8 @@ class _CaptainHomeState extends State<CaptainHome> {
         return;
       }
       store.set(() => store.online = on);
+      // Testing approval (phone only): the server would refuse, so don't ask it.
+      if (store.testOnlyOnline) return;
       store.liveSetOnline(on).catchError((Object _) => store.set(() => store.online = !on));
     } else {
       store.set(() => store.online = on);
@@ -184,7 +192,15 @@ class _CaptainHomeState extends State<CaptainHome> {
     final store = context.store, router = context.router;
     final limitReached = store.jobLimit>0 && store.jobsToday >= store.jobLimit;
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
-    _scheduleRing(store.online && isTopScreen(context) && router.tab == 0 && !limitReached);
+    // Jobs wait until the first-time work-profile animation has landed.
+    _scheduleRing(store.online && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0 && !limitReached);
+    // After the first-time work profile while not approved yet (once the chip has glowed).
+    if (store.reviewNoticePending && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0) {
+      store.reviewNoticePending = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && context.store.underReview) showReviewNotice(context);
+      });
+    }
     final pad = MediaQuery.paddingOf(context);
     return ColoredBox(
       color: WColor.canvas,
@@ -234,7 +250,16 @@ class _CaptainHomeState extends State<CaptainHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const WorkAreaChip(),
+                  AnimatedContainer(
+                    key: workAreaChipKey,
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.easeOut,
+                    decoration: ShapeDecoration(
+                      shape: const StadiumBorder(),
+                      shadows: [if (store.chipGlow) BoxShadow(color: WColor.primary.withValues(alpha: 0.45), blurRadius: 18, spreadRadius: 2)],
+                    ),
+                    child: const WorkAreaChip(),
+                  ),
                   if (store.lowSignal) ...[
                     const SizedBox(height: 14),
                     _alertBox(
@@ -2373,4 +2398,135 @@ class _NewAddressTag extends StatelessWidget {
       WText(context.store.t('New address', 'नया पता', 'కొత్త చిరునామా'), WType.small, color: WColor.wait, weight: semibold, size: 12.5),
     ]),
   );
+}
+
+
+/// Home's "Jobs from" chip, where the first-time work profile lands.
+final GlobalKey workAreaChipKey = GlobalKey();
+
+/// First-time work profile closing: the questionnaire screen shrinks into Home's
+/// "Jobs from · Change" chip (where it can be changed later), the chip glows, then Home goes on
+/// (under-review pop-up or online). Call it from the last question, just before going Home.
+void playWorkProfileLanding(BuildContext context) {
+  final store = context.store;
+  final overlay = Overlay.of(context);
+  final box = overlay.context.findRenderObject() as RenderBox?;
+  if (box == null || !box.hasSize) return;
+  Rect? target() {
+    final chip = workAreaChipKey.currentContext?.findRenderObject() as RenderBox?;
+    if (chip == null || !chip.attached || !chip.hasSize) return null;
+    return chip.localToGlobal(Offset.zero, ancestor: box) & chip.size;
+  }
+
+  store.set(() => store.workSetupLanding = true);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => _ProfileShrink(
+      size: box.size,
+      target: target,
+      title: store.t('Your work profile', 'आपकी काम की प्रोफ़ाइल', 'మీ పని ప్రొఫైల్'),
+      rows: [
+        (WIcon.location, store.t('Jobs from', 'काम', 'పనులు'), store.workSummary),
+        (WIcon.clock, store.t('When', 'कब', 'ఎప్పుడు'), store.workSlotsLabel),
+      ],
+      note: store.t('Saved. Change it any time from Home.', 'सेव हुआ। होम से कभी भी बदलें।', 'సేవ్ అయింది. హోమ్ నుండి ఎప్పుడైనా మార్చండి.'),
+      onDone: () {
+        entry.remove();
+        store.set(() {
+          store.workSetupLanding = false;
+          store.chipGlow = true;
+        });
+        Future<void>.delayed(const Duration(milliseconds: 1500), () => store.set(() => store.chipGlow = false));
+      },
+    ),
+  );
+  overlay.insert(entry);
+}
+
+class _ProfileShrink extends StatefulWidget {
+  const _ProfileShrink({required this.size, required this.target, required this.title, required this.rows, required this.note, required this.onDone});
+  final Size size;
+  final Rect? Function() target;
+  final String title, note;
+  final List<(WIcon, String, String)> rows;
+  final VoidCallback onDone;
+  @override
+  State<_ProfileShrink> createState() => _ProfileShrinkState();
+}
+
+class _ProfileShrinkState extends State<_ProfileShrink> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))
+    ..forward().whenComplete(widget.onDone);
+  Rect? _end;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: _c,
+        builder: (context, _) {
+          final t = _c.value;
+          final start = Offset.zero & widget.size;
+          // Hold the finished questionnaire for a moment, then shrink into the chip.
+          final shrink = Curves.easeInOutCubic.transform(((t - 0.3) / 0.7).clamp(0.0, 1.0));
+          final content = 1 - ((t - 0.3) / 0.2).clamp(0.0, 1.0);
+          if (t > 0.25) _end ??= widget.target();
+          final end = _end ?? Rect.fromLTWH(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top + 70, widget.size.width - 2 * WSpace.gutterCaptain, 44);
+          final rect = Rect.lerp(start, end, shrink)!;
+          final radius = (end.height / 2) * shrink;
+          final pad = MediaQuery.paddingOf(context);
+          return Stack(children: [
+            Positioned.fill(child: IgnorePointer(child: ColoredBox(color: WColor.scrim.withValues(alpha: WColor.scrim.a * (1 - shrink) * (shrink > 0 ? 1 : 0))))),
+            Positioned.fromRect(
+              rect: rect,
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Color.lerp(WColor.canvas, WColor.white, shrink),
+                  borderRadius: BorderRadius.circular(radius),
+                  border: shrink > 0 ? Border.all(color: Color.lerp(WColor.primary, WColor.border, shrink)!, width: 1 + shrink) : null,
+                ),
+                child: Opacity(
+                  opacity: content,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minWidth: widget.size.width,
+                    maxWidth: widget.size.width,
+                    minHeight: widget.size.height,
+                    maxHeight: widget.size.height,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain + 4, pad.top + 90, WSpace.gutterCaptain + 4, 0),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const WIconBox(WIcon.check, size: 56, tone: Tone.ok, radius: 28),
+                        const SizedBox(height: 16),
+                        WText(widget.title, WType.section, weight: semibold, size: 24),
+                        const SizedBox(height: 22),
+                        for (final (icon, label, value) in widget.rows) ...[
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            WIconView(icon, size: 20, color: WColor.primaryStrong),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                WText(label, WType.caption),
+                                const SizedBox(height: 2),
+                                WText(value, WType.title, size: 18),
+                              ]),
+                            ),
+                          ]),
+                          const SizedBox(height: 18),
+                        ],
+                        WText(widget.note, WType.caption, color: WColor.secondary),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ]);
+        },
+      );
 }
