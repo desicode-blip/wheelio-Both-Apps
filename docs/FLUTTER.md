@@ -42,6 +42,12 @@ Aman's decision: the Firebase (real-data) builds must look exactly like the desi
 
 Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No real money is charged" or any live/test equivalent), at any time, because it broke the top spacing (it added its own safe-area band and pushed every screen down). `PaymentEnvironmentLabel` was removed from `washkrew_firebase` and from both apps' `builder`. The server's `paymentMode` still decides test or live payments; only the on-screen label is gone. Do not add it back.
 
+## 27 October 2026: UI-only changes (Aman)
+
+Aman's UI changes on staging `752e222`, with no backend changes. The running list for Ajay, with what each item needs connected, is [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md).
+
+- Captain Me tab: **Delete account** under Log out opens the C53 dialog, now shared as `showDeleteAccountDialog` in `washkrew_ui` (captain-size buttons, Hindi/Telugu text). The sample app deletes and logs out; real data shows "This isn’t available yet" until Ajay connects it. The Customer profile already had C53 and is unchanged.
+
 ## 25 October 2026: renamed to WashKrew, new logo
 
 - **Palette aligned to the logo.** `WColor.primary` #3160FF → #0049FF (solid end of the logo gradient), `primaryStrong` → #003BD1, `heading` #172231 → #22282D (logo charcoal), `body` → #363D44, `secondary` → #5F6870, `placeholder` → #80878E, `muted` → #9CA2A8, `inverse` and scrim/shadow base → #22282D. Surfaces, borders, success, error and wait colours unchanged. Contrast improves: primary 6.2:1 on white and 5.4:1 on `primaryTint`, so blue text on pale blue now passes AA. PWA `theme_color` → #0049FF.

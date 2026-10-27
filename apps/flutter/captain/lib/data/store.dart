@@ -874,6 +874,15 @@ class CaptainStore extends ChangeNotifier {
     return true;
   }
 
+  /// Profile → Delete account. Returns an error for the dialog, or null when the account is gone.
+  /// BACKEND (P0, Ajay): not connected for real data yet; see docs/CHANGES-2026-10-27-UI.md.
+  Future<String?> deleteAccount() async {
+    if (isLive) return t(notYet, 'यह अभी उपलब्ध नहीं है। हमें कॉल करें, हम कर देंगे।', 'ఇది ఇంకా అందుబాటులో లేదు. మాకు కాల్ చేయండి, మేము చేస్తాము.');
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    _logOut();
+    return null;
+  }
+
   void _startLive() {
     queue = [];
     notifications = [];
