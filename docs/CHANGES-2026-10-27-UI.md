@@ -280,3 +280,23 @@ the chip glows → then (if not approved) the "under review" pop-up, or (if appr
    window overlaps a slot (or fits inside it; decide with Aman, who prefers more offers). Then the
    app can send the exact slots instead of whole windows.
 2. Until then, the whole-window "lump sum" above is what the server sees.
+
+---
+
+## 9. Working-time card: 4 AM – 10 PM and a sun/moon sky
+
+**What Aman asked:** start the slider at 4 AM and end it at 10 PM. Make the card a bit more fun,
+not complicated (many captains don't read much), e.g. a sun that moves with the slider.
+
+**What changed (Captain, `_SlotCard` / `_SkyArc` in `captain/lib/screens/help.dart`)**
+- Range 4 AM – 10 PM (`workDayStart` / `workDayEnd` in the store), still 30-minute steps.
+  Labels: 4 AM, 10 AM, 4 PM, 10 PM, aligned with the slider.
+- Above the slider: a small sky with a dotted day arc. A **sun** (6 AM – 6 PM) or a **moon**
+  (otherwise) sits on the arc at the start and at the end of the chosen time and moves with the
+  handles. The chosen part of the arc is drawn in colour (amber for day, purple for night). The
+  sun/moon swaps with a small pop. The sky tint follows the middle of the time: blue by day,
+  peach at dawn/dusk, lavender at night. A light haptic tick on each 30-minute step.
+
+**Backend needed:** the server windows still stop at 6 AM – 6 PM (6–10, 10–14, 14–18). Times
+before 6 AM or after 6 PM add no extra window today. When you store exact slots (item 8), accept
+4 AM – 10 PM.

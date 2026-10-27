@@ -154,7 +154,7 @@ const planWindows = ['6–8', '8–10', '10–12', '12–14', '14–16', '16–1
 typedef WorkSlot = (int start, int end);
 
 /// Slider range for working times.
-const workDayStart = 6 * 60, workDayEnd = 21 * 60;
+const workDayStart = 4 * 60, workDayEnd = 22 * 60;
 
 /// The server's working windows today (hours). A captain's slots are saved as every window
 /// they touch, so he is offered as many jobs as possible ("lump sum", Aman 27 Oct).

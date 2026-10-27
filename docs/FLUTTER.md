@@ -54,6 +54,7 @@ Aman's UI changes on staging `752e222`, with no backend changes. The running lis
 - Testing: "Skip 30 min (testing)" on that pop-up approves on the phone only (`testApproved`) and goes online locally; no server online call or heartbeat while only test-approved. Off with `onboardingSkip`.
 - First-time work profile (Aman, 27 Oct): Rules "I agree" → `WorkAreaScreen(setup: true)` (`N.workSetup`): "Which jobs should ring?" then "When do you work?", one per screen → W14 → Home, where `_ProfileShrink` shrinks the answers into the "Jobs from" chip (then glow, then the review pop-up). Later edits use the chip / Where I work. Gallery W12w.
 - Update (Aman, 27 Oct): the two questions slide left→right (like the progress fill; reverse on back). "When do you work?" is `WorkSlotsEditor`: start–end range sliders (6 AM–9 PM, 30 min) with "Add more time" for breaks, in both onboarding and Where I work. `workSlots` replaces `WorkTime`; saved to the server as every 6–10/10–14/14–18 window the slots touch. W14 "You're in" is removed: Done → `playWorkProfileLanding` (full-screen summary shrinks into the chip) → Home.
+- Working-time card: 4 AM – 10 PM. `_SkyArc` above the slider: sun/moon glyphs ride a day arc at the start and end, coloured segment, sky tint by time of day, haptic tick per step.
 
 ## 25 October 2026: renamed to WashKrew, new logo
 

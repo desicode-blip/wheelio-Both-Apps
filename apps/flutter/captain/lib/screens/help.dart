@@ -2,7 +2,10 @@
 // Ported from apps/ios/Captain/Screens/HelpFlowScreens.swift and WorkAreaScreen.swift.
 // There is no "call us" button up front. Only safety emergencies call directly.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
@@ -593,15 +596,14 @@ class _SlotCard extends StatelessWidget {
   final ValueChanged<WorkSlot> onChanged;
   final VoidCallback? onRemove;
 
+  /// RangeSlider insets its track by the overlay radius; the sky and the labels use the same.
+  static const _inset = 28.0;
+
   @override
   Widget build(BuildContext context) {
     final store = context.store;
     final hours = (slot.$2 - slot.$1) / 60;
-    final span = (workDayEnd - workDayStart).toDouble();
-    Widget tick(int minutes) => Align(
-          alignment: Alignment(((minutes - workDayStart) / span) * 2 - 1, 0),
-          child: WText(fmtClock(minutes), WType.small, color: WColor.secondary),
-        );
+    final hoursText = hours == hours.roundToDouble() ? '${hours.toInt()}' : '$hours';
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       decoration: outlinedDecoration(radius: 16),
@@ -609,7 +611,7 @@ class _SlotCard extends StatelessWidget {
         Row(children: [
           WText(label, WType.label, color: WColor.secondary),
           const SizedBox(width: 8),
-          WText(store.t('${hours == hours.roundToDouble() ? hours.toInt() : hours} h', '${hours == hours.roundToDouble() ? hours.toInt() : hours} घंटे', '${hours == hours.roundToDouble() ? hours.toInt() : hours} గం.'), WType.caption),
+          WText(store.t('$hoursText h', '$hoursText घंटे', '$hoursText గం.'), WType.caption),
           const Spacer(),
           if (onRemove != null)
             Pressable(
@@ -624,6 +626,9 @@ class _SlotCard extends StatelessWidget {
           padding: const EdgeInsets.only(right: 8),
           child: WText('${fmtClock(slot.$1)}  –  ${fmtClock(slot.$2)}', WType.section, weight: semibold, size: 22),
         ),
+        const SizedBox(height: 8),
+        // The sky: sun or moon at each end rides an arc as the handles move.
+        _SkyArc(slot: slot, inset: _inset),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 6,
@@ -632,7 +637,7 @@ class _SlotCard extends StatelessWidget {
             thumbColor: WColor.white,
             overlayColor: WColor.primary.withValues(alpha: 0.12),
             rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 14, elevation: 2),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 28),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: _inset),
             showValueIndicator: ShowValueIndicator.never,
             activeTickMarkColor: Colors.transparent,
             inactiveTickMarkColor: Colors.transparent,
@@ -646,18 +651,122 @@ class _SlotCard extends StatelessWidget {
             onChanged: (v) {
               final a = v.start.round(), b = v.end.round();
               if (b - a < 60) return; // at least one hour
+              if ((a, b) != slot) HapticFeedback.selectionClick();
               onChanged((a, b));
             },
           ),
         ),
         SizedBox(
           height: 18,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Stack(children: [tick(6 * 60), tick(12 * 60), tick(18 * 60), tick(21 * 60)]),
-          ),
+          child: LayoutBuilder(builder: (context, c) {
+            final w = c.maxWidth - 2 * _inset;
+            return Stack(clipBehavior: Clip.none, children: [
+              for (final m in [4 * 60, 10 * 60, 16 * 60, 22 * 60])
+                Positioned(
+                  left: _inset + w * (m - workDayStart) / (workDayEnd - workDayStart) - 24,
+                  width: 48,
+                  child: WText(fmtClock(m), WType.small, color: WColor.secondary, align: TextAlign.center),
+                ),
+            ]);
+          }),
         ),
       ]),
     );
   }
+}
+
+/// Sun between 6 AM and 6 PM, moon otherwise.
+bool _isDay(int minutes) => minutes >= 6 * 60 && minutes < 18 * 60;
+
+const _sunColor = Color(0xFFF59E0B), _moonColor = Color(0xFF6B5BD2);
+
+/// Soft sky for the middle of the slot: lavender night, peach dawn/dusk, blue day.
+Color _skyFor(int minutes) {
+  final h = minutes / 60;
+  if (h < 5.5 || h >= 19.5) return const Color(0xFFEDEBFA);
+  if (h < 8 || h >= 17) return const Color(0xFFFFF1E2);
+  return const Color(0xFFEAF4FF);
+}
+
+class _SkyArc extends StatelessWidget {
+  const _SkyArc({required this.slot, required this.inset});
+  final WorkSlot slot;
+  final double inset;
+  static const height = 64.0, glyph = 26.0;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth;
+        Offset at(int minutes) {
+          final t = ((minutes - workDayStart) / (workDayEnd - workDayStart)).clamp(0.0, 1.0);
+          return Offset(inset + t * (w - 2 * inset), height - 10 - math.sin(math.pi * t) * (height - 26));
+        }
+
+        Widget body(int minutes) {
+          final p = at(minutes), day = _isDay(minutes);
+          return Positioned(
+            left: p.dx - glyph / 2,
+            top: p.dy - glyph / 2,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: child)),
+              child: Container(
+                key: ValueKey(day),
+                width: glyph,
+                height: glyph,
+                decoration: BoxDecoration(
+                  color: WColor.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: (day ? _sunColor : _moonColor).withValues(alpha: 0.35), blurRadius: 10, spreadRadius: 1)],
+                ),
+                alignment: Alignment.center,
+                child: WIconView(day ? WIcon.sun : WIcon.moon, size: 16, color: day ? _sunColor : _moonColor),
+              ),
+            ),
+          );
+        }
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          height: height,
+          decoration: BoxDecoration(color: _skyFor((slot.$1 + slot.$2) ~/ 2), borderRadius: BorderRadius.circular(12)),
+          child: Stack(clipBehavior: Clip.none, children: [
+            Positioned.fill(child: CustomPaint(painter: _ArcPainter(at: at, slot: slot))),
+            body(slot.$1),
+            body(slot.$2),
+          ]),
+        );
+      });
+}
+
+/// Dotted path for the whole day, solid colour for the chosen time.
+class _ArcPainter extends CustomPainter {
+  _ArcPainter({required this.at, required this.slot});
+  final Offset Function(int minutes) at;
+  final WorkSlot slot;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dot = Paint()..color = WColor.muted.withValues(alpha: 0.5);
+    for (var m = workDayStart; m <= workDayEnd; m += 20) {
+      canvas.drawCircle(at(m), 1.4, dot);
+    }
+    final path = Path()..moveTo(at(slot.$1).dx, at(slot.$1).dy);
+    for (var m = slot.$1; m <= slot.$2; m += 5) {
+      final p = at(m);
+      path.lineTo(p.dx, p.dy);
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..shader = LinearGradient(colors: [_isDay(slot.$1) ? _sunColor : _moonColor, _isDay(slot.$2) ? _sunColor : _moonColor])
+            .createShader(Rect.fromPoints(at(slot.$1), at(slot.$2)).inflate(1)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) => old.slot != slot;
 }
