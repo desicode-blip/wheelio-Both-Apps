@@ -11,6 +11,7 @@ The active release uses Firebase Authentication, Cloud Firestore, Cloud Storage,
 Live: [website](https://wheelio-apps.web.app/) · [Customer](https://wheelio-apps.web.app/app/) · [Captain](https://wheelio-apps.web.app/captain/).
 
 - `/`: responsive prelaunch website (`apps/hosting/`).
+- **washkrew.com** (not yet live): the new public website in `apps/website/`, deployed to its own Firebase Hosting site. Go-live steps are in [apps/website/README.md](apps/website/README.md).
 - `/app/`: Customer SMS login, profiles, persisted bookings, test payments/refunds, photo evidence, tracking, approval and rating.
 - `/captain/`: Captain applications, operator approval, atomic job assignment, foreground location, wash evidence, status updates and earnings.
 - Add `?demo=true` to either app URL for the original designed sample-data experience. It is explicitly labeled; no real bookings or payments happen there.
