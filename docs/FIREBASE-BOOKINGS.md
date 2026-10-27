@@ -1,5 +1,7 @@
 # Firebase booking release — 21 October 2026
 
+**Current payment decision, 27 October:** Aman is onboarding a separate WashKrew merchant account following Razorpay's advice to the owner. Do not activate the historical shared Trustkeyper live setup described below. New merchant access/integration and historical order/refund-safe migration remain pending. The current provider wiring selects by test/live mode, not merchant version; do not blindly replace archived credentials. See [the current continuation report](CLAUDE-MAC-CONTINUATION-2026-10-27.md), section 5. Payment mode remains test.
+
 ## Current follow-up — 27 October
 
 Use [READINESS-2026-10-27.md](READINESS-2026-10-27.md) for current Maps/Routes, training/quiz/speech, private photo checks and content/provider gates; historical descriptions below predate those additions and staging's removal of the payment banner. Payment mode still comes from the server and remains **test**. Client Maps keys are restricted public configuration; Routes uses `GOOGLE_MAPS_SERVER_KEY`. The [private photo service](../backend/photo-check/README.md) uses IAM-only runtime access and separate server configuration.

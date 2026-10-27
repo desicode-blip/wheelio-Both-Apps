@@ -1,5 +1,7 @@
 # Flutter iPhone integration — 24 October 2026
 
+**Current Mac continuation, 27 October:** read [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and [MAC-HANDOFF.md](MAC-HANDOFF.md). Google Maps (both apps) and speech recognition (Captain) were added after this historical integration note; install their pods on the Mac. Aman will supply training placeholders and is handling a separate WashKrew Razorpay merchant. The historical shared live setup below is not an approved launch path; keep test mode while new merchant integration/acceptance is pending.
+
 The current source connects both Flutter iPhone apps to Firebase by default. The native integration was prepared on Windows; Xcode compilation, signing and physical iPhone acceptance remain for the owner's Mac. Flutter remains the active app stack; the SwiftUI apps remain references. No Android platform was generated.
 
 The 25 October staging merge includes the WashKrew name, logo and palette. Shared code now lives in `packages/washkrew_firebase` and `packages/washkrew_ui`; iOS bundle IDs and Firebase registrations retain `wheelio` intentionally. The 26 October functionality pass preserves those designed screens and the Mac-resolved native files. See [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Windows verification does not replace physical-device checks.

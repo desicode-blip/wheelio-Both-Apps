@@ -27,6 +27,9 @@ supabase/.temp/
 # Local caches
 .cache/
 
+# Temporary rendered PDF review pages (final reports live in output/pdf/).
+tmp/pdfs/
+
 # Next.js / Node
 node_modules/
 .next/

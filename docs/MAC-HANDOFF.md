@@ -1,5 +1,7 @@
 # Current handoff — 27 October 2026
 
+**Latest owner update:** use [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/` as the continuation brief. Aman will supply training design placeholders; these do not count as completed training. He is handling a separate WashKrew Razorpay merchant application/access. Do not activate the previous shared Trustkeyper live setup; new-merchant integration and acceptance remain pending. Native compilation can proceed independently of merchant onboarding.
+
 Read [READINESS-2026-10-27.md](READINESS-2026-10-27.md) with this guide. Software and provider checks are distinct from an Xcode/device pass. Aman's content and other live business/provider gates remain separately pending; do not switch payments to live for the Mac test.
 
 # Build and check WashKrew on the Mac

@@ -1,5 +1,7 @@
 # Software completion and Mac handoff — 27 October 2026
 
+**Later owner handoff decision:** [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and the PDF in `output/pdf/` are the current continuation report. Aman will supply temporary training design placeholders, not working videos. They must not grant training completion. Aman is also handling the separate WashKrew merchant account Razorpay requested; prior shared live credentials are not an approved launch path. Integration/migration and new-merchant acceptance are still pending, with payments kept in test mode.
+
 The active apps are Flutter Customer and Captain, using the staging design. This pass extends the functionality release in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Screen composition, assets, typography and design tokens were preserved; existing map, video, photo and microphone regions now operate real services. No generic replacement screen or removed payment banner was added. Android remains deferred.
 
 ## Added in this pass

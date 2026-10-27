@@ -1,5 +1,12 @@
 # WashKrew
 
+## Owner handoff update - 27 October 2026
+
+- Read `docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md` and its PDF in `output/pdf/` before continuing on Aman's Mac. It records current remaining work and supersedes historical setup notes where they conflict.
+- Aman will supply temporary training design placeholders instead of videos for now. Use his assets in the existing training regions without redesigning screens. A placeholder must never award server watch progress, quiz success, training/KYC approval or a fake playback result. Approved real training remains pending.
+- The owner reports Razorpay requires a **separate WashKrew merchant account**. Aman is handling that onboarding/documents/access. Do not launch WashKrew using Trustkeyper's old shared live pair, duplicate Aman's application or switch payments to live. Old credentials/webhooks are historical and existing test records still need safe reconciliation. New merchant integration and merchant-aware historical payment/refund routing remain to be completed after access is supplied.
+- Preserve staging design, bundle IDs and Firebase project. Compile/sign and perform the physical Customer-Captain acceptance on the Mac; Windows tests do not prove native compilation or device success.
+
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
 
 **Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Flutter package and code names were renamed too (`washkrew_ui`, `washkrew_firebase`, `washkrew_customer`, `washkrew_captain`, `WashKrewRuntime`). A few technical identifiers still say wheelio on purpose: bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, the SwiftUI project file `Wheelio.xcodeproj`, and the repo and folder names. Renaming those needs new App Store and Firebase setup.

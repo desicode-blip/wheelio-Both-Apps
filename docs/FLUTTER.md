@@ -1,5 +1,7 @@
 # Software readiness update — 27 October 2026
 
+**Current continuation:** use [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/`. Aman plans training design placeholders in the existing regions; they are not real video/training completion and are not added by this docs-only task. Aman is handling a separate WashKrew Razorpay account; migration/integration and new-merchant acceptance are pending. Preserve design and test mode while compiling/testing on the Mac.
+
 The follow-up connects the existing map/video/microphone/photo controls to real Maps/Routes, server training and quiz progress, device speech and private photo checks. Existing screen composition and styling remain the staging design. The exact implementation, content publication steps and remaining provider/Mac boundaries are in [READINESS-2026-10-27.md](READINESS-2026-10-27.md). Payments remain test mode. Aman will supply approved training, support and policy content.
 
 The native dependencies added are Google Maps (both app locks) and speech recognition (Captain). Existing AppDelegate source installs the Maps runtime-key channel, and Captain's Info.plist includes the speech-use description. No Xcode project, signing, Podfile or Mac-resolved Podfile.lock was rewritten on Windows. The Mac preparation command must install the added pods before compiling.

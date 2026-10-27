@@ -1,5 +1,7 @@
 # P0: backend and functionality needed for the designed screens
 
+**Current Mac continuation:** [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/` list implemented paths, actual remaining checks and the latest owner decisions: Aman's training placeholders and a separate WashKrew merchant account. Read that report before treating the historical unticked rows below as current implementation gaps.
+
 **27 October follow-up:** Maps/Routes, server training/quiz, quiz speech and genuine private face/vehicle-photo checks are now implemented; see [READINESS-2026-10-27.md](READINESS-2026-10-27.md). Unticked rows still include content, external accounts, live decisions and full native acceptance.
 
 **26 October update:** this file retains the original design gap checklist for acceptance. Many implementation gaps below are now connected, locally tested and published in test mode; read the current behavior, release checks and remaining gates in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). Unticked items are not claims that their implemented server paths are absent. They remain open for their full stated external/native/operational acceptance. Do not replace the staging design to clear this checklist.

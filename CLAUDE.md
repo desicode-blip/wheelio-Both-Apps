@@ -1,5 +1,14 @@
 # WashKrew
 
+## Owner handoff update - 27 October 2026
+
+Read `docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md` (PDF in `output/pdf/`) and `docs/MAC-HANDOFF.md` first. These current owner decisions supersede conflicting historical paragraphs below:
+
+- Preserve the staging design and use the active Flutter Customer/Captain apps. Compile/sign/test on Aman's Mac; do not use the SwiftUI sample project or generate Android.
+- Aman is supplying **training design placeholders**, not videos for now. Use only his assets in the existing regions. Never count a placeholder as watched training, a passed quiz, verified KYC or working playback; do not silently bypass production gates.
+- Razorpay told the owner WashKrew needs a **separate merchant account**. Aman is handling the application/documents/access. The old shared Trustkeyper live credentials are not an approved launch path. Keep test mode and preserve old payment/refund obligations. New merchant integration, historical merchant-safe routing and new-merchant acceptance are pending; do not duplicate onboarding or regenerate Trustkeyper keys.
+- Software baseline `81c40ee` passed 89 backend/rules tests, 24 Flutter tests, 3 model tests, both web builds and app/shared/tool analyses. Xcode compilation, signed iPhone installation, APNs and physical acceptance remain unproved. Approved content, commercial/coverage decisions and live approvals are separate gates.
+
 > **25 October 2026: active apps use Firebase.** Project `wheelio-apps` belongs to `ajay@trustkeyper.com`, with Trustkeyper billing. The Flutter Customer/Captain apps have real OTP, persisted bookings, camera/media, assignment, wash tracking/evidence, approval/refunds, wallets, earnings and private notifications. Native iPhone source uses Firebase by default; physical iPhone and Apple push acceptance remain for the owner's Mac. The merged source passed four Flutter analyses, 57 backend/rules/payment/notification tests, 8 Customer tests, 5 shared native-login/checkout tests and both release web builds. The existing live Razorpay pair is now installed securely in the generic Wheelio secrets, and the owner-approved separate live webhook is enabled. Archived test secrets still serve test bookings/refunds; booking mode remains **test**. WashKrew's website is under Razorpay review (24–48 hours shown); commercial review and actual approved live captains are also required before launch. No merchant key was regenerated and no Trustkeyper setting was changed. KYC/dispute decisions and bank payouts remain human operations. See `docs/LIVE-LAUNCH.md`, `docs/IOS-FIREBASE.md`, `docs/WEB-ACCEPTANCE.md` and `docs/FIREBASE-BOOKINGS.md`. Run the documented post-deploy HTTP gateway step without disabling the organization policy. Private credential documents and secret values never belong in Git. The Next.js/Neon/Cloudflare sections below are historical. Explicit demo builds stay labelled and isolated.
 
 Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
@@ -50,7 +59,7 @@ The SwiftUI apps are built and run in Xcode using the Customer or Captain scheme
 
 ## Current implementation
 
-The Flutter and iOS apps run on sample data. Demo login code: 123456 (000000 is expired). The in-app Screens gallery exposes designed screens and edge states. Web auth/database adapters require Neon and Better Auth environment values. Full schema migration and local tests are available through `pnpm db:migrate`, `pnpm db:check` and `pnpm db:test`; see `backend/NEON-DATABASE.md`. `/api/health` returns 503 for missing/unavailable database configuration.
+Normal Flutter Customer/Captain builds use the deployed Firebase controllers; server payments remain test mode. Only explicit demo builds and the SwiftUI reference use sample data and fixed demo codes; those must never reach production controllers. The in-app demo Screens gallery is a design reference, not integration acceptance. The Next.js/Neon/Better Auth commands and `/api/health` belong to the historical web stack. See the current owner handoff above before resuming any older migration instructions.
 
 ## Connecting the backend
 
