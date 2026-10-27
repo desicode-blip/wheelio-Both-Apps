@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WashKrew | Vehicle cleaning, on demand</title>
-  <meta name="description" content="WashKrew sends a trained captain to wash your car or bike where it's parked, with photos before and after every job. Launching soon in gated societies across Hyderabad.">
+  <meta name="description" content="WashKrew sends a trained captain to wash your car or bike where it's parked, with photos before and after every job. Now live in gated societies across Hyderabad.">
   <meta name="theme-color" content="#FFFFFF">
   <link rel="canonical" href="https://washkrew.com/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -70,7 +70,7 @@
             <a class="btn btn-primary" href="#get-app" data-app="customer">Request a wash</a>
             <a class="btn btn-secondary" href="#get-app" data-app="captain">Apply as a captain</a>
           </div>
-          <p class="hero-note"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg>Launching soon in gated societies across Hyderabad.</p>
+          <p class="hero-note"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg><span id="hero-city">Now live in gated societies across Hyderabad.</span></p>
         </div>
 
         <figure class="hero-media">
@@ -215,8 +215,8 @@
     <section class="closing" aria-labelledby="closing-title">
       <div class="wrap"><div class="closing-inner">
         <div>
-          <h2 id="closing-title" class="h2">Launching in Hyderabad.</h2>
-          <p>We are opening society by society. Get the app and choose your society to see whether we are there yet.</p>
+          <h2 id="closing-title" class="h2">Now live in Hyderabad.</h2>
+          <p id="closing-text">We are opening society by society. Get the app and choose your society to see whether we are there yet.</p>
         </div>
         <a class="btn btn-primary" href="#get-app" data-app="customer">Request a wash</a>
       </div>
@@ -236,7 +236,7 @@
       <a class="store" data-store="ios"><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><span><span class="store-name">App Store</span><span class="store-state">Coming soon</span></span></a>
       <a class="store" data-store="android"><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><span><span class="store-name">Google Play</span><span class="store-state">Coming soon</span></span></a>
     </div>
-    <p class="small get-app-note">Launching soon in Hyderabad.</p>
+    <p class="small get-app-note" id="dialog-city">Now live in Hyderabad.</p>
   </dialog>
 
   <footer class="site-footer">
@@ -260,6 +260,58 @@
       captain: { ios: '', android: '' }
     };
     document.getElementById('year').textContent = new Date().getFullYear();
+    // Visitor's city, from an approximate IP lookup (no permission prompt, no precise location).
+    // LIVE_CITIES: cities where WashKrew is live. Add a city here when it opens; its aliases cover
+    // areas and spellings the lookup may return. Visitors in other Indian cities see "Coming soon to <city>".
+    const LIVE_CITIES = [
+      { name: 'Hyderabad', aliases: ['hyderabad', 'secunderabad', 'cyberabad', 'gachibowli', 'kondapur', 'madhapur', 'hitech city', 'kukatpally', 'narsingi', 'kokapet', 'manikonda', 'serilingampalle', 'lingampally', 'miyapur', 'rangareddi', 'ranga reddy', 'medchal', 'shamshabad', 'uppal', 'lb nagar'] }
+    ];
+    const HOME_CITY = 'Hyderabad';
+    // Lookup service. ipapi.co free tier: about 1,000 lookups a day. Move to a paid key before heavy traffic.
+    const GEO_ENDPOINT = 'https://ipapi.co/json/';
+    const CITY_NAMES = { bangalore: 'Bengaluru', bombay: 'Mumbai', gurgaon: 'Gurugram', calcutta: 'Kolkata', madras: 'Chennai', 'new delhi': 'Delhi', poona: 'Pune', mysore: 'Mysuru', baroda: 'Vadodara', trivandrum: 'Thiruvananthapuram', cochin: 'Kochi', vizag: 'Visakhapatnam' };
+
+    function showCity(city) {
+      const key = (city || '').trim().toLowerCase();
+      const live = LIVE_CITIES.find(c => c.aliases.includes(key));
+      const t = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+      if (!key || live) {
+        const name = live ? live.name : HOME_CITY;
+        t('hero-city', 'Now live in gated societies across ' + name + '.');
+        t('closing-title', 'Now live in ' + name + '.');
+        t('closing-text', 'We are opening society by society. Get the app and choose your society to see whether we are there yet.');
+        t('dialog-city', 'Now live in ' + name + '.');
+        return;
+      }
+      const name = CITY_NAMES[key] || city.trim().replace(/\b\w/g, ch => ch.toUpperCase());
+      t('hero-city', 'Coming soon to ' + name + '. Now live in ' + HOME_CITY + '.');
+      t('closing-title', 'Coming soon to ' + name + '.');
+      t('closing-text', 'WashKrew is now live in ' + HOME_CITY + ' and opening city by city.');
+      t('dialog-city', 'Now live in ' + HOME_CITY + '. Coming soon to ' + name + '.');
+    }
+
+    window.addEventListener('hashchange', () => { if (location.hash.startsWith('#city-')) showCity(decodeURIComponent(location.hash.slice(6)).replace(/-/g, ' ')); });
+    (async function detectCity() {
+      // For checking the wording: add #city-bengaluru (any city) to the address.
+      if (location.hash.startsWith('#city-')) { showCity(decodeURIComponent(location.hash.slice(6)).replace(/-/g, ' ')); return; }
+      const CACHE = 'washkrew-city';
+      try {
+        const saved = JSON.parse(localStorage.getItem(CACHE) || 'null');
+        if (saved && Date.now() - saved.at < 864e5) { showCity(saved.city); return; }
+      } catch (e) {}
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        const res = await fetch(GEO_ENDPOINT, { signal: ctrl.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
+        clearTimeout(timer);
+        if (!res.ok) return;
+        const geo = await res.json();
+        // Outside India, keep the Hyderabad message.
+        const city = (geo.country_code || geo.country) === 'IN' ? (geo.city || '') : '';
+        showCity(city);
+        try { localStorage.setItem(CACHE, JSON.stringify({ city, at: Date.now() })); } catch (e) {}
+      } catch (e) { /* Lookup blocked or slow: the Hyderabad message stays. */ }
+    })();
     const dialog = document.getElementById('get-app');
     function openGetApp(app, opener) {
       dialog.dataset.app = app;

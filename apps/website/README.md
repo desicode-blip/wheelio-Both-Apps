@@ -9,7 +9,7 @@ The public marketing site for WashKrew. Plain static HTML and CSS, no build step
 
 ## Content rules
 
-- Prelaunch: nothing says booking is live. No prices, payout timings, contact numbers, legal entity or policies until Aman approves them.
+- Launch status: "Now live in Hyderabad" (owner decision, 27 Oct 2026). Only cities in `LIVE_CITIES` are called live. No prices, payout timings, contact numbers, legal entity or policies until Aman approves them.
 - "Request a wash", "Get the app" and "Apply as a captain" open a "Get the app" dialog (customer app or Captain app). The store buttons show "Coming soon" until links exist.
 - **To add store links**, fill in `STORE_LINKS` near the bottom of `public/index.html`:
   ```js
@@ -19,6 +19,17 @@ The public marketing site for WashKrew. Plain static HTML and CSS, no build step
   };
   ```
   A filled link turns that button into a real "Download" link; an empty one stays "Coming soon".
+
+## Visitor's city
+
+The page looks up the visitor's approximate city from their IP address (no permission prompt, no precise location) and adjusts the launch line in the hero, the closing section and the "Get the app" prompt. Settings are at the bottom of `public/index.html`:
+
+- `LIVE_CITIES`: cities where WashKrew is live, each with the area names and spellings the lookup may return. Visitors there see "Now live in <city>". **Add a city here when it opens.**
+- Visitors in any other Indian city see "Coming soon to <city>. Now live in Hyderabad."
+- Visitors outside India, or when the lookup fails or is blocked, see the Hyderabad message.
+- `GEO_ENDPOINT`: the lookup service, currently `https://ipapi.co/json/` (about 1,000 free lookups a day). Before heavy traffic, move to a paid plan and confirm its terms allow commercial use. Each visitor's result is cached in their browser for a day.
+- To check the wording for any city, add `#city-bengaluru` (or any city) to the page address.
+- The privacy policy should mention that the visitor's IP address is sent to this service to estimate their city.
 
 ## Preview locally
 
