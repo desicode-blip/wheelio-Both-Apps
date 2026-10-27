@@ -5,6 +5,7 @@ The public marketing site for WashKrew. Plain static HTML and CSS, no build step
 - `public/index.html`: the whole page. `public/styles.css`: all styles and tokens.
 - `public/assets/`: logo SVGs (copied from `brand/`) and the crew mock-up photos as WebP (800 and 1400 px).
 - `public/fonts/`: Roboto Regular, Medium and Bold as subset WOFF2.
+- Favicons (`favicon.svg`, `favicon.ico`, `favicon-32.png`, `apple-touch-icon.png`): the same icon as the Customer app (door mark on a white rounded square), copied from `apps/flutter/customer`. The brand kit had no separate favicon.
 - `firebase.json` / `.firebaserc`: deploys only this site to its **own** Firebase Hosting site, so the Customer `/app/` and Captain `/captain/` deployment on the default `wheelio-apps` site is never touched.
 
 ## Content rules
