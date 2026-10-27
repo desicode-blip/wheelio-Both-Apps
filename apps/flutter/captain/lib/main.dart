@@ -192,7 +192,6 @@ Widget _destination(R r) => switch (r.n) {
   N.quizResult => QuizResultScreen(passed: r.flag),
   N.rules => const RulesScreen(),
   N.workSetup => const WorkAreaScreen(setup: true),
-  N.live => const LiveScreen(),
   N.jobAlert => JobAlertScreen(batched: r.flag),
   N.jobMissed => const JobMissedScreen(),
   N.goToVehicle => const GoToVehicleScreen(),

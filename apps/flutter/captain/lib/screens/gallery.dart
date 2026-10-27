@@ -46,7 +46,6 @@ final gallerySections = <(String, List<GalleryEntry>)>[
     const _E('W11b', 'Quiz failed', routes: [R(N.quizResult)], stage: 2),
     const _E('W12', 'Rules', routes: [R(N.rules)], stage: 2),
     const _E('W12w', 'Work profile (first time): jobs, then times', routes: [R(N.workSetup)], stage: 2),
-    const _E('W14', 'You’re in', routes: [R(N.live)], stage: 2),
     _E('W14r', 'Home: profile under review (pop-up)', prep: (s) => s..startReview()..reviewNoticePending = true, tab: 0, stage: 2),
     const _E('W15', '1 thing to fix (selfie mismatch)', routes: [R(N.steps, flag: true)], stage: 2),
   ]),

@@ -148,11 +148,42 @@ final offerPool = [
 /// Two-hour windows the plan is built from.
 const planWindows = ['6–8', '8–10', '10–12', '12–14', '14–16', '16–18'];
 
-/// "When I work" choices (filters which jobs ring; the captain still decides on each).
-enum WorkTime { morning, midday, afternoon }
+/// "When I work": one or more time ranges the captain picks with sliders (minutes from
+/// midnight, 30-minute steps), e.g. 9:00–10:00 and 13:00–19:00 with a break in between.
+/// Only a preference for which jobs ring; the captain still decides on each job.
+typedef WorkSlot = (int start, int end);
 
-extension WorkTimeHours on WorkTime {
-  (int, int) get hours => switch (this) { WorkTime.morning => (6, 10), WorkTime.midday => (10, 14), WorkTime.afternoon => (14, 18) };
+/// Slider range for working times.
+const workDayStart = 6 * 60, workDayEnd = 21 * 60;
+
+/// The server's working windows today (hours). A captain's slots are saved as every window
+/// they touch, so he is offered as many jobs as possible ("lump sum", Aman 27 Oct).
+const serverWorkWindows = [(6, 10), (10, 14), (14, 18)];
+
+List<(int, int)> serverWindowsFor(List<WorkSlot> slots) => slots.isEmpty
+    ? serverWorkWindows
+    : [for (final w in serverWorkWindows) if (slots.any((s) => s.$1 < w.$2 * 60 && s.$2 > w.$1 * 60)) w];
+
+/// Sorted, with overlapping or touching ranges merged.
+List<WorkSlot> mergeSlots(List<WorkSlot> slots) {
+  final sorted = [...slots]..sort((a, b) => a.$1.compareTo(b.$1));
+  final out = <WorkSlot>[];
+  for (final s in sorted) {
+    if (s.$2 <= s.$1) continue;
+    if (out.isNotEmpty && s.$1 <= out.last.$2) {
+      out.last = (out.last.$1, s.$2 > out.last.$2 ? s.$2 : out.last.$2);
+    } else {
+      out.add(s);
+    }
+  }
+  return out;
+}
+
+/// "9 AM", "1:30 PM".
+String fmtClock(int minutes) {
+  final h = minutes ~/ 60, m = minutes % 60;
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  return '$h12${m == 0 ? '' : ':${m.toString().padLeft(2, '0')}'} ${h < 12 ? 'AM' : 'PM'}';
 }
 
 int _hour(String s) => int.tryParse(s.split(':').first) ?? 0;
@@ -167,7 +198,7 @@ enum HelpTopic { money, job, rating, app }
 
 /// One route per captain screen ID (W01–W57).
 enum N {
-  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, workSetup, live, jobAlert, jobMissed,
+  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, workSetup, jobAlert, jobMissed,
   goToVehicle, gateProblem, cantFind, ownerCancelled, faceCheck, beforePhotos, camera, photoDark, washing, afterPhotos, aiCheck, uploading,
   jobDone, payoutDetail, payoutHeld, level, probationExtended, refresher, blocked, help, notifications, notificationSettings, changePhone,
   editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery,
@@ -348,7 +379,12 @@ class CaptainStore extends ChangeNotifier {
   String workPlace = 'Narsingi';
 
   /// "When I work": empty means any time. Only a preference for which jobs ring.
-  Set<WorkTime> workTimes = {};
+  List<WorkSlot> workSlots = [];
+
+  /// "9 AM–10 AM, 1 PM–7 PM" or "Any time".
+  String get workSlotsLabel => workSlots.isEmpty
+      ? t('Any time', 'कभी भी', 'ఎప్పుడైనా')
+      : workSlots.map((s) => '${fmtClock(s.$1)}–${fmtClock(s.$2)}').join(', ');
 
   /// How many more jobs ring while the alert is open (demo; 0 = single job).
   int extraOffers = 2;
@@ -414,7 +450,7 @@ class CaptainStore extends ChangeNotifier {
 
   /// KYC approved: jobs can be accepted now.
   // MARK: Review after "I agree" (27 Oct: the W13 review-call screen was removed)
-  // The captain sees "You're in" (W14) and goes Home. Approved: online straight away.
+  // After the first-time work profile the captain lands on Home. Approved: online straight away.
   // Not yet: the "Your profile is under review" pop-up; its call option shows after 30 minutes.
 
   /// Automatic review is expected within this time; then the captain may call the team.
@@ -427,8 +463,11 @@ class CaptainStore extends ChangeNotifier {
   /// Home shows the under-review pop-up once when this is set.
   bool reviewNoticePending = false;
 
-  /// First-time work profile just finished: Home shrinks it into the "Jobs from" chip once.
+  /// First-time work profile closing into Home's "Jobs from" chip (animation running).
   bool workSetupLanding = false;
+
+  /// The "Jobs from" chip glows right after the work profile lands in it.
+  bool chipGlow = false;
 
   DateTime? get reviewStartedAt => (isLive ? _date(liveCaptain['submittedAt']) : null) ?? _reviewStartedLocal;
 
@@ -509,11 +548,11 @@ class CaptainStore extends ChangeNotifier {
       });
 
   /// Fits the captain's area and, unless the job is flexible, their working hours.
-  bool wantsJob(Job j) => _wantsArea(j) && (j.flexible || workTimes.isEmpty || _fitsTime(j));
+  bool wantsJob(Job j) => _wantsArea(j) && (j.flexible || workSlots.isEmpty || _fitsTime(j));
 
   bool _fitsTime(Job j) => (j.windows.isEmpty ? [j.window] : j.windows).any((w) {
         final (a, b) = windowHours(w);
-        return workTimes.any((t) => a < t.hours.$2 && b > t.hours.$1);
+        return workSlots.any((t) => a * 60 < t.$2 && b * 60 > t.$1);
       });
 
   /// Jobs for today's plan (later days wait in the Jobs tab).
@@ -675,7 +714,7 @@ class CaptainStore extends ChangeNotifier {
     acceptedToday = 0;
     workMode = WorkMode.all;
     chosenSocieties = {};
-    workTimes = {};
+    workSlots = [];
     kycFromJob = false;
     onlineAfterSignUp = false;
     noShowCancelled = false;
@@ -1056,8 +1095,12 @@ class CaptainStore extends ChangeNotifier {
         if (!wasApproved && signedUp && awaitingApproval) Future.microtask(goOnlineAfterApproval);
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();
         jobLimit = (d['jobLimit'] as num? ?? 0).toInt();
-        final windows = (d['workingWindows'] as List? ?? []).map((w) => (w['startHour'] as num).toInt()).toSet();
-        workTimes = windows.length >= 3 ? {} : {for (final w in WorkTime.values) if (windows.contains(w.hours.$1)) w};
+        // The server keeps whole windows. Keep the captain's exact slots while they still
+        // map to the same windows; otherwise show the server's windows as slots.
+        final windows = [for (final w in d['workingWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())]..sort((a, b) => a.$1.compareTo(b.$1));
+        final mine = serverWindowsFor(workSlots);
+        final same = windows.length == mine.length && [for (var i = 0; i < mine.length; i++) windows[i] == mine[i]].every((x) => x);
+        if (!same) workSlots = windows.isEmpty || windows.length >= serverWorkWindows.length ? [] : mergeSlots([for (final w in windows) (w.$1 * 60, w.$2 * 60)]);
         final societies = [for (final id in (d['societyIds'] as List? ?? d['requestedSocietyIds'] as List? ?? [])) _societyName(id)];
         if (societies.isNotEmpty) {
           workMode = WorkMode.societies;
@@ -1317,15 +1360,12 @@ class CaptainStore extends ChangeNotifier {
     return _call(() => live!.call('submitCaptainApplication', {'societyIds': [for (final s in chosen.isEmpty ? all : chosen) s['id']], 'upi': upi.trim()}));
   }
 
-  Future<void> liveSetWorkTimes(Set<WorkTime> times) {
-    final chosen = times.isEmpty ? WorkTime.values : times;
-    return _call(() => live!.call('setCaptainPreferences', {'workingWindows': [for (final w in chosen) {'startHour': w.hours.$1, 'endHour': w.hours.$2}]}));
-  }
-  Future<void> liveSaveWorkPreferences(WorkMode mode,int radius,Set<String> societies,String place,Set<WorkTime> times)async{
+  Future<void> liveSaveWorkPreferences(WorkMode mode,int radius,Set<String> societies,String place,List<WorkSlot> slots)async{
     final config=liveConfig['societies'] as List? ?? [];
     if(mode==WorkMode.radius){final p=await live!.currentPosition();await live!.call('setCaptainPosition',{'latitude':p.latitude,'longitude':p.longitude});}
-    final chosen=times.isEmpty?WorkTime.values:times;
-    await _call(()=>live!.call('setCaptainPreferences',{'workingWindows':[for(final w in chosen){'startHour':w.hours.$1,'endHour':w.hours.$2}],'areaPreference':{'mode':mode.name,if(mode==WorkMode.radius)'radiusKm':radius,if(mode==WorkMode.place)'place':place,if(mode==WorkMode.societies)'societyIds':[for(final s in config)if(societies.contains(s['name']))s['id']]}}));
+    // BACKEND (Ajay): the server takes only whole windows; send every window the slots touch.
+    final chosen=serverWindowsFor(slots);
+    await _call(()=>live!.call('setCaptainPreferences',{'workingWindows':[for(final w in chosen){'startHour':w.$1,'endHour':w.$2}],'areaPreference':{'mode':mode.name,if(mode==WorkMode.radius)'radiusKm':radius,if(mode==WorkMode.place)'place':place,if(mode==WorkMode.societies)'societyIds':[for(final s in config)if(societies.contains(s['name']))s['id']]}}));
   }
 
   Future<void> liveSignOut() async {

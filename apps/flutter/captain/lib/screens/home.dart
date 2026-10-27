@@ -83,60 +83,6 @@ class CaptainHome extends StatefulWidget {
 class _CaptainHomeState extends State<CaptainHome> {
   Timer? _ring;
 
-  // First-time work profile: its card shrinks into the "Jobs from" chip, which then glows.
-  final GlobalKey _chipKey = GlobalKey();
-  bool _landing = false, _glow = false;
-
-  Future<void> _playLanding() async {
-    final store = context.store;
-    final overlay = Overlay.of(context);
-    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
-    final chipBox = _chipKey.currentContext?.findRenderObject() as RenderBox?;
-    if (overlayBox != null && chipBox != null && chipBox.hasSize) {
-      final target = chipBox.localToGlobal(Offset.zero, ancestor: overlayBox) & chipBox.size;
-      final size = overlayBox.size;
-      final start = Rect.fromLTWH(WSpace.gutterCaptain, size.height * 0.2, size.width - 2 * WSpace.gutterCaptain, 300);
-      final times = store.workTimes.isEmpty
-          ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా')
-          : [
-              for (final t in WorkTime.values)
-                if (store.workTimes.contains(t))
-                  switch (t) {
-                    WorkTime.morning => store.t('6–10 AM', 'सुबह 6–10', 'ఉ. 6–10'),
-                    WorkTime.midday => store.t('10 AM–2 PM', 'दिन 10–2', 'ఉ. 10–మ. 2'),
-                    WorkTime.afternoon => store.t('2–6 PM', 'दोपहर 2–6', 'మ. 2–6'),
-                  },
-            ].join(', ');
-      final done = Completer<void>();
-      late final OverlayEntry entry;
-      entry = OverlayEntry(
-        builder: (_) => _ProfileShrink(
-          start: start,
-          end: target,
-          title: store.t('Your work profile', 'आपकी काम की प्रोफ़ाइल', 'మీ పని ప్రొఫైల్'),
-          rows: [
-            (WIcon.location, store.t('Jobs from', 'काम', 'పనులు'), store.workSummary),
-            (WIcon.clock, store.t('When', 'कब', 'ఎప్పుడు'), times),
-          ],
-          note: store.t('Change it any time here.', 'इसे यहाँ से कभी भी बदलें।', 'ఇక్కడ నుండి ఎప్పుడైనా మార్చండి.'),
-          onDone: () {
-            entry.remove();
-            done.complete();
-          },
-        ),
-      );
-      overlay.insert(entry);
-      await done.future;
-      if (!mounted) return;
-      setState(() => _glow = true);
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
-    }
-    if (!mounted) return;
-    setState(() {
-      _glow = false;
-      _landing = false;
-    });
-  }
   String? _ringKey;
   final Set<String> _rung = {};
 
@@ -247,17 +193,9 @@ class _CaptainHomeState extends State<CaptainHome> {
     final limitReached = store.jobLimit>0 && store.jobsToday >= store.jobLimit;
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
     // Jobs wait until the first-time work-profile animation has landed.
-    _scheduleRing(store.online && !_landing && !store.workSetupLanding && isTopScreen(context) && router.tab == 0 && !limitReached);
-    // First-time work profile: play the shrink into "Jobs from" once, before any pop-up.
-    if (store.workSetupLanding && isTopScreen(context) && router.tab == 0) {
-      store.workSetupLanding = false;
-      _landing = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _playLanding();
-      });
-    }
-    // After "Go to home" on "You're in" while not approved yet.
-    if (store.reviewNoticePending && !_landing && isTopScreen(context) && router.tab == 0) {
+    _scheduleRing(store.online && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0 && !limitReached);
+    // After the first-time work profile while not approved yet (once the chip has glowed).
+    if (store.reviewNoticePending && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0) {
       store.reviewNoticePending = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && context.store.underReview) showReviewNotice(context);
@@ -313,12 +251,12 @@ class _CaptainHomeState extends State<CaptainHome> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AnimatedContainer(
-                    key: _chipKey,
+                    key: workAreaChipKey,
                     duration: const Duration(milliseconds: 380),
                     curve: Curves.easeOut,
                     decoration: ShapeDecoration(
                       shape: const StadiumBorder(),
-                      shadows: [if (_glow) BoxShadow(color: WColor.primary.withValues(alpha: 0.45), blurRadius: 18, spreadRadius: 2)],
+                      shadows: [if (store.chipGlow) BoxShadow(color: WColor.primary.withValues(alpha: 0.45), blurRadius: 18, spreadRadius: 2)],
                     ),
                     child: const WorkAreaChip(),
                   ),
@@ -2463,11 +2401,52 @@ class _NewAddressTag extends StatelessWidget {
 }
 
 
-/// The finished work-profile card closing: it holds for a moment, then shrinks and moves
-/// into the "Jobs from" chip on Home (where it can be changed later).
+/// Home's "Jobs from" chip, where the first-time work profile lands.
+final GlobalKey workAreaChipKey = GlobalKey();
+
+/// First-time work profile closing: the questionnaire screen shrinks into Home's
+/// "Jobs from · Change" chip (where it can be changed later), the chip glows, then Home goes on
+/// (under-review pop-up or online). Call it from the last question, just before going Home.
+void playWorkProfileLanding(BuildContext context) {
+  final store = context.store;
+  final overlay = Overlay.of(context);
+  final box = overlay.context.findRenderObject() as RenderBox?;
+  if (box == null || !box.hasSize) return;
+  Rect? target() {
+    final chip = workAreaChipKey.currentContext?.findRenderObject() as RenderBox?;
+    if (chip == null || !chip.attached || !chip.hasSize) return null;
+    return chip.localToGlobal(Offset.zero, ancestor: box) & chip.size;
+  }
+
+  store.set(() => store.workSetupLanding = true);
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (_) => _ProfileShrink(
+      size: box.size,
+      target: target,
+      title: store.t('Your work profile', 'आपकी काम की प्रोफ़ाइल', 'మీ పని ప్రొఫైల్'),
+      rows: [
+        (WIcon.location, store.t('Jobs from', 'काम', 'పనులు'), store.workSummary),
+        (WIcon.clock, store.t('When', 'कब', 'ఎప్పుడు'), store.workSlotsLabel),
+      ],
+      note: store.t('Saved. Change it any time from Home.', 'सेव हुआ। होम से कभी भी बदलें।', 'సేవ్ అయింది. హోమ్ నుండి ఎప్పుడైనా మార్చండి.'),
+      onDone: () {
+        entry.remove();
+        store.set(() {
+          store.workSetupLanding = false;
+          store.chipGlow = true;
+        });
+        Future<void>.delayed(const Duration(milliseconds: 1500), () => store.set(() => store.chipGlow = false));
+      },
+    ),
+  );
+  overlay.insert(entry);
+}
+
 class _ProfileShrink extends StatefulWidget {
-  const _ProfileShrink({required this.start, required this.end, required this.title, required this.rows, required this.note, required this.onDone});
-  final Rect start, end;
+  const _ProfileShrink({required this.size, required this.target, required this.title, required this.rows, required this.note, required this.onDone});
+  final Size size;
+  final Rect? Function() target;
   final String title, note;
   final List<(WIcon, String, String)> rows;
   final VoidCallback onDone;
@@ -2476,8 +2455,9 @@ class _ProfileShrink extends StatefulWidget {
 }
 
 class _ProfileShrinkState extends State<_ProfileShrink> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1700))
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))
     ..forward().whenComplete(widget.onDone);
+  Rect? _end;
 
   @override
   void dispose() {
@@ -2490,60 +2470,57 @@ class _ProfileShrinkState extends State<_ProfileShrink> with SingleTickerProvide
         animation: _c,
         builder: (context, _) {
           final t = _c.value;
-          final appear = Curves.easeOut.transform((t / 0.18).clamp(0.0, 1.0));
-          final shrink = Curves.easeInOutCubic.transform(((t - 0.42) / 0.58).clamp(0.0, 1.0));
-          final content = 1 - ((t - 0.42) / 0.22).clamp(0.0, 1.0);
-          final rect = Rect.lerp(widget.start, widget.end, shrink)!;
-          final radius = 24 + (widget.end.height / 2 - 24) * shrink;
+          final start = Offset.zero & widget.size;
+          // Hold the finished questionnaire for a moment, then shrink into the chip.
+          final shrink = Curves.easeInOutCubic.transform(((t - 0.3) / 0.7).clamp(0.0, 1.0));
+          final content = 1 - ((t - 0.3) / 0.2).clamp(0.0, 1.0);
+          if (t > 0.25) _end ??= widget.target();
+          final end = _end ?? Rect.fromLTWH(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top + 70, widget.size.width - 2 * WSpace.gutterCaptain, 44);
+          final rect = Rect.lerp(start, end, shrink)!;
+          final radius = (end.height / 2) * shrink;
+          final pad = MediaQuery.paddingOf(context);
           return Stack(children: [
-            // Dim Home while the card is open; clear as it lands.
-            Positioned.fill(child: IgnorePointer(child: ColoredBox(color: WColor.scrim.withValues(alpha: WColor.scrim.a * appear * (1 - shrink))))),
+            Positioned.fill(child: IgnorePointer(child: ColoredBox(color: WColor.scrim.withValues(alpha: WColor.scrim.a * (1 - shrink) * (shrink > 0 ? 1 : 0))))),
             Positioned.fromRect(
               rect: rect,
-              child: Opacity(
-                opacity: appear,
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: WColor.white,
-                    borderRadius: BorderRadius.circular(radius),
-                    border: Border.all(color: Color.lerp(WColor.primary, WColor.border, shrink)!, width: 2 - shrink),
-                  ),
-                  child: Opacity(
-                    opacity: content,
-                    child: OverflowBox(
-                      alignment: Alignment.topLeft,
-                      minWidth: widget.start.width,
-                      maxWidth: widget.start.width,
-                      minHeight: widget.start.height,
-                      maxHeight: widget.start.height,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            const WIconBox(WIcon.check, size: 44, tone: Tone.ok),
-                            const SizedBox(width: 12),
-                            Expanded(child: WText(widget.title, WType.section, weight: semibold)),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Color.lerp(WColor.canvas, WColor.white, shrink),
+                  borderRadius: BorderRadius.circular(radius),
+                  border: shrink > 0 ? Border.all(color: Color.lerp(WColor.primary, WColor.border, shrink)!, width: 1 + shrink) : null,
+                ),
+                child: Opacity(
+                  opacity: content,
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minWidth: widget.size.width,
+                    maxWidth: widget.size.width,
+                    minHeight: widget.size.height,
+                    maxHeight: widget.size.height,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain + 4, pad.top + 90, WSpace.gutterCaptain + 4, 0),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const WIconBox(WIcon.check, size: 56, tone: Tone.ok, radius: 28),
+                        const SizedBox(height: 16),
+                        WText(widget.title, WType.section, weight: semibold, size: 24),
+                        const SizedBox(height: 22),
+                        for (final (icon, label, value) in widget.rows) ...[
+                          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            WIconView(icon, size: 20, color: WColor.primaryStrong),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                WText(label, WType.caption),
+                                const SizedBox(height: 2),
+                                WText(value, WType.title, size: 18),
+                              ]),
+                            ),
                           ]),
                           const SizedBox(height: 18),
-                          for (final (icon, label, value) in widget.rows) ...[
-                            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              WIconView(icon, size: 18, color: WColor.primaryStrong),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                  WText(label, WType.caption),
-                                  const SizedBox(height: 2),
-                                  WText(value, WType.title, size: 17),
-                                ]),
-                              ),
-                            ]),
-                            const SizedBox(height: 14),
-                          ],
-                          const Spacer(),
-                          WText(widget.note, WType.caption, color: WColor.secondary),
-                        ]),
-                      ),
+                        ],
+                        WText(widget.note, WType.caption, color: WColor.secondary),
+                      ]),
                     ),
                   ),
                 ),

@@ -241,3 +241,42 @@ the chip glows → then (if not approved) the "under review" pop-up, or (if appr
    application is under review (not approved yet). Please confirm, or the first-time answers are
    only kept on the phone.
 2. Approval should use these saved preferences (areas/times) when the captain goes online.
+
+---
+
+## 8. Work profile: left-to-right slide, time sliders with "Add more time", no "You’re in" screen
+
+**What Aman asked**
+- Moving from question 1 to question 2 should slide **left to right**, the same way the progress
+  bar fills (going back slides the other way). Before, it was a small fade.
+- "When do you work?": instead of three fixed options, choose a **start and end time with a
+  slider**, plus **Add more time** for breaks (e.g. 9–10 AM and 1–7 PM). Same in the normal
+  "Where I work" screen (Home → Jobs from → Change, or Me → Where I work), not just onboarding.
+- Remove the **"You’re in"** screen (Day 1 / Day 2 / Day 3 jobs) completely. Tapping **Done** on
+  the time question closes the questionnaire straight away by shrinking it into Home’s "Jobs from"
+  chip.
+
+**What changed (Captain)**
+- `WorkSlotsEditor` (`captain/lib/screens/help.dart`): one card per time range. Each card has a
+  big "9 AM – 6 PM" label, a duration, a range slider from 6 AM to 9 PM in 30-minute steps
+  (at least 1 hour) and a remove ✕ when there is more than one. **Add more time** adds a range
+  1 hour after the last one (up to 4). Overlapping ranges are merged on save, and the card says so.
+- Store: `workSlots` (minutes, `WorkSlot`) replaces the old `WorkTime` morning/midday/afternoon
+  set. `workSlotsLabel` gives "9 AM–6 PM, 7 PM–9 PM". Matching a job uses overlap with any slot.
+- **Saving to your backend (unchanged):** `setCaptainPreferences` still only accepts the windows
+  6–10, 10–14 and 14–18. As Aman asked, the app sends **every window that any slot touches**
+  (`serverWindowsFor`), to give the captain the most job offers. Example: 9–10 AM and 1–7 PM →
+  all three windows. The exact slots are kept on the phone and stay as long as the server windows
+  match them.
+- Removed: `LiveScreen` (W14 "You’re in"), route `N.live` and its gallery entry. **Done** now:
+  sample app approves; approved → goes online automatically; not approved → after the animation,
+  the "under review" pop-up. `playWorkProfileLanding` (home.dart) shows a full-screen summary
+  ("Your work profile · Jobs from … · When …") for a moment, shrinks it into the chip (about
+  1.5 s), then the chip glows. Job alerts and the pop-up wait until then.
+
+**Backend needed (P0)**
+1. **Store exact working times.** Accept and save any start/end ranges (e.g. 30-minute steps,
+   several per day, `workingSlots: [{start: "09:00", end: "10:00"}, …]`). Offer jobs whose booking
+   window overlaps a slot (or fits inside it; decide with Aman, who prefers more offers). Then the
+   app can send the exact slots instead of whole windows.
+2. Until then, the whole-window "lump sum" above is what the server sees.
