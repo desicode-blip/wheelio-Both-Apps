@@ -208,3 +208,36 @@ screen with the day 1 / day 2 / day 3 job counts (W14 "You’re in"), then Home.
 
 **Backend needed:** nothing to build. For real end-to-end job tests, approve the test captain on the
 server (or build the automatic review in item 5).
+
+---
+
+## 7. Captain first-time "work profile": two questions while the documents are reviewed
+
+**What Aman asked:** after the documents are submitted and the review countdown has started, keep
+the captain engaged by having him build his profile: **one question per screen**, (1) which jobs
+he wants, then (2) when he works. After the last answer, the questionnaire **closes by shrinking
+into the "Jobs from: … · Change" chip at the top of Home**, so he learns that is where to change it
+later. **First-time onboarding only**; afterwards it is edited from that chip (or Me → Where I work).
+
+**Flow now:** Rules **I agree** (application sent, countdown starts) → **Your work profile**,
+question 1 "Which jobs should ring?" → **Next** → question 2 "When do you work?" → **Done** →
+"You’re in" (day 1 / 2 / 3) → **Go to home** → the profile card shrinks into the "Jobs from" chip,
+the chip glows → then (if not approved) the "under review" pop-up, or (if approved) online.
+
+**What changed (Captain)**
+- `WorkAreaScreen(setup: true)` (`captain/lib/screens/help.dart`), new route `N.workSetup`. Same
+  choices and saving as Where I work, split into two pages with a 2-step progress bar, no back to
+  Rules, and a green note "Documents sent. While we check them, set up how you work." Question 2
+  uses big time tiles (6–10 AM, 10 AM–2 PM, 2–6 PM; none = any time).
+- **Done** saves with your existing `setCaptainPreferences` (`liveSaveWorkPreferences`). If saving
+  fails it shows the error and **still continues**; it can be changed later from the chip.
+- Home (`captain/lib/screens/home.dart`): `_ProfileShrink` overlay animation (≈1.7 s) from a
+  summary card ("Your work profile · Jobs from … · When …") into the chip, then a 1.5 s glow on
+  the chip. Job alerts wait until it finishes. Shown once (`CaptainStore.workSetupLanding`).
+- Sample gallery: W12w "Work profile (first time)".
+
+**Backend needed (P0)**
+1. **Save preferences before approval.** `setCaptainPreferences` must accept a captain whose
+   application is under review (not approved yet). Please confirm, or the first-time answers are
+   only kept on the phone.
+2. Approval should use these saved preferences (areas/times) when the captain goes online.

@@ -934,7 +934,8 @@ class RulesScreen extends StatelessWidget {
           }
         }
         store.startReview();
-        router.go(N.live);
+        // Documents sent and the review countdown runs: first set up the work profile.
+        router.go(N.workSetup);
       })),
       children: [
         WTitle(store.t('How you earn here', 'यहाँ कमाई कैसे होती है', 'ఇక్కడ ఎలా సంపాదిస్తారు'), top: 10, bottom: 14),

@@ -280,8 +280,14 @@ class _HelpFlowScreenState extends State<HelpFlowScreen> {
 
 /// Four simple choices: all jobs, chosen societies, a distance, or one place.
 /// The society the phone is in right now is suggested first.
+///
+/// [setup]: first-time onboarding only (after "I agree", while the documents are reviewed).
+/// The same two questions, one per screen: "Which jobs should ring?" then "When do you work?".
+/// Done → "You're in"; on Home the answers shrink into the "Jobs from" chip, where they can be
+/// changed later.
 class WorkAreaScreen extends StatefulWidget {
-  const WorkAreaScreen({super.key});
+  const WorkAreaScreen({super.key, this.setup = false});
+  final bool setup;
   @override
   State<WorkAreaScreen> createState() => _WorkAreaScreenState();
 }
@@ -293,6 +299,10 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
   String place = 'Narsingi';
   Set<WorkTime> times = {};
   bool loaded = false;
+
+  /// Setup only: 0 = which jobs, 1 = when.
+  int page = 0;
+  bool saving = false;
 
   @override
   void didChangeDependencies() {
@@ -370,34 +380,13 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final store = context.store, router = context.router;
-    return WScreen(
-      canvas: true,
-      gutter: WSpace.gutterCaptain,
-      header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
-      footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode != WorkMode.societies || picked.isNotEmpty, onTap: () async {
-          if (store.isLive && store.registered) {
-            try { await store.liveSaveWorkPreferences(mode,radius,picked,place,times); }
-            catch(e){store.set(()=>store.toast=backendError(e));return;}
-            if(!context.mounted)return;
-          }
-          store.set(() {
-            store.workMode = mode;
-            store.radiusKm = radius;
-            store.chosenSocieties = picked;
-            store.workPlace = place;
-            store.workTimes = times;
-          });
-          store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
-          router.pop();
-        }),
-      ),
-      children: [
-        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 10),
-        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+  String _timeLabel(CaptainStore store, WorkTime t) => switch (t) {
+        WorkTime.morning => store.t('6–10 AM', 'सुबह 6–10', 'ఉ. 6–10'),
+        WorkTime.midday => store.t('10 AM–2 PM', 'दिन 10–2', 'ఉ. 10–మ. 2'),
+        WorkTime.afternoon => store.t('2–6 PM', 'दोपहर 2–6', 'మ. 2–6'),
+      };
+
+  List<Widget> _jobChoices(CaptainStore store) => [
         for (final w in [
           _choice(WorkMode.all, WIcon.layers, store.t('All jobs', 'सभी काम', 'అన్ని పనులు'), store.t('Any job near you', 'आपके आस-पास का कोई भी काम', 'మీ దగ్గర ఏ పనైనా')),
           _choice(WorkMode.societies, WIcon.building, store.t('My societies', 'मेरी सोसाइटी', 'నా సొసైటీలు'), store.t('Only buildings you pick', 'सिर्फ़ आपकी चुनी बिल्डिंग', 'మీరు ఎంచుకున్న భవనాలు మాత్రమే')),
@@ -416,6 +405,45 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           w,
           const SizedBox(height: 12),
         ],
+      ];
+
+  bool get _jobsAnswered => mode != WorkMode.societies || picked.isNotEmpty;
+
+  /// Saves on the server (real data) and in the store. Returns false if saving failed.
+  Future<bool> _save(CaptainStore store) async {
+    if (store.isLive && store.registered) {
+      try { await store.liveSaveWorkPreferences(mode,radius,picked,place,times); }
+      catch(e){store.set(()=>store.toast=backendError(e));return false;}
+    }
+    store.set(() {
+      store.workMode = mode;
+      store.radiusKm = radius;
+      store.chosenSocieties = picked;
+      store.workPlace = place;
+      store.workTimes = times;
+    });
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.setup) return _setup(context);
+    final store = context.store, router = context.router;
+    return WScreen(
+      canvas: true,
+      gutter: WSpace.gutterCaptain,
+      header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
+      footer: WFooter(
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () async {
+          if (!await _save(store) || !context.mounted) return;
+          store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
+          router.pop();
+        }),
+      ),
+      children: [
+        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 10),
+        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+        ..._jobChoices(store),
         // When I work: only decides which jobs ring. Each job is still the captain's choice.
         WTitle(store.t('When do you work?', 'आप कब काम करते हैं?', 'మీరు ఎప్పుడు పని చేస్తారు?'), top: 14),
         WBody(store.t('Pick one or more. Leave all off for any time.', 'एक या ज़्यादा चुनें। कभी भी के लिए कुछ न चुनें।', 'ఒకటి లేదా ఎక్కువ ఎంచుకోండి. ఎప్పుడైనా అంటే ఏదీ ఎంచుకోకండి.'), top: 4, bottom: 12),
@@ -424,11 +452,7 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
             if (i > 0) const SizedBox(width: 8),
             Expanded(
               child: WChip(
-                switch (t) {
-                  WorkTime.morning => store.t('6–10 AM', 'सुबह 6–10', 'ఉ. 6–10'),
-                  WorkTime.midday => store.t('10 AM–2 PM', 'दिन 10–2', 'ఉ. 10–మ. 2'),
-                  WorkTime.afternoon => store.t('2–6 PM', 'दोपहर 2–6', 'మ. 2–6'),
-                },
+                _timeLabel(store, t),
                 selected: times.contains(t),
                 height: 48,
                 fill: true,
@@ -441,4 +465,84 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       ],
     );
   }
+
+  /// First-time setup: one question per screen.
+  Widget _setup(BuildContext context) {
+    final store = context.store, router = context.router;
+    final header = WAppBar(
+      title: store.t('Your work profile', 'आपकी काम की प्रोफ़ाइल', 'మీ పని ప్రొఫైల్'),
+      leading: page == 1 ? WIcon.left : null,
+      trailing: null,
+      onLeading: () => setState(() => page = 0),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+    );
+    final footer = page == 0
+        ? WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () => setState(() => page = 1))
+        : WButton(store.t('Done', 'हो गया', 'పూర్తయింది'), icon: WIcon.check, size: ButtonSize.captain, loading: saving, onTap: () async {
+            setState(() => saving = true);
+            // Keep going even if saving fails: it can be changed from Home ("Jobs from").
+            await _save(store);
+            if (!mounted) return;
+            setState(() => saving = false);
+            store.set(() => store.workSetupLanding = true);
+            router.go(N.live);
+          });
+    final timeIcons = {for (final t in WorkTime.values) t: WIcon.clock};
+    final timeNames = {
+      WorkTime.morning: store.t('Morning', 'सुबह', 'ఉదయం'),
+      WorkTime.midday: store.t('Midday', 'दोपहर', 'మధ్యాహ్నం'),
+      WorkTime.afternoon: store.t('Afternoon', 'शाम', 'సాయంత్రం'),
+    };
+    final pages = [
+      Column(key: const ValueKey(0), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // Documents are with the team; this keeps the captain busy with his own profile.
+        Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const WIconView(WIcon.check, size: 17, color: WColor.onSuccess),
+            const SizedBox(width: 12),
+            Expanded(child: WText(store.t('Documents sent. While we check them, set up how you work.', 'दस्तावेज़ भेज दिए। जब तक हम जाँचते हैं, बताइए आप कैसे काम करेंगे।', 'పత్రాలు పంపారు. మేము చూస్తున్నంతలో, మీరు ఎలా పని చేస్తారో చెప్పండి.'), WType.caption, color: WColor.onSuccess, size: 14.5)),
+          ]),
+        ),
+        WTitle(store.t('Which jobs should ring?', 'कौन से काम बजें?', 'ఏ పనులు మోగాలి?'), top: 18),
+        WBody(store.t('You can change this any time.', 'इसे कभी भी बदल सकते हैं।', 'ఎప్పుడైనా మార్చవచ్చు.'), top: 4, bottom: 16),
+        ..._jobChoices(store),
+      ]),
+      Column(key: const ValueKey(1), crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        WTitle(store.t('When do you work?', 'आप कब काम करते हैं?', 'మీరు ఎప్పుడు పని చేస్తారు?'), top: 14),
+        WBody(store.t('Pick one or more. Leave all off for any time.', 'एक या ज़्यादा चुनें। कभी भी के लिए कुछ न चुनें।', 'ఒకటి లేదా ఎక్కువ ఎంచుకోండి. ఎప్పుడైనా అంటే ఏదీ ఎంచుకోకండి.'), top: 4, bottom: 16),
+        for (final t in WorkTime.values) ...[
+          WSelectionTile(
+            icon: timeIcons[t]!,
+            title: _timeLabel(store, t),
+            subtitle: timeNames[t],
+            selected: times.contains(t),
+            onTap: () => setState(() => times.contains(t) ? times.remove(t) : times.add(t)),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ]),
+    ];
+    return WScreen(
+      canvas: true,
+      gutter: WSpace.gutterCaptain,
+      header: header,
+      footer: WFooter(child: footer),
+      children: [
+        Padding(padding: const EdgeInsets.only(top: 6), child: WSegmentBar(filled: page + 1, total: 2)),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          transitionBuilder: (child, a) => FadeTransition(
+            opacity: a,
+            child: SlideTransition(position: Tween(begin: const Offset(0.08, 0), end: Offset.zero).animate(a), child: child),
+          ),
+          child: pages[page],
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 }
+

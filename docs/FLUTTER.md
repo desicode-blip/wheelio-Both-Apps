@@ -52,6 +52,7 @@ Aman's UI changes on staging `752e222`, with no backend changes. The running lis
 - Captain Rules "I agree" (real data): with test-skipped stages it doesn't submit (toast, then W13); without both KYC photos it says "Upload your Aadhaar and selfie first." and returns to the steps. W13 has the test skip link to W14. The server's missing-photo 404 crash ("INTERNAL") is for Ajay.
 - Decision (Aman, 27 Oct): no review-call round. W13 "Get ready" (`UnderReviewScreen`, `N.underReview`) is removed. Rules "I agree" → W14 "You're in" → Home. Approved: online automatically (`goOnlineAfterApproval`). Not approved: "Your profile is under review" pop-up (`showReviewNotice`) with a 30-minute countdown from `submittedAt`, then a "Call our team" button. Preview: gallery W14r.
 - Testing: "Skip 30 min (testing)" on that pop-up approves on the phone only (`testApproved`) and goes online locally; no server online call or heartbeat while only test-approved. Off with `onboardingSkip`.
+- First-time work profile (Aman, 27 Oct): Rules "I agree" → `WorkAreaScreen(setup: true)` (`N.workSetup`): "Which jobs should ring?" then "When do you work?", one per screen → W14 → Home, where `_ProfileShrink` shrinks the answers into the "Jobs from" chip (then glow, then the review pop-up). Later edits use the chip / Where I work. Gallery W12w.
 
 ## 25 October 2026: renamed to WashKrew, new logo
 

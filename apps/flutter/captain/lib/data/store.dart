@@ -167,7 +167,7 @@ enum HelpTopic { money, job, rating, app }
 
 /// One route per captain screen ID (W01–W57).
 enum N {
-  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, live, jobAlert, jobMissed,
+  welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, workSetup, live, jobAlert, jobMissed,
   goToVehicle, gateProblem, cantFind, ownerCancelled, faceCheck, beforePhotos, camera, photoDark, washing, afterPhotos, aiCheck, uploading,
   jobDone, payoutDetail, payoutHeld, level, probationExtended, refresher, blocked, help, notifications, notificationSettings, changePhone,
   editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery,
@@ -427,6 +427,9 @@ class CaptainStore extends ChangeNotifier {
   /// Home shows the under-review pop-up once when this is set.
   bool reviewNoticePending = false;
 
+  /// First-time work profile just finished: Home shrinks it into the "Jobs from" chip once.
+  bool workSetupLanding = false;
+
   DateTime? get reviewStartedAt => (isLive ? _date(liveCaptain['submittedAt']) : null) ?? _reviewStartedLocal;
 
   /// Application sent (or agreed to, when testing) and not yet approved.
@@ -494,6 +497,7 @@ class CaptainStore extends ChangeNotifier {
   void _logOut() => set(() {
         _reviewStartedLocal = null;
         testApproved = false;
+        workSetupLanding = false;
         awaitingApproval = false;
         reviewNoticePending = false;
         testSkipped.clear();
