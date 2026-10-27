@@ -449,6 +449,61 @@ test('multiple windows choose capacity, expire into the next window and respect 
   o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.startHour,12);
   assert.equal((await db.doc(`slotCapacity/${o.slotKey}`).get()).data().reserved,1);
 });
+
+test('all nine selected 4 AM–10 PM windows survive booking, capture and Captain offers',async()=>{
+  const b=await service.createBooking(customer,{...input('all-day-nine'),day:'2026-11-02',windows:config.slotWindows,anyTime:true});
+  const checkout=await service.checkout(customer,b);
+  await service.capturePayment({id:'pay_all_day_nine',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+  const o=(await db.doc(`orders/${b.bookingId}`).get()).data();
+  assert.equal(o.anyTime,true);assert.deepEqual(o.requestedWindows,config.slotWindows);
+  assert.equal(o.startHour,4);assert.equal(o.status,'searching');
+  const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+  assert.equal(offers.size,2);
+  for(const offer of offers.docs){assert.equal(offer.data().anyTime,true);assert.deepEqual(offer.data().requestedWindows,config.slotWindows);}
+});
+
+test('exact half-hour preferences persist and match early/late booking, payment, offers and claim',async()=>{
+  clock=Date.parse('2026-11-01T03:30:00+05:30');
+  const slots=[{startMinute:240,endMinute:300},{startMinute:1230,endMinute:1320}];
+  await service.captainPreferences(auth('captain1'),{workingSlots:slots,areaPreference:{mode:'all'}});
+  await db.doc('captains/captain2').update({approved:false});
+  assert.deepEqual((await db.doc('captains/captain1').get()).data().workingSlots,slots);
+  const available=await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'});
+  assert.deepEqual(available.slots.filter(s=>s.available).map(s=>s.startHour),[4,20]);
+  clock=Date.parse('2026-11-01T05:30:00+05:30');
+  assert.deepEqual((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.filter(s=>s.available).map(s=>s.startHour),[20]);
+  clock=Date.parse('2026-11-01T03:30:00+05:30');
+  const b=await service.createBooking(customer,{...input('late-exact'),startHour:20,endHour:22});
+  const checkout=await service.checkout(customer,b);
+  await db.doc('captains/captain1').update({lastSeenAt:Timestamp.fromMillis(clock)});
+  await service.capturePayment({id:'pay_exact',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+  const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+  assert.deepEqual(offers.docs.map(d=>d.data().captainId),['captain1']);
+  await service.claim(auth('captain1'),{orderId:b.bookingId});
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().captainId,'captain1');
+});
+
+test('under-review work preferences save without granting capacity or online eligibility',async()=>{
+  for(const uid of ['captain1','captain2'])await db.doc(`captains/${uid}`).update({approved:false,online:false});
+  await service.captainPreferences(auth('captain1'),{workingSlots:[{startMinute:540,endMinute:600}],areaPreference:{mode:'all'}});
+  const slots=await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'});
+  assert.ok(slots.slots.every(s=>!s.available));
+  await assert.rejects(service.captainOnline(auth('captain1'),{online:true}),{code:'permission-denied'});
+  await db.doc('captains/captain1').update({approved:true});
+  assert.deepEqual((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.filter(s=>s.available).map(s=>s.startHour),[8]);
+});
+
+test('work periods validate half-hour bounds, breaks and legacy edits without broadening exact hours',async()=>{
+  for(const workingSlots of [[{startMinute:239,endMinute:300}],[{startMinute:240,endMinute:270}],[{startMinute:270,endMinute:1330}],[{startMinute:541,endMinute:630}],Array(5).fill({startMinute:240,endMinute:300})]){
+    await assert.rejects(service.captainPreferences(auth('captain1'),{workingSlots}),{code:'invalid-argument'});
+  }
+  await service.captainPreferences(auth('captain1'),{workingSlots:[{startMinute:780,endMinute:1140},{startMinute:540,endMinute:600}]});
+  assert.deepEqual((await db.doc('captains/captain1').get()).data().workingSlots,[{startMinute:540,endMinute:600},{startMinute:780,endMinute:1140}]);
+  await service.captainPreferences(auth('captain1'),{workingSlots:[]});
+  assert.deepEqual((await db.doc('captains/captain1').get()).data().workingSlots,[]);
+  await service.captainPreferences(auth('captain1'),{workingWindows:[{startHour:6,endHour:10}]});
+  assert.equal((await db.doc('captains/captain1').get()).data().workingSlots,undefined);
+});
 test('typed addresses need a served society or operator mapping and cannot forge approval',async()=>{
   const a={name:'My Home Avatar',area:'Narsingi',city:'Hyderabad',pincode:'500089'};
   const ok=await service.checkAddress(customer,a);assert.equal(ok.served,true);

@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
 import 'parts.dart';
@@ -412,7 +413,8 @@ class _WLiveBannerState extends State<WLiveBanner> {
 enum _PhoneStage { number, code, done }
 
 class WChangePhoneScreen extends StatefulWidget {
-  const WChangePhoneScreen({super.key});
+  const WChangePhoneScreen({super.key, this.verifyAccount = false});
+  final bool verifyAccount;
   @override
   State<WChangePhoneScreen> createState() => _WChangePhoneScreenState();
 }
@@ -423,6 +425,12 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
   String code = '';
   bool wrong = false;
   bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.verifyAccount) stage = _PhoneStage.code;
+  }
 
   String get digits {
     final d = Validators.digitsOnly(phone);
@@ -448,6 +456,17 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
   Future<void> _verify() async {
     if (loading || code.length != 6) return;
     setState(() => loading = true);
+    if (widget.verifyAccount) {
+      final store = context.store;
+      try {
+        await store.live!.confirmAccountVerification(code);
+        if (mounted) Navigator.of(context).pop(true);
+      } catch(e) {
+        store.set(() => store.toast = backendError(e));
+        if (mounted) setState(() {loading = false; wrong = true;});
+      }
+      return;
+    }
     final ok = await context.store.confirmPhoneChange(code);
     if (!mounted) return;
     setState(() {
@@ -466,7 +485,7 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
     return WScreen(
       gutter: WSpace.gutterCaptain,
       scrolls: stage != _PhoneStage.done,
-      header: WHeader(title: store.t('Phone number', 'फ़ोन नंबर', 'ఫోన్ నంబర్')),
+      header: WHeader(title: store.t('Phone number', 'फ़ोन नंबर', 'ఫోన్ నంబర్'), onBack: widget.verifyAccount ? () => Navigator.of(context).pop(false) : null),
       footer: stage == _PhoneStage.done
           ? null
           : WFooter(
@@ -483,7 +502,7 @@ class _WChangePhoneScreenState extends State<WChangePhoneScreen> {
           ],
         _PhoneStage.code => [
             WTitle(store.t('Enter the code', 'कोड डालें', 'కోడ్ ఎంటర్ చేయండి'), top: 10),
-            WBody(store.t('Sent to ${Fmt.phone(digits)}.', '${Fmt.phone(digits)} पर भेजा।', '${Fmt.phone(digits)} కి పంపాము.'), top: 6, bottom: 22),
+            WBody(store.t('Sent to ${Fmt.phone(widget.verifyAccount ? store.phone : digits)}.', '${Fmt.phone(widget.verifyAccount ? store.phone : digits)} पर भेजा।', '${Fmt.phone(widget.verifyAccount ? store.phone : digits)} కి పంపాము.'), top: 6, bottom: 22),
             WOtpField(
               code: code,
               error: wrong,

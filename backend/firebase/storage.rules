@@ -2,6 +2,11 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null && (!firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) || !firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.keys().hasAny(['deletionStatus'])); }
+    function activeRole(role) {
+      return !firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) ||
+        (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('deletingRole', '') != role &&
+        !(role in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('deletedRoles', {})));
+    }
     function order(orderId) { return firestore.get(/databases/(default)/documents/orders/$(orderId)).data; }
     function photo() { return request.resource.size > 0 && request.resource.size <= 8 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)'); }
     match /identity/{uid}/{orderId}/{file} {
@@ -17,7 +22,8 @@ service firebase.storage {
     }
     match /profiles/{uid}/{file} {
       allow read: if signedIn() && uid == request.auth.uid;
-      allow create, update: if signedIn() && uid == request.auth.uid && file.matches('(customer|captain)\\.jpg') && photo();
+      allow create, update: if signedIn() && uid == request.auth.uid && file.matches('(customer|captain)\\.jpg') && photo()
+        && (!firestore.exists(/databases/(default)/documents/users/$(uid)) || activeRole(file == 'customer.jpg' ? 'customer' : 'captain'));
       allow delete: if false;
     }
     match /orders/{orderId}/problems/{file} {
@@ -50,7 +56,7 @@ service firebase.storage {
     }
     match /kyc/{uid}/{file} {
       allow read: if signedIn() && uid == request.auth.uid;
-      allow create, update: if signedIn() && uid == request.auth.uid && file.matches('(aadhaar|selfie|bank)\\.jpg') && photo()
+      allow create, update: if signedIn() && uid == request.auth.uid && activeRole('captain') && file.matches('(aadhaar|selfie|bank)\\.jpg') && photo()
         && firestore.get(/databases/(default)/documents/captains/$(uid)).data.kycStatus in ['notSubmitted', 'changesRequested'];
       allow delete: if false;
     }

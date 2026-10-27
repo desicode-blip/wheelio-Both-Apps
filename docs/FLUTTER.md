@@ -1,3 +1,13 @@
+# Booking and Captain preference follow-up — 27 October 2026
+
+See [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md) for the integration of
+Aman's `af036f0` UI changes: exact 4 AM–10 PM work periods, matching test booking
+windows, C12 capacity refresh, persisted all-day/multiple selections, truthful
+server approval, missing-upload errors and SMS-verified current-app-only deletion.
+The staging components and assets are preserved. Both updated native apps need a
+Mac rebuild/device pass; server payments remain test. No iOS project or Pod lock
+was changed in this follow-up.
+
 # Software readiness update — 27 October 2026
 
 **Current continuation:** use [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/`. Aman plans training design placeholders in the existing regions; they are not real video/training completion and are not added by this docs-only task. Aman is handling a separate WashKrew Razorpay account; migration/integration and new-merchant acceptance are pending. Preserve design and test mode while compiling/testing on the Mac.

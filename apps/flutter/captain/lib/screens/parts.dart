@@ -9,7 +9,8 @@ import '../data/store.dart';
 
 /// Captain header: back, title (+ subtitle), help.
 class WHeader extends StatelessWidget {
-  const WHeader({super.key, this.title = '', this.subtitle, this.back = true, this.help = true});
+  const WHeader({super.key, this.title = '', this.subtitle, this.back = true, this.help = true, this.onBack});
+  final VoidCallback? onBack;
   final String title;
   final String? subtitle;
   final bool back;
@@ -20,7 +21,7 @@ class WHeader extends StatelessWidget {
         subtitle: subtitle,
         leading: back ? WIcon.left : null,
         trailing: help ? WIcon.help : null,
-        onLeading: context.router.pop,
+        onLeading: onBack ?? context.router.pop,
         onTrailing: () => context.router.go(N.help),
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
       );

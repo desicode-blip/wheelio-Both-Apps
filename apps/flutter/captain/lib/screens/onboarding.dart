@@ -35,7 +35,7 @@ class TestSkipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    if (!onboardingSkip) return const SizedBox.shrink();
+    if (!onboardingSkip || store.isLive) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(top: top),
       child: Center(
@@ -251,11 +251,12 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
     if (mounted) setState(() => view = _AadhaarView.clear);
   }
 
-  /// "Open DigiLocker". DigiLocker is P0: the live app photographs the card instead.
+  /// DigiLocker needs the approved provider account. The existing photo-upload
+  /// action below remains the available route while that integration is pending.
   Future<void> _digiLocker() async {
     final store = context.store, router = context.router;
     if (store.isLive) {
-      await _pick(camera: true);
+      store.blockLive('DigiLocker is not connected yet. Use Upload Aadhaar photo below.');
       return;
     }
     store.complete(KycStep.aadhaar);
@@ -918,7 +919,9 @@ class RulesScreen extends StatelessWidget {
           // TESTING (remove with onboardingSkip): skipped stages were never sent to the server,
           // so it would refuse the application. Don't send it; move on so the flow can be tested.
           if (store.testSkipped.isNotEmpty) {
-            store.set(() => store.toast = 'Testing: you skipped steps, so the application was not sent.');
+            store.set(() => store.toast = 'Complete the missing steps before sending your application.');
+            router.replace(const [R(N.steps)]);
+            return;
           } else {
             // The server needs both photos; say so instead of its generic error.
             if (!store.kycUploaded.contains('aadhaar') || !store.kycUploaded.contains('selfie')) {
@@ -1047,7 +1050,7 @@ class _ReviewNoticeState extends State<_ReviewNotice> {
             const SizedBox(height: 12),
             WButton(store.t('OK', 'ठीक है', 'సరే'), kind: ButtonKind.text, size: ButtonSize.captain, onTap: _close),
             // TESTING ONLY (remove with onboardingSkip): skip the 30 minutes and go online.
-            if (onboardingSkip)
+            if (onboardingSkip && !store.isLive)
               Center(
                 child: Pressable(
                   label: 'Skip 30 min (testing)',

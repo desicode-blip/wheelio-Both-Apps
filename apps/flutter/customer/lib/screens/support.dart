@@ -7,7 +7,8 @@ import '../data/store.dart';
 // MARK: Change phone number
 
 class ChangePhoneScreen extends StatefulWidget {
-  const ChangePhoneScreen({super.key});
+  const ChangePhoneScreen({super.key, this.verifyAccount = false});
+  final bool verifyAccount;
   @override
   State<ChangePhoneScreen> createState() => _ChangePhoneScreenState();
 }
@@ -20,6 +21,12 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
   String code = '';
   bool wrong = false;
   bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.verifyAccount) stage = _Stage.code;
+  }
 
   String get current => context.store.customer?.phone ?? '';
   String get digits => Validators.digitsOnly(phone);
@@ -50,8 +57,14 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
     setState(() => loading = true);
     var ok = false;
     try {
+      if (widget.verifyAccount) {
+        await context.store.live!.confirmAccountVerification(v);
+        if (mounted) Navigator.of(context).pop(true);
+        return;
+      }
       ok = await context.store.confirmPhoneChange(v);
     } catch (_) {}
+    if (!mounted) return;
     setState(() {
       loading = false;
       if (ok) {
@@ -67,14 +80,14 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
     final router = context.router;
     return WScreen(
       scrolls: stage != _Stage.done,
-      header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Phone number', trailing: null, onLeading: router.pop)),
+      header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Phone number', trailing: null, onLeading: widget.verifyAccount ? () => Navigator.of(context).pop(false) : router.pop)),
       footer: stage == _Stage.done
           ? null
           : WFooterBar(
               showCall: false,
               child: stage == _Stage.number
                   ? WButton('Send code', enabled: canSend, loading: loading, onTap: _send)
-                  : WButton('Verify and change', enabled: code.length == 6, loading: loading, onTap: _verify),
+                  : WButton(widget.verifyAccount ? 'Verify' : 'Verify and change', enabled: code.length == 6, loading: loading, onTap: _verify),
             ),
       children: switch (stage) {
         _Stage.number => [
@@ -84,7 +97,7 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
           ],
         _Stage.code => [
             const Padding(padding: EdgeInsets.only(top: 14), child: WText('Enter the code', WType.screen)),
-            Padding(padding: const EdgeInsets.only(top: 6, bottom: 22), child: WText('Sent to ${Fmt.phone(digits)}. Your number changes only after this.', WType.body)),
+            Padding(padding: const EdgeInsets.only(top: 6, bottom: 22), child: WText(widget.verifyAccount ? 'Sent to ${Fmt.phone(current)}. Verify before deleting your Customer account.' : 'Sent to ${Fmt.phone(digits)}. Your number changes only after this.', WType.body)),
             Align(
               alignment: Alignment.centerLeft,
               child: WOtpField(code: code, error: wrong, boxSize: 46, onChanged: (v) {
@@ -96,7 +109,7 @@ class _ChangePhoneScreenState extends State<ChangePhoneScreen> {
               }),
             ),
             if (wrong) const Padding(padding: EdgeInsets.only(top: 14), child: WText('That code doesn’t match. Try again.', WType.caption, color: WColor.destructive)),
-            const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
+            if (!context.store.isLive) const Padding(padding: EdgeInsets.only(top: 30), child: WText('Demo code: 123456', WType.caption, color: WColor.muted)),
           ],
         _Stage.done => [
             const SizedBox(height: 40),

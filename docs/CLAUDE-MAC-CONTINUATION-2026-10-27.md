@@ -1,4 +1,10 @@
 # WashKrew
+
+**Later app follow-up:** read [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md)
+and [Aman's UI report](CHANGES-2026-10-27-UI.md) with this historical handoff. They
+record the merged Mac/UI changes, availability fixes and the owner's 4 AM–10 PM /
+current-app-only deletion decisions. Rebuild both native apps after pulling the
+updated source. The older PDF does not include this subsequent implementation.
 ## Mac and iPhone continuation report
 
 27 October 2026 | For Aman and Claude Code | Branch: staging

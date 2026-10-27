@@ -63,6 +63,12 @@ async function main() {
     if(archivedKey!==key||archivedCredential!==credential)throw Error('Archived test credentials differ. Review before changing any key.');
     await ensureSecret('RAZORPAY_LIVE_WEBHOOK_SECRET',require('node:crypto').randomBytes(32).toString('hex'));
     console.log('Preserved the verified test credentials and prepared a separate live webhook secret. No merchant key or payment mode changed; no charges created.');
+  } else if(command==='configure-test-hours') {
+    const current=await api('/config/operations');
+    if(current.fields?.paymentMode?.stringValue!=='test')throw Error('This operation only changes the test catalog.');
+    const {slotWindows}=JSON.parse(readFileSync(path.join(__dirname,'operations.test.json'),'utf8'));
+    await api('/config/operations?updateMask.fieldPaths=slotWindows&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({slotWindows})});
+    console.log('Updated only test booking windows to 4 AM–10 PM. Other configuration and payment mode preserved.');
   } else if(command==='configure-test') {
     const config=JSON.parse(readFileSync(path.join(__dirname,'operations.test.json'),'utf8'));
     await api('/config/operations','PATCH',{fields:fields(config)});

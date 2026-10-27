@@ -8,6 +8,7 @@ import '../data/models.dart';
 import '../data/store.dart';
 import 'booking.dart';
 import 'common.dart';
+import 'support.dart';
 
 // MARK: Tabs
 
@@ -723,6 +724,7 @@ class ProfileTab extends StatefulWidget {
 class _ProfileTabState extends State<ProfileTab> {
   bool showDelete = false;
   bool deleteBlocked = false;
+  bool deleting = false;
 
   String _notificationSummary(AppStore store) {
     if (!store.notificationsOn) return 'Off';
@@ -877,14 +879,25 @@ class _ProfileTabState extends State<ProfileTab> {
                               'Delete account',
                               kind: ButtonKind.danger,
                               enabled: !deleteBlocked,
+                              loading: deleting,
                               onTap: () async {
+                                if (deleting) return;
+                                setState(() => deleting = true);
                                 bool ok;
                                 try {
+                                  if (store.isLive) {
+                                    await store.live!.requestAccountVerification();
+                                    if (!context.mounted) return;
+                                    final verified = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const ChangePhoneScreen(verifyAccount: true)));
+                                    if (verified != true) return;
+                                  }
                                   ok = await store.deleteAccount();
                                 } catch (e) {
                                   store.set(() => store.toast = backendError(e));
-                                  setState(() => showDelete = false);
+                                  if (mounted) setState(() => showDelete = false);
                                   return;
+                                } finally {
+                                  if (mounted) setState(() => deleting = false);
                                 }
                                 if (!mounted) return;
                                 if (ok) {

@@ -475,10 +475,10 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
           }))
         : WButton(store.t('Done', 'हो गया', 'పూర్తయింది'), icon: WIcon.check, size: ButtonSize.captain, loading: saving, onTap: () async {
             setState(() => saving = true);
-            // Keep going even if saving fails: it can be changed from Home ("Jobs from").
-            await _save(store);
+            final saved = await _save(store);
             if (!mounted) return;
             setState(() => saving = false);
+            if (!saved) return;
             // "You're in" was removed (27 Oct): the questionnaire closes straight into Home.
             if (!store.isLive) store.finishKyc(); // sample app: approved at once
             if (store.signedUp) {

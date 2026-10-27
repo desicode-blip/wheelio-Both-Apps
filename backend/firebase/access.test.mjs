@@ -84,6 +84,16 @@ test('KYC photos stay private and are locked after submission',async()=>{
   await assertFails(uploadBytes(ref(actor('applicant').storage(),path),bytes,{contentType:'image/jpeg'}));
 });
 
+test('role deletion blocks cached profile uploads only in the removed app',async()=>{
+  const bytes=new Uint8Array([255,216,255,224]);
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'users/dual'),{roles:['captain'],deletedRoles:{customer:new Date()}}));
+  const storage=actor('dual').storage();
+  await assertFails(uploadBytes(ref(storage,'profiles/dual/customer.jpg'),bytes,{contentType:'image/jpeg'}));
+  await assertSucceeds(uploadBytes(ref(storage,'profiles/dual/captain.jpg'),bytes,{contentType:'image/jpeg'}));
+  await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'users/dual'),{deletingRole:'captain'}));
+  await assertFails(uploadBytes(ref(storage,'profiles/dual/captain.jpg'),bytes,{contentType:'image/jpeg'}));
+});
+
 
 test('wallet balances and address approval resist forgery, cross-user reads and public queries',async()=>{
   await env.withSecurityRulesDisabled(async c=>{

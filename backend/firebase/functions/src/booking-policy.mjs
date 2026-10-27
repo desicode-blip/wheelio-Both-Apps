@@ -31,8 +31,28 @@ export function cancellationBenefit(order, now) {
   return { kind: 'credit', freeWashes: 0, creditPaise: Math.round(order.pricePaise * p.lateCreditBps / 10000 / 100) * 100 };
 }
 
-export function worksWindow(captain, window) {
+export function worksWindow(captain, window, notBeforeMinute = window.startHour * 60) {
+  const start = Math.max(window.startHour * 60, notBeforeMinute);
+  if (start >= window.endHour * 60) return false;
+  // Exact preferences are minutes from midnight. A window may ring when it
+  // overlaps a work period; the Captain still chooses whether to accept it.
+  if (Array.isArray(captain.workingSlots)) return !captain.workingSlots.length ||
+    captain.workingSlots.some(s => s.startMinute < window.endHour * 60 && s.endMinute > start);
   return !captain.workingWindows?.length || captain.workingWindows.some(w => w.startHour <= window.startHour && w.endHour >= window.endHour);
+}
+
+export function normalizeWorkingSlots(slots) {
+  if (!Array.isArray(slots) || slots.length > 4 || slots.some(s =>
+    !Number.isInteger(s?.startMinute) || !Number.isInteger(s?.endMinute) ||
+    s.startMinute < 240 || s.endMinute > 1320 || s.endMinute - s.startMinute < 60 ||
+    s.startMinute % 30 || s.endMinute % 30)) return null;
+  const out = [];
+  for (const s of [...slots].sort((a,b) => a.startMinute - b.startMinute)) {
+    const last = out.at(-1);
+    if (last && s.startMinute <= last.endMinute) last.endMinute = Math.max(last.endMinute, s.endMinute);
+    else out.push({startMinute:s.startMinute,endMinute:s.endMinute});
+  }
+  return out;
 }
 
 export function windowTimes(day, window) {

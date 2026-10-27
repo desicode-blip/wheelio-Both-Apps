@@ -613,7 +613,8 @@ class AppStore extends ChangeNotifier {
       ref: data['ref'],
       vehicle: Vehicle('veh_${data['plate']}', Fmt.plate(data['plate']), type, place),
       place: place,
-      slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt()),
+      slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt(),
+        windows: [for(final w in data['requestedWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())], anyTime: data['anyTime']==true),
       price: (data['pricePaise'] as num).toInt() ~/ 100,
       status: data['dispute']?['outcome']=='rejected'?OrderStatus.disputeRejected:data['status'] == 'approved' && data['approvalSource'] == 'automatic' ? OrderStatus.autoApproved : data['status'] == 'cancelled' && data['cancellationReason'] == 'slotExpired' ? data['captainId'] == null ? OrderStatus.noCaptain : OrderStatus.captainNoShow : OrderStatus.values.byName(data['status']),
       createdAt: date(data['createdAt']) ?? DateTime.now(),
@@ -948,7 +949,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      final result=await live!.call('deleteOwnAccount',{'confirm':true});
+      final result=await live!.call('deleteOwnAccount',{'confirm':true,'role':'customer'});
       if(result['deleted']!=true)throw StateError('Account deletion has not finished. Try again.');
       await live!.signOut();return true;
     }

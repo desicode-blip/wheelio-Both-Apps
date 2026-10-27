@@ -4,6 +4,7 @@ import {initializeApp,deleteApp} from './functions/node_modules/firebase-admin/l
 import {getFirestore,Timestamp} from './functions/node_modules/firebase-admin/lib/esm/firestore/index.js';
 import {WashKrewService} from './functions/src/service.mjs';
 import {readFile} from 'node:fs/promises';
+import {removedAppAccess} from './functions/src/account-access.mjs';
 
 let app,db,service,clock,provider,deletedUsers,deletedPrefixes;
 const config=JSON.parse(await readFile(new URL('./operations.test.json',import.meta.url)));
@@ -100,6 +101,48 @@ test('private document links are owner-scoped, short-lived and single-use',async
  clock+=3000;const expired=await service.createDocument(auth('owner'),{...d,kind:'receipt'});clock+=600001;
  await assert.rejects(service.consumeDocument(new URL(expired.url).searchParams.get('token')),{code:'permission-denied'});
 });
+
+test('Customer deletion preserves the same phone Captain, its active work, private files and notifications',async()=>{
+ await service.register(auth('captain'),{role:'customer'});
+ const job=await assigned();
+ await db.doc('notifications/customer-role').set({recipientId:'captain',role:'customer'});
+ await db.doc('notifications/captain-role').set({recipientId:'captain',role:'captain'});
+ await db.doc('users/captain').update({captainPhotoPath:'profiles/captain/captain.jpg',customerPhotoPath:'profiles/captain/customer.jpg'});
+ const result=await service.deleteAccount(auth('captain'),{confirm:true,role:'customer'});
+ assert.equal(result.identityDeleted,false);assert.deepEqual(deletedUsers,[]);
+ assert.equal((await db.doc(`orders/${job.orderId}`).get()).data().captainId,'captain');
+ assert.equal((await db.doc('captains/captain').get()).data().approved,true);
+ assert.equal((await db.doc('notifications/captain-role').get()).exists,true);
+ assert.equal((await db.doc('notifications/customer-role').get()).exists,false);
+ const profile=(await db.doc('users/captain').get()).data();
+ assert.deepEqual(profile.roles,['captain']);assert.equal(profile.captainPhotoPath,'profiles/captain/captain.jpg');
+ assert.ok(profile.deletedRoles.customer);assert.ok(!deletedPrefixes.includes('kyc/captain/'));
+ assert.equal(removedAppAccess(profile,'createBooking'),true);assert.equal(removedAppAccess(profile,'progress'),false);
+ await assert.rejects(service.register({...auth('captain'),token:{...auth('captain').token,auth_time:0}},{role:'customer'}),{code:'failed-precondition'});
+ await service.register(auth('captain'),{role:'customer'});
+ assert.equal((await db.doc('users/captain').get()).data().deletedRoles?.customer,undefined);
+});
+
+test('Captain deletion keeps Customer bookings and wallet and requires recent SMS verification',async()=>{
+ await service.register(auth('owner'),{role:'captain'});
+ const job=await assigned();
+ await db.doc('wallets/owner_test').set({customerId:'owner',creditPaise:1500});
+ await assert.rejects(service.deleteAccount({...auth('owner'),token:{...auth('owner').token,auth_time:0}},{confirm:true,role:'captain'}),{code:'failed-precondition'});
+ await service.deleteAccount(auth('owner'),{confirm:true,role:'captain'});
+ assert.deepEqual(deletedUsers,[]);assert.equal((await db.doc('captains/owner').get()).exists,false);
+ assert.equal((await db.doc(`orders/${job.orderId}`).get()).data().customerId,'owner');
+ assert.equal((await db.doc('wallets/owner_test').get()).data().creditPaise,1500);
+ const profile=(await db.doc('users/owner').get()).data();assert.deepEqual(profile.roles,['customer']);
+ assert.equal(removedAppAccess(profile,'captainPreferences'),true);assert.equal(removedAppAccess(profile,'createBooking'),false);
+});
+
+test('missing uploaded identity returns a clear precondition instead of a generic application error',async()=>{
+ service.evidence.metadata=async()=>null;
+ await service.register(auth('applicant'),{role:'captain',name:'Applicant'});
+ await service.captainPayout(auth('applicant'),{method:'upi',upi:'applicant@bank'});
+ await assert.rejects(service.submitCaptainApplication(auth('applicant'),{societyIds:['soc_avatar']}),{code:'failed-precondition',message:'Upload your identity and selfie.'});
+ assert.equal((await db.doc('captains/applicant').get()).data().kycStatus,'notSubmitted');
+});
 test('human dispute decisions queue only the actual cash refund and award an explicit bonus once',async()=>{
  const d=await finished();await service.reportProblem(auth('owner'),{...d,kind:'notClean',note:'Please review',photoCount:1});
  const decision={...d,outcome:'upheld',note:'The after photo confirms the missed area.',bonusFreeWashes:2};
@@ -121,9 +164,12 @@ test('saved area preferences filter offers on the server and cannot expand appro
  const windows=[{startHour:6,endHour:10}];
  await assert.rejects(service.captainPreferences(auth('captain'),{workingWindows:windows,areaPreference:{mode:'societies',societyIds:['soc_avali']}}),{code:'permission-denied'});
  await service.captainPreferences(auth('captain'),{workingWindows:windows,areaPreference:{mode:'place',place:'Another area'}});
+ assert.ok((await service.availability(auth('owner'),{societyId:'soc_avatar',day:'2026-11-01'})).slots.every(s=>!s.available));
+ await service.register(auth('eligible'),{role:'captain',name:'Eligible'});
+ await db.doc('captains/eligible').update({approved:true,online:true,societyIds:['soc_avatar'],lastSeenAt:Timestamp.fromMillis(clock)});
  const b=await service.createBooking(auth('owner'),{requestId:'filtered',plate:'TS09AB1234',societyId:'soc_avatar',vehicleKind:'hatchback',floor:'B2',washKind:'wetOutside',day:'2026-11-01',startHour:8,endHour:10});
  const c=await service.checkout(auth('owner'),b);await service.capturePayment({id:'pay_filter',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'});
- assert.equal((await db.collection('jobOffers').get()).size,0);
+ assert.deepEqual((await db.collection('jobOffers').get()).docs.map(d=>d.data().captainId),['eligible']);
 });
 
 test('late windows are checked before midnight and no-show cancellation restores the full payment',async()=>{

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../app/design_flags.dart';
 import '../data/models.dart';
+import '../data/booking_availability.dart';
 import '../data/store.dart';
 import 'common.dart';
 
@@ -1398,59 +1400,79 @@ class TimeSlotScreen extends StatefulWidget {
   State<TimeSlotScreen> createState() => _TimeSlotScreenState();
 }
 
-class _TimeSlotScreenState extends State<TimeSlotScreen> {
+class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObserver {
   final days = [for (var i = 0; i < 3; i++) addDays(startOfDay(DateTime.now()), i)];
   int dayIndex = 0;
 
-  /// Start hours of the picked windows. The sample app allows several (or the whole day);
-  /// the live app keeps one until the backend accepts more (docs/BACKEND-HOOKUP.md).
+  /// Start hours of selected windows, using the original C12 multi-window design.
   Set<int> picked = {};
-  String requested = '';
   Set<int> available = {};
   bool fetching = false;
   String? slotError;
+  final capacity = BookingAvailability();
+  Timer? refresh;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    capacity.addListener(_capacityChanged);
+    refresh = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted && isTopScreen(context) && WidgetsBinding.instance.lifecycleState != AppLifecycleState.paused) {
+        _loadAvailability(force: true);
+      }
+    });
+  }
+
+  void _capacityChanged() {
+    if (!mounted) return;
+    setState(() {
+      fetching = capacity.loading;
+      available = capacity.available;
+      picked = capacity.selected;
+      slotError = capacity.error;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted && isTopScreen(context)) _loadAvailability(force: true);
+  }
+
+  @override
+  void dispose() {
+    refresh?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    capacity.dispose();
+    super.dispose();
+  }
 
   bool get _multi => true;
 
-  void _loadAvailability() {
+  void _loadAvailability({bool force = false}) {
     final store = context.store;
     if (!store.isLive || store.draft.place == null) return;
     final d = days[dayIndex];
     final day = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     final key = '${store.draft.place!.society.id}:$day';
-    if (requested == key) return;
-    requested = key;
-    fetching = true;
-    slotError = null;
-    available = {};
-    picked = {};
-    store.live!
-        .call('getAvailability', {'societyId': store.draft.place!.society.id, 'day': day})
-        .then((result) {
-          if (!mounted || requested != key) return;
-          setState(() {
-            fetching = false;
-            available = {
-              for (final s in result['slots'] as List)
-                if (s['available'] == true) (s['startHour'] as num).toInt(),
-            };
-            final first = store.timeSlots(d).where((s) => s.available && available.contains(s.startHour)).firstOrNull;
-            picked = {?first?.startHour};
-          });
-        })
-        .catchError((Object e) {
-          if (mounted && requested == key) {
-            setState(() {
-              fetching = false;
-              slotError = 'Availability could not be loaded. ${backendError(e)}';
-            });
-          }
-        });
+    final saved = store.draft.slot;
+    final restore = saved != null && startOfDay(saved.date) == d;
+    capacity.load(key, () async {
+      try {
+        final result = await store.live!.call('getAvailability', {'societyId': store.draft.place!.society.id, 'day': day});
+        return {for (final s in result['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()};
+      } catch(e) { throw 'Availability could not be loaded. ${backendError(e)}'; }
+    }, refresh: force, initial: restore ? (saved.windows.isEmpty ? {saved.startHour} : {for (final w in saved.windows) w.$1}) : {}, initialAllDay: restore && saved.anyTime);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (capacity.key.isEmpty && context.store.isLive) {
+      final saved = context.store.draft.slot;
+      final index = saved == null ? -1 : days.indexWhere((d) => d == startOfDay(saved.date));
+      if (index >= 0) dayIndex = index;
+    }
     _loadAvailability();
     if (context.store.isLive) return;
     if (picked.isNotEmpty) return;
@@ -1474,6 +1496,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
   });
 
   void _toggle(TimeSlot s) => setState(() {
+    if (context.store.isLive) { capacity.toggle(s.startHour); return; }
     if (!_multi) {
       picked = {s.startHour};
     } else if (!picked.remove(s.startHour)) {
@@ -1486,7 +1509,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
     final store = context.store;
     final slots = [
       for (final s in store.timeSlots(days[dayIndex]))
-        TimeSlot(s.date, s.startHour, s.endHour, available: s.available && (!store.isLive || available.contains(s.startHour))),
+        TimeSlot(s.date, s.startHour, s.endHour, available: store.isLive ? available.contains(s.startHour) : s.available),
     ];
     final open = slots.where((s) => s.available).toList();
     final noneFree = open.isEmpty;
@@ -1536,8 +1559,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
                   _changeDay(dayIndex + 1);
                 } else {
                   setState(() {
-                    requested = '';
-                    _loadAvailability();
+                    _loadAvailability(force: true);
                   });
                 }
               },
@@ -1546,7 +1568,9 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> {
         // "Any time of the day": one tap picks every open window; tap again to clear.
         if (_multi && !fetching && open.length > 1) ...[
           Pressable(
-            onTap: () => setState(() => picked = wholeDay ? {} : {for (final s in open) s.startHour}),
+            onTap: () {
+              if (store.isLive) { capacity.toggleAll(); } else { setState(() => picked = wholeDay ? {} : {for (final s in open) s.startHour}); }
+            },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

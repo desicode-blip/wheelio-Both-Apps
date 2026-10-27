@@ -15,5 +15,5 @@
     {"id":"soc_avali","name":"My Home Avali","area":"Gachibowli","city":"Hyderabad","pincode":"500032","active":true},
     {"id":"soc_avishkaar","name":"My Home Avishkaar","area":"Kokapet","city":"Hyderabad","pincode":"500075","active":true}
   ],
-  "slotWindows": [{"startHour":6,"endHour":8},{"startHour":8,"endHour":10},{"startHour":10,"endHour":12},{"startHour":12,"endHour":14},{"startHour":14,"endHour":16},{"startHour":16,"endHour":18}]
+  "slotWindows": [{"startHour":4,"endHour":6},{"startHour":6,"endHour":8},{"startHour":8,"endHour":10},{"startHour":10,"endHour":12},{"startHour":12,"endHour":14},{"startHour":14,"endHour":16},{"startHour":16,"endHour":18},{"startHour":18,"endHour":20},{"startHour":20,"endHour":22}]
 }

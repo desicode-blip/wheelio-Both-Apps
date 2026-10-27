@@ -1,5 +1,11 @@
 # P0: backend and functionality needed for the designed screens
 
+**27 October functional follow-up:** read
+[AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md) for the connections of
+Aman's UI changes, current-app-only deletion, exact work hours and Customer
+availability. Historical unchecked items below do not override that verification
+record or the owner's deferred provider/content decisions.
+
 **Current Mac continuation:** [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/` list implemented paths, actual remaining checks and the latest owner decisions: Aman's training placeholders and a separate WashKrew merchant account. Read that report before treating the historical unticked rows below as current implementation gaps.
 
 **27 October follow-up:** Maps/Routes, server training/quiz, quiz speech and genuine private face/vehicle-photo checks are now implemented; see [READINESS-2026-10-27.md](READINESS-2026-10-27.md). Unticked rows still include content, external accounts, live decisions and full native acceptance.

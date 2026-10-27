@@ -1,5 +1,10 @@
 # Functionality handoff — 26 October 2026
 
+**Latest follow-up:** [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md)
+records Aman's merged staging UI, exact 4 AM–10 PM availability, C12 refresh and
+SMS-verified deletion of only the current app account. Use that later record for
+those behaviors and its publishing/device-check status.
+
 The subsequent [27 October software handoff](READINESS-2026-10-27.md) records Maps/Routes, training/quiz/speech, actual private image checks, final verification and the current Mac/content/provider gates. Use it with this baseline record.
 
 Baseline: staging `c1ad2b2`, including the Customer/Captain design restorations and Mac-resolved native changes. The remote was fetched again on 26 October with no newer commits. All application work is in Flutter. Layout, palette, typography, navigation chrome and assets follow staging; no generic replacement screen or payment banner was restored. Dynamic text and existing controls now reflect actual data.

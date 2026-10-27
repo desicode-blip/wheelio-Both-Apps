@@ -489,29 +489,16 @@ class CaptainStore extends ChangeNotifier {
 
   /// Approved: go online without the captain having to tap anything.
   void goOnlineAfterApproval() {
+    if (isLive && liveCaptain['approved'] != true) return;
     awaitingApproval = false;
     if (online) return;
     set(() => online = true);
-    if (isLive && !testOnlyOnline) liveSetOnline(true).catchError((Object _) => set(() => online = false));
+    if (isLive) liveSetOnline(true).catchError((Object _) => set(() => online = false));
   }
 
-  /// TESTING ONLY (remove with onboardingSkip): "Skip 30 min (testing)" on the under-review
-  /// pop-up treats the profile as approved and goes online, on this phone only. The server
-  /// is not told: it still sees an unapproved, offline captain, so no real jobs arrive.
-  bool testApproved = false;
-
-  /// Online on this phone only (test approval without a server approval).
-  bool get testOnlyOnline => testApproved && !(isLive && liveCaptain['approved'] == true);
-
   void testSkipReview() {
-    set(() {
-      testApproved = true;
-      if (!isLive) {
-        finishKyc();
-      } else {
-        signedUp = true;
-      }
-    });
+    if (isLive) return;
+    finishKyc();
     goOnlineAfterApproval();
   }
 
@@ -535,7 +522,6 @@ class CaptainStore extends ChangeNotifier {
 
   void _logOut() => set(() {
         _reviewStartedLocal = null;
-        testApproved = false;
         workSetupLanding = false;
         awaitingApproval = false;
         reviewNoticePending = false;
@@ -632,14 +618,16 @@ class CaptainStore extends ChangeNotifier {
 
   void complete(KycStep s) => set(() => steps[s] = KycState.done);
 
-  /// TESTING ONLY (remove before launch): stages skipped with "Skip this step (testing)".
-  /// Kept on this phone; with real data the server still checks everything on submission.
+  /// Sample-app shortcuts cannot complete steps in a Firebase session.
   final Set<KycStep> testSkipped = {};
-  void testSkipStep(KycStep s) => set(() {
+  void testSkipStep(KycStep s) {
+    if (isLive) return;
+    set(() {
         testSkipped.add(s);
         steps[s] = KycState.done;
         if (s == KycStep.training && videosWatched < 3) videosWatched = 3;
-      });
+    });
+  }
 
   void resetJob() {
     beforeDone = {};
@@ -992,9 +980,15 @@ class CaptainStore extends ChangeNotifier {
   }
 
   /// Profile → Delete account. Returns an error for the dialog, or null when the account is gone.
-  /// BACKEND (P0, Ajay): not connected for real data yet; see docs/CHANGES-2026-10-27-UI.md.
   Future<String?> deleteAccount() async {
-    if (isLive) return t(notYet, 'यह अभी उपलब्ध नहीं है। हमें कॉल करें, हम कर देंगे।', 'ఇది ఇంకా అందుబాటులో లేదు. మాకు కాల్ చేయండి, మేము చేస్తాము.');
+    if (isLive) {
+      try {
+        final result = await live!.call('deleteOwnAccount', {'confirm': true, 'role': 'captain'});
+        if (result['deleted'] != true) return 'Account deletion has not finished. Try again.';
+        await live!.signOut();
+        return null;
+      } catch(e) { return backendError(e); }
+    }
     await Future<void>.delayed(const Duration(milliseconds: 600));
     _logOut();
     return null;
@@ -1021,7 +1015,7 @@ class CaptainStore extends ChangeNotifier {
     }));
     _heartbeat = Timer.periodic(const Duration(seconds: 60), (_) {
       if(liveUid.isNotEmpty) { _rebuildQueue(); _applyEarnings(); changed(); }
-      if (isLive && online && !testOnlyOnline && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
+      if (isLive && online && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
     });
   }
 
@@ -1086,21 +1080,25 @@ class CaptainStore extends ChangeNotifier {
         phone = (d['phone'] as String? ?? '').replaceFirst('+91', '');
         upi = d['upi'] as String? ?? upi;
         rating = (d['ratingCount'] as num? ?? 0) > 0 ? (d['rating'] as num).toDouble() : 0;
-        online = testOnlyOnline ? online : d['online'] == true;
+        online = d['online'] == true;
         registered = true;
         exploring = true;
         final wasApproved = signedUp;
-        signedUp = d['approved'] == true || testApproved;
+        signedUp = d['approved'] == true;
         // Approved while waiting after 'I agree': go online by itself.
         if (!wasApproved && signedUp && awaitingApproval) Future.microtask(goOnlineAfterApproval);
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();
         jobLimit = (d['jobLimit'] as num? ?? 0).toInt();
-        // The server keeps whole windows. Keep the captain's exact slots while they still
-        // map to the same windows; otherwise show the server's windows as slots.
+        // New preferences survive restarts at their exact half-hour boundaries.
+        // Historical accounts retain the legacy whole-window interpretation.
         final windows = [for (final w in d['workingWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())]..sort((a, b) => a.$1.compareTo(b.$1));
         final mine = serverWindowsFor(workSlots);
         final same = windows.length == mine.length && [for (var i = 0; i < mine.length; i++) windows[i] == mine[i]].every((x) => x);
-        if (!same) workSlots = windows.isEmpty || windows.length >= serverWorkWindows.length ? [] : mergeSlots([for (final w in windows) (w.$1 * 60, w.$2 * 60)]);
+        if (d['workingSlots'] is List) {
+          workSlots = mergeSlots([for (final s in d['workingSlots']) ((s['startMinute'] as num).toInt(), (s['endMinute'] as num).toInt())]);
+        } else if (!same) {
+          workSlots = windows.isEmpty || windows.length >= serverWorkWindows.length ? [] : mergeSlots([for (final w in windows) (w.$1 * 60, w.$2 * 60)]);
+        }
         final societies = [for (final id in (d['societyIds'] as List? ?? d['requestedSocietyIds'] as List? ?? [])) _societyName(id)];
         if (societies.isNotEmpty) {
           workMode = WorkMode.societies;
@@ -1208,7 +1206,7 @@ class CaptainStore extends ChangeNotifier {
       society: o['societyName'] as String? ?? '',
       wash: _wash(o['washKind']),
       area: o['area'] as String? ?? '',
-      windows: [for (final w in o['windows'] as List? ?? []) _window((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())],
+      windows: [for (final w in o['requestedWindows'] as List? ?? o['windows'] as List? ?? []) _window((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())],
       flexible: o['anyTime'] == true,
       day: day < 0 ? 0 : day,
       typedAddress: o['manualAddress'] == true,
@@ -1363,9 +1361,9 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveSaveWorkPreferences(WorkMode mode,int radius,Set<String> societies,String place,List<WorkSlot> slots)async{
     final config=liveConfig['societies'] as List? ?? [];
     if(mode==WorkMode.radius){final p=await live!.currentPosition();await live!.call('setCaptainPosition',{'latitude':p.latitude,'longitude':p.longitude});}
-    // BACKEND (Ajay): the server takes only whole windows; send every window the slots touch.
+    // Legacy windows remain for older installed clients. Exact slots govern matching.
     final chosen=serverWindowsFor(slots);
-    await _call(()=>live!.call('setCaptainPreferences',{'workingWindows':[for(final w in chosen){'startHour':w.$1,'endHour':w.$2}],'areaPreference':{'mode':mode.name,if(mode==WorkMode.radius)'radiusKm':radius,if(mode==WorkMode.place)'place':place,if(mode==WorkMode.societies)'societyIds':[for(final s in config)if(societies.contains(s['name']))s['id']]}}));
+    await _call(()=>live!.call('setCaptainPreferences',{'workingSlots':[for(final s in mergeSlots(slots)){'startMinute':s.$1,'endMinute':s.$2}],'workingWindows':[for(final w in chosen){'startHour':w.$1,'endHour':w.$2}],'areaPreference':{'mode':mode.name,if(mode==WorkMode.radius)'radiusKm':radius,if(mode==WorkMode.place)'place':place,if(mode==WorkMode.societies)'societyIds':[for(final s in config)if(societies.contains(s['name']))s['id']]}}));
   }
 
   Future<void> liveSignOut() async {

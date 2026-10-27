@@ -1,3 +1,15 @@
+# Connected follow-up to Aman's UI — 27 October 2026
+
+[AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md) supersedes the disconnected
+items below for exact work periods, availability refresh, first work-profile saving,
+missing KYC-upload errors and Captain/Customer deletion. The owner chose 4 AM–10 PM
+test booking windows and deletion of only the current app account. Review and
+onboarding skips now work only in the sample app; no Firebase screen fakes approval
+or Online. Its existing 30-minute countdown unlocks contact, never an approval.
+DigiLocker remains pending and its existing button explains that; photo upload is
+the actual available path. No new production fake, timer-driven success or sample
+identity was added. Final provider/content decisions still belong to the owner.
+
 # UI-only changes — 27 October 2026 (Aman's session)
 
 Aman is changing the UI only; the backend is unchanged. Everything that still needs a backend is listed for Ajay as **P0** in [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md). New guarded (not yet connected) action: Captain **Delete account** (Me tab) shows "This isn’t available yet" on real data. Testing shortcut: "Skip this step (testing)" on Captain onboarding marks a stage done on the phone only (also on real data); turn `onboardingSkip` off before launch. Aadhaar "clear" is only the on-phone photo-quality check, not a document check. The W13 review-call screen is removed; the under-review pop-up's 30-minute countdown expects Ajay's automatic review (item 5 of the changes list).

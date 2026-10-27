@@ -1,5 +1,10 @@
 # App changes from Aman's session — 27 October 2026 (for Ajay)
 
+**Later functional follow-up:** [AVAILABILITY-2026-10-27.md](AVAILABILITY-2026-10-27.md)
+records the connected fixes, owner decisions, verification and remaining real
+Captain/Mac steps. Preserve the authored designs described below. The original
+P0 list is historical where that later report marks an item connected.
+
 **Read this first, Ajay.** Aman changed the **apps' UI only**, on top of your staging `752e222`
 (the Mac also resolved iOS pod locks, `a1dd4db`). **No backend was changed**: no Firebase
 functions, rules, config or secrets. Every item says what still needs connecting on your side.

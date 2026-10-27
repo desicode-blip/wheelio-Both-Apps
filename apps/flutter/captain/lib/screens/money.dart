@@ -7,6 +7,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../data/store.dart';
 import 'parts.dart';
 import 'welcome.dart';
+import 'account.dart';
 
 // MARK: W40 Money
 
@@ -480,7 +481,16 @@ class MeTab extends StatelessWidget {
                       delete: store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
                       keep: store.t('Keep my account', 'अकाउंट रखें', 'ఖాతాను ఉంచండి'),
                     ),
-                    delete: store.deleteAccount,
+                    delete: () async {
+                      if (store.isLive) {
+                        try { await store.live!.requestAccountVerification(); }
+                        catch(e) { return backendError(e); }
+                        if (!context.mounted) return 'Verification cancelled.';
+                        final verified = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const WChangePhoneScreen(verifyAccount: true)));
+                        if (verified != true) return 'Verification cancelled. Your account is still here.';
+                      }
+                      return store.deleteAccount();
+                    },
                   );
                   if (gone) router.home();
                 },

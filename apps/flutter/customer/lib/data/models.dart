@@ -164,7 +164,10 @@ class TimeSlot {
 
   /// "8 – 10 AM", "10 AM – 2 PM, 4 – 6 PM" or "Any time (6 AM – 6 PM)".
   String get label {
-    if (anyTime) return 'Any time (${Fmt.window(startHour, endHour)})';
+    if (anyTime) {
+      final ordered = [...windows]..sort((a,b)=>a.$1.compareTo(b.$1));
+      return 'Any time (${Fmt.window(ordered.isEmpty ? startHour : ordered.first.$1, ordered.isEmpty ? endHour : ordered.last.$2)})';
+    }
     if (windows.length < 2) return Fmt.window(startHour, endHour);
     // Join windows that touch, so 10–12 and 12–2 read as 10 AM – 2 PM.
     final merged = <(int, int)>[];

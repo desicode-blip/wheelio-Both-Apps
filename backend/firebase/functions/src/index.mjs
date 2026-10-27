@@ -19,6 +19,8 @@ import { WashKrewService, ServiceError } from './service.mjs';
 import { GoogleRoutes } from './maps.mjs';
 import { TrainingError } from './training.mjs';
 import {PrivatePhotoChecks,PhotoCheckError} from './photo-checks.mjs';
+import {removedAppAccess} from './account-access.mjs';
+import {readObjectMetadata} from './storage-evidence.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -36,7 +38,7 @@ function service(withPayment = false, withMaps = false) {
   return new WashKrewService({ db, payments:current, paymentProviders:withPayment?{test,live:current}:undefined,
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
-      async metadata(path) { const [metadata] = await getStorage().bucket().file(path).getMetadata(); return metadata; },
+      metadata: path => readObjectMetadata(getStorage().bucket().file(path)),
       async read(path,generation){const [bytes]=await getStorage().bucket().file(path,{generation}).download();return bytes;},
       async deletePrefix(prefix) { await getStorage().bucket().deleteFiles({prefix}); },
     },
@@ -52,7 +54,7 @@ function callable(method, payment = false, maps = false) {
   // Firebase ID tokens and service authorization below remain mandatory.
   return onCall({ cors, invoker: 'private', ...(['checkWashPhotos','verifyIdentity'].includes(method)?{timeoutSeconds:120,memory:'512MiB'}:{}), secrets:[...(payment?paymentSecrets:[]),...(maps?[mapsKey]:[])] }, async request => {
     try {
-      if(request.auth?.uid&&method!=='deleteAccount'&&(await db.doc(`users/${request.auth.uid}`).get()).data()?.deletionStatus)throw new ServiceError('permission-denied','This account is being deleted.');
+      if(request.auth?.uid&&removedAppAccess((await db.doc(`users/${request.auth.uid}`).get()).data(),method,request.data??{}))throw new ServiceError('permission-denied','This app account has been removed or is being deleted. Log in with a fresh SMS code to register again.');
       return await service(payment,maps)[method](request.auth, request.data ?? {});
     }
     catch (error) {

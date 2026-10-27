@@ -63,6 +63,22 @@ class FakeAuth extends Fake implements FirebaseAuth {
 
 void main() {
   for (final web in [false, true]) {
+    test('deletion verification reauthenticates the current phone without signing into another account (web: $web)', () async {
+      final user = FakePhoneUser('current', '+919000000001'), auth = FakeAuth()..user = user;
+      final session = PhoneOtpSession(auth, web: web);
+      await expectLater(session.request('9000000002', purpose: PhoneOtpPurpose.reauthenticate), throwsStateError);
+      final sending = session.request('9000000001', purpose: PhoneOtpPurpose.reauthenticate);
+      auth.sent!('fresh-proof', null);
+      await sending;
+      await session.confirm('123456');
+      await session.confirm('123456');
+      expect(user.reauthentications, 1);
+      expect(user.changes, 0);
+      expect(auth.confirmations, 0);
+      expect(auth.currentUser!.uid, 'current');
+    });
+  }
+  for (final web in [false, true]) {
     test(
       'phone changes verify the new number without signing into another account (web: $web)',
       () async {
