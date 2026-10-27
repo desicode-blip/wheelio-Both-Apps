@@ -50,3 +50,63 @@ New items are added to this list as the session goes on.
 4. **Open jobs.** The server blocks deletion while a booking or job is open. The dialog shows
    your error text. Please make it short and friendly for captains (it is also shown in
    Hindi/Telugu users' dialogs, so send a translatable code if possible).
+
+---
+
+## 2. Captain KYC: "Upload Aadhaar photo" asks camera or gallery, then checks the photo
+
+**What Aman asked:** rename the link (no "instead"). Tapping it must not jump to the error screen.
+It asks camera or gallery, shows the chosen photo while it is being checked, then shows either
+"approved" or the "not clear" screen.
+
+**What changed (Captain, W05 `AadhaarScreen` in `captain/lib/screens/onboarding.dart`)**
+- Link text: **Upload Aadhaar photo** (Hindi/Telugu unchanged; they never said "instead").
+- Before, the link opened the W05b "Photo is not clear" screen straight away, with no photo.
+  Now it opens a choice sheet: **Take photo** (camera opens) / **Choose from gallery** (photo
+  library opens) / Cancel.
+- After a photo is picked: **Checking your photo** with the actual photo dimmed, a spinner and
+  "Checking…" (shown for at least about 2 seconds so it is visible), then:
+  - **Photo is clear**: the photo with a green "Clear" badge, "Your Aadhaar photo is added. Our
+    team checks the details before you take jobs.", **Continue** (→ steps list) and **Use a
+    different photo**.
+  - **Photo is not clear** (W05b): the actual photo with a red reason badge (Too dark, Too far,
+    Covered, Can’t read) and the three tips. **Take again** opens the same camera/gallery choice.
+- What decides clear or not: the existing on-phone check `checkPhotoQuality` (light, size,
+  covered/unreadable). Real data: a clear photo is uploaded with your existing
+  `liveUploadKyc('aadhaar', …)`, as before. No backend change.
+- "Open DigiLocker" is unchanged (real data: opens the camera, as before).
+
+**Backend needed (P0)**
+1. **Real Aadhaar check.** Today "clear" only means the photo is readable. Nothing reads the card
+   or checks that it is an Aadhaar card. Add the server-side check (OCR/document check, or
+   DigiLocker) and send the result back, so the app can show a real "Aadhaar verified" or a
+   specific reason ("This isn’t an Aadhaar card", "Name doesn’t match").
+2. **Front and back.** The W04 step list says "Photo of the front and back", but one photo is
+   taken (as before). Decide whether the back is needed; if yes, tell Aman so the screen can ask
+   for it.
+3. **Gallery photos.** Photos from the gallery can be old or edited. Decide whether gallery uploads
+   are allowed for KYC, or need extra checks.
+
+---
+
+## 3. "Skip this step (testing)" text link on every onboarding stage (TESTING ONLY)
+
+**What Aman asked:** a small text-only button to skip onboarding, stage after stage, for testing
+and internal use.
+
+**What changed (Captain, `captain/lib/screens/onboarding.dart`)**
+- The old orange pill "TEST ONLY · Skip onboarding" (sample app only, jumped straight to "You’re
+  in") is replaced by a small grey text link, **Skip this step (testing)**, on: the 4-steps list,
+  Aadhaar, Your photo (selfie), Get paid, Training, the video player and the quiz.
+- Each tap marks **that one stage** done and returns to the steps list. On the steps list it
+  skips the next stage to do. Once all stages are done, Continue goes to the rules, as normal.
+- It shows in **both** the sample app and the real-data app, so Aman can test on his phone.
+- Real data: skipped stages are kept **on this phone only** (`CaptainStore.testSkipped`) and
+  re-applied over server data; cleared on log out. **The server is not told.** "I agree" on the
+  rules still submits the application, and your server checks still apply (missing documents,
+  training or quiz are refused). Nothing is approved by skipping.
+- Switch: `const onboardingSkip = true;` at the top of `onboarding.dart`. **Set it to false
+  before launch.** (Same for `planClockTest`.)
+
+**Backend needed:** nothing to build. Please confirm the server rejects an application with
+skipped stages, with a clear message, and remind us to turn the switch off before release.

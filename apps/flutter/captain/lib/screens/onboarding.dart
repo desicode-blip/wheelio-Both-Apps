@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:video_player/video_player.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
@@ -12,42 +13,44 @@ import 'parts.dart';
 
 // MARK: Testing shortcut (remove before launch)
 
-/// Testing only: skip the videos, quiz and the rest of onboarding, straight to "You're in".
-/// Turn off by setting this to false.
+/// Testing only: the small "Skip this step (testing)" link on each onboarding stage.
+/// It marks that one stage done on this phone and goes back to the steps, so testers can
+/// skip stage after stage. Real data: the server still checks every document, the
+/// training and the quiz when the application is sent. Turn off by setting this to false.
 const onboardingSkip = true;
 
 /// Testing only: "TEST +5 min" on Today's plan, to fast-forward the job timers.
 const planClockTest = true;
 
 class TestSkipButton extends StatelessWidget {
-  const TestSkipButton({super.key, this.top = 0});
+  const TestSkipButton({super.key, this.top = 0, this.step, this.dark = false});
   final double top;
+
+  /// The stage this screen is for; null on the steps list = the next stage to do.
+  final KycStep? step;
+  final bool dark;
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    if (!onboardingSkip || store.isLive) return const SizedBox.shrink();
+    if (!onboardingSkip) return const SizedBox.shrink();
     return Padding(
       padding: EdgeInsets.only(top: top),
       child: Center(
         child: Pressable(
+          label: 'Skip this step (testing)',
           onTap: () {
-            store.set(() {
-              for (final s in KycStep.values) {
-                store.steps[s] = KycState.done;
-              }
-              store.videosWatched = 3;
-            });
-            context.router.replace(const [R(N.live)]);
+            final router = context.router;
+            final s = step ?? store.nextStep;
+            if (s == null) {
+              router.go(N.rules);
+              return;
+            }
+            store.testSkipStep(s);
+            router.replace(const [R(N.steps)]);
           },
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: ShapeDecoration(color: const Color(0xFFFFF4E0), shape: StadiumBorder(side: BorderSide(color: const Color(0xFFB45309).withValues(alpha: 0.8)))),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              WIconView(WIcon.skip, size: 12, color: Color(0xFFB45309)),
-              SizedBox(width: 6),
-              WText('TEST ONLY · Skip onboarding', WType.label, size: 13, weight: semibold, color: Color(0xFFB45309)),
-            ]),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            child: WText('Skip this step (testing)', WType.label, size: 14, weight: semibold, color: dark ? Colors.white70 : WColor.secondary),
           ),
         ),
       ),
@@ -175,71 +178,171 @@ class StepsScreen extends StatelessWidget {
 }
 
 // MARK: W05 Aadhaar (W05b photo not clear)
+//
+// "Upload Aadhaar photo" asks camera or gallery, shows the photo while it is checked,
+// then either "Photo is clear" or W05b "Photo is not clear" with the reason.
+// The check is the on-phone quality check (light, size, covered). Reading the card and
+// matching it to the captain is P0 for Ajay (docs/CHANGES-2026-10-27-UI.md).
 
-class AadhaarScreen extends StatelessWidget {
+enum _AadhaarView { start, checking, clear, unclear }
+
+class AadhaarScreen extends StatefulWidget {
   const AadhaarScreen({super.key, this.unclear = false});
   final bool unclear;
+  @override
+  State<AadhaarScreen> createState() => _AadhaarScreenState();
+}
+
+class _AadhaarScreenState extends State<AadhaarScreen> {
+  late _AadhaarView view = widget.unclear ? _AadhaarView.unclear : _AadhaarView.start;
+  Uint8List? photo;
+  PhotoIssue? issue;
+
+  /// Camera or gallery, then the check.
+  void _choose() {
+    final store = context.store;
+    showWActions(
+      context,
+      title: store.t('Upload Aadhaar photo', 'आधार की फ़ोटो अपलोड करें', 'ఆధార్ ఫోటో అప్‌లోడ్ చేయండి'),
+      message: store.t('Front of the card, all 4 corners inside.', 'कार्ड का आगे का हिस्सा, चारों कोने अंदर।', 'కార్డు ముందు భాగం, నాలుగు మూలలు లోపల.'),
+      cancel: store.t('Cancel', 'रद्द करें', 'రద్దు చేయండి'),
+      actions: [
+        AlertAction(store.t('Take photo', 'फ़ोटो लें', 'ఫోటో తీయండి'), onTap: () => _pick(camera: true)),
+        AlertAction(store.t('Choose from gallery', 'गैलरी से चुनें', 'గ్యాలరీ నుండి ఎంచుకోండి'), onTap: () => _pick(camera: false)),
+      ],
+    );
+  }
+
+  Future<void> _pick({required bool camera}) async {
+    final store = context.store;
+    Uint8List? bytes;
+    try {
+      bytes = await Device.pickImage(camera: camera);
+    } catch (e) {
+      store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
+      return;
+    }
+    if (bytes == null || !mounted) return;
+    setState(() { photo = bytes; issue = null; view = _AadhaarView.checking; });
+    // Let the captain see the photo being checked, even when the check is quick.
+    final results = await Future.wait<Object?>([checkPhotoQuality(bytes), Future<void>.delayed(const Duration(milliseconds: 2200))]);
+    if (!mounted) return;
+    final found = results.first as PhotoIssue?;
+    if (found != null) {
+      setState(() { issue = found; view = _AadhaarView.unclear; });
+      return;
+    }
+    if (store.isLive) {
+      try {
+        await store.liveUploadKyc('aadhaar', bytes);
+      } catch (_) {
+        if (mounted) setState(() => view = _AadhaarView.start);
+        return;
+      }
+    }
+    if (mounted) setState(() => view = _AadhaarView.clear);
+  }
+
+  /// "Open DigiLocker". DigiLocker is P0: the live app photographs the card instead.
+  Future<void> _digiLocker() async {
+    final store = context.store, router = context.router;
+    if (store.isLive) {
+      await _pick(camera: true);
+      return;
+    }
+    store.complete(KycStep.aadhaar);
+    router.replace(const [R(N.steps)]);
+  }
+
+  void _continue() {
+    context.store.complete(KycStep.aadhaar);
+    context.router.replace(const [R(N.steps)]);
+  }
+
+  String _issueBadge(CaptainStore store) => switch (issue) {
+        PhotoIssue.tooDark => store.t('Too dark', 'बहुत अंधेरा', 'చాలా చీకటి'),
+        PhotoIssue.tooSmall => store.t('Too far', 'बहुत दूर', 'చాలా దూరం'),
+        PhotoIssue.obscured => store.t('Covered', 'ढका हुआ', 'కప్పబడింది'),
+        PhotoIssue.unreadable => store.t('Can’t read', 'पढ़ नहीं पाए', 'చదవలేకపోయాం'),
+        null => store.t('Blurry', 'धुंधली', 'అస్పష్టం'),
+      };
+
+  /// The photo (or the card placeholder) in the 178-high frame of W05b.
+  Widget _frame({required Color border, Widget? badge, bool dim = false, Widget? centre}) => Container(
+        height: 178,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: WColor.photo, borderRadius: BorderRadius.circular(12), border: Border.all(color: border, width: 2)),
+        child: Stack(fit: StackFit.expand, children: [
+          if (photo != null) Image.memory(photo!, fit: BoxFit.cover) else const Center(child: WIconView(WIcon.idCard, size: 40, color: WColor.secondary)),
+          if (dim) const ColoredBox(color: Color(0x8022282D)),
+          ?centre,
+          if (badge != null) Positioned(left: 12, top: 12, child: badge),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final store = context.store, router = context.router;
-    Future<void> done() async {
-      if (store.isLive) {
-        // DigiLocker is P0: the live app photographs the Aadhaar card instead.
-        final bytes = await Device.pickImage(camera: true).catchError((Object e) {
-          store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
-          return null;
-        });
-        if (bytes == null) return;
-        final issue=await checkPhotoQuality(bytes);
-        if(issue!=null){store.set(()=>store.toast=photoIssueMessage(issue));router.swapTop(const R(N.aadhaar,flag:true));return;}
-        try {
-          await store.liveUploadKyc('aadhaar', bytes);
-        } catch (_) {
-          return;
-        }
-      }
-      store.complete(KycStep.aadhaar);
-      router.replace(const [R(N.steps)]);
-    }
-
+    final store = context.store;
     Widget tip(WIcon icon, String text) => Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(children: [WIconView(icon, size: 17, color: WColor.primaryStrong), const SizedBox(width: 12), WText(text, WType.bodyStrong, color: WColor.heading, size: 16.5)]));
+    final footer = switch (view) {
+      _AadhaarView.start => WButton(store.t('Open DigiLocker', 'DigiLocker खोलें', 'DigiLocker తెరవండి'), size: ButtonSize.captain, onTap: _digiLocker),
+      _AadhaarView.checking => WButton(store.t('Checking…', 'जाँच रहे हैं…', 'చూస్తున్నాం…'), size: ButtonSize.captain, loading: true, enabled: false),
+      _AadhaarView.clear => WButton(store.t('Continue', 'जारी रखें', 'కొనసాగించండి'), size: ButtonSize.captain, onTap: _continue),
+      _AadhaarView.unclear => WButton(store.t('Take again', 'फिर से लें', 'మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: _choose),
+    };
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Aadhaar', 'आधार', 'ఆధార్')),
-      footer: WFooter(
-        child: unclear
-            ? WButton(store.t('Take again', 'फिर से लें', 'మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: done)
-            : WButton(store.t('Open DigiLocker', 'DigiLocker खोलें', 'DigiLocker తెరవండి'), size: ButtonSize.captain, onTap: done),
-      ),
+      footer: WFooter(child: footer),
       children: [
         const Padding(padding: EdgeInsets.only(top: 6), child: WSegmentBar(filled: 1, total: 5)),
-        if (unclear) ...[
-          WTitle(store.t('Photo is not clear', 'फ़ोटो साफ़ नहीं है', 'ఫోటో స్పష్టంగా లేదు'), top: 22, bottom: 16),
-          Container(
-            height: 178,
-            decoration: BoxDecoration(color: WColor.photo, borderRadius: BorderRadius.circular(12), border: Border.all(color: WColor.destructive, width: 2)),
-            child: Stack(children: [
-              const Center(child: WIconView(WIcon.idCard, size: 40, color: WColor.secondary)),
-              Positioned(left: 12, top: 12, child: WBadge(store.t('Blurry', 'धुंधली', 'అస్పష్టం'), tone: Tone.error, icon: WIcon.close)),
-            ]),
-          ),
-          const SizedBox(height: 22),
-          tip(WIcon.sun, store.t('Stand in light', 'रोशनी में खड़े हों', 'వెలుతురులో నిలబడండి')),
-          tip(WIcon.idCard, store.t('All 4 corners inside', 'चारों कोने अंदर हों', 'నాలుగు మూలలు లోపల ఉండాలి')),
-          tip(WIcon.close, store.t('No finger on the card', 'कार्ड पर उंगली न हो', 'కార్డుపై వేలు ఉండకూడదు')),
-        ] else ...[
-          const Padding(padding: EdgeInsets.only(top: 22), child: Align(alignment: Alignment.centerLeft, child: WIconView(WIcon.idCard, size: 26, color: WColor.primaryStrong))),
-          WTitle(store.t('Verify Aadhaar', 'आधार सत्यापित करें', 'ఆధార్ ధృవీకరించండి'), top: 8),
-          WBody(store.t('Fastest with DigiLocker. Takes 1 minute.', 'DigiLocker से सबसे जल्दी। 1 मिनट लगेगा।', 'DigiLocker తో వేగంగా. 1 నిమిషం పడుతుంది.'), top: 4, bottom: 18),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
-            child: Row(children: [const WIconView(WIcon.shield, size: 17), const SizedBox(width: 12), Expanded(child: WText(store.t('We only see your name, photo and age.', 'हम सिर्फ़ आपका नाम, फ़ोटो और उम्र देखते हैं।', 'మేము మీ పేరు, ఫోటో, వయసు మాత్రమే చూస్తాము.'), WType.caption, color: WColor.heading, size: 14.5))]),
-          ),
-          const SizedBox(height: 14),
-          Align(alignment: Alignment.centerLeft, child: WButton(store.t('Upload Aadhaar photo instead', 'आधार की फ़ोटो अपलोड करें', 'ఆధార్ ఫోటో అప్‌లోడ్ చేయండి'), kind: ButtonKind.text, fullWidth: false, onTap: () => router.push(const R(N.aadhaar, flag: true)))),
-        ],
+        ...switch (view) {
+          _AadhaarView.start => [
+              const Padding(padding: EdgeInsets.only(top: 22), child: Align(alignment: Alignment.centerLeft, child: WIconView(WIcon.idCard, size: 26, color: WColor.primaryStrong))),
+              WTitle(store.t('Verify Aadhaar', 'आधार सत्यापित करें', 'ఆధార్ ధృవీకరించండి'), top: 8),
+              WBody(store.t('Fastest with DigiLocker. Takes 1 minute.', 'DigiLocker से सबसे जल्दी। 1 मिनट लगेगा।', 'DigiLocker తో వేగంగా. 1 నిమిషం పడుతుంది.'), top: 4, bottom: 18),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
+                child: Row(children: [const WIconView(WIcon.shield, size: 17), const SizedBox(width: 12), Expanded(child: WText(store.t('We only see your name, photo and age.', 'हम सिर्फ़ आपका नाम, फ़ोटो और उम्र देखते हैं।', 'మేము మీ పేరు, ఫోటో, వయసు మాత్రమే చూస్తాము.'), WType.caption, color: WColor.heading, size: 14.5))]),
+              ),
+              const SizedBox(height: 14),
+              Align(alignment: Alignment.centerLeft, child: WButton(store.t('Upload Aadhaar photo', 'आधार की फ़ोटो अपलोड करें', 'ఆధార్ ఫోటో అప్‌లోడ్ చేయండి'), kind: ButtonKind.text, fullWidth: false, onTap: _choose)),
+            ],
+          _AadhaarView.checking => [
+              WTitle(store.t('Checking your photo', 'आपकी फ़ोटो जाँच रहे हैं', 'మీ ఫోటో చూస్తున్నాం'), top: 22),
+              WBody(store.t('Making sure the card is clear and readable. This takes a few seconds.', 'देख रहे हैं कि कार्ड साफ़ और पढ़ने लायक है। कुछ सेकंड लगेंगे।', 'కార్డు స్పష్టంగా, చదవగలిగేలా ఉందో చూస్తున్నాం. కొన్ని సెకన్లు పడుతుంది.'), top: 6, bottom: 16),
+              _frame(
+                border: WColor.primary,
+                dim: true,
+                centre: Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const WSpinner(color: WColor.white, size: 30),
+                  const SizedBox(height: 12),
+                  WText(store.t('Checking…', 'जाँच रहे हैं…', 'చూస్తున్నాం…'), WType.label, color: WColor.white, size: 15),
+                ])),
+              ),
+              const SizedBox(height: 22),
+              tip(WIcon.sun, store.t('Light', 'रोशनी', 'వెలుతురు')),
+              tip(WIcon.idCard, store.t('All 4 corners', 'चारों कोने', 'నాలుగు మూలలు')),
+              tip(WIcon.eye, store.t('Easy to read', 'पढ़ने लायक', 'చదవగలిగేలా')),
+            ],
+          _AadhaarView.clear => [
+              WTitle(store.t('Photo is clear', 'फ़ोटो साफ़ है', 'ఫోటో స్పష్టంగా ఉంది'), top: 22),
+              WBody(store.t('Your Aadhaar photo is added. Our team checks the details before you take jobs.', 'आपकी आधार फ़ोटो जुड़ गई। काम लेने से पहले हमारी टीम जानकारी जाँचेगी।', 'మీ ఆధార్ ఫోటో జత అయింది. మీరు పనులు తీసుకునే ముందు మా టీమ్ వివరాలు చూస్తుంది.'), top: 6, bottom: 16),
+              _frame(border: WColor.success, badge: WBadge(store.t('Clear', 'साफ़', 'స్పష్టం'), tone: Tone.ok, icon: WIcon.check)),
+              const SizedBox(height: 14),
+              Align(alignment: Alignment.centerLeft, child: WButton(store.t('Use a different photo', 'दूसरी फ़ोटो लें', 'వేరే ఫోటో వాడండి'), kind: ButtonKind.text, fullWidth: false, onTap: _choose)),
+            ],
+          _AadhaarView.unclear => [
+              WTitle(store.t('Photo is not clear', 'फ़ोटो साफ़ नहीं है', 'ఫోటో స్పష్టంగా లేదు'), top: 22, bottom: 16),
+              _frame(border: WColor.destructive, badge: WBadge(_issueBadge(store), tone: Tone.error, icon: WIcon.close)),
+              const SizedBox(height: 22),
+              tip(WIcon.sun, store.t('Stand in light', 'रोशनी में खड़े हों', 'వెలుతురులో నిలబడండి')),
+              tip(WIcon.idCard, store.t('All 4 corners inside', 'चारों कोने अंदर हों', 'నాలుగు మూలలు లోపల ఉండాలి')),
+              tip(WIcon.close, store.t('No finger on the card', 'कार्ड पर उंगली न हो', 'కార్డుపై వేలు ఉండకూడదు')),
+            ],
+        },
+        if (view != _AadhaarView.checking) const TestSkipButton(top: 10, step: KycStep.aadhaar),
       ],
     );
   }
@@ -296,6 +399,7 @@ class SelfieScreen extends StatelessWidget {
               ),
             ),
           ),
+          const TestSkipButton(step: KycStep.photo, dark: true),
         ]),
       ),
     );
@@ -374,6 +478,7 @@ class _BankScreenState extends State<BankScreen> {
             ),
         ] else
           WTextField(label: store.t('Account number', 'खाता नंबर', 'ఖాతా నంబర్'), value: account, placeholder: '0000 0000 0000', keyboard: TextInputType.number, large: true, onChanged: (v) => setState(() => account = v)),
+        const TestSkipButton(top: 18, step: KycStep.bank),
       ],
     );
   }
@@ -434,7 +539,7 @@ class TrainingScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
-        const TestSkipButton(top: 8),
+        const TestSkipButton(top: 8, step: KycStep.training),
       ],
     );
   }
@@ -552,7 +657,7 @@ class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
             point(WIcon.wipe, store.t('Wet cloth first, then dry', 'पहले गीला कपड़ा, फिर सूखा', 'ముందు తడి గుడ్డ, తర్వాత పొడి')),
             point(WIcon.close, store.t('Never wipe a dry, dusty bike', 'सूखी, धूल भरी बाइक कभी न पोंछें', 'పొడి, దుమ్ము బైక్‌ను ఎప్పుడూ తుడవకండి')),
             Padding(padding: const EdgeInsets.only(top: 18), child: WText(store.t('Must watch till the end. You can’t skip.', 'आख़िर तक देखना ज़रूरी है। छोड़ नहीं सकते।', 'చివరి వరకు చూడాలి. దాటవేయలేరు.'), WType.caption)),
-            const TestSkipButton(top: 14),
+            const TestSkipButton(top: 14, step: KycStep.training),
           ]),
         ),
       ],
@@ -739,7 +844,7 @@ class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
               WText(store.t('Or tap and say your answer', 'या टैप करके जवाब बोलें', 'లేదా నొక్కి జవాబు చెప్పండి'), WType.caption),
             ]),
           ),
-        const TestSkipButton(top: 20),
+        const TestSkipButton(top: 20, step: KycStep.quiz),
       ],
     );
   }

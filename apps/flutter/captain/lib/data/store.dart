@@ -432,6 +432,7 @@ class CaptainStore extends ChangeNotifier {
   }
 
   void _logOut() => set(() {
+        testSkipped.clear();
         signedUp = false;
         registered = false;
         exploring = false;
@@ -523,6 +524,15 @@ class CaptainStore extends ChangeNotifier {
   }
 
   void complete(KycStep s) => set(() => steps[s] = KycState.done);
+
+  /// TESTING ONLY (remove before launch): stages skipped with "Skip this step (testing)".
+  /// Kept on this phone; with real data the server still checks everything on submission.
+  final Set<KycStep> testSkipped = {};
+  void testSkipStep(KycStep s) => set(() {
+        testSkipped.add(s);
+        steps[s] = KycState.done;
+        if (s == KycStep.training && videosWatched < 3) videosWatched = 3;
+      });
 
   void resetJob() {
     beforeDone = {};
@@ -1055,6 +1065,9 @@ class CaptainStore extends ChangeNotifier {
       if (liveCaptain['trainingVersion']==liveConfig['training']?['version'] && liveCaptain['quizPassedAt'] != null) KycStep.quiz: KycState.done,
     };
     if (kycStatus == 'changesRequested') steps[KycStep.aadhaar] = KycState.problem;
+    for (final s in testSkipped) {
+      steps[s] = KycState.done;
+    }
   }
 
   WashType _wash(dynamic w) => switch (w) { 'dryDusting' => WashType.dryDusting, 'wetOutsideDryInside' => WashType.wetOutsideDryInside, _ => WashType.wetOutside };

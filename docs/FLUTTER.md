@@ -47,6 +47,8 @@ Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No
 Aman's UI changes on staging `752e222`, with no backend changes. The running list for Ajay, with what each item needs connected, is [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md).
 
 - Captain Me tab: **Delete account** under Log out opens the C53 dialog, now shared as `showDeleteAccountDialog` in `washkrew_ui` (captain-size buttons, Hindi/Telugu text). The sample app deletes and logs out; real data shows "This isn’t available yet" until Ajay connects it. The Customer profile already had C53 and is unchanged.
+- Captain W05 Aadhaar: "Upload Aadhaar photo" (no "instead") opens a camera/gallery sheet, then shows "Checking your photo" on the real image (at least ~2 s), then "Photo is clear" (Continue) or W05b with the real photo and reason. Clear or not comes from the on-phone `checkPhotoQuality`; real data still uploads with `liveUploadKyc`.
+- Testing: the orange "TEST ONLY · Skip onboarding" pill became a small "Skip this step (testing)" text link on every onboarding stage. It skips one stage at a time, in the sample and real-data apps (real data: kept on the phone in `testSkipped`, not sent to the server). Turn `onboardingSkip` off before launch.
 
 ## 25 October 2026: renamed to WashKrew, new logo
 
