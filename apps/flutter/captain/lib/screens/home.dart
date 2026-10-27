@@ -137,6 +137,8 @@ class _CaptainHomeState extends State<CaptainHome> {
         return;
       }
       store.set(() => store.online = on);
+      // Testing approval (phone only): the server would refuse, so don't ask it.
+      if (store.testOnlyOnline) return;
       store.liveSetOnline(on).catchError((Object _) => store.set(() => store.online = !on));
     } else {
       store.set(() => store.online = on);

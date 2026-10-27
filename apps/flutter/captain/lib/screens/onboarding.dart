@@ -974,6 +974,13 @@ class _ReviewNotice extends StatefulWidget {
 
 class _ReviewNoticeState extends State<_ReviewNotice> {
   Timer? _tick;
+  bool _closing = false;
+
+  void _close() {
+    if (_closing || !mounted) return;
+    _closing = true;
+    Navigator.of(context).pop();
+  }
 
   @override
   void initState() {
@@ -986,7 +993,7 @@ class _ReviewNoticeState extends State<_ReviewNotice> {
 
   /// Approved while the pop-up is open: close it (Home goes online by itself).
   void _approved() {
-    if (mounted && widget.store.signedUp) Navigator.of(context).pop();
+    if (widget.store.signedUp) _close();
   }
 
   @override
@@ -1037,7 +1044,19 @@ class _ReviewNoticeState extends State<_ReviewNotice> {
             else
               WButton(store.t('Call our team', 'हमारी टीम को कॉल करें', 'మా టీమ్‌కి కాల్ చేయండి'), icon: WIcon.phone, size: ButtonSize.captain, onTap: () => Support.call()),
             const SizedBox(height: 12),
-            WButton(store.t('OK', 'ठीक है', 'సరే'), kind: ButtonKind.text, size: ButtonSize.captain, onTap: () => Navigator.of(context).pop()),
+            WButton(store.t('OK', 'ठीक है', 'సరే'), kind: ButtonKind.text, size: ButtonSize.captain, onTap: _close),
+            // TESTING ONLY (remove with onboardingSkip): skip the 30 minutes and go online.
+            if (onboardingSkip)
+              Center(
+                child: Pressable(
+                  label: 'Skip 30 min (testing)',
+                  onTap: store.testSkipReview,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                    child: WText('Skip 30 min (testing)', WType.label, size: 14, weight: semibold, color: WColor.secondary),
+                  ),
+                ),
+              ),
           ]),
         ),
       ),

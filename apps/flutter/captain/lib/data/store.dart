@@ -450,7 +450,27 @@ class CaptainStore extends ChangeNotifier {
     awaitingApproval = false;
     if (online) return;
     set(() => online = true);
-    if (isLive) liveSetOnline(true).catchError((Object _) => set(() => online = false));
+    if (isLive && !testOnlyOnline) liveSetOnline(true).catchError((Object _) => set(() => online = false));
+  }
+
+  /// TESTING ONLY (remove with onboardingSkip): "Skip 30 min (testing)" on the under-review
+  /// pop-up treats the profile as approved and goes online, on this phone only. The server
+  /// is not told: it still sees an unapproved, offline captain, so no real jobs arrive.
+  bool testApproved = false;
+
+  /// Online on this phone only (test approval without a server approval).
+  bool get testOnlyOnline => testApproved && !(isLive && liveCaptain['approved'] == true);
+
+  void testSkipReview() {
+    set(() {
+      testApproved = true;
+      if (!isLive) {
+        finishKyc();
+      } else {
+        signedUp = true;
+      }
+    });
+    goOnlineAfterApproval();
   }
 
   void finishKyc() => set(() {
@@ -473,6 +493,7 @@ class CaptainStore extends ChangeNotifier {
 
   void _logOut() => set(() {
         _reviewStartedLocal = null;
+        testApproved = false;
         awaitingApproval = false;
         reviewNoticePending = false;
         testSkipped.clear();
@@ -957,7 +978,7 @@ class CaptainStore extends ChangeNotifier {
     }));
     _heartbeat = Timer.periodic(const Duration(seconds: 60), (_) {
       if(liveUid.isNotEmpty) { _rebuildQueue(); _applyEarnings(); changed(); }
-      if (isLive && online && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
+      if (isLive && online && !testOnlyOnline && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
     });
   }
 
@@ -1022,11 +1043,11 @@ class CaptainStore extends ChangeNotifier {
         phone = (d['phone'] as String? ?? '').replaceFirst('+91', '');
         upi = d['upi'] as String? ?? upi;
         rating = (d['ratingCount'] as num? ?? 0) > 0 ? (d['rating'] as num).toDouble() : 0;
-        online = d['online'] == true;
+        online = testOnlyOnline ? online : d['online'] == true;
         registered = true;
         exploring = true;
         final wasApproved = signedUp;
-        signedUp = d['approved'] == true;
+        signedUp = d['approved'] == true || testApproved;
         // Approved while waiting after 'I agree': go online by itself.
         if (!wasApproved && signedUp && awaitingApproval) Future.microtask(goOnlineAfterApproval);
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();

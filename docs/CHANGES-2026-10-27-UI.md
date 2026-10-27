@@ -188,3 +188,23 @@ screen with the day 1 / day 2 / day 3 job counts (W14 "You’re in"), then Home.
 5. **Go online on approval.** The app calls `setCaptainOnline true` itself right after approval.
    Make sure an approved captain with no work-time/area preference set can go online, or send a
    clear error message.
+
+---
+
+## 6. "Skip 30 min (testing)" on the under-review pop-up (TESTING ONLY)
+
+**What Aman asked:** a testing-only skip for the 30-minute timer that goes straight to live (online).
+
+**What changed (Captain)**
+- The "Your profile is under review" pop-up has a small grey **Skip 30 min (testing)** link under OK.
+- Tapping it treats the profile as approved **on this phone only** (`CaptainStore.testSkipReview`,
+  `testApproved`). It closes the pop-up and puts the captain on Home, **Online**.
+- Real data: the server is **not** told. `setCaptainOnline` and the 60-second online heartbeat are
+  not sent while only test-approved (`testOnlyOnline`), because the server would refuse an
+  unapproved captain. The server still sees him unapproved and offline, so **no real job offers
+  arrive**. Cleared on log out.
+- Sample app: approves and goes online (sample jobs ring as usual).
+- Hidden when `onboardingSkip` is false. **Turn it off before launch.**
+
+**Backend needed:** nothing to build. For real end-to-end job tests, approve the test captain on the
+server (or build the automatic review in item 5).
