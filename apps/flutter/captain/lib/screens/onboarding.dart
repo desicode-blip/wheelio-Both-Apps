@@ -23,8 +23,11 @@ const onboardingSkip = true;
 const planClockTest = true;
 
 class TestSkipButton extends StatelessWidget {
-  const TestSkipButton({super.key, this.top = 0, this.step, this.dark = false});
+  const TestSkipButton({super.key, this.top = 0, this.step, this.dark = false, this.next});
   final double top;
+
+  /// Go straight to this screen instead of skipping a KYC stage (used on "Get ready").
+  final N? next;
 
   /// The stage this screen is for; null on the steps list = the next stage to do.
   final KycStep? step;
@@ -40,6 +43,10 @@ class TestSkipButton extends StatelessWidget {
           label: 'Skip this step (testing)',
           onTap: () {
             final router = context.router;
+            if (next != null) {
+              router.replace([R(next!)]);
+              return;
+            }
             final s = step ?? store.nextStep;
             if (s == null) {
               router.go(N.rules);
@@ -907,6 +914,19 @@ class RulesScreen extends StatelessWidget {
         final router = context.router;
         // Live: agreeing sends the application to the operations team.
         if (store.isLive) {
+          // TESTING (remove with onboardingSkip): skipped stages were never sent to the server,
+          // so it would refuse the application. Don't send it; move on so the flow can be tested.
+          if (store.testSkipped.isNotEmpty) {
+            store.set(() => store.toast = 'Testing: you skipped steps, so the application was not sent.');
+            router.go(N.underReview);
+            return;
+          }
+          // The server needs both photos; say so instead of its generic error.
+          if (!store.kycUploaded.contains('aadhaar') || !store.kycUploaded.contains('selfie')) {
+            store.set(() => store.toast = store.t('Upload your Aadhaar and selfie first.', 'पहले आधार और सेल्फ़ी अपलोड करें।', 'ముందు ఆధార్, సెల్ఫీ అప్‌లోడ్ చేయండి.'));
+            router.replace(const [R(N.steps)]);
+            return;
+          }
           try {
             await store.liveSubmitApplication();
           } catch (_) {
@@ -957,6 +977,7 @@ class UnderReviewScreen extends StatelessWidget {
         // Live: approval by the operations team opens "You're in".
         if (store.isLive && store.signedUp) OnAppear(onAppear: () => context.router.replace(const [R(N.live)]), child: const SizedBox.shrink()),
         const Spacer(),
+        const TestSkipButton(next: N.live),
       ],
     );
   }

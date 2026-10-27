@@ -110,3 +110,31 @@ and internal use.
 
 **Backend needed:** nothing to build. Please confirm the server rejects an application with
 skipped stages, with a clear message, and remind us to turn the switch off before release.
+
+---
+
+## 4. Captain "I agree" (Rules) failed with "INTERNAL"
+
+**What Aman saw:** after skipping stages with the testing link, tapping **I agree** on Rules
+showed "INTERNAL" and did not move on.
+
+**Cause:** "I agree" calls `submitCaptainApplication`. The skipped stages had no Aadhaar/selfie
+photo in Storage. In `service.mjs`, `this.evidence.metadata('kyc/{uid}/aadhaar.jpg')` uses
+Storage `getMetadata()`, which **throws a 404 when the file is missing** instead of returning
+null. That is not a `ServiceError`, so the callable returns a generic internal error. The intended
+message ("Upload your identity and selfie.") never reaches the app.
+
+**What changed in the app (Captain, `RulesScreen` in `onboarding.dart`; backend unchanged)**
+- Testing: if any stage was skipped with "Skip this step (testing)", **I agree** does not send
+  the application. It shows "Testing: you skipped steps, so the application was not sent." and
+  goes to "Get ready" (W13), so the rest of the flow can be tested.
+- Real use: if the Aadhaar or selfie photo is not uploaded, the app says "Upload your Aadhaar and
+  selfie first." and goes back to the steps list, instead of calling the server.
+- "Get ready" (W13) also has the **Skip this step (testing)** link, which goes to "You’re in" (W14).
+  Real data: this is on the phone only. The captain is not approved and still cannot go online.
+
+**Backend needed (P0)**
+1. **Fix the missing-file crash** in `submitCaptainApplication`: catch the 404 from
+   `getMetadata()` (or check `file.exists()` first) and `fail('failed-precondition', 'Upload your
+   identity and selfie.')`. Other places that call `evidence.metadata` probably have the same issue.
+2. Please make sure every refusal reaches the app as a clear message, never "INTERNAL".
