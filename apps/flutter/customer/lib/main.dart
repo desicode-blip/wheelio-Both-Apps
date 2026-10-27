@@ -1,6 +1,7 @@
 // WashKrew Customer app. One Flutter codebase: web first, then iOS, then Android.
 // Ported from apps/ios/Customer. See docs/FLUTTER.md.
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
@@ -27,14 +28,17 @@ class CustomerApp extends StatefulWidget {
 class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
   final store = AppStore(live: WashKrewRuntime.backend);
   final router = AppRouter();
+  Timer? _freshnessTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
+    if(store.isLive)_freshnessTimer=Timer.periodic(const Duration(seconds:30),(_){if(mounted&&Device.appIsActive)store.changed();});
     store.live?.listenPush('customer',(id){if(mounted){store.set(()=>store.currentOrderId=id);router.push(R(N.live,id:id));}});
     // On a laptop there's no phone to call from: say so instead of dialling.
+    Support.onUnavailable=(message)=>store.set(()=>store.toast=message);
     Support.onCallUnavailable = (n) => store.set(() => store.toast = 'Calls work on your phone: ${Fmt.phone(n.replaceFirst('+91', ''))}');
   }
 
@@ -46,6 +50,7 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _freshnessTimer?.cancel();
     store.dispose();
     router.dispose();
     super.dispose();

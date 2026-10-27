@@ -182,7 +182,7 @@ class _CaptainHomeState extends State<CaptainHome> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final limitReached = store.jobsToday >= store.jobLimit;
+    final limitReached = store.jobLimit>0 && store.jobsToday >= store.jobLimit;
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
     _scheduleRing(store.online && isTopScreen(context) && router.tab == 0 && !limitReached);
     final pad = MediaQuery.paddingOf(context);
@@ -269,7 +269,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                _stat(WIcon.check, Tone.ok, '${store.jobsToday} ${store.t('of', '/', '/')} ${store.jobLimit}', store.t('Jobs done', 'काम पूरे', 'పూర్తైన పనులు')),
+                                _stat(WIcon.check, Tone.ok, store.isLive&&store.jobLimit==0?'${store.jobsToday}':'${store.jobsToday} ${store.t('of', '/', '/')} ${store.jobLimit}', store.t('Jobs done', 'काम पूरे', 'పూర్తైన పనులు')),
                                 const SizedBox(width: 10),
                                 _stat(WIcon.star, Tone.info, store.rating.toStringAsFixed(1), store.t('Rating', 'रेटिंग', 'రేటింగ్')),
                               ],
@@ -288,7 +288,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                             children: [
                               _miniStat(WIcon.rupee, Fmt.rupees(store.earnedToday), store.t('Today', 'आज', 'ఈరోజు')),
                               Container(width: 1, height: 30, color: WColor.divider),
-                              _miniStat(WIcon.check, '${store.jobsToday}/${store.jobLimit}', store.t('Jobs', 'काम', 'పనులు')),
+                              _miniStat(WIcon.check, store.isLive&&store.jobLimit==0?'${store.jobsToday}':'${store.jobsToday}/${store.jobLimit}', store.t('Jobs', 'काम', 'పనులు')),
                               Container(width: 1, height: 30, color: WColor.divider),
                               _miniStat(WIcon.star, store.rating.toStringAsFixed(1), store.t('Rating', 'रेटिंग', 'రేటింగ్')),
                             ],

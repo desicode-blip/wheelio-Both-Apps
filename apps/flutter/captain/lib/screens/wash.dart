@@ -160,11 +160,15 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
       footer: WFooter(
         child: WButton(store.t('Open camera', 'कैमरा खोलें', 'కెమెరా తెరవండి'), icon: WIcon.camera, size: ButtonSize.captain, loading: checking, onTap: () async {
           setState(() => checking = true);
-          // Live: the selfie is taken; matching it to the KYC photo is P0.
+          // Compare the private capture to the approved Captain photo on the server.
           if (store.isLive) {
             try {
               final image=await Device.pickImage(camera:true,front:true);
               if(image==null){if(mounted)setState(()=>checking=false);return;}
+              final issue=await checkPhotoQuality(image);
+              if(issue!=null)throw MediaAccessException(photoIssueMessage(issue));
+              final result=await store.live!.verifyCaptainIdentity(store.current.id,image);
+              if(result['verified']!=true){store.set(()=>store.toast=result['message'] as String? ?? 'This check needs an operations review.');if(mounted)setState(()=>checking=false);return;}
             }catch(e){store.set(()=>store.toast=backendError(e));if(mounted)setState(()=>checking=false);return;}
           } else {
             await sleepMs(1200);
@@ -221,9 +225,11 @@ class JobPhotosScreen extends StatelessWidget {
       footer: WFooter(
         child: after
             ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () async {
-                // Live: finishing sends the photos to the owner (the AI photo check is P0).
+                // Real, advisory photo review; the owner still decides approval.
                 if (store.isLive) {
                   try {
+                    final issues=await store.liveCheckPhotos();
+                    if(issues.isNotEmpty){router.go(N.aiCheck);return;}
                     await store.liveProgress('finish');
                   } catch (_) {
                     return;
@@ -267,12 +273,21 @@ class JobPhotosScreen extends StatelessWidget {
 
 // MARK: W32 Camera (in-app, time and location stamped)
 
-class JobCameraScreen extends StatelessWidget {
+class JobCameraScreen extends StatefulWidget {
   const JobCameraScreen({super.key, required this.after, required this.side});
   final bool after;
   final int side;
+  @override State<JobCameraScreen> createState()=>_JobCameraScreenState();
+}
+class _JobCameraScreenState extends State<JobCameraScreen>{
+  bool _busy=false;
+  bool get after=>widget.after;
+  int get side=>widget.side;
 
   Future<void> _shoot(BuildContext context) async {
+    if(_busy)return;
+    setState(()=>_busy=true);
+    try{
     final store = context.store, router = context.router;
     if (store.isLive) {
       // The phone camera takes the photo; it is uploaded as this side's evidence.
@@ -284,6 +299,13 @@ class JobCameraScreen extends StatelessWidget {
         return;
       }
       if (bytes == null) return;
+      final issue=await checkPhotoQuality(bytes);
+      if(issue!=null){
+        if(!context.mounted)return;
+        if(issue==PhotoIssue.tooDark){store.shots['rejected']=bytes;router.swapTop(R(N.photoDark,flag:after,index:side));}
+        else{store.set(()=>store.toast=photoIssueMessage(issue));}
+        return;
+      }
       try {
         await store.liveEvidence(after: after, side: side, bytes: bytes);
       } catch (_) {
@@ -292,9 +314,9 @@ class JobCameraScreen extends StatelessWidget {
       store.shots['${after ? 'after' : 'before'}_$side'] = bytes;
     }
     if (!context.mounted) return;
-    if (store.darkPhoto && side == 2 && !after) {
+    if (!store.isLive && store.darkPhoto && side == 2 && !after) {
       store.set(() => store.darkPhoto = false);
-      router.swapTop(const R(N.photoDark));
+      router.swapTop(const R(N.photoDark,index:2));
       return;
     }
     store.set(() => (after ? store.afterDone : store.beforeDone).add(side));
@@ -305,6 +327,7 @@ class JobCameraScreen extends StatelessWidget {
     } else {
       router.pop();
     }
+    }finally{if(mounted)setState(()=>_busy=false);}
   }
 
   @override
@@ -349,6 +372,7 @@ class JobCameraScreen extends StatelessWidget {
               const Spacer(),
               Pressable(
                 label: 'Take photo',
+                enabled:!_busy,
                 onTap: () => _shoot(context),
                 child: Container(
                   width: 84,
@@ -371,21 +395,23 @@ class JobCameraScreen extends StatelessWidget {
 // MARK: W33 Photo too dark
 
 class PhotoDarkScreen extends StatelessWidget {
-  const PhotoDarkScreen({super.key});
+  const PhotoDarkScreen({super.key,this.side=2,this.after=false});
+  final int side;
+  final bool after;
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     return WScreen(
       gutter: WSpace.gutterCaptain,
-      header: WHeader(title: sideName(store, 2) + store.t(' side', '', '')),
-      footer: WFooter(child: WButton(store.t('Take again', 'फिर से लें', 'మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: () => router.swapTop(const R(N.camera, index: 2)))),
+      header: WHeader(title: sideName(store, side) + store.t(' side', '', '')),
+      footer: WFooter(child: WButton(store.t('Take again', 'फिर से लें', 'మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: () => router.swapTop(R(N.camera, flag:after,index:side)))),
       children: [
         const SizedBox(height: 8),
         Container(
           height: 216,
           decoration: BoxDecoration(color: const Color(0xFF2A3646), borderRadius: BorderRadius.circular(14), border: Border.all(color: WColor.destructive, width: 3)),
           child: Stack(children: [
-            const Center(child: WIconView(WIcon.car, size: 44, color: Colors.white38)),
+            if(store.isLive&&store.shots['rejected']!=null)Positioned.fill(child:Image.memory(store.shots['rejected']!,fit:BoxFit.contain))else const Center(child: WIconView(WIcon.car, size: 44, color: Colors.white38)),
             Positioned(top: 12, left: 12, child: WBadge(store.t('Too dark', 'बहुत अंधेरा', 'చాలా చీకటి'), tone: Tone.error, icon: WIcon.sun)),
           ]),
         ),
@@ -500,17 +526,17 @@ class AiCheckScreen extends StatelessWidget {
         color: WColor.white,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           WFooter(
-            child: WButton(store.t('Wipe and retake', 'पोंछें और फिर लें', 'తుడిచి మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: () {
+            child: WButton(store.isLive?'Retake photo':store.t('Wipe and retake', 'पोंछें और फिर लें', 'తుడిచి మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: () {
               store.set(() {
                 store.aiFlag = false;
-                store.afterDone.remove(2);
+                store.afterDone.remove(store.isLive?store.photoReviewSide:2);
               });
-              router.swapTop(const R(N.camera, flag: true, index: 2));
+              if(store.isLive){router.replace([const R(N.goToVehicle),const R(N.afterPhotos),R(N.camera,flag:true,index:store.photoReviewSide)]);}else{router.swapTop(const R(N.camera, flag: true, index: 2));}
             }),
           ),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: WLink(store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap: () => router.swapTop(const R(N.uploading))),
+            child: WLink(store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap: () async {if(store.isLive){try{await store.liveProgress('finish',acknowledgePhotoIssues:true);}catch(_){return;}}router.swapTop(const R(N.uploading));}),
           ),
         ]),
       ),
@@ -520,17 +546,17 @@ class AiCheckScreen extends StatelessWidget {
           height: 198,
           decoration: BoxDecoration(color: const Color(0xFF33445C), borderRadius: BorderRadius.circular(16)),
           child: Stack(children: [
-            Center(
+            if(store.isLive&&store.shots['after_${store.photoReviewSide}']!=null)Positioned.fill(child:Image.memory(store.shots['after_${store.photoReviewSide}']!,fit:BoxFit.contain))else Center(
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const WIconView(WIcon.car, size: 46, color: Colors.white54),
                 Transform.translate(offset: const Offset(-6, 0), child: Container(width: 62, height: 62, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: WColor.star, width: 3)))),
               ]),
             ),
-            Positioned(top: 12, left: 12, child: WBadge(store.t('Left mirror', 'बायाँ शीशा', 'ఎడమ అద్దం'), tone: Tone.wait, icon: WIcon.eye)),
+            Positioned(top: 12, left: 12, child: WBadge(store.isLive?sideName(store,store.photoReviewSide):store.t('Left mirror', 'बायाँ शीशा', 'ఎడమ అద్దం'), tone: Tone.wait, icon: WIcon.eye)),
           ]),
         ),
-        WTitle(store.t('Left mirror looks dusty', 'बायाँ शीशा धूल भरा लग रहा है', 'ఎడమ అద్దం దుమ్ముగా ఉంది'), top: 22),
-        WBody(store.t('Wipe it once more and take the left photo again.', 'एक बार और पोंछें और बाईं फ़ोटो फिर से लें।', 'మళ్ళీ ఒకసారి తుడిచి ఎడమ ఫోటో మళ్ళీ తీయండి.'), top: 6),
+        WTitle(store.isLive?'Review this photo':store.t('Left mirror looks dusty', 'बायाँ शीशा धूल भरा लग रहा है', 'ఎడమ అద్దం దుమ్ముగా ఉంది'), top: 22),
+        WBody(store.isLive?(store.photoReviewIssues.firstOrNull?['reason'] as String? ?? 'Review the photos before sending.'):store.t('Wipe it once more and take the left photo again.', 'एक बार और पोंछें और बाईं फ़ोटो फिर से लें।', 'మళ్ళీ ఒకసారి తుడిచి ఎడమ ఫోటో మళ్ళీ తీయండి.'), top: 6),
       ],
     );
   }

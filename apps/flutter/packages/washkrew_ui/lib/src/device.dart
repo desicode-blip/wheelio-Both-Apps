@@ -25,16 +25,27 @@ class MediaAccessException implements Exception {
   String toString() => message;
 }
 
-/// Placeholder until the real support number exists.
+/// Published operations configuration, shared by the existing support controls.
 class Support {
-  static const phone = '+910000000000';
-  static const hours =
-      '7 AM – 9 PM, every day. Calls in English, Hindi or Telugu.';
+  static String phone='',hours='Support hours will be confirmed.',email='',policiesUrl='';
+  static void configure(Map<String,dynamic> config){
+    final support=config['support'] as Map? ?? {},legal=config['legal'] as Map? ?? {};
+    phone=support['phone'] as String? ?? '';hours=support['hours'] as String? ?? 'Support hours will be confirmed.';
+    email=support['email'] as String? ?? '';policiesUrl=legal['termsPrivacyUrl'] as String? ?? '';
+  }
+  static void Function(String message)? onUnavailable;
+  static Future<void> openPolicies() async {
+    final url=Uri.tryParse(policiesUrl);
+    if(url?.scheme!='https'||url!.host.isEmpty){onUnavailable?.call('Terms and privacy are awaiting publication.');return;}
+    if(!await launchUrl(url,mode:LaunchMode.externalApplication))onUnavailable?.call('The policies could not open. Try again.');
+  }
 
   /// Shown instead of dialling on a laptop (no phone to call from).
   static void Function(String number)? onCallUnavailable;
 
-  static Future<void> call([String number = phone]) async {
+  static Future<void> call([String? target]) async {
+    final number=target??phone;
+    if(!RegExp(r'^\+[1-9]\d{7,14}$').hasMatch(number)){onUnavailable?.call('The support number is awaiting publication. Send a help request in the app.');return;}
     if (kIsWeb && !impl.isTouchDevice()) {
       onCallUnavailable?.call(number);
       return;

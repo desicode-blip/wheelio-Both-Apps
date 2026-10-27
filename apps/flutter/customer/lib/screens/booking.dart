@@ -340,7 +340,7 @@ class PhotosScreen extends StatelessWidget {
                 onTap: () => showWAlert(
                   context,
                   title: 'Skip the photos?',
-                  message: 'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
+                  message: store.isLive?'Your photos help the Captain identify your vehicle. The Captain still takes the official wash photos.':'Without your photos from before the wash, we won’t be able to take up any claim if something goes wrong later.',
                   actions: [
                     const AlertAction('Take photos', cancel: true),
                     AlertAction('Skip anyway', onTap: goNext),
@@ -651,7 +651,7 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  late bool off = widget.forceOff;
+  late bool off = widget.forceOff || (context.store.isLive&&context.store.savedPlaces.isEmpty&&context.store.orders.isEmpty);
   late Place? place = context.store.isLive ? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
 
   @override
@@ -695,7 +695,7 @@ class _LocationScreenState extends State<LocationScreen> {
         child: WButton(
           'Yes, it’s here',
           onTap: () {
-            store.set(() => store.draft.place = Place(place!.society, tower: place.tower, floor:place.floor, slot:place.slot, addressKey: place.addressKey));
+            store.set(() => store.draft.place = place!.copy());
             router.go(N.floorSlot);
           },
         ),
@@ -705,7 +705,11 @@ class _LocationScreenState extends State<LocationScreen> {
           padding: EdgeInsets.symmetric(horizontal: WSpace.gutter),
           child: WTitleBlock('Is your vehicle here?', subtitle: 'Drag the map to move the pin.'),
         ),
-        const SizedBox(height: 330, child: MapPlaceholder()),
+        SizedBox(height:330,child:store.isLive?LivePlaceMap(
+          key:ValueKey(place!.society.id),config:Map<String,dynamic>.from(store.liveConfig['maps'] as Map? ?? {}),
+          latitude:store.mapCenter(place).$1,longitude:store.mapCenter(place).$2,
+          onMoved:(latitude,longitude){place.latitude=latitude;place.longitude=longitude;},
+        ):const MapPlaceholder()),
         Padding(
           padding: const EdgeInsets.fromLTRB(WSpace.gutter, 18, WSpace.gutter, 0),
           child: WCard(

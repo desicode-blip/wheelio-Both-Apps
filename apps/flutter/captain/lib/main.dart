@@ -40,6 +40,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       else{router.home();router.tab=1;}
     });
     // On a laptop there's no phone to call from: say so instead of dialling.
+    Support.onUnavailable=(message)=>store.set(()=>store.toast=message);
     Support.onCallUnavailable = (n) => store.set(
       () => store.toast = store.t(
         'Calls work on your phone: ${Fmt.phone(n.replaceFirst('+91', ''))}',
@@ -201,7 +202,7 @@ Widget _destination(R r) => switch (r.n) {
   N.faceCheck => const FaceCheckScreen(),
   N.beforePhotos => const JobPhotosScreen(),
   N.camera => JobCameraScreen(after: r.flag, side: r.index),
-  N.photoDark => const PhotoDarkScreen(),
+  N.photoDark => PhotoDarkScreen(side:r.index,after:r.flag),
   N.washing => const WashingScreen(),
   N.afterPhotos => const JobPhotosScreen(after: true),
   N.aiCheck => const AiCheckScreen(),

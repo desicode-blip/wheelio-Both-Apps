@@ -1,5 +1,7 @@
 # Functionality handoff — 26 October 2026
 
+The subsequent [27 October software handoff](READINESS-2026-10-27.md) records Maps/Routes, training/quiz/speech, actual private image checks, final verification and the current Mac/content/provider gates. Use it with this baseline record.
+
 Baseline: staging `c1ad2b2`, including the Customer/Captain design restorations and Mac-resolved native changes. The remote was fetched again on 26 October with no newer commits. All application work is in Flutter. Layout, palette, typography, navigation chrome and assets follow staging; no generic replacement screen or payment banner was restored. Dynamic text and existing controls now reflect actual data.
 
 ## Connected functionality

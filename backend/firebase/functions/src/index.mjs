@@ -16,6 +16,9 @@ import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { RazorpayPayments, signatureMatches } from './payments.mjs';
 import { WashKrewService, ServiceError } from './service.mjs';
+import { GoogleRoutes } from './maps.mjs';
+import { TrainingError } from './training.mjs';
+import {PrivatePhotoChecks,PhotoCheckError} from './photo-checks.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -26,30 +29,34 @@ const testKeyId=defineSecret('RAZORPAY_TEST_KEY_ID'),testKeySecret=defineSecret(
 const liveWebhookSecret=defineSecret('RAZORPAY_LIVE_WEBHOOK_SECRET');
 const paymentSecrets=[keyId,keySecret,testKeyId,testKeySecret];
 const db = getFirestore();
-function service(withPayment = false) {
+const mapsKey = defineSecret('GOOGLE_MAPS_SERVER_KEY');
+function service(withPayment = false, withMaps = false) {
   const current=withPayment?new RazorpayPayments({keyId:keyId.value(),keySecret:keySecret.value()}):null;
   const test=withPayment?new RazorpayPayments({keyId:testKeyId.value(),keySecret:testKeySecret.value()}):null;
   return new WashKrewService({ db, payments:current, paymentProviders:withPayment?{test,live:current}:undefined,
     evidence: {
       async exists(path) { const [exists] = await getStorage().bucket().file(path).exists(); return exists; },
       async metadata(path) { const [metadata] = await getStorage().bucket().file(path).getMetadata(); return metadata; },
+      async read(path,generation){const [bytes]=await getStorage().bucket().file(path,{generation}).download();return bytes;},
       async deletePrefix(prefix) { await getStorage().bucket().deleteFiles({prefix}); },
     },
     accounts:{deleteUser:uid=>getAuth().deleteUser(uid)},
+    maps:withMaps?new GoogleRoutes(mapsKey.value()):undefined,
+    photoChecks:new PrivatePhotoChecks(db),
   });
 }
 const cors = ['https://wheelio-apps.web.app', 'https://wheelio-apps.firebaseapp.com', /^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
-function callable(method, payment = false) {
+function callable(method, payment = false, maps = false) {
   // Domain-restricted sharing forbids allUsers IAM bindings. The owner-only
   // configure-api-access operation enables the HTTP gateway after deployment;
   // Firebase ID tokens and service authorization below remain mandatory.
-  return onCall({ cors, invoker: 'private', ...(payment ? { secrets: paymentSecrets } : {}) }, async request => {
+  return onCall({ cors, invoker: 'private', ...(['checkWashPhotos','verifyIdentity'].includes(method)?{timeoutSeconds:120,memory:'512MiB'}:{}), secrets:[...(payment?paymentSecrets:[]),...(maps?[mapsKey]:[])] }, async request => {
     try {
       if(request.auth?.uid&&method!=='deleteAccount'&&(await db.doc(`users/${request.auth.uid}`).get()).data()?.deletionStatus)throw new ServiceError('permission-denied','This account is being deleted.');
-      return await service(payment)[method](request.auth, request.data ?? {});
+      return await service(payment,maps)[method](request.auth, request.data ?? {});
     }
     catch (error) {
-      if (error instanceof ServiceError) throw new HttpsError(error.code, error.message);
+      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -67,6 +74,12 @@ export const setCaptainPreferences = callable('captainPreferences');
 export const setCaptainPosition = callable('captainPosition');
 export const matchServiceLocation = callable('serviceLocation');
 export const submitCaptainApplication = callable('submitCaptainApplication');
+export const startCaptainTraining = callable('startTraining');
+export const recordTrainingProgress = callable('trainingHeartbeat');
+export const submitTrainingQuiz = callable('submitQuiz');
+export const beginCaptainIdentity = callable('beginIdentity');
+export const verifyCaptainIdentity = callable('verifyIdentity');
+export const checkWashPhotos = callable('checkWashPhotos');
 export const saveCaptainPayout = callable('captainPayout');
 export const claimJob = callable('claim');
 export const rejectJob = callable('reject');
@@ -74,7 +87,7 @@ export const updateWashProgress = callable('progress');
 export const recordWashEvidence = callable('evidenceUploaded');
 export const recordCustomerPhoto = callable('customerPhoto');
 export const recordCustomerMedia = callable('customerMedia');
-export const updateCaptainLocation = callable('location');
+export const updateCaptainLocation = callable('location', false, true);
 export const approveWash = callable('approve');
 export const rateWash = callable('rate');
 export const cancelBooking = callable('cancel');
@@ -146,6 +159,8 @@ export const refundCancelledBooking = onDocumentCreated({ document: 'refunds/{or
 
 export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds:300, secrets: paymentSecrets }, async () => {
   const backend = service(true), now = Date.now();
+  try{await backend.cleanupIdentityChecks();}
+  catch(error){logger.error('Private identity cleanup needs a retry',{code:error.code??'storage'});}
   const due=await db.collection('orders').where('nextPaymentCheckAt','<=',new Date(now)).orderBy('nextPaymentCheckAt').limit(20).get();
   for(const doc of due.docs) {
     try { await backend.reconcilePayment(doc.id); }

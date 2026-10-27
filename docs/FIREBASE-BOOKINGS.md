@@ -1,5 +1,18 @@
 # Firebase booking release — 21 October 2026
 
+## Current follow-up — 27 October
+
+Use [READINESS-2026-10-27.md](READINESS-2026-10-27.md) for current Maps/Routes, training/quiz/speech, private photo checks and content/provider gates; historical descriptions below predate those additions and staging's removal of the payment banner. Payment mode still comes from the server and remains **test**. Client Maps keys are restricted public configuration; Routes uses `GOOGLE_MAPS_SERVER_KEY`. The [private photo service](../backend/photo-check/README.md) uses IAM-only runtime access and separate server configuration.
+
+After deployment, keep the domain-policy-compatible API gateway step and configure the deletion function's narrow Auth permission:
+
+```sh
+node backend/firebase/operations.cjs configure-api-access
+node backend/firebase/operations.cjs configure-account-deletion
+```
+
+The deletion action inspects the deployed function's actual runtime identity and binds a custom role containing only `firebaseauth.users.delete`. It does not delete an account. Both steps were applied in this release. No organization sharing restriction was disabled.
+
 The web implementation uses the existing Flutter phone layouts and shared WashKrew design system. Customer booking screens retain their vehicle, wash, parking, slot, phone, review and checkout steps. Live booking details and Captain controllers use Firestore snapshots instead of the demo stores. `?demo=true` remains isolated and visibly labelled.
 
 ## Account and payment setup

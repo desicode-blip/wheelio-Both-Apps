@@ -1,5 +1,7 @@
 # WashKrew launch status — 26 October 2026
 
+**27 October software follow-up:** [READINESS-2026-10-27.md](READINESS-2026-10-27.md) and [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md) record the additional Maps, training/speech and private image services, current tests and Mac handoff. Server payments and the newly configured photo services remain test mode. Aman will supply the legal entity, support details, approved policies and training clips; none were invented or published. The merchant dashboard was last verified on 26 October as recorded below; this follow-up does not claim a new approval or live acceptance.
+
 The 26 October functionality release preserves the staging design, passed 99 automated tests, four analyzers and both web builds, and is published in **test mode**. Current behavior and remaining design/provider/hardware gates are in [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md). The functionality release did not switch the merchant to live bookings. Merchant verification was followed up separately as recorded below.
 
 ## 26 October verification follow-up

@@ -35,6 +35,96 @@ async function paid(requestId='request-1') {
   const payment={id:`pay_${counter}`,order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};provider.payments.set(payment.id,payment);
   await service.capturePayment(payment);return {...booking,payment};
 }
+test('route ETA uses actual shared location, throttles refresh and rejects stale assignment results',async()=>{
+  const ref=db.doc('orders/route-test');await ref.set({captainId:'captain1',status:'onTheWay',societyId:'soc_avatar',vehiclePosition:{latitude:17.4,longitude:78.35}});
+  let calls=0;service.maps={arrival:async()=>{calls++;return {seconds:180,distanceMetres:1300};}};
+  const location={orderId:ref.id,latitude:17.41,longitude:78.36};
+  await assert.rejects(service.location(customer,location),{code:'permission-denied'});
+  await service.location(auth('captain1'),location);assert.equal((await ref.get()).data().arrivalEstimateAt.toMillis(),clock+180000);
+  clock+=15000;await service.location(auth('captain1'),location);assert.equal(calls,1);
+  clock+=90000;service.maps={arrival:async()=>{await ref.update({status:'washing'});return {seconds:900,distanceMetres:9000};}};
+  await service.location(auth('captain1'),location);assert.equal((await ref.get()).data().arrivalDistanceMetres,1300);
+});
+test('route provider outages retain private GPS and clear ETA instead of inventing one',async()=>{
+  const ref=db.doc('orders/route-fail');await ref.set({captainId:'captain1',status:'onTheWay',societyId:'soc_avatar',vehiclePosition:{latitude:17.4,longitude:78.35}});
+  service.maps={arrival:async()=>{throw Error('unavailable');}};
+  await service.location(auth('captain1'),{orderId:ref.id,latitude:17.41,longitude:78.36});
+  assert.equal((await ref.get()).data().arrivalStatus,'unavailable');assert.equal((await ref.get()).data().arrivalEstimateAt,undefined);
+  assert.equal((await ref.collection('tracking').doc('current').get()).data().latitude,17.41);
+});
+test('server training rejects skipping, survives reopening and grades the current quiz',async()=>{
+  const training={version:'approved-v1',required:true,videos:[0,1,2].map(()=>({url:'https://example.test/approved.mp4',seconds:20}))};
+  await db.doc('config/operations').update({training});
+  const captain=auth('captain1');
+  await assert.rejects(service.submitQuiz(captain,{version:'wash-safety-1',answers:[0,0,1,0,0]}),{code:'failed-precondition'});
+  let session=await service.startTraining(captain,{index:0});
+  assert.equal((await service.trainingHeartbeat(captain,{index:0,session:session.session,positionSeconds:20})).completed,false);
+  session=await service.startTraining(captain,{index:0});assert.equal(session.watchedSeconds,0);
+  for(let index=0;index<3;index++){
+    const s=await service.startTraining(captain,{index});
+    clock+=10000;assert.equal((await service.trainingHeartbeat(captain,{index,session:s.session,positionSeconds:10})).completed,false);
+    clock+=10000;assert.equal((await service.trainingHeartbeat(captain,{index,session:s.session,positionSeconds:20})).completed,true);
+  }
+  assert.deepEqual(await service.submitQuiz(captain,{version:'wash-safety-1',answers:[0,0,1,0,0]}),{score:5,passed:true});
+  await db.doc('config/operations').update({'training.version':'approved-v2'});
+  await assert.rejects(service.submitQuiz(captain,{version:'wash-safety-1',answers:[0,0,1,0,0]}),{code:'failed-precondition'});
+});
+test('unpublished training never reports completion and owner work restrictions cannot be bypassed',async()=>{
+  await assert.rejects(service.startTraining(auth('captain1'),{index:0}),{code:'failed-precondition'});
+  await service.setCaptainPolicy({captainId:'captain1',workStatus:'blocked',jobLimit:2,levelDay:1,reason:'Manual test review'});
+  await assert.rejects(service.captainOnline(auth('captain1'),{online:true}),{code:'failed-precondition'});
+  const available=await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'});assert.equal(available.slots.some(s=>s.available),true);
+  await service.setCaptainPolicy({captainId:'captain2',workStatus:'refresher',jobLimit:2,levelDay:1,reason:'Manual test review'});
+  assert.equal((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.some(s=>s.available),false);
+  await service.scheduleIntro({captainId:'captain1',at:new Date(clock+3600000).toISOString()});
+  assert.match((await db.doc('captains/captain1').get()).data().introCallLabel,/IST/);
+});
+test('per-job face checking is assignment-bound, server-verified and uncertain matches require human review',async()=>{
+  const ref=db.doc('orders/identity-test');await ref.set({captainId:'captain1',customerId:'customer',status:'onTheWay',arrivedAt:Timestamp.fromMillis(clock),slotStart:Timestamp.fromMillis(clock-1000),paymentMode:'test',evidence:Object.fromEntries([0,1,2,3].map(i=>[`before_${i}`,{path:`orders/identity-test/captain1/before_${i}.jpg`}]))});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,paymentMode:'test'});
+  const removed=[];service.evidence.read=async()=>Buffer.from('private-fixture');service.evidence.deletePrefix=async p=>removed.push(p);service.photoChecks={compare:async()=>({status:'review',score:.1,model:'local-test-stub'})};
+  await assert.rejects(service.beginIdentity(customer,{orderId:ref.id}),{code:'permission-denied'});
+  await assert.rejects(service.progress(auth('captain1'),{orderId:ref.id,action:'start'}),{code:'failed-precondition'});
+  const attempt=await service.beginIdentity(auth('captain1'),{orderId:ref.id});
+  await assert.rejects(service.verifyIdentity(auth('captain2'),{orderId:ref.id,session:attempt.session}),{code:'permission-denied'});
+  assert.equal((await service.verifyIdentity(auth('captain1'),{orderId:ref.id,session:attempt.session})).verified,false);
+  await assert.rejects(service.progress(auth('captain1'),{orderId:ref.id,action:'start'}),{code:'failed-precondition'});
+  await service.reviewIdentity({orderId:ref.id,accept:true,reason:'Human fixture review'});
+  await service.progress(auth('captain1'),{orderId:ref.id,action:'start'});assert.equal((await ref.get()).data().status,'washing');
+  clock+=24*3600000+1;await service.cleanupIdentityChecks();assert.equal((await db.doc(`identityChecks/${ref.id}`).get()).exists,false);assert.ok(removed.includes(attempt.path));
+});
+test('photo review binds the current evidence, requires warning acknowledgement and never approves the wash',async()=>{
+  const ref=db.doc('orders/photo-review');await ref.set({captainId:'captain1',customerId:'customer',status:'washing',paymentMode:'test',slotStart:Timestamp.fromMillis(clock-1000),captainPayPaise:11600,evidence:Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/photo-review/captain1/after_${i}.jpg`,uploadedAt:Timestamp.fromMillis(clock)}]))});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});
+  service.evidence.read=async()=>Buffer.from('fixture');let calls=0;service.photoChecks={reviewWash:async()=>{calls++;return [{side:2,reason:'Visible dust; review the left side.'}];}};
+  await assert.rejects(service.checkWashPhotos(customer,{orderId:ref.id}),{code:'permission-denied'});
+  assert.equal((await service.checkWashPhotos(auth('captain1'),{orderId:ref.id})).issues[0].side,2);
+  await service.checkWashPhotos(auth('captain1'),{orderId:ref.id});assert.equal(calls,1);
+  await assert.rejects(service.progress(auth('captain1'),{orderId:ref.id,action:'finish'}),{code:'failed-precondition'});
+  await service.progress(auth('captain1'),{orderId:ref.id,action:'finish',acknowledgePhotoIssues:true});
+  assert.equal((await ref.get()).data().status,'photosReady');assert.equal((await db.doc(`earnings/${ref.id}`).get()).data().status,'awaitingApproval');
+});
+test('photo-review outages are labelled honestly and can retry without retaking unchanged evidence',async()=>{
+  const ref=db.doc('orders/review-outage');await ref.set({captainId:'captain1',status:'washing',paymentMode:'test',evidence:Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/review-outage/captain1/after_${i}.jpg`,uploadedAt:Timestamp.fromMillis(clock)}]))});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});service.evidence.read=async()=>Buffer.from('fixture');
+  service.photoChecks={reviewWash:async()=>{throw Error('Provider offline');}};
+  assert.equal((await service.checkWashPhotos(auth('captain1'),{orderId:ref.id})).status,'unavailable');
+  clock+=31000;service.photoChecks={reviewWash:async()=>[]};
+  assert.deepEqual(await service.checkWashPhotos(auth('captain1'),{orderId:ref.id}),{issues:[],status:'checked'});
+});
+test('evidence registration checks decoded quality and cannot use an overwritten image generation',async()=>{
+  const ref=db.doc('orders/quality-proof');await ref.set({captainId:'captain1',status:'onTheWay',arrivedAt:Timestamp.fromMillis(clock),slotStart:Timestamp.fromMillis(clock-1000),paymentMode:'test',identityStatus:'verified'});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,paymentMode:'test'});let checks=0;
+  service.evidence.metadata=async()=>({contentType:'image/jpeg',size:100,generation:'1'});service.evidence.read=async()=>Buffer.from('local fixture');
+  service.photoChecks={quality:async()=>{checks++;return {issue:'tooDark'};}};
+  await assert.rejects(service.evidenceUploaded(customer,{orderId:ref.id,stage:'before',side:0}),{code:'permission-denied'});assert.equal(checks,0);
+  await assert.rejects(service.evidenceUploaded(auth('captain1'),{orderId:ref.id,stage:'before',side:0}),{code:'failed-precondition'});
+  assert.equal((await ref.get()).data().evidence,undefined);
+  service.photoChecks.quality=async()=>({issue:null});
+  for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{orderId:ref.id,stage:'before',side});
+  service.evidence.metadata=async()=>({contentType:'image/jpeg',size:100,generation:'2'});
+  await assert.rejects(service.progress(auth('captain1'),{orderId:ref.id,action:'start'}),{code:'failed-precondition'});
+});
 test('phone verification and server pricing cannot be bypassed',async()=>{
   await assert.rejects(service.createBooking({uid:'customer',token:{}},input()),{code:'permission-denied'});
   const b=await service.createBooking(customer,input());assert.equal(b.amount,14900);

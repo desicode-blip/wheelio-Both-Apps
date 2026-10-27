@@ -52,3 +52,7 @@ apps/flutter/**/env/firebase.json
 # App lockfiles are tracked for reproducible releases.
 !apps/flutter/customer/pubspec.lock
 !apps/flutter/captain/pubspec.lock
+
+# Downloaded, checksum-verified private photo service models (built from models.json)
+backend/photo-check/models/
+backend/photo-check/__pycache__/

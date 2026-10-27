@@ -840,7 +840,9 @@ class CaptainStore extends ChangeNotifier {
       await _shareCurrentLocation();
       _locationTimer??=Timer.periodic(const Duration(seconds:15),(_)=>_shareCurrentLocation());
     }catch(e){set(()=>toast=backendError(e));}
-    await Device.openMapsSearch(job.fullAddress);
+    final pin=liveOrder(job.id)?['vehiclePosition'];
+    final destination=pin is Map&&pin['latitude'] is num&&pin['longitude'] is num?'${pin['latitude']},${pin['longitude']}':job.fullAddress;
+    await Device.openMapsSearch(destination);
   }
   Future<void> _shareCurrentLocation()async{
     if(!_sharingLocation||!_foreground||_locationBusy||liveUid.isEmpty||!['onTheWay','washing'].contains(liveOrder(current.id)?['status']))return;
@@ -881,11 +883,12 @@ class CaptainStore extends ChangeNotifier {
     approvedToday = 0;
     waitingToday = 0;
     levelDay = 1;
+    jobLimit = 0;
     rating = 0;
     name = '';
     phone = '';
     upi = '';
-    _liveSubs.add(live!.catalog.listen((s) => set(() => liveConfig = s.data() ?? {}), onError: (Object e) => set(() => toast = backendError(e))));
+    _liveSubs.add(live!.catalog.listen((s) => set(() {liveConfig = s.data() ?? {};Support.configure(liveConfig);_applySteps();}), onError: (Object e) => set(() => toast = backendError(e))));
     _liveSubs.add(live!.sessions.listen((user) {
       final uid = user?.phoneNumber != null ? user!.uid : '';
       if (uid != liveUid) _bindLive(uid);
@@ -948,6 +951,8 @@ class CaptainStore extends ChangeNotifier {
         }).catchError((Object _) {});
       }
       liveCaptain = d;
+      videosWatched=(d['trainingVideos'] as List? ?? []).length;
+      _applySteps();
       liveLoaded = true;
       kycStatus = status;
       if (d.isNotEmpty) {
@@ -960,7 +965,7 @@ class CaptainStore extends ChangeNotifier {
         exploring = true;
         signedUp = d['approved'] == true;
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();
-        jobLimit = (d['jobLimit'] as num? ?? jobLimit).toInt();
+        jobLimit = (d['jobLimit'] as num? ?? 0).toInt();
         final windows = (d['workingWindows'] as List? ?? []).map((w) => (w['startHour'] as num).toInt()).toSet();
         workTimes = windows.length >= 3 ? {} : {for (final w in WorkTime.values) if (windows.contains(w.hours.$1)) w};
         final societies = [for (final id in (d['societyIds'] as List? ?? d['requestedSocietyIds'] as List? ?? [])) _societyName(id)];
@@ -1031,13 +1036,14 @@ class CaptainStore extends ChangeNotifier {
 
   /// Uploads and payout details follow the server. Submission is not training proof.
   void _applySteps() {
+    videosWatched=liveCaptain['trainingVersion']==liveConfig['training']?['version']?(liveCaptain['trainingVideos'] as List? ?? []).length:0;
     final submitted = kycStatus == 'underReview' || kycStatus == 'approved' || liveCaptain['approved'] == true;
     steps = {
       if (kycUploaded.contains('aadhaar') || submitted) KycStep.aadhaar: KycState.done,
       if (kycUploaded.contains('selfie') || submitted) KycStep.photo: KycState.done,
       if (liveCaptain['payout'] != null || (kycUploaded.contains('bank') && upi.isNotEmpty) || submitted) KycStep.bank: KycState.done,
-      if (liveCaptain['trainingCompletedAt'] != null) KycStep.training: KycState.done,
-      if (liveCaptain['quizPassedAt'] != null) KycStep.quiz: KycState.done,
+      if (liveCaptain['trainingVersion']==liveConfig['training']?['version'] && liveCaptain['trainingCompletedAt'] != null) KycStep.training: KycState.done,
+      if (liveCaptain['trainingVersion']==liveConfig['training']?['version'] && liveCaptain['quizPassedAt'] != null) KycStep.quiz: KycState.done,
     };
     if (kycStatus == 'changesRequested') steps[KycStep.aadhaar] = KycState.problem;
   }
@@ -1144,6 +1150,9 @@ class CaptainStore extends ChangeNotifier {
       'phoneChanged' => WNotifKind.phoneChanged,
       'slotEnded' => WNotifKind.slotEnded,
       'vehicleHelpAnswered' => WNotifKind.vehicleHelpAnswered,
+      'levelUp'=>WNotifKind.levelUp,
+      'probation'=>WNotifKind.probation,
+      'blocked'=>WNotifKind.blocked,
       _ => WNotifKind.newJob,
     };
     return WNotif(
@@ -1187,11 +1196,14 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveSetOnline(bool on) => _call(() => live!.call('setCaptainOnline', {'online': on}));
   Future<void> liveClaim(String orderId) => _call(() => live!.call('claimJob', {'orderId': orderId}));
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
-  Future<void> liveProgress(String action) async {
+  List<Map<String,dynamic>> get photoReviewIssues=>[for(final i in liveOrder(current.id)?['photoReview']?['issues'] as List? ?? [])Map<String,dynamic>.from(i as Map)];
+  int get photoReviewSide=>photoReviewIssues.firstOrNull?['side'] as int? ?? 0;
+  Future<List<dynamic>> liveCheckPhotos()async{final result=await live!.call('checkWashPhotos',{'orderId':current.id});return result['issues'] as List? ?? [];}
+  Future<void> liveProgress(String action,{bool acknowledgePhotoIssues=false}) async {
     final orderId=current.id;
     if(orderId.isEmpty)throw StateError('Open your assigned job first.');
     _workflowOrderId=orderId;
-    await _call(() => live!.call('updateWashProgress', {'orderId':orderId, 'action': action}));
+    await _call(() => live!.call('updateWashProgress', {'orderId':orderId, 'action': action,if(action=='finish')'acknowledgePhotoIssues':acknowledgePhotoIssues}));
   }
   Future<void> liveVehicleHelp(String reason)=>_call(()=>live!.call('updateVehicleHelp',{'orderId':current.id,'action':'request','value':reason}));
   Future<void> liveEvidence({required bool after, required int side, required Uint8List bytes}) =>

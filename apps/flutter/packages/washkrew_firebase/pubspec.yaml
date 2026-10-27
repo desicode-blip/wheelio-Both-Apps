@@ -19,6 +19,7 @@ dependencies:
   web: ^1.1.1
   washkrew_ui:
     path: ../washkrew_ui
+  google_maps_flutter: 2.13.1
 dev_dependencies:
   flutter_test:
     sdk: flutter

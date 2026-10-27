@@ -41,7 +41,7 @@ class LiveBackend {
     final result = await functions
         .httpsCallable(
           name,
-          options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
+          options: HttpsCallableOptions(timeout: Duration(seconds:name=='checkWashPhotos'?120:60)),
         )
         .call(data);
     return Map<String, dynamic>.from(result.data as Map);
@@ -170,6 +170,12 @@ class LiveBackend {
       .limit(100)
       .snapshots();
 
+  Future<Map<String,dynamic>> verifyCaptainIdentity(String orderId,Uint8List bytes)async{
+    final attempt=await call('beginCaptainIdentity',{'orderId':orderId});
+    if(attempt['verified']==true)return {'verified':true};
+    await storage.ref(attempt['path'] as String).putData(bytes,SettableMetadata(contentType:'image/jpeg'));
+    return call('verifyCaptainIdentity',{'orderId':orderId,'session':attempt['session']});
+  }
   Future<void> signOut() async {
     invalidateOtp();
     await _tokenRefresh?.cancel();

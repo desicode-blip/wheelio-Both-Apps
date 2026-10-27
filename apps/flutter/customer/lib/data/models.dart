@@ -84,7 +84,8 @@ class Society {
 
 /// Where the vehicle is parked.
 class Place {
-  Place(this.society, {this.tower = '', this.floor, this.slot = '',this.addressKey});
+  Place(this.society, {this.tower = '', this.floor, this.slot = '',this.addressKey,this.latitude,this.longitude});
+  double? latitude,longitude;
   Society society;
   String? addressKey;
   String tower;
@@ -93,7 +94,7 @@ class Place {
   String? floor;
   String slot;
 
-  Place copy() => Place(society, tower: tower, floor: floor, slot: slot,addressKey:addressKey);
+  Place copy() => Place(society, tower: tower, floor: floor, slot: slot,addressKey:addressKey,latitude:latitude,longitude:longitude);
   String get title => tower.isEmpty ? society.name : '${society.name}, $tower';
   String get addressLine => '${society.area}, ${society.city}${society.pincode.isEmpty ? '' : ' ${society.pincode}'}';
 
@@ -404,6 +405,8 @@ class Order {
   EntryNote note;
   Captain? captain;
   DateTime? arrivesBy;
+  DateTime? arrivalUpdatedAt;
+  bool get etaFresh=>arrivalUpdatedAt!=null&&DateTime.now().difference(arrivalUpdatedAt!).inSeconds<180&&arrivesBy!=null&&arrivesBy!.isAfter(DateTime.now());
   int? runningLateMinutes;
   DateTime? startedAt;
   DateTime? finishedAt;

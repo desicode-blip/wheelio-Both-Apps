@@ -40,7 +40,19 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='prepare-payment-modes') {
+  if(command==='configure-account-deletion') {
+    const headers={Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'};
+    async function cloud(url,method='GET',body){const response=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)}),result=await response.json();if(!response.ok)throw Error(`${response.status}: ${result.error?.message??'Runtime permission setup failed'}`);return result;}
+    const fn=await cloud('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/deleteOwnAccount'),account=fn.serviceConfig.serviceAccountEmail;
+    const role='projects/wheelio-apps/roles/washkrewAccountDeletion',url='https://iam.googleapis.com/v1/'+role;
+    const existing=await fetch(url,{headers});
+    if(existing.status===404)await cloud('https://iam.googleapis.com/v1/projects/wheelio-apps/roles','POST',{roleId:'washkrewAccountDeletion',role:{title:'WashKrew self-service account deletion',description:'The authenticated backend can remove the requesting idle account; no user creation, listing or modification.',includedPermissions:['firebaseauth.users.delete'],stage:'GA'}});
+    else if(!existing.ok)throw Error('Cannot verify the account-deletion role.');
+    const project='https://cloudresourcemanager.googleapis.com/v1/projects/wheelio-apps',policy=await cloud(project+':getIamPolicy','POST',{}),member=`serviceAccount:${account}`;
+    let binding=policy.bindings.find(b=>b.role===role);if(!binding){binding={role,members:[]};policy.bindings.push(binding);}if(!binding.members.includes(member))binding.members.push(member);
+    await cloud(project+':setIamPolicy','POST',{policy});
+    console.log('Configured only Firebase Auth user deletion for the actual deletion-function runtime account. App recent-auth and open-booking checks remain enforced. No account was created, read or deleted.');
+  } else if(command==='prepare-payment-modes') {
     const [key,credential]=await Promise.all([secret('RAZORPAY_KEY_ID'),secret('RAZORPAY_KEY_SECRET')]);
     if(!key.startsWith('rzp_test_'))throw Error('Preserve the verified historical test pair before changing the current keys to live.');
     const verify=await fetch('https://api.razorpay.com/v1/orders?count=1',{headers:{Authorization:`Basic ${Buffer.from(`${key}:${credential}`).toString('base64')}`},signal:AbortSignal.timeout(20000)});
@@ -70,7 +82,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook'];
+    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook'];
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;
@@ -115,6 +127,8 @@ async function main() {
     if(!/^[A-Za-z0-9_-]{1,128}$/.test(uid??'')||!societyIds.length)throw Error('Usage: node backend/firebase/operations.cjs approve-captain UID SOCIETY_ID [...]');
     const c=await api(`/captains/${uid}`), requested=c.fields.requestedSocietyIds?.arrayValue?.values?.map(v=>v.stringValue)??[];
     if(c.fields.kycStatus?.stringValue!=='underReview'||societyIds.some(s=>!requested.includes(s)))throw Error('Review the submitted documents and choose requested societies first.');
+    const cfg=await api('/config/operations');
+    if(cfg.fields.training?.mapValue?.fields?.required?.booleanValue===true&&(!c.fields.trainingCompletedAt||!c.fields.quizPassedAt||c.fields.trainingVersion?.stringValue!==cfg.fields.training.mapValue.fields.version?.stringValue))throw Error('Captain must complete the current training and quiz before approval.');
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');

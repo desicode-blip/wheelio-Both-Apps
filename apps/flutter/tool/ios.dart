@@ -171,6 +171,14 @@ void checkSource(Directory root, List<String> apps) {
       throw StateError(
         '$app: Firebase Auth/Messaging delegate integration is disabled.',
       );
+    final delegate = File('$ios/Runner/AppDelegate.swift').readAsStringSync();
+    if (!delegate.contains('import GoogleMaps') ||
+        !delegate.contains('washkrew/maps') ||
+        !delegate.contains('GMSServices.provideAPIKey')) {
+      throw StateError(
+        '$app: runtime Maps key setup is missing from AppDelegate.',
+      );
+    }
     for (final file in ['Debug', 'Release']) {
       final config = File('$ios/Flutter/$file.xcconfig').readAsStringSync();
       if (!config.contains('Pods-Runner.') ||

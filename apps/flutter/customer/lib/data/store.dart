@@ -429,6 +429,8 @@ class AppStore extends ChangeNotifier {
         live!.catalog.listen(
           (snapshot) {
             final config = snapshot.data() ?? {};
+            liveConfig = config;
+            Support.configure(config);
             bookingsEnabled = config['bookingsEnabled'] == true;
             testPayments = config['paymentMode'] == 'test';
             _bindWallet();
@@ -534,7 +536,7 @@ class AppStore extends ChangeNotifier {
                   live!.photo(photoPath).then((bytes) { if (_liveUid == uid && photoPath == _profilePhotoPath) { profilePhoto = bytes; changed(); } }).catchError((Object e) { if (_liveUid == uid) set(() => toast = backendError(e)); });
                 }
               }
-              savedPlaces = [for (final p in data['savedPlaces'] as List? ?? []) Place(Society(p['societyId'],p['societyName'],p['area']??'',p['city']??'',p['pincode']??''),tower:p['tower']??'',floor:p['floor'],slot:p['parking']??'')];
+              savedPlaces = [for (final p in data['savedPlaces'] as List? ?? []) Place(Society(p['societyId'],p['societyName'],p['area']??'',p['city']??'',p['pincode']??''),tower:p['tower']??'',floor:p['floor'],slot:p['parking']??'',latitude:(p['vehiclePosition']?['latitude'] as num?)?.toDouble(),longitude:(p['vehiclePosition']?['longitude'] as num?)?.toDouble())];
               changed();
             },
             onError: (Object e) {
@@ -577,7 +579,7 @@ class AppStore extends ChangeNotifier {
     final price = Fmt.rupees(o?.price ?? 0);
     final (kind, title, body) = switch (d['kind']) {
       'searching' => (NotificationKind.bookingConfirmed, 'Booking confirmed', o == null ? 'We’re finding a captain.' : '${o.vehicle.plate} · ${o.slot.full}. We’re finding a captain.'),
-      'onTheWay' => (NotificationKind.captainAssigned, '$name is on the way', o == null ? 'Your captain is on the way.' : 'Arriving by ${Fmt.time(o.arrivesBy ?? o.slot.end)} for ${o.vehicle.plate}.'),
+      'onTheWay' => (NotificationKind.captainAssigned, '$name is on the way', o == null ? 'Your captain is on the way.' : o.etaFresh?'Arriving by ${Fmt.time(o.arrivesBy!)} for ${o.vehicle.plate}.':'Your captain is on the way for ${o.vehicle.plate}.'),
       'washing' => (NotificationKind.washStarted, 'Washing has started', '$name started at ${Fmt.time(o?.startedAt ?? DateTime.now())}. Photos when he’s done.'),
       'photosReady' => (NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve to release $price to $name, or tell us if something’s wrong.'),
       'approved' => (NotificationKind.autoApproved, 'Wash approved', '$price released to $name.'),
@@ -604,7 +606,7 @@ class AppStore extends ChangeNotifier {
     final type =
         VehicleType.all.where((t) => t.kind == kind).firstOrNull ?? VehicleType(kind, data['vehicleName'], 20, (data['pricePaise'] as num).toInt() ~/ 100);
     final society = Society(data['societyId'], data['societyName'], data['area'], data['city'] ?? 'Hyderabad');
-    final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '',addressKey:data['addressKey']);
+    final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '',addressKey:data['addressKey'],latitude:(data['vehiclePosition']?['latitude'] as num?)?.toDouble(),longitude:(data['vehiclePosition']?['longitude'] as num?)?.toDouble());
     final captain = data['captain'] as Map?;
     final order = Order(
       id: id,
@@ -642,6 +644,7 @@ class AppStore extends ChangeNotifier {
     order.creditUsed = (data['creditUsedPaise'] as num? ?? 0).toInt() ~/ 100;
     order.freeWashGiven = data['cancellationBenefit']?['kind'] == 'freeWash';
     order.creditGiven = (data['cancellationBenefit']?['creditPaise'] as num? ?? 0).toInt() ~/ 100;
+    order.arrivalUpdatedAt=date(data['arrivalUpdatedAt']);
     order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
     order.refundStatus = data['refundStatus'] ?? 'none';
@@ -721,13 +724,18 @@ class AppStore extends ChangeNotifier {
   Future<void> saveDraftPlace() async {
     final p=draft.place;
     if(!isLive||!isLoggedIn||p==null)return;
-    await live!.call('saveCustomerPlace',{'societyId':p.society.id,'tower':p.tower,'floor':p.floor??'','parking':p.slot});
+    await live!.call('saveCustomerPlace',{'societyId':p.society.id,'tower':p.tower,'floor':p.floor??'','parking':p.slot,if(p.latitude!=null&&p.longitude!=null)'vehiclePosition':{'latitude':p.latitude,'longitude':p.longitude}});
+  }
+  Map<String,dynamic> liveConfig = {};
+  (double,double) mapCenter(Place place){
+    final society=(liveConfig['societies'] as List? ?? []).where((s)=>s['id']==place.society.id).firstOrNull;
+    return (place.latitude??(society?['location']?['latitude'] as num?)?.toDouble()??17.385,place.longitude??(society?['location']?['longitude'] as num?)?.toDouble()??78.4867);
   }
   Future<Place?> locatePlace()async{
     final position=await live!.currentPosition();
-    final result=await live!.call('matchServiceLocation',{'latitude':position.latitude,'longitude':position.longitude});
+    final result=await live!.call('matchServiceLocation',{'latitude':position.latitude,'longitude':position.longitude,'suggest':true});
     final society=searchSocieties('').where((s)=>s.id==result['societyId']).firstOrNull;
-    return society==null?null:Place(society);
+    return society==null?null:Place(society,latitude:position.latitude,longitude:position.longitude);
   }
   Future<void> downloadBookingDocument(String orderId,String kind)async{
     if(!isLive)return;
@@ -1057,6 +1065,7 @@ class AppStore extends ChangeNotifier {
         'floor': p.floor,
         'parking': p.slot,
         'note': d.note.text,
+        if(p.latitude!=null&&p.longitude!=null)'vehiclePosition':{'latitude':p.latitude,'longitude':p.longitude},
         'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
         'windows': [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) {'startHour': w.$1, 'endHour': w.$2}],
         'anyTime': s.anyTime,

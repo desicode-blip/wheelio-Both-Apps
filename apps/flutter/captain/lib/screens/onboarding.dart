@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'package:video_player/video_player.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
+import '../data/spoken_answer.dart';
 import 'parts.dart';
 
 // MARK: Testing shortcut (remove before launch)
@@ -188,6 +191,8 @@ class AadhaarScreen extends StatelessWidget {
           return null;
         });
         if (bytes == null) return;
+        final issue=await checkPhotoQuality(bytes);
+        if(issue!=null){store.set(()=>store.toast=photoIssueMessage(issue));router.swapTop(const R(N.aadhaar,flag:true));return;}
         try {
           await store.liveUploadKyc('aadhaar', bytes);
         } catch (_) {
@@ -376,15 +381,19 @@ class _BankScreenState extends State<BankScreen> {
 
 // MARK: W08 Training videos
 
+String _trainingDuration(CaptainStore store,int index){
+  final videos=store.liveConfig['training']?['videos'] as List? ?? [];
+  return videos.length>index&&videos[index]['seconds'] is num?'${((videos[index]['seconds'] as num)/60).ceil()} min':'—';
+}
 class TrainingScreen extends StatelessWidget {
   const TrainingScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final videos = [
-      (store.t('Car wash: step by step', 'कार धुलाई: एक-एक कदम', 'కార్ వాష్: దశలవారీగా'), '4 min'),
-      (store.t('Bike wash', 'बाइक धुलाई', 'బైక్ వాష్'), '3 min'),
-      (store.t('Do’s and don’ts', 'क्या करें, क्या नहीं', 'చేయాల్సినవి, చేయకూడనివి'), '2 min'),
+      (store.t('Car wash: step by step', 'कार धुलाई: एक-एक कदम', 'కార్ వాష్: దశలవారీగా'), store.isLive?_trainingDuration(store,0):'4 min'),
+      (store.t('Bike wash', 'बाइक धुलाई', 'బైక్ వాష్'), store.isLive?_trainingDuration(store,1):'3 min'),
+      (store.t('Do’s and don’ts', 'क्या करें, क्या नहीं', 'చేయాల్సినవి, చేయకూడనివి'), store.isLive?_trainingDuration(store,2):'2 min'),
     ];
     return WScreen(
       gutter: WSpace.gutterCaptain,
@@ -440,25 +449,63 @@ class VideoScreen extends StatefulWidget {
   State<VideoScreen> createState() => _VideoScreenState();
 }
 
-class _VideoScreenState extends State<VideoScreen> {
+class _VideoScreenState extends State<VideoScreen> with WidgetsBindingObserver {
   double progress = 0;
-  bool playing = true;
-  late final Timer _t = Timer.periodic(const Duration(milliseconds: 100), (_) {
-    // Demo: a 6-second stand-in for the YouTube player (official player only, never downloaded).
-    if (!context.store.isLive && playing && progress < 1) setState(() => progress = (progress + 1 / 60).clamp(0, 1));
-  });
-
-  @override
-  void initState() {
-    super.initState();
-    _t;
+  bool playing = true, _started = false, _sending = false, _opening=false;
+  VideoPlayerController? _player;
+  Map<String,dynamic>? _session;
+  Timer? _timer;
+  @override void didChangeDependencies(){
+    super.didChangeDependencies();
+    if(_started)return;
+    _started=true;
+    WidgetsBinding.instance.addObserver(this);
+    if(context.store.isLive){_open();}else{
+      _timer=Timer.periodic(const Duration(milliseconds:100),(_){if(mounted&&playing&&progress<1)setState(()=>progress=(progress+1/60).clamp(0,1));});
+    }
   }
-
-  @override
-  void dispose() {
-    _t.cancel();
-    super.dispose();
+  Future<void> _open() async {
+    if(_opening)return;
+    _opening=true;
+    final store=context.store;
+    try{
+      final session=await store.live!.call('startCaptainTraining',{'index':widget.index});
+      if(!mounted)return;
+      await _player?.dispose();
+      final player=VideoPlayerController.networkUrl(Uri.parse(session['url'] as String));
+      _player=player;
+      await player.initialize();
+      if(!mounted)return;
+      final seconds=(session['seconds'] as num).toDouble();
+      if((player.value.duration.inMilliseconds/1000-seconds).abs()>3)throw StateError('Training duration needs an operations review.');
+      _session=session;
+      await player.seekTo(Duration(milliseconds:((session['watchedSeconds'] as num).toDouble()*1000).round()));
+      player.addListener(_playerChanged);
+      await player.play();
+      _timer?.cancel();
+      _timer=Timer.periodic(const Duration(seconds:10),(_){if(Device.appIsActive)_heartbeat();});
+      setState((){playing=true;progress=((session['watchedSeconds'] as num)/seconds).clamp(0,.999);});
+    }catch(e){if(mounted){store.set(()=>store.toast=backendError(e));setState(()=>playing=false);}}
+    finally{_opening=false;}
   }
+  void _playerChanged(){
+    if(!mounted||_player==null)return;
+    final v=_player!.value;
+    if(v.hasError)return;
+    if(v.duration>Duration.zero&&v.position>=v.duration&&progress<1)_heartbeat();
+  }
+  Future<void> _heartbeat()async{
+    final player=_player,session=_session;
+    if(!mounted||_sending||session==null||player==null||!Device.appIsActive)return;
+    _sending=true;
+    try{
+      final result=await context.store.live!.call('recordTrainingProgress',{'index':widget.index,'session':session['session'],'positionSeconds':player.value.position.inMilliseconds/1000});
+      if(mounted)setState(()=>progress=result['completed']==true?1:((result['watchedSeconds'] as num)/(session['seconds'] as num)).clamp(0,.999));
+    }catch(e){if(mounted)context.store.set(()=>context.store.toast=backendError(e));}
+    finally{_sending=false;}
+  }
+  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state!=AppLifecycleState.resumed){_player?.pause();if(mounted)setState(()=>playing=false);}}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_timer?.cancel();_player?.removeListener(_playerChanged);_player?.dispose();super.dispose();}
 
   @override
   Widget build(BuildContext context) {
@@ -479,11 +526,16 @@ class _VideoScreenState extends State<VideoScreen> {
           height: 202,
           color: WColor.camera,
           child: Stack(children: [
+            if(_player?.value.isInitialized==true) Positioned.fill(child:Center(child:AspectRatio(aspectRatio:_player!.value.aspectRatio,child:VideoPlayer(_player!)))),
             Center(
               child: Pressable(
                 label: playing ? 'Pause' : 'Play',
                 onTap: () {
-                  if (store.isLive) { store.set(() => store.toast = 'Training videos are awaiting approved content.'); return; }
+                  if(store.isLive){
+                    final player=_player;
+                    if(player==null||!player.value.isInitialized){_open();return;}
+                    if(player.value.isPlaying){player.pause();_heartbeat();}else{player.play();}
+                  }
                   setState(() => playing = !playing);
                 },
                 child: Container(width: 72, height: 72, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white24), alignment: Alignment.center, child: WIconView(playing ? WIcon.pause : WIcon.play, size: 26, color: WColor.white)),
@@ -534,10 +586,39 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   int q = 0;
   int? pick;
   int correct = 0;
+  final List<int> _answers=[];
+  bool _submitting=false;
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);}
+  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state!=AppLifecycleState.resumed)_speech.cancel();}
+  final _speech=SpeechToText();
+  bool _listening=false,_startingSpeech=false;
+  Future<void> _answerByVoice()async{
+    if(_startingSpeech||pick!=null)return;
+    if(_speech.isListening){await _speech.stop();return;}
+    _startingSpeech=true;
+    final store=context.store,question=q;
+    try{
+      final available=await _speech.initialize(onStatus:(status){if(mounted)setState(()=>_listening=status=='listening');},onError:(_){if(mounted){setState(()=>_listening=false);store.set(()=>store.toast='Speech is unavailable. Check microphone and speech access, or tap an answer.');}});
+      if(!mounted)return;
+      if(!available){store.set(()=>store.toast='Speech is unavailable on this device. Tap an answer.');return;}
+      final locales=await _speech.locales(),language=store.lang.name;
+      if(!mounted)return;
+      final locale=locales.where((l)=>l.localeId.replaceAll('_','-').toLowerCase()=='$language-in').firstOrNull??locales.where((l)=>l.localeId.toLowerCase().startsWith(language)).firstOrNull;
+      if(locale==null){store.set(()=>store.toast='Speech for this language is unavailable. Tap an answer.');return;}
+      await _speech.listen(listenOptions:SpeechListenOptions(localeId:locale.localeId,listenFor:const Duration(seconds:10),pauseFor:const Duration(seconds:2),partialResults:false,cancelOnError:true),onResult:(result){
+        if(!mounted||q!=question||pick!=null||!result.finalResult)return;
+        final current=_questions[question],choice=spokenAnswer(result.recognizedWords,[store.t(current.a.$1,current.a.$2,current.a.$3),store.t(current.b.$1,current.b.$2,current.b.$3)]);
+        if(choice==null){store.set(()=>store.toast='Say one of the two answers, or tap it.');return;}
+        setState(()=>pick=choice);Device.buzz(choice!=current.right);
+      });
+    }catch(_){if(mounted)store.set(()=>store.toast='Speech could not start. Tap an answer or try again.');}
+    finally{_startingSpeech=false;}
+  }
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);_speech.cancel();super.dispose();}
 
   /// Once answered, the choice locks: the right option turns green (with a tick), a wrong pick
   /// turns red so the captain sees what the correct answer was.
@@ -594,17 +675,25 @@ class _QuizScreenState extends State<QuizScreen> {
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Quiz', 'क्विज़', 'క్విజ్'), subtitle: store.t('Question ${q + 1} of 5', 'प्रश्न ${q + 1} / 5', 'ప్రశ్న ${q + 1} / 5')),
       footer: WFooter(
-        child: WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: pick != null, onTap: () {
+        child: WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: pick != null && !_submitting, onTap: () async {
           final c = correct + (pick == cur.right ? 1 : 0);
           if (q < 4) {
             setState(() {
+              _answers.add(pick!);
               correct = c;
               q++;
               pick = null;
             });
           } else {
-            final passed = c >= 4;
-            if (passed) store.complete(KycStep.quiz);
+            var passed = c >= 4;
+            if(store.isLive){
+              setState(()=>_submitting=true);
+              try{final result=await store.live!.call('submitTrainingQuiz',{'version':'wash-safety-1','answers':[..._answers,pick!]});passed=result['passed']==true;}
+              catch(e){store.set(()=>store.toast=backendError(e));return;}
+              finally{if(mounted)setState(()=>_submitting=false);}
+              if(!mounted)return;
+            }
+            if (passed && !store.isLive) store.complete(KycStep.quiz);
             router.push(R(N.quizResult, flag: passed));
           }
         }),
@@ -645,7 +734,7 @@ class _QuizScreenState extends State<QuizScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 16),
             child: Column(children: [
-              Pressable(label: 'Say your answer', child: Container(width: 80, height: 80, decoration: const BoxDecoration(color: WColor.primary, shape: BoxShape.circle), alignment: Alignment.center, child: const WIconView(WIcon.mic, size: 30, color: WColor.white))),
+              Pressable(label: _listening?'Stop listening':'Say your answer',onTap:_answerByVoice, child: Container(width: 80, height: 80, decoration: const BoxDecoration(color: WColor.primary, shape: BoxShape.circle), alignment: Alignment.center, child: const WIconView(WIcon.mic, size: 30, color: WColor.white))),
               const SizedBox(height: 8),
               WText(store.t('Or tap and say your answer', 'या टैप करके जवाब बोलें', 'లేదా నొక్కి జవాబు చెప్పండి'), WType.caption),
             ]),
@@ -723,10 +812,10 @@ class RulesScreen extends StatelessWidget {
       })),
       children: [
         WTitle(store.t('How you earn here', 'यहाँ कमाई कैसे होती है', 'ఇక్కడ ఎలా సంపాదిస్తారు'), top: 10, bottom: 14),
-        rule(WIcon.rupee, '₹116', Tone.ok, store.t('Your pay for a hatchback. Shown before you accept.', 'हैचबैक के लिए आपकी कमाई। स्वीकार करने से पहले दिखेगी।', 'హ్యాచ్‌బ్యాక్‌కు మీ సంపాదన. అంగీకరించే ముందు చూపిస్తాము.')),
-        rule(WIcon.clock, '12 AM', Tone.ok, store.t('Paid to UPI the same night, after the owner approves', 'मालिक के मंज़ूर करने के बाद उसी रात UPI में', 'యజమాని ఆమోదించాక అదే రాత్రి UPI కి')),
-        rule(WIcon.star, '4★+', Tone.info, store.t('Every wash must get 4 stars or more', 'हर धुलाई पर 4 या ज़्यादा स्टार चाहिए', 'ప్రతి వాష్‌కి 4 లేదా ఎక్కువ స్టార్లు రావాలి')),
-        rule(WIcon.stopwatch, '−₹1', Tone.error, store.t('For every minute late. Max 30% of pay.', 'हर मिनट देरी पर। ज़्यादा से ज़्यादा 30%।', 'ప్రతి నిమిషం ఆలస్యానికి. గరిష్టం 30%.')),
+        rule(WIcon.rupee, store.isLive?((store.liveConfig['vehicleTypes'] as List? ?? []).where((v)=>v['kind']=='hatchback').firstOrNull?['captainPayPaise'] is num?Fmt.rupees(((store.liveConfig['vehicleTypes'] as List).where((v)=>v['kind']=='hatchback').first['captainPayPaise'] as num).toInt()~/100):'—'):'₹116', Tone.ok, store.t('Your pay for a hatchback. Shown before you accept.', 'हैचबैक के लिए आपकी कमाई। स्वीकार करने से पहले दिखेगी।', 'హ్యాచ్‌బ్యాక్‌కు మీ సంపాదన. అంగీకరించే ముందు చూపిస్తాము.')),
+        rule(WIcon.clock, store.isLive?'UPI':'12 AM', Tone.ok, store.isLive?'After owner approval, operations confirms the payout timing.':store.t('Paid to UPI the same night, after the owner approves', 'मालिक के मंज़ूर करने के बाद उसी रात UPI में', 'యజమాని ఆమోదించాక అదే రాత్రి UPI కి')),
+        rule(WIcon.star, store.isLive?'★':'4★+', Tone.info, store.isLive?'Customers rate the wash after checking the photos.':store.t('Every wash must get 4 stars or more', 'हर धुलाई पर 4 या ज़्यादा स्टार चाहिए', 'ప్రతి వాష్‌కి 4 లేదా ఎక్కువ స్టార్లు రావాలి')),
+        rule(WIcon.stopwatch, store.isLive?'—':'−₹1', Tone.error, store.isLive?'Any late-fee policy must be confirmed before live work.':store.t('For every minute late. Max 30% of pay.', 'हर मिनट देरी पर। ज़्यादा से ज़्यादा 30%।', 'ప్రతి నిమిషం ఆలస్యానికి. గరిష్టం 30%.')),
         rule(WIcon.ban, store.t('Out', 'बाहर', 'తొలగింపు'), Tone.error, store.t('Damage on purpose or taking customers outside the app', 'जानबूझकर नुकसान या ग्राहक को ऐप से बाहर ले जाना', 'కావాలని నష్టం లేదా కస్టమర్‌ను యాప్ బయటకు తీసుకెళ్ళడం')),
       ],
     );
@@ -753,7 +842,7 @@ class UnderReviewScreen extends StatelessWidget {
         const Spacer(),
         const Center(child: WStateCircle(WIcon.phone, size: 112)),
         const SizedBox(height: 16),
-        WText(store.isLive&&store.liveCaptain['introCallLabel']==null?'Your review call is pending':store.t('We’ll call you today', 'हम आज आपको कॉल करेंगे', 'మేము ఈరోజు మీకు కాల్ చేస్తాము'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
+        WText(store.isLive?(store.liveCaptain['introCallLabel']==null?'Your review call is pending':'Your review call is scheduled'):store.t('We’ll call you today', 'हम आज आपको कॉल करेंगे', 'మేము ఈరోజు మీకు కాల్ చేస్తాము'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
         const SizedBox(height: 16),
         WBody(store.t('A 10-minute video call to check your documents. Keep your Aadhaar ready.', 'दस्तावेज़ जाँचने के लिए 10 मिनट की वीडियो कॉल। आधार तैयार रखें।', 'మీ పత్రాలు చూడటానికి 10 నిమిషాల వీడియో కాల్. ఆధార్ సిద్ధంగా ఉంచుకోండి.'), center: true),
         const SizedBox(height: 16),

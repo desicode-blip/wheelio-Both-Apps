@@ -1,3 +1,7 @@
+# Current handoff — 27 October 2026
+
+Read [READINESS-2026-10-27.md](READINESS-2026-10-27.md) with this guide. Software and provider checks are distinct from an Xcode/device pass. Aman's content and other live business/provider gates remain separately pending; do not switch payments to live for the Mac test.
+
 # Build and check WashKrew on the Mac
 
 Customer and Captain are the **Flutter apps**. Their Firebase setup, phone login, camera/library, voice/video, booking, test payment/refund, assignment, photo evidence, tracking, approval and earnings code is included. The Windows checks do not prove an iOS compilation or physical-device pass. Apple signing/APNs and the checks below are the remaining Mac work.
@@ -21,7 +25,7 @@ From the repository root:
 bash apps/flutter/tool/run-ios.sh --prepare
 ```
 
-This checks both native configurations, downloads Flutter iOS artifacts, restores the **locked Dart dependencies**, updates CocoaPods specs and installs every required native plugin. Existing compatible pod versions are retained. Staging already includes Mac-resolved pod locks and project changes (`283e39b`). This pass adds no native dependency and preserves those files. Preparation checks native plugins and generates machine-local Release settings. It does not compile, sign or install an app. Commit the resulting `Podfile.lock` changes after successful compilation. Do not use `pod install --deployment` with the old locks.
+This checks both native configurations, downloads Flutter iOS artifacts, restores the **locked Dart dependencies**, updates CocoaPods specs and installs every required native plugin. Existing compatible pod versions are retained. Staging already includes Mac-resolved pod locks and project changes (`283e39b`). This follow-up adds `google_maps_flutter_ios` to both apps and `speech_to_text` to Captain; it preserves the Mac-resolved project and pod files. The preparation command must add these plugins to the native installation. Preparation checks native plugins and generates machine-local Release settings. It does not compile, sign or install an app. Commit the resulting `Podfile.lock` changes after successful compilation. Do not use `pod install --deployment` with the old locks.
 
 If enforcing the Dart lock fails on a different Flutter version, use the tested SDK first. Do not resolve the problem by running a broad package upgrade. If CocoaPods reports an incompatible locked pod, retain the failure output and update only the named incompatible pod in that app's `ios` directory; do not delete all project/dependency files.
 
@@ -74,13 +78,16 @@ bash apps/flutter/tool/live.sh customer
 Use actual consenting test users and an operator-approved **test-mode** captain. Do not seed fake captains or fixed OTPs into production. Prefer two phones, or use the Customer web app with the Captain phone.
 
 - Open both Release apps after disconnecting Xcode. Verify WashKrew branding (there is no test-payment banner; it was removed on 25 Oct at the owner's request), then real SMS login, resend/edit number, profile and sign-out/reopen.
+- Allow/deny/re-enable camera, photos, microphone and speech recognition; use the existing quiz microphone in English/Hindi/Telugu and test unavailable/denied recognition without losing tap answers. Test the native map and movement of its existing pin, including a failed map load and retry.
 - Allow/deny/re-enable camera, photos and microphone; cancel capture; replace all four vehicle photos, Captain selfie/KYC and before/after wash photos. Record, preview, delete and retry voice/video uploads. Verify private media from the assigned Captain account.
 - Make a test-payment booking. Check payment cancellation/retry, app switching and lost-callback status recovery. Verify a refundable cancellation reaches its real test-provider refund result. No live funds are required.
-- Claim the offer, confirm the same assignment for both users, share optional foreground GPS, arrive, start/finish with four evidence photos, approve and rate from Customer, then check Captain earnings. Check future-slot restrictions and Customer cancellation while Captain is viewing a job.
+- Claim the offer, confirm the same assignment for both users, share optional foreground GPS, arrive, start/finish with four evidence photos, approve and rate from Customer, then check Captain earnings. The face check must use the consenting Captain’s approved reference photo; check a clear match, a bad/different capture and the human-review path. Inspect real advisory photo warnings, retake the correct side, and check that send-anyway still leaves Customer approval in control. Check future-slot restrictions and Customer cancellation while Captain is viewing a job.
 - Test denied notifications, inbox persistence, foreground/background push and notification taps. Lock/background the Captain app and confirm the Customer sees stale location instead of a claim of continuous tracking.
 
 Record the device/iOS/Xcode versions and outcomes in `docs/WEB-ACCEPTANCE.md` or a separate iOS acceptance record. Failed signing, APNs delivery, camera and UPI checks remain open until tested on hardware. Razorpay website approval, reviewed commercial settings and real live-mode captains are separate launch gates in [LIVE-LAUNCH.md](LIVE-LAUNCH.md); do not switch the server to live payments as part of compiling.
 
 ## Checks completed before transfer
 
-On Windows, 25 October: both clean release web builds, Customer/Captain/shared Firebase analyses, 8 Customer tests and 10 shared Firebase tests passed. Standalone tooling tests validate both native configurations and the device/plugin safety checks; Dart analysis and Bash syntax checks passed. Native compilation is intentionally guarded to macOS. These checks do not substitute for the Xcode and device steps above.
+On Windows, 27 October: all **89 backend/rules tests**, **24 Flutter tests** (8 Customer, 14 shared Firebase, 1 Captain speech parser, 1 shared image-quality check) and **3 actual local model tests** passed. Analyses of both apps, both shared packages and the iOS preparation tool are clean. Both release web builds passed and were published in test mode. Standalone tooling tests validate both native configurations and device/plugin safety checks; native compilation is intentionally guarded to macOS.
+
+Authenticated local HTTP acceptance exercised booking, assignment, a real private local face comparison, eight image uploads, wash tracking, Customer approval/rating/earnings and a single-use receipt. Its payment capture was simulated; the previous actual merchant test captures/refunds remain a separate acceptance record. Actual deployed private-model/Gemini checks and Google Routes requests passed without a production QA user or booking. Fresh local browser checks verified both restored accounts, the Captain's completed order and the real draggable map with its persisted parking coordinates. Deployed API access/signature checks and hosted bundle hashes passed. Exact boundaries are recorded in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md); these checks do not substitute for Xcode and device acceptance.

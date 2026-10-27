@@ -1,0 +1,13 @@
+{
+  "support": {"phone": "", "email": "", "hours": ""},
+  "legal": {"entity": "", "termsPrivacyUrl": ""},
+  "training": {
+    "version": "pending-aman",
+    "required": true,
+    "videos": [
+      {"url": "", "seconds": 0},
+      {"url": "", "seconds": 0},
+      {"url": "", "seconds": 0}
+    ]
+  }
+}

@@ -76,7 +76,7 @@ final gallerySections = <(String, List<GalleryEntry>)>[
     const _E('W30', 'Quick face check', routes: [R(N.goToVehicle), R(N.faceCheck)]),
     _E('W31', 'Before photos', prep: (s) => s..beforeDone = {0, 1}..ownerNoteHeard = true, routes: const [R(N.goToVehicle), R(N.beforePhotos)]),
     const _E('W32', 'Camera – guided side', routes: [R(N.goToVehicle), R(N.beforePhotos), R(N.camera, index: 2)]),
-    const _E('W33', 'Photo too dark', routes: [R(N.goToVehicle), R(N.beforePhotos), R(N.photoDark)]),
+    const _E('W33', 'Photo too dark', routes: [R(N.goToVehicle), R(N.beforePhotos), R(N.photoDark,index:2)]),
     _E('W34', 'Washing – timer', prep: (s) => s.ownerNoteHeard = true, routes: const [R(N.goToVehicle), R(N.washing)]),
     _E('W34b', 'Washing – late', prep: (s) => s.lateWash = true, routes: const [R(N.goToVehicle), R(N.washing)]),
     _E('W35', 'After photos', prep: (s) => s.afterDone = {0, 1, 2}, routes: const [R(N.goToVehicle), R(N.afterPhotos)]),

@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {initializeTestEnvironment,assertFails,assertSucceeds} from '@firebase/rules-unit-testing';
 import {doc,setDoc,getDoc,updateDoc,collection,query,where,getDocs} from 'firebase/firestore';
 import {ref,uploadBytes,getBytes} from 'firebase/storage';
+import {randomUUID} from 'node:crypto';
 let env;
 before(async()=>{env=await initializeTestEnvironment({projectId:'demo-wheelio',firestore:{host:'127.0.0.1',port:8080,rules:await readFile(new URL('./firestore.rules',import.meta.url),'utf8')},storage:{host:'127.0.0.1',port:9199,rules:await readFile(new URL('./storage.rules',import.meta.url),'utf8')}});});
 after(async()=>{await env?.cleanup();});
@@ -16,6 +17,20 @@ beforeEach(async()=>{await env.clearFirestore();await env.clearStorage();await e
   await setDoc(doc(db,'earnings/job'),{captainId:'captain',amount:11600,status:'awaitingApproval'});
 });});
 const actor=uid=>env.authenticatedContext(uid);
+test('private identity captures require a current server attempt and are immutable and unreadable to customers',async()=>{
+ const session=randomUUID();
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'users/captain'),{name:'Approved Captain',phone:'+919876543210'}));
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'identityChecks/job'),{captainId:'captain',status:'uploading',session:'issued-session',expiresAt:new Date(Date.now()+60000)}));
+ await env.withSecurityRulesDisabled(c=>updateDoc(doc(c.firestore(),'orders/job'),{identityCaptureSession:session,identityCaptureExpiresAt:new Date(Date.now()+60000)}));
+ const bytes=new Uint8Array([1,2,3]),path=`identity/captain/job/${session}.jpg`;
+ await assertFails(uploadBytes(ref(actor('alice').storage(),path),bytes,{contentType:'image/jpeg'}));
+ await assertFails(uploadBytes(ref(actor('captain').storage(),'identity/captain/job/guessed.jpg'),bytes,{contentType:'image/jpeg'}));
+ await assertSucceeds(uploadBytes(ref(actor('captain').storage(),path),bytes,{contentType:'image/jpeg'}));
+ await assertFails(uploadBytes(ref(actor('captain').storage(),path),bytes,{contentType:'image/jpeg'}));
+ await assertFails(getBytes(ref(actor('alice').storage(),path)));
+ await assertFails(getBytes(ref(actor('captain').storage(),path)));
+ await assertFails(getDoc(doc(actor('captain').firestore(),'identityChecks/job')));
+});
 test('profile and problem photos remain private; dispute audio belongs only to the assigned captain',async()=>{
  const bytes=new Uint8Array([1,2,3]),owner=actor('alice').storage(),captain=actor('captain').storage(),stranger=actor('stranger').storage();
  await assertSucceeds(uploadBytes(ref(owner,'profiles/alice/customer.jpg'),bytes,{contentType:'image/jpeg'}));

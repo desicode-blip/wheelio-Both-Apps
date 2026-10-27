@@ -218,9 +218,9 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
   Widget _onTheWay(Order o) {
     final router = context.router;
     final late = o.runningLateMinutes != null;
-    // Live bookings have no ETA yet (P0): the slot's end is the latest arrival time.
-    final arrives = o.arrivesBy ?? (context.store.isLive ? o.slot.end : DateTime.now());
-    final name = o.captain?.name ?? 'Raju';
+    final hasEta=!context.store.isLive||o.etaFresh;
+    final arrives = o.arrivesBy ?? DateTime.now();
+    final name = o.captain?.name ?? (context.store.isLive?'Your captain':'Raju');
     return WScreen(
       canvas: true,
       header: OrderHeader(order: o),
@@ -239,7 +239,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
           CaptainCard(
             order: o,
             badge: o.noShowChecking ? const WBadge('Checking', tone: Tone.wait, icon: WIcon.search) : const WBadge('Running late', tone: Tone.wait, icon: WIcon.clock),
-            timeText: 'Now arriving ${Fmt.time(arrives.add(Duration(minutes: (o.runningLateMinutes ?? 0) + 30)))}',
+            timeText:hasEta?'Now arriving ${Fmt.time(arrives)}':'Checking arrival time',
           ),
           const SizedBox(height: 16),
           o.noShowChecking
@@ -248,7 +248,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
               : WBanner(tone: Tone.wait, icon: WIcon.clock,
                   text: '$name is running about ${o.runningLateMinutes ?? 15} minutes late. If the wash doesn’t happen in your slot (till ${Fmt.time(o.slot.end)}), we’ll check with him. No wash means a full refund.'),
         ] else ...[
-          CaptainCard(order: o, badge: const WBadge('Accepted', tone: Tone.info, icon: WIcon.check), timeText: 'Arrives by ${Fmt.time(arrives)}'),
+          CaptainCard(order: o, badge: const WBadge('Accepted', tone: Tone.info, icon: WIcon.check), timeText:hasEta?'Arrives by ${Fmt.time(arrives)}':'Arrival estimate unavailable'),
           const SizedBox(height: 16),
           if (o.entryPassReceived)
             Container(

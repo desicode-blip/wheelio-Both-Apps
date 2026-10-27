@@ -12,3 +12,4 @@ export 'src/tokens.dart';
 
 export 'src/media.dart';
 export 'src/playback.dart';
+export 'src/photo_quality.dart';

@@ -1,4 +1,16 @@
-# Web acceptance — 21–26 October 2026
+# Web acceptance — 21–27 October 2026
+
+## 27 October software and provider checks
+
+The design-preserving follow-up is documented in [READINESS-2026-10-27.md](READINESS-2026-10-27.md). **89 backend/rules tests**, **24 Flutter tests** (8 Customer, 14 shared Firebase, 1 Captain speech parser and 1 shared image-quality test), **3 actual OpenCV model tests**, the portable iOS tooling checks and all app/shared/tool analyses passed. Both release web builds passed. New Maps and speech plugins still need CocoaPods resolution and compilation on the Mac.
+
+The guarded `acceptance-photo-flow.mjs` fixture used actual authenticated local Functions/Storage HTTP requests and the local model service. It covered booking, atomic claim, private immutable face capture and one-to-one comparison, four decoded before and four after images, GPS/status updates, photo-review outage acknowledgement, Customer approval/rating, earnings and single-use receipt/reuse rejection. Payment capture was **simulated in demo-wheelio** and local AI deliberately unavailable. This is not a new Razorpay checkout/refund or a physical camera/GPS acceptance.
+
+Separately, the deployed private service was checked using the real Functions runtime identity: private IAM, same/different-person public fixtures, quality/thumbnail output and actual Gemini structured image inference passed. A real Google Routes request using public test locations passed. No production QA account, booking, fixed OTP, charge or payout was created. The deletion function's runtime received only its required Firebase Auth deletion permission; no production account was deleted to test IAM.
+
+Fresh browser checks used separate local Customer and Captain origins with Firebase emulators. Both accounts signed in/restored, and Captain showed the completed order with ₹116 approved earnings. Google Maps rendered in C08's existing layout; map dragging changed the center and the confirmed center was saved in the Customer's private parking place. The final script has `loading=async` and its callback; the only captured Maps loading warning predates that fix. Live optional-photo/repeat-booking and earnings copy was corrected without changing component layout or restoring a payment banner.
+
+Functions, final Storage rules and Hosting were deployed. The domain-policy-compatible gateway setup covers 46 HTTP functions. All 41 protected callables reject anonymous requests; invalid receipt tokens return 403 and both webhook endpoints reject invalid signatures with 401. Final hosted Customer/Captain bundle hashes match their checked release files and the server remains in **test** payment mode. Aman's content, external provider/live business gates and all Xcode/signing/APNs/physical checks remain open as listed in [MAC-HANDOFF.md](MAC-HANDOFF.md).
 
 ## 26 October design-preserving release
 

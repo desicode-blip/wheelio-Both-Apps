@@ -1,3 +1,11 @@
+# Software readiness update — 27 October 2026
+
+The follow-up connects the existing map/video/microphone/photo controls to real Maps/Routes, server training and quiz progress, device speech and private photo checks. Existing screen composition and styling remain the staging design. The exact implementation, content publication steps and remaining provider/Mac boundaries are in [READINESS-2026-10-27.md](READINESS-2026-10-27.md). Payments remain test mode. Aman will supply approved training, support and policy content.
+
+The native dependencies added are Google Maps (both app locks) and speech recognition (Captain). Existing AppDelegate source installs the Maps runtime-key channel, and Captain's Info.plist includes the speech-use description. No Xcode project, signing, Podfile or Mac-resolved Podfile.lock was rewritten on Windows. The Mac preparation command must install the added pods before compiling.
+
+Final verification: 89 backend/rules tests, 24 Flutter tests, 3 actual model tests, both release web builds and all app/shared/tool analyses passed. Local browser accounts restored; the real map rendered and its dragged pin persisted. Live captions no longer promise unconnected messaging or a midnight payout. See [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md) for provider/fixture boundaries. No physical iPhone build is claimed.
+
 # Current integration update — 26 October 2026
 
 The functionality pass preserves staging `c1ad2b2` screen composition and native project changes. Existing controls now connect phone/profile/settings persistence, recorded playback, vehicle help, problem evidence, server deadlines, private downloads and operator decision/payout records. See [FUNCTIONALITY-2026-10-26.md](FUNCTIONALITY-2026-10-26.md) for checks and precise remaining gates. No generic Firebase screen or removed payment banner was restored; merchant mode remains test. Training and external accounts remain pending at the owner's request.

@@ -51,7 +51,7 @@ class _MoneyTabState extends State<MoneyTab> {
         WCard(
           padding: 18,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            WText(range == 0 ? store.t('Comes to UPI tonight before 12', 'आज रात 12 से पहले UPI में आएगा', 'ఈ రాత్రి 12 లోపు UPI కి వస్తుంది') : store.t('This week so far', 'इस हफ़्ते अब तक', 'ఈ వారం ఇప్పటి వరకు'), WType.caption),
+            WText(range == 0 ? store.isLive ? store.t('Today’s earnings · payouts confirmed separately', 'आज की कमाई · भुगतान की पुष्टि अलग से होगी', 'ఈరోజు ఆదాయం · చెల్లింపు వేరుగా నిర్ధారిస్తారు') : store.t('Comes to UPI tonight before 12', 'आज रात 12 से पहले UPI में आएगा', 'ఈ రాత్రి 12 లోపు UPI కి వస్తుంది') : store.t('This week so far', 'इस हफ़्ते अब तक', 'ఈ వారం ఇప్పటి వరకు'), WType.caption),
             const SizedBox(height: 10),
             WText(Fmt.rupees(range == 0 ? store.earnedToday : store.isLive ? store.weekMoney.$1 : 4562), WType.bigMoney, mono: true),
             const SizedBox(height: 10),
@@ -215,7 +215,7 @@ class LevelScreen extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             WText(store.t('New captain: day ${store.levelDay} of 3', 'नए कैप्टन: दिन ${store.levelDay} / 3', 'కొత్త కెప్టెన్: రోజు ${store.levelDay} / 3'), WType.section, weight: semibold),
             const SizedBox(height: 16),
-            Row(children: [day(1, '2 $jobs'), day(2, '4 $jobs'), day(3, '6–8')]),
+            Row(children: [day(1,store.isLive?(store.levelDay==1&&store.jobLimit>0?'${store.jobLimit} $jobs':'—'):'2 $jobs'),day(2,store.isLive?(store.levelDay==2&&store.jobLimit>0?'${store.jobLimit} $jobs':'—'):'4 $jobs'),day(3,store.isLive?(store.levelDay==3&&store.jobLimit>0?'${store.jobLimit} $jobs':'—'):'6–8')]),
           ]),
         ),
         const SizedBox(height: 14),
@@ -230,7 +230,7 @@ class LevelScreen extends StatelessWidget {
               for (var i = 0; i < 5; i++) const Padding(padding: EdgeInsets.only(right: 4), child: WIconView(WIcon.starFill, size: 20, color: WColor.star)),
             ]),
             const SizedBox(height: 8),
-            WText(store.t('From 6 washes · keep every wash at 4★ or more', '6 धुलाई से · हर धुलाई 4★ या ज़्यादा रखें', '6 వాష్‌ల నుండి · ప్రతి వాష్ 4★ లేదా ఎక్కువ ఉంచండి'), WType.caption),
+            WText(store.isLive?'From ${store.liveCaptain['ratingCount']??0} rated washes':store.t('From 6 washes · keep every wash at 4★ or more', '6 धुलाई से · हर धुलाई 4★ या ज़्यादा रखें', '6 వాష్‌ల నుండి · ప్రతి వాష్ 4★ లేదా ఎక్కువ ఉంచండి'), WType.caption),
           ]),
         ),
       ],
@@ -262,7 +262,7 @@ class ProbationScreen extends StatelessWidget {
         const Spacer(),
         const Center(child: WStateCircle(WIcon.calendar, tone: Tone.wait, size: 112)),
         const SizedBox(height: 14),
-        WText(store.t('1 more day at 4 jobs', '4 काम पर 1 दिन और', '4 పనులతో ఇంకో 1 రోజు'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
+        WText(store.isLive?(store.jobLimit>0?'Daily limit: ${store.jobLimit} jobs':'Work limits awaiting review'):store.t('1 more day at 4 jobs', '4 काम पर 1 दिन और', '4 పనులతో ఇంకో 1 రోజు'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
         const SizedBox(height: 14),
         WBody(
             store.t('One owner gave 3★: “Mirror was dusty.” Get 4★ or more on all jobs tomorrow to move up.', 'एक मालिक ने 3★ दिए: “शीशे पर धूल थी।” कल सभी कामों पर 4★ या ज़्यादा लें तो आगे बढ़ेंगे।',
@@ -335,13 +335,13 @@ class BlockedScreen extends StatelessWidget {
       WText(store.t('You can’t take jobs now', 'अभी आप काम नहीं ले सकते', 'ఇప్పుడు మీరు పనులు తీసుకోలేరు'), WType.section, weight: semibold, size: 23, align: TextAlign.center),
       const SizedBox(height: 14),
       WBody(
-          store.t('Too many low ratings in the last 2 weeks. If you think this is wrong, ask us to check again.', 'पिछले 2 हफ़्तों में बहुत कम रेटिंग। अगर यह गलत है, तो हमसे फिर जाँचने को कहें।',
+          store.isLive?store.liveCaptain['workStatusReason'] as String? ?? 'New jobs are paused pending review.':store.t('Too many low ratings in the last 2 weeks. If you think this is wrong, ask us to check again.', 'पिछले 2 हफ़्तों में बहुत कम रेटिंग। अगर यह गलत है, तो हमसे फिर जाँचने को कहें।',
               'గత 2 వారాల్లో చాలా తక్కువ రేటింగ్‌లు. ఇది తప్పు అనుకుంటే మళ్ళీ తనిఖీ చేయమని అడగండి.'),
           center: true),
       const SizedBox(height: 20),
-      WButton(store.t('Ask to check again', 'फिर से जाँच का अनुरोध', 'మళ్ళీ తనిఖీ చేయమని అడగండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () {}),
+      WButton(store.t('Ask to check again', 'फिर से जाँच का अनुरोध', 'మళ్ళీ తనిఖీ చేయమని అడగండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () async {if(!store.isLive)return;try{await store.live!.call('createSupportRequest',{'requestId':'work-review-${DateTime.now().millisecondsSinceEpoch}','kind':'other','note':'Captain requests a review of their work restriction.'});store.set(()=>store.toast='Your review request is saved.');}catch(e){store.set(()=>store.toast=backendError(e));}}),
       const SizedBox(height: 14),
-      WText(store.t('Your pending money (₹464) will still be paid.', 'आपके बाकी पैसे (₹464) फिर भी मिलेंगे।', 'మీ బాకీ డబ్బు (₹464) చెల్లిస్తాము.'), WType.caption, align: TextAlign.center),
+      WText(store.isLive?'Pending earnings: ${Fmt.rupees(store.weekMoney.$2+store.weekMoney.$3)}. Operations can confirm the payout.':store.t('Your pending money (₹464) will still be paid.', 'आपके बाकी पैसे (₹464) फिर भी मिलेंगे।', 'మీ బాకీ డబ్బు (₹464) చెల్లిస్తాము.'), WType.caption, align: TextAlign.center),
       const Spacer(),
     ]);
   }

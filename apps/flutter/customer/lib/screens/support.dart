@@ -232,14 +232,14 @@ class EmergencyHelpScreen extends StatelessWidget {
   Widget build(BuildContext context) => WScreen(
         header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Emergency', trailing: null, onLeading: context.router.pop)),
         footer: WStackedFooter(children: [WButton('Call us now', icon: WIcon.phone, kind: ButtonKind.danger, onTap: () => Support.call()), const WButton('WhatsApp us', kind: ButtonKind.text)]),
-        children: const [
-          SizedBox(height: 20),
-          Align(alignment: Alignment.centerLeft, child: WStateCircle(WIcon.warning, tone: Tone.error, size: 64)),
-          SizedBox(height: 18),
-          WText('We’re here for emergencies', WType.screen),
-          SizedBox(height: 6),
-          WText('Damage to your vehicle, an accident, or a safety worry. A real person picks up.', WType.body),
-          SizedBox(height: 14),
+        children: [
+          const SizedBox(height: 20),
+          const Align(alignment: Alignment.centerLeft, child: WStateCircle(WIcon.warning, tone: Tone.error, size: 64)),
+          const SizedBox(height: 18),
+          const WText('We’re here for emergencies', WType.screen),
+          const SizedBox(height: 6),
+          const WText('Damage to your vehicle, an accident, or a safety worry. A real person picks up.', WType.body),
+          const SizedBox(height: 14),
           WText(Support.hours, WType.caption),
         ],
       );

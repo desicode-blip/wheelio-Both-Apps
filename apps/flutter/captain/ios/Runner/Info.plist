@@ -11,6 +11,8 @@
 	<string>Choose photos for your documents and washes.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record a voice note when you need help with a job.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Answer training questions by speaking. You can also tap an answer.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Show jobs near you and confirm you reached the vehicle.</string>
 	<key>LSApplicationQueriesSchemes</key>

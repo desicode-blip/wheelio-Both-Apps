@@ -641,10 +641,10 @@ class RepeatScreen extends StatelessWidget {
             ('Notes', lastNote.summary),
           ],
         ),
-        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: const WText('Still needed for this wash', WType.label)),
-        const WListRow(icon: WIcon.camera, title: '4 fresh photos', subtitle: 'Every wash starts with new photos'),
+        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: WText(store.isLive?'Before your next wash':'Still needed for this wash', WType.label)),
+        WListRow(icon: WIcon.camera, title: '4 fresh photos', subtitle:store.isLive?'Optional: helps your Captain find the vehicle':'Every wash starts with new photos'),
         const WDivider(),
-        const WListRow(icon: WIcon.door, title: 'Gate pass', subtitle: 'We’ll ask on WhatsApp after you pay', trailing: 'Later', chevron: false),
+        WListRow(icon: WIcon.door, title: 'Gate pass', subtitle:store.isLive?'Arrange entry with your society. Messaging setup is pending.':'We’ll ask on WhatsApp after you pay', trailing:store.isLive?'Pending':'Later', chevron: false),
       ],
     );
   }
@@ -820,7 +820,7 @@ class _ProfileTabState extends State<ProfileTab> {
             group([
               WListRow(icon: WIcon.help, title: 'Help and support', onTap: () => router.go(N.help)),
               const WDivider(inset: 54),
-              const WListRow(icon: WIcon.doc, title: 'Terms and privacy'),
+              WListRow(icon: WIcon.doc, title: 'Terms and privacy',onTap:Support.openPolicies),
             ]),
             if (c != null) ...[
               const SizedBox(height: 14),
