@@ -46,6 +46,21 @@ async function main() {
     if(!Array.isArray(emails)||!emails.length||emails.length>20||new Set(emails).size!==emails.length||emails.some(e=>! /^[a-z0-9.!#$%&'+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(e)))throw Error('Supply distinct approved reviewer Google emails.');
     await api('/privateConfig/captainReviewers?updateMask.fieldPaths=emails&updateMask.fieldPaths=updatedAt','PATCH',{fields:{...fields({emails}),updatedAt:{timestampValue:new Date().toISOString()}}});
     console.log(`Configured ${emails.length} authorized Captain reviewers. No Captain was approved and no project IAM access was granted.`);
+  } else if(command==='configure-live-no-credit') {
+    if(!/^[A-Za-z0-9_-]{8,100}$/.test(uid??''))throw Error('Supply the saved WashKrew no-credit checkout configuration ID.');
+    const [key,password]=await Promise.all([secret('WASHKREW_RAZORPAY_LIVE_KEY_ID'),secret('WASHKREW_RAZORPAY_LIVE_KEY_SECRET')]);
+    if(!key.startsWith('rzp_live_'))throw Error('Separate WashKrew live credentials are required.');
+    const providerHeaders={Authorization:'Basic '+Buffer.from(key+':'+password).toString('base64')};
+    const verify=await fetch('https://api.razorpay.com/v1/payments?count=1',{headers:providerHeaders,signal:AbortSignal.timeout(30000)});
+    if(!verify.ok)throw Error('Separate WashKrew live credentials did not authenticate.');
+    const hooks=await fetch('https://api.razorpay.com/v1/webhooks?count=100',{headers:providerHeaders,signal:AbortSignal.timeout(30000)});
+    if(!hooks.ok)throw Error('Cannot verify the new merchant webhook.');
+    const hook=(await hooks.json()).items?.find(h=>h.url==='https://asia-south1-wheelio-apps.cloudfunctions.net/washkrewRazorpayLiveWebhook');
+    const enabled=e=>Array.isArray(hook?.events)?hook.events.includes(e):hook?.events?.[e]===true;
+    if(!hook?.active||!hook.secret_exists||!['payment.captured','order.paid','refund.processed'].every(enabled))throw Error('The separate signed WashKrew webhook is not ready.');
+    const current=await api('/config/operations'),patch={paymentMode:'live',paymentMerchant:'washkrew',paymentPolicy:'no-credit-card-checkout',checkoutConfigId:uid};
+    await api('/config/operations?'+Object.keys(patch).map(k=>'updateMask.fieldPaths='+k).join('&')+'&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields(patch)});
+    console.log('Live payment configuration enabled on the separate WashKrew merchant, with the saved no-credit checkout configuration. Existing orders, prices, approvals and historical refund credentials were not relabelled.');
   } else if(command==='configure-account-deletion') {
     const headers={Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'};
     async function cloud(url,method='GET',body){const response=await fetch(url,{method,headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)}),result=await response.json();if(!response.ok)throw Error(`${response.status}: ${result.error?.message??'Runtime permission setup failed'}`);return result;}
@@ -144,6 +159,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
+  } else throw Error('Commands: configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

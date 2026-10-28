@@ -31,31 +31,57 @@ Map<String, dynamic> checkoutOptions(
     'name': Brand.name,
     'description': 'Doorstep exterior wash',
     'prefill': {'contact': phone, if (selected != null) 'method': method},
-    if (selected != null)
-      'config': {
-        'display': {
-          'blocks': {
+    if (options['checkoutConfigId'] is String)
+      'checkout_config_id': options['checkoutConfigId'],
+    'config': {
+      'display': {
+        'blocks': {
+          if (selected != null)
             'selected': {
               'name': selected == 'gpay'
                   ? 'Google Pay'
                   : selected == 'phonepe'
                   ? 'PhonePe'
                   : selected == 'card'
-                  ? 'Card'
+                  ? 'Debit card'
                   : 'UPI',
               'instruments': [
                 {
                   'method': method,
+                  if (method == 'card') 'types': ['debit'],
                   if (selected == 'gpay' || selected == 'phonepe')
                     'apps': [selected == 'gpay' ? 'google_pay' : 'phonepe'],
                 },
               ],
             },
+          'bank_payments': {
+            'name': 'UPI and debit cards',
+            'instruments': [
+              {'method': 'upi'},
+              {
+                'method': 'card',
+                'types': ['debit'],
+              },
+              {'method': 'netbanking'},
+            ],
           },
-          'sequence': ['block.selected'],
-          'preferences': {'show_default_blocks': true},
         },
+        'sequence': [
+          if (selected != null) 'block.selected',
+          'block.bank_payments',
+        ],
+        'hide': [
+          {
+            'method': 'card',
+            'types': ['credit'],
+          },
+          {'method': 'emi'},
+          {'method': 'cardless_emi'},
+          {'method': 'paylater'},
+        ],
+        'preferences': {'show_default_blocks': false},
       },
+    },
     'theme': {'color': '#0049FF'},
   };
 }

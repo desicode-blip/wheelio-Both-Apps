@@ -2,6 +2,12 @@
 
 ## Owner handoff update - 27 October 2026
 
+**Latest owner payment instruction (28 October):** real payments are now authorized
+and only the direct credit-card checkout option is banned. UPI, including a linked
+credit card, remains allowed. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the prepared
+implementation, tests, unfinished gateway draft and expired publishing login.
+The actual server still reports test; authorization is not proof of deployment.
+
 **28 October follow-up:** `docs/ADMIN-MERCHANT-2026-10-28.md` supersedes the older
 pending merchant-integration and CLI-only Captain-approval status. Separate
 WashKrew live secrets/webhook and merchant-safe historical routing are deployed;

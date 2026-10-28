@@ -2,6 +2,18 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {RazorpayPayments,PaymentProviderError} from './functions/src/payments.mjs';
 
+test('server pins the merchant checkout configuration to its Razorpay order',async()=>{
+ let body;const api=new RazorpayPayments({keyId:'rzp_test_fake',keySecret:'fake',fetchImpl:async(url,options)=>{body=JSON.parse(options.body);return Response.json({id:'order_1'});}});
+ await api.createOrder({amount:14900,receipt:'booking',bookingId:'b1',checkoutConfigId:'config_no_credit'});
+ assert.equal(body.checkout_config_id,'config_no_credit');assert.equal(body.amount,14900);
+});
+test('verification and order reconciliation fetch provider card funding types',async()=>{
+ const paths=[];const api=new RazorpayPayments({keyId:'rzp_test_fake',keySecret:'fake',fetchImpl:async url=>{paths.push(url);return Response.json(url.endsWith('/card')?{type:'debit'}:url.includes('/orders/')?{items:[{id:'pay_1',method:'card',status:'captured'}]}:{id:'pay_1',method:'card',status:'captured'});}});
+ assert.equal((await api.payment('pay_1')).card.type,'debit');
+ assert.equal((await api.orderPayments('order_1')).items[0].card.type,'debit');
+ assert.equal(paths.filter(p=>p.endsWith('/card')).length,2);
+});
+
 test('provider errors retain bounded diagnostics without exposing payloads or credentials',async()=>{
   const api=new RazorpayPayments({keyId:'rzp_test_fake',keySecret:'private-key',fetchImpl:async()=>new Response(JSON.stringify({error:{code:'BAD_REQUEST_ERROR',description:'private-key personal@example.com'}}),{status:400})});
   await assert.rejects(api.fetchRefund('rfnd_one'),error=>{

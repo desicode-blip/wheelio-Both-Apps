@@ -35,6 +35,38 @@ async function paid(requestId='request-1') {
   const payment={id:`pay_${counter}`,order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};provider.payments.set(payment.id,payment);
   await service.capturePayment(payment);return {...booking,payment};
 }
+
+test('a credit-funded capture never assigns a job and queues one full original-merchant refund',async()=>{
+ await db.doc('config/operations').update({paymentPolicy:'no-credit-cards',checkoutConfigId:'config_no_credit'});
+ for(const [index,funding] of [{method:'card',card:{type:'credit'}},{method:'upi',upi:{payer_account_type:'credit_card'}}].entries()){
+  const b=await service.createBooking(customer,input('blocked-funding-'+index)),c=await service.checkout(customer,b);
+  assert.equal(c.checkoutConfigId,'config_no_credit');
+  const p={id:'pay_blocked_'+index,order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured',...funding};provider.payments.set(p.id,p);
+  await service.verifyPayment(customer,{...b,orderId:c.orderId,paymentId:p.id,signature:'valid'});
+  await service.capturePayment(p);
+  const order=(await db.doc('orders/'+b.bookingId).get()).data();assert.equal(order.status,'cancelled');assert.equal(order.cancellationReason,'paymentMethodNotAllowed');assert.equal(order.capacityReserved,false);
+  assert.equal((await db.collection('jobOffers').where('orderId','==',b.bookingId).get()).empty,true);
+  const refund=(await db.doc('refunds/'+b.bookingId).get()).data();assert.equal(refund.amount,c.amount);assert.equal(refund.paymentMerchant,'trustkeyper');
+  await service.processRefund(b.bookingId);assert.equal((await db.doc('orders/'+b.bookingId).get()).data().refundStatus,'processed');
+ }
+ assert.equal(provider.refundCalls,2);
+});
+test('new funding policy is snapshotted and approved bank UPI remains bookable',async()=>{
+ await db.doc('config/operations').update({paymentPolicy:'no-credit-cards',checkoutConfigId:'config_no_credit'});
+ const b=await service.createBooking(customer,input()),c=await service.checkout(customer,b);
+ await db.doc('config/operations').update({paymentPolicy:null});
+ const p={id:'pay_bank',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured',method:'upi',upi:{payer_account_type:'bank_account'}};
+ await service.capturePayment(p);assert.equal((await db.doc('orders/'+b.bookingId).get()).data().status,'searching');
+});
+test('unapproved Captain submission adopts current mode without approving or relabelling old bookings',async()=>{
+ const old=await service.createBooking(customer,input('old-test-booking'));
+ await service.register(auth('new-captain'),{role:'captain',name:'New Captain'});
+ await service.captainPayout(auth('new-captain'),{method:'upi',upi:'applicant@bank'});
+ await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'washkrew'});
+ await service.submitCaptainApplication(auth('new-captain'),{societyIds:['soc_avatar']});
+ const c=(await db.doc('captains/new-captain').get()).data();assert.equal(c.paymentMode,'live');assert.equal(c.approved,false);assert.equal(c.online,false);assert.equal(c.kycStatus,'underReview');
+ assert.equal((await db.doc('orders/'+old.bookingId).get()).data().paymentMode,'test');
+});
 test('route ETA uses actual shared location, throttles refresh and rejects stale assignment results',async()=>{
   const ref=db.doc('orders/route-test');await ref.set({captainId:'captain1',status:'onTheWay',societyId:'soc_avatar',vehiclePosition:{latitude:17.4,longitude:78.35}});
   let calls=0;service.maps={arrival:async()=>{calls++;return {seconds:180,distanceMetres:1300};}};

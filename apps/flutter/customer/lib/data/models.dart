@@ -327,6 +327,7 @@ class Order {
   String? evidence(String stage, int side) => evidencePaths['${stage}_$side'];
   String paymentStatus = 'unpaid';
   String refundStatus = 'none';
+    String? cancellationReason;
   bool testPayment = false;
   DateTime? serverSlotStart;
   Map<String, dynamic>? liveCancelPolicy;

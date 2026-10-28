@@ -1,3 +1,13 @@
+# Live-payment request follow-up — 28 October 2026
+
+[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records the owner's
+new live-payment instruction and clarified ban on the credit-card checkout
+option only; UPI stays allowed. Shared native/web checkout now filters debit
+cards, uses a server-pinned gateway configuration and handles unsupported
+captured payments through cancellation/full refund. Existing row/state components
+are retained. Tests/analyzers passed; publishing and actual live cutover are still
+blocked on Firebase owner reauthentication and final gateway configuration.
+
 # Private Captain review and merchant follow-up — 28 October 2026
 
 [ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) records the separate

@@ -1,6 +1,7 @@
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { PaymentProviderError } from './payments.mjs';
+import {acceptsFunding} from './payment-policy.mjs';
 import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import {startTraining,trainingHeartbeat,submitQuiz,trainingConfig} from './training.mjs';
 import {beginIdentity,verifyIdentity,reviewIdentity} from './identity.mjs';
@@ -227,6 +228,7 @@ export class WashKrewService {
         ...pricing, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
         captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
+        paymentPolicy:config.paymentPolicy??null,checkoutConfigId:config.checkoutConfigId??null,
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
         evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
       });
@@ -269,7 +271,7 @@ export class WashKrewService {
     const payments=this.getPayments(order.paymentMode,order.paymentMerchant);
     let providerId = order.razorpayOrderId;
     if (!providerId) {
-      const created = await payments.createOrder({ amount: order.pricePaise, receipt: order.ref, bookingId });
+      const created = await payments.createOrder({ amount: order.pricePaise, receipt: order.ref, bookingId,checkoutConfigId:order.checkoutConfigId });
       if (!created.id || created.amount !== order.pricePaise || created.currency !== 'INR') fail('internal', 'Checkout could not be prepared.');
       await this.db.runTransaction(async tx => {
         const latest = (await tx.get(ref)).data();
@@ -279,7 +281,7 @@ export class WashKrewService {
       });
       providerId = created.id;
     }
-    return { bookingId, keyId: payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'WashKrew', testMode: order.paymentMode === 'test' };
+    return { bookingId, keyId: payments.keyId, orderId: providerId, amount: order.pricePaise, currency: 'INR', name: 'WashKrew', testMode: order.paymentMode === 'test',checkoutConfigId:order.checkoutConfigId??null };
   }
   async verifyPayment(auth, data) {
     const uid = this.actor(auth), bookingId = id(data.bookingId), order = (await this.db.doc(`orders/${bookingId}`).get()).data();
@@ -360,11 +362,11 @@ export class WashKrewService {
         if (o.razorpayPaymentId !== payment.id) fail('already-exists', 'This booking already has a captured payment.');
         return;
       }
-      await this.settleBooking(tx, ref, o, cfg.data(), payment.id);
+      await this.settleBooking(tx, ref, o, cfg.data(), payment.id,'razorpay',acceptsFunding(payment,o.paymentPolicy)?null:'paymentMethodNotAllowed');
     });
     await this.dispatch(mapping.bookingId);
   }
-  async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay') {
+  async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay',rejectionReason=null) {
     const windows = o.requestedWindows ?? [{startHour:o.startHour,endHour:o.endHour}];
     const [slots,captains,wallet] = await Promise.all([
       Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${capacityKey(o.societyId,o.day,w.startHour,o.paymentMode)}`)))),
@@ -375,13 +377,13 @@ export class WashKrewService {
       const count=captains.docs.filter(c=>canTakeJobs(c.data())&&c.id!==o.customerId&&c.data().paymentMode===o.paymentMode&&this.worksWindow(c.data(),w,o.day)&&areaFits(c.data(),o,cfg.societies)).length;
       return windowTimes(o.day,w).end>this.now() && (slots[i].data()?.reserved??0)<Math.min(count,Number.isInteger(cfg?.capacityPerSlot)?cfg.capacityPerSlot:count);
     });
-    const canReserve=o.status==='pendingPayment'&&dateMillis(o.paymentExpiresAt)>this.now()&&cfg?.bookingsEnabled===true&&selected>=0;
+    const canReserve=!rejectionReason&&o.status==='pendingPayment'&&dateMillis(o.paymentExpiresAt)>this.now()&&cfg?.bookingsEnabled===true&&selected>=0;
     const selection=canReserve?windows[selected]:null;
     const cashRefund=!canReserve&&o.pricePaise>0;
     tx.update(ref,{paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
       status:canReserve?'searching':'cancelled',capacityReserved:canReserve,
       ...(canReserve?{...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
-        {cancellationReason:'slotUnavailable',refundStatus:cashRefund?'queued':'none',walletReleased:!!o.walletReserved}),updatedAt:stamp()});
+        {cancellationReason:rejectionReason??'slotUnavailable',refundStatus:cashRefund?'queued':'none',walletReleased:!!o.walletReserved}),updatedAt:stamp()});
     tx.set(this.db.doc(`payments/${ref.id}`),{customerId:o.customerId,paymentId:paymentId??null,source,amount:o.pricePaise,currency:'INR',status:'captured',updatedAt:stamp()});
     tx.set(this.db.doc(`customerState/${o.customerId}`),{pendingBookingId:null},{merge:true});
     if(canReserve)tx.set(slots[selected].ref,{reserved:(slots[selected].data()?.reserved??0)+1},{merge:true});
@@ -541,7 +543,7 @@ export class WashKrewService {
       const ref = this.db.doc(`captains/${uid}`), c = (await tx.get(ref)).data();
       if (!c || c.approved || !['notSubmitted','changesRequested'].includes(c.kycStatus)) fail('failed-precondition', 'Your application is already under review.');
       if(cfg.training?.required){const t=trainingConfig(cfg);if(c.trainingVersion!==t.version||!c.trainingCompletedAt||!c.quizPassedAt)fail('failed-precondition','Finish the approved training videos and quiz first.');}
-      tx.update(ref, { requestedSocietyIds: societyIds, payout, upi:payout.method==='upi'?payout.upi:'', kycStatus: 'underReview', submittedAt: stamp(), updatedAt: stamp() });
+      tx.update(ref, { requestedSocietyIds: societyIds, payout, upi:payout.method==='upi'?payout.upi:'', paymentMode:cfg.paymentMode,kycStatus: 'underReview', submittedAt: stamp(), updatedAt: stamp() });
     });
     return { status: 'underReview' };
   }

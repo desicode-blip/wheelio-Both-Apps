@@ -1,3 +1,13 @@
+# Live-payment request and checkout-only credit restriction — 28 October 2026
+
+[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records prepared shared
+Flutter/server funding enforcement and merchant configuration pinning. The owner
+allows UPI, including linked credit cards, and bans the direct credit-card checkout
+option. Unsupported captures cannot dispatch a Captain and receive a full queued
+original-merchant refund. No payment success, human approval or fake lifecycle
+was introduced. Deployment/login and saved gateway configuration remain pending;
+the server is still test mode, despite the owner's authorized live request.
+
 # Captain reviews and merchant routing — 28 October 2026
 
 [ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) records the deployed

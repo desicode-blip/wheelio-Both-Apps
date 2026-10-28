@@ -649,6 +649,7 @@ class AppStore extends ChangeNotifier {
     order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
     order.refundStatus = data['refundStatus'] ?? 'none';
+    order.cancellationReason = data['cancellationReason'] as String?;
     order.testPayment = data['paymentMode'] == 'test';
     order.evidencePaths = {for (final entry in (data['evidence'] as Map? ?? {}).entries) entry.key as String: entry.value['path'] as String};
     order.customerPhotoPaths = {for (final entry in (data['customerPhotos'] as Map? ?? {}).entries) entry.key as String: entry.value as String};
@@ -996,7 +997,7 @@ class AppStore extends ChangeNotifier {
       PaymentMethod('gpay', 'Google Pay', upi),
       const PaymentMethod('phonepe', 'PhonePe', 'UPI'),
       const PaymentMethod('upi_id', 'Other UPI app', 'Enter UPI ID'),
-      const PaymentMethod('card', 'Card', 'Debit or credit'),
+      const PaymentMethod('card', 'Debit card', 'Credit cards not accepted'),
     ];
   }
 

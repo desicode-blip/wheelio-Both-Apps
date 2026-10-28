@@ -31,11 +31,19 @@ export class RazorpayPayments {
     if (!result.ok || !data) throw new PaymentProviderError(result.ok ? 502 : result.status, data?.error?.code);
     return data;
   }
-  createOrder({ amount, receipt, bookingId }) {
-    return this.request('/orders', 'POST', { amount, currency: 'INR', receipt, notes: { wheelioBookingId: bookingId } });
+  createOrder({ amount, receipt, bookingId, checkoutConfigId }) {
+    return this.request('/orders', 'POST', { amount, currency: 'INR', receipt, ...(checkoutConfigId?{checkout_config_id:checkoutConfigId}:{}), notes: { wheelioBookingId: bookingId } });
   }
-  payment(id) { return this.request(`/payments/${encodeURIComponent(id)}`); }
-  orderPayments(id) { return this.request(`/orders/${encodeURIComponent(id)}/payments`); }
+  async payment(id) {
+    const payment=await this.request(`/payments/${encodeURIComponent(id)}`);
+    if(payment.method==='card'&&!payment.card?.type)payment.card=await this.request(`/payments/${encodeURIComponent(id)}/card`);
+    return payment;
+  }
+  async orderPayments(id) {
+    const result=await this.request(`/orders/${encodeURIComponent(id)}/payments`);
+    if(Array.isArray(result.items))result.items=await Promise.all(result.items.map(p=>p.status==='captured'&&p.method==='card'&&!p.card?.type?this.payment(p.id):p));
+    return result;
+  }
   fetchRefund(id) { return this.request(`/refunds/${encodeURIComponent(id)}`); }
   async findRefund({ paymentId, refundId }) {
     // A process can die after Razorpay accepts a POST but before Firestore gets

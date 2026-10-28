@@ -1,3 +1,12 @@
+# Latest owner payment instruction — 28 October 2026
+
+The owner now authorizes real payments and explicitly bans only direct credit-card
+checkout; UPI remains allowed. Prepared implementation, tests, the unfinished
+gateway draft and expired Firebase publishing login are recorded in
+[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md). **The live switch has
+not happened; current payments remain test.** Resume the documented deployment
+and gateway steps instead of treating the authorization itself as activation.
+
 # Current update — 28 October 2026
 
 [ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md) supersedes the older
