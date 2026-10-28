@@ -1,3 +1,14 @@
+# Browser workflow and error recovery - 29 October 2026
+
+Read [WEB-ACCEPTANCE-2026-10-29.md](WEB-ACCEPTANCE-2026-10-29.md) for actual
+Customer/Captain/admin browser evidence, authenticated wash/photo/approval checks
+and the explicit simulated-capture/provider/device limits. The source changes only
+make generic callable timeouts readable and preserve checkout errors in the
+existing payment-failure message area, without guessing bank/funds outcomes.
+Specific server messages, including an expired job offer, remain visible.
+The af036f0 composition, W05 upload exception and role order stay unchanged.
+48 Flutter tests, all four analyses and both final release web builds passed.
+
 # Captain document upload - 28 October 2026
 
 The owner explicitly replaced W05's DigiLocker option with phone document upload

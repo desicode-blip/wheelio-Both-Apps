@@ -1,3 +1,15 @@
+# Local browser acceptance - 29 October 2026
+
+[WEB-ACCEPTANCE-2026-10-29.md](WEB-ACCEPTANCE-2026-10-29.md) distinguishes actual
+browser actions from authenticated HTTP checks. The disposable demo-wheelio
+runner used public photo fixtures, a local real face model, synthetic GPS, a
+shifted assigned-job window, a temporarily extended local offer deadline and an
+explicit simulated capture after Razorpay TEST mock-bank access was blocked.
+These are isolated QA fixtures, not new app buttons, production timers, fake
+approvals or real merchant acceptance. No production records/settings changed.
+No new service was connected. Only existing error presentation was corrected;
+screens, private upload rules and human approval requirements stay intact.
+
 # Phone document upload and real admin review - 28 October 2026
 
 W05 now uses the existing phone camera/gallery upload as its primary action,

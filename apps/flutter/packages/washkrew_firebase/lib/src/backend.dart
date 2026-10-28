@@ -49,9 +49,18 @@ String backendError(Object error) {
   // Error identifiers only: never log phone numbers, OTPs, provider payloads or tokens.
   if (error is FirebaseException)
     debugPrint('Firebase operation failed: ${error.plugin}/${error.code}');
-  if (error is FirebaseFunctionsException)
+  if (error is FirebaseFunctionsException) {
+    final message = error.message?.trim();
+    if (error.code == 'deadline-exceeded' &&
+        (message == null ||
+            message.isEmpty ||
+            message.toLowerCase().replaceAll('_', '-').replaceAll(' ', '-') ==
+                'deadline-exceeded')) {
+      return 'This is taking longer than expected. Please try again.';
+    }
     return error.message ??
         'This action could not be completed. Please try again.';
+  }
   if (error is ArgumentError) return error.message.toString();
   if (error is StateError) return error.message;
   if (error is FirebaseAuthException) {
@@ -70,8 +79,10 @@ String backendError(Object error) {
       'invalid-verification-code' =>
         'That code does not match. Check the SMS and try again.',
       'session-expired' => 'The code expired. Request a new code.',
-      'requires-recent-login' => 'For your security, sign out and log in again before changing your account.',
-      'credential-already-in-use' || 'phone-number-already-exists' => 'This mobile number is linked to another account. Choose a different number.',
+      'requires-recent-login' =>
+        'For your security, sign out and log in again before changing your account.',
+      'credential-already-in-use' || 'phone-number-already-exists' =>
+        'This mobile number is linked to another account. Choose a different number.',
       'quota-exceeded' || 'billing-not-enabled' =>
         'SMS sign-in is currently unavailable. Please use email sign-in.',
       _ => 'Sign-in could not be completed. Please try again.',
@@ -98,7 +109,8 @@ String kycUploadError(Object error) {
         'The photo upload was blocked. Refresh your application status and try again. Documents cannot be replaced while under review or after approval.',
       'retry-limit-exceeded' || 'unavailable' || 'unknown' =>
         'The photo upload could not be confirmed. Check your connection and try again.',
-      'quota-exceeded' => 'Photo uploads are temporarily unavailable. Please try again later.',
+      'quota-exceeded' =>
+        'Photo uploads are temporarily unavailable. Please try again later.',
       'canceled' => 'The photo upload was cancelled. Please try again.',
       _ => 'The photo could not be saved. Please try again.',
     };

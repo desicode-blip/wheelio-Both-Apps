@@ -1,0 +1,15 @@
+{
+  "bookingId": "be54a0320ef6d7628d8b7af7f8d702ba",
+  "status": "approved",
+  "paymentCapture": "simulated-local-only",
+  "identity": "real-local-model",
+  "evidenceUploads": 8,
+  "customerIdentityAccess": "denied",
+  "captainApprovalAttempt": "denied",
+  "rating": 5,
+  "earnings": "approved",
+  "receipt": "PDF, single use",
+  "gps": "synthetic-local",
+  "manualBrowserThrough": "Captain arrival / identity picker; Customer assignment",
+  "completion": "authenticated HTTP"
+}

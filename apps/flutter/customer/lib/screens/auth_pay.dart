@@ -327,11 +327,13 @@ class _PayingScreenState extends State<PayingScreen> {
 
   Future<void> _run() async {
     final store = context.store, router = context.router;
+    _failureMessage = null;
     PaymentOutcome outcome;
     try {
       outcome = await store.createOrderAndPay();
     } catch (e) {
-      store.set(() => store.toast = backendError(e));
+      _failureMessage = backendError(e);
+      store.set(() => store.toast = _failureMessage);
       outcome = PaymentOutcome.failed;
     }
     if (!mounted) return;
@@ -339,6 +341,8 @@ class _PayingScreenState extends State<PayingScreen> {
       setState(() => view = outcome == PaymentOutcome.failed ? PayView.failed : PayView.pending);
     }
   }
+
+  String? _failureMessage;
 
   Future<void> _check() async {
     final store = context.store, router = context.router;
@@ -388,7 +392,9 @@ class _PayingScreenState extends State<PayingScreen> {
                 icon: WIcon.receipt,
                 tone: Tone.error,
                 title: 'Payment didn’t go through',
-                message: 'Your bank declined it. No money was taken. Try again or use another method.',
+                message: store.isLive
+                    ? (_failureMessage ?? 'Payment could not be completed. Check its status before trying again or changing method.')
+                    : 'Your bank declined it. No money was taken. Try again or use another method.',
                 primary: 'Try again',
                 secondary: 'Change method',
                 onPrimary: () {

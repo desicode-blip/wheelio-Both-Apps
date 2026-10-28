@@ -5,6 +5,14 @@ import 'package:washkrew_customer/data/store.dart';
 import 'package:washkrew_customer/screens/auth_pay.dart';
 import 'package:washkrew_customer/screens/live.dart';
 
+class UnavailableCheckoutStore extends AppStore {
+  @override
+  bool get isLive => true;
+  @override
+  Future<PaymentOutcome> createOrderAndPay() async =>
+      throw StateError('This is taking longer than expected. Please try again.');
+}
+
 // No Firebase or payment SDK is initialized by this fixture. It supplies the
 // server outcome at the point where checkout returns to the Customer screen.
 class ResolvedPaymentStore extends AppStore {
@@ -27,6 +35,20 @@ class ResolvedPaymentStore extends AppStore {
 }
 
 void main() {
+  testWidgets('checkout errors stay visible without inventing a bank decline or no-charge result', (tester) async {
+    final store = UnavailableCheckoutStore(), router = AppRouter();
+    await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: PayingScreen())));
+    await tester.pump();
+    expect(find.text('This is taking longer than expected. Please try again.'), findsOneWidget);
+    expect(find.textContaining('Your bank declined'), findsNothing);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Change method'), findsOneWidget);
+    expect(router.last, isNull);
+    await tester.pumpWidget(const SizedBox());
+    store.dispose();
+    router.dispose();
+  });
+
   testWidgets('unsupported funding keeps the designed cancellation and refund action', (tester) async {
     tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 1;
