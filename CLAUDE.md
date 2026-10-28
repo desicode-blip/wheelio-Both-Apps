@@ -5,6 +5,10 @@ for every coding agent and supersedes older historical handoff instructions.
 
 Start with:
 
+For the exact order of Captain -> Admin -> Captain -> Customer and the live wash,
+first read `docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md` (short PDF in `output/pdf/`).
+Guide Aman one action at a time, then use the detailed acceptance guide below.
+
 1. `docs/DESIGN-AUDIT-2026-10-28.md` - owner design lock **af036f0**, visual
    comparison, removed alternate apps and known testing limits.
 2. `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/` - guide

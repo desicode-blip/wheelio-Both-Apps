@@ -36,6 +36,8 @@ gallery using sample data; it is not functional acceptance.
 
 On a Mac with Xcode and CocoaPods, use `apps/flutter/tool/run-ios.sh` and follow
 [the complete Aman/Claude guide](docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md).
+Start with [the app switching flow](docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md)
+for the exact Captain, admin, Customer, payment and wash order.
 The Xcode workspaces are **apps/flutter/customer/ios/Runner.xcworkspace** and
 **apps/flutter/captain/ios/Runner.xcworkspace**. Keep bundle IDs
 `com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `8CCQQM7TP3`.
