@@ -1,12 +1,16 @@
 # Live-payment request and checkout-only credit restriction — 28 October 2026
 
-[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records prepared shared
+[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records deployed shared
 Flutter/server funding enforcement and merchant configuration pinning. The owner
 allows UPI, including linked credit cards, and bans the direct credit-card checkout
 option. Unsupported captures cannot dispatch a Captain and receive a full queued
 original-merchant refund. No payment success, human approval or fake lifecycle
-was introduced. Deployment/login and saved gateway configuration remain pending;
-the server is still test mode, despite the owner's authorized live request.
+was introduced. Owner authentication, Functions/Hosting deployment and gateway
+configuration are complete. New bookings now report live/WashKrew with
+`no-credit-card-checkout` and saved default `config_TtDpJ7HJM4hHb2`; historical
+records retain their merchant/mode. There are zero approved Captains. Private
+photo services stay test-gated pending physical/operational acceptance, with no
+fake success or approval added. Actual live charge/refund acceptance is pending.
 
 # Captain reviews and merchant routing — 28 October 2026
 

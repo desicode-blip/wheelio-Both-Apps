@@ -4,9 +4,15 @@
 
 **Latest owner payment instruction (28 October):** real payments are now authorized
 and only the direct credit-card checkout option is banned. UPI, including a linked
-credit card, remains allowed. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the prepared
-implementation, tests, unfinished gateway draft and expired publishing login.
-The actual server still reports test; authorization is not proof of deployment.
+credit card, remains allowed. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the deployed
+implementation and verified cutover. Owner authentication and Functions/Hosting
+deployment succeeded. New bookings report live/WashKrew, policy
+`no-credit-card-checkout`, configuration `config_TtDpJ7HJM4hHb2` (saved as merchant
+default). Historical merchant/mode routing is preserved. No live charge/refund
+acceptance is claimed. Zero Captains are approved; private photo services remain
+test-gated pending physical/operational acceptance. Training, human reviews,
+approved content and device checks remain required; do not treat payment cutover
+as a completed operational launch. This update supersedes older test-mode notes.
 
 **28 October follow-up:** `docs/ADMIN-MERCHANT-2026-10-28.md` supersedes the older
 pending merchant-integration and CLI-only Captain-approval status. Separate

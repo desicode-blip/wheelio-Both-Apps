@@ -5,9 +5,13 @@
 - **Latest 28 October payment instruction:** the owner now authorizes real
   payments and bans only credit-card checkout; UPI stays allowed, including a
   linked credit card. Read `docs/LIVE-PAYMENTS-2026-10-28.md`. This supersedes the
-  older prohibition on a requested live cutover. The actual server still remains
-  test because deployment authentication and the gateway configuration are
-  unfinished. Do not claim a live switch or silently ban credit-funded UPI.
+  older prohibition on a requested live cutover. Firebase owner authentication,
+  Functions/Hosting deployment and gateway setup are complete. New bookings now
+  use live/WashKrew with `no-credit-card-checkout` and the saved default
+  `config_TtDpJ7HJM4hHb2`. Historical bookings keep their merchant/mode. No actual
+  live charge/refund acceptance is claimed. There are zero approved Captains;
+  photo services remain test-gated pending real device/operational acceptance.
+  Do not silently ban credit-funded UPI or bypass training/approval/device gates.
 
 - **28 October follow-up:** read `docs/ADMIN-MERCHANT-2026-10-28.md`. Separate
   WashKrew live secrets/webhook and merchant-safe historical routing are now
@@ -88,4 +92,4 @@ pnpm preview
 
 ## Current state
 
-Normal Flutter URLs use Firebase; server payment mode remains test. The staging design removed the former payment banners. The SwiftUI reference and `?demo=true` remain sample-data experiences; fixed demo codes must never reach real controllers. Customer SMS delivery, OTP verification and account completion are confirmed; test-payment browser acceptance is recorded in `docs/WEB-ACCEPTANCE.md`. Current functionality and pending external/native checks are recorded in `docs/FUNCTIONALITY-2026-10-26.md`. Live merchant cutover, commercial review, approved live captains and physical GPS acceptance remain required before live operations. Legacy Next.js auth/database configuration and `/api/health` belong to the historical Neon stack, not the Firebase release.
+Normal Flutter URLs use Firebase. New bookings use the separate WashKrew live merchant and the saved debit-card/UPI/netbanking checkout configuration; historical bookings keep their original merchant/mode. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the verified 28 October cutover and remaining gates. Zero Captains are approved, private photo services remain test-gated pending physical/operational acceptance, and no live transaction acceptance is claimed. The staging design removed payment banners; do not restore them. The SwiftUI reference and `?demo=true` remain isolated sample experiences. Customer SMS/account completion and older test-payment acceptance are recorded in `docs/WEB-ACCEPTANCE.md`. Approved content, commercial/coverage review, real human Captain approval and physical iPhone/GPS/APNs acceptance still gate operational launch. Legacy Next.js/Neon/Cloudflare notes are historical.

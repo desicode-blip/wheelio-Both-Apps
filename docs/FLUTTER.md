@@ -5,8 +5,14 @@ new live-payment instruction and clarified ban on the credit-card checkout
 option only; UPI stays allowed. Shared native/web checkout now filters debit
 cards, uses a server-pinned gateway configuration and handles unsupported
 captured payments through cancellation/full refund. Existing row/state components
-are retained. Tests/analyzers passed; publishing and actual live cutover are still
-blocked on Firebase owner reauthentication and final gateway configuration.
+are retained. Tests/analyzers passed, both release web apps are published and the
+final Customer wording was rebuilt successfully. Owner authentication, Functions
+deployment and HTTP gateway setup succeeded. New bookings now use live/WashKrew
+with `no-credit-card-checkout` and saved default `config_TtDpJ7HJM4hHb2`.
+Historical bookings keep their original merchant/mode. No actual live charge or
+refund was performed. There are zero approved Captains, and photo services remain
+test-gated pending physical/operational acceptance; native Mac/device checks and
+approved content remain required. This status supersedes older test-mode notes.
 
 # Private Captain review and merchant follow-up — 28 October 2026
 

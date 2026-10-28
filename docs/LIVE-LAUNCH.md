@@ -1,11 +1,17 @@
 # Latest owner payment instruction — 28 October 2026
 
 The owner now authorizes real payments and explicitly bans only direct credit-card
-checkout; UPI remains allowed. Prepared implementation, tests, the unfinished
-gateway draft and expired Firebase publishing login are recorded in
-[LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md). **The live switch has
-not happened; current payments remain test.** Resume the documented deployment
-and gateway steps instead of treating the authorization itself as activation.
+checkout; UPI remains allowed. Implementation, tests and the completed deployment
+are recorded in [LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md).
+**New bookings now use live payments through the separate WashKrew merchant.**
+The saved default `config_TtDpJ7HJM4hHb2` permits debit cards, UPI and netbanking;
+unrestricted cards, EMI and wallets are off. The public catalog was checked for
+live/WashKrew/`no-credit-card-checkout` and that configuration ID. Historical
+orders/refunds retain their original merchant/mode. No real live charge, refund
+or payout was made. There are zero approved Captains, and private photo services
+remain test-gated pending physical/operational acceptance. Approved training,
+legal/support content, human approval and physical iPhone/APNs checks still gate
+an operational launch. This verified status supersedes older test-mode notes below.
 
 # Current update — 28 October 2026
 

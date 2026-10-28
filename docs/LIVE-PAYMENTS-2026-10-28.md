@@ -7,19 +7,25 @@ app. Do not silently broaden this into a ban on credit-funded UPI.
 
 ## Actual deployment state at this handoff
 
-**Payments remain test mode. The live cutover has not been executed.** Firebase
-publishing rejected the expired `ajay@trustkeyper.com` CLI login. A new Firebase
-CLI remote sign-in was started, but the owner requested it in the other Ajay
-Chrome profile. Computer Use then stopped because it could not verify the
-current Windows browser URL confidently enough to enforce policy. Do not claim
-this source change is published or that a real payment/refund passed.
+**New bookings now use live payments through the separate WashKrew merchant.**
+Firebase CLI authentication as `ajay@trustkeyper.com` succeeded in the connected
+Ajay Chrome profile; project access was verified. Functions and default Hosting
+were deployed successfully, including the final rebuilt Customer wording. The
+normal `configure-api-access` step completed with application authentication and
+webhook signatures still enforced. The marketing Hosting site was not overwritten.
+
+The owner-only cutover command succeeded using the actual saved gateway ID.
+Public configuration was verified as `paymentMode: live`, `paymentMerchant:
+washkrew`, `paymentPolicy: no-credit-card-checkout`, `checkoutConfigId:
+config_TtDpJ7HJM4hHb2`. Existing prices, societies, bookingsEnabled and approvals
+were preserved. **No actual live charge, refund or payout acceptance was performed.**
 
 The separate WashKrew live keys and signed webhook installed earlier remain in
 place. No key was regenerated and no live charge, refund or payout was executed.
 Historical orders, refund credentials and the Trustkeyper merchant were not
 modified.
 
-## Prepared source changes
+## Deployed source changes
 
 - Shared Flutter checkout now filters card instruments to `types: ['debit']`,
   hides credit-card/EMI/pay-later options and turns off unrestricted default
@@ -55,37 +61,34 @@ The connected Sumit Chrome session was switched from the old Trustkeyper merchan
 to the separate WashKrew merchant `acc_TstvPkGgqw80X4`, showing the WashKrew payment
 handle. Cards, netbanking and UPI are activated there.
 
-A **WashKrew No Credit** custom configuration was prepared. A **Debit cards**
-custom block was added, its Card Type filter selected, Debit enabled and Credit
-disabled, and that filter's **Save** button used. The configuration editor still
-has unsaved changes: its unrestricted standard Cards block and Wallets block
-were not yet disabled, **Save all changes** was not completed, and it was not
-set as default. Therefore this draft must not be treated as the effective gateway
-configuration or used for live cutover until the following steps are completed.
+A **WashKrew No Credit** custom configuration is saved as the merchant's
+**Default**, ID `config_TtDpJ7HJM4hHb2`. Its **Debit cards** custom block has
+Debit enabled and Credit disabled; the persisted filter was reopened and checked.
+UPI and netbanking are enabled. Unrestricted standard Cards, EMI and Wallets are
+disabled. The default confirmation and **Save all changes** were completed, and
+the saved configuration list displayed **Default**. No Trustkeyper configuration
+was edited. The dashboard preview was not taken through a live transaction.
 
-## Resume steps
+## Remaining acceptance and operations
 
-1. Finish Firebase CLI sign-in as `ajay@trustkeyper.com` and redeem the displayed
-   authorization code through the CLI. Never paste passwords/codes/keys into chat
-   or Git. Check the active owner login before retrying deployment.
-2. In the separate WashKrew merchant, finish the prepared configuration. Keep UPI
-   and netbanking. Keep the custom debit-only Cards block; disable the unrestricted
-   standard Cards block, EMI and other credit-based fallbacks. Save all changes,
-   make the restricted configuration default and record its real configuration ID.
-   Verify the persisted card filter and checkout preview. Do not edit Trustkeyper.
-3. Deploy Functions and the rebuilt default Hosting output, then apply the normal
-   `configure-api-access` gateway step. The final Customer explanatory wording was
-   changed after the last full web build, so rebuild the Customer output first.
-   The marketing Hosting site is separate and must not be overwritten.
-4. Run `node backend/firebase/operations.cjs configure-live-no-credit REAL_CONFIG_ID`
-   only after the gateway restriction is saved and the backend/frontend are
-   deployed. Confirm public configuration reports live/WashKrew and the
-   checkout-only credit-card policy. Audit the existing private photo-service
-   mode gate for live wash operation; do not claim a complete operational launch
-   solely from a payment-mode change.
-5. Keep real Captain approval, approved content/operations and physical iPhone
-   acceptance gates honest. Source changes do not compile/sign an iPhone app.
-   Actual live payment and refund acceptance remains to be performed by the owner.
+1. Production read-only aggregation found **0 approved test Captains and 0
+   approved live Captains**. Real applicants must complete genuine training and
+   human identity/payout/society review in `/admin/`; no fabricated capacity or
+   approval was added. Unapproved resubmission adopts current live mode.
+2. Private photo settings remain `enabled: true`, `aiEnabled: true`,
+   `paymentMode: test`. Payment cutover did not silently authorize live biometric
+   or image-processing acceptance. Complete consenting physical camera/selfie/
+   photo tests, operational review and approved processing policies, then have
+   the owner explicitly activate the photo service for live mode. The current
+   live identity step will explain the missing mode setup; do not fake it or
+   bypass the flow to claim device acceptance.
+3. Aman still needs to provide approved training, legal/support content and
+   commercial/coverage confirmation. Placeholder designs cannot award training.
+4. Build/sign/install on the Mac and test actual SMS, camera permission recovery,
+   Razorpay/UPI app switching, assignment, private photos, foreground GPS and APNs.
+   Source/web checks do not prove native compilation or device success.
+5. The owner must perform actual live debit/UPI checkout and refund acceptance
+   after operational readiness. No real financial transaction was executed here.
 
 ## Verification completed
 
@@ -96,8 +99,13 @@ configuration or used for live cutover until the following steps are completed.
 - Focused Captain mode-transition regression: **1 passed**; old orders retain test
   mode and new applicants do not become approved/online automatically.
 - Shared Firebase Flutter tests: **17 passed**. Customer tests: **16 passed**.
-  Customer/shared analyzers passed. Both full release web builds passed before
-  the final explanatory wording change. No physical-device pass is claimed.
+  Customer/shared analyzers passed. Both full release web builds passed, and the
+  final Customer explanatory wording was rebuilt successfully before publishing.
+- Production verification: `/app/`, `/captain/`, `/admin/` and its module return
+  200; the three admin callables, createBooking and verifyPayment reject anonymous
+  calls with 401/UNAUTHENTICATED. Private Captain evidence and an invalid live
+  webhook signature return 401. Live catalog/merchant/policy/configuration ID
+  matched the intended cutover. No physical-device or live transaction pass is claimed.
 
 Provider references: [checkout configuration](https://razorpay.com/docs/payments/dashboard/account-settings/payment-configuration/),
 [instrument filtering](https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/configure-payment-methods/understand-configuration/),
