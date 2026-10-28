@@ -1,3 +1,12 @@
+# Latest completion follow-up — 28 October 2026
+
+[COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) records the published live/test
+photo policy, five-minute identity capture enforcement and Captain photo-error
+handling in the existing UI. 120 backend tests, 4 Captain tests, Captain analysis/
+web build and portable native configuration checks passed. Live photo processing
+is active alongside historical test jobs; physical Mac/iPhone/APNs acceptance and
+approved content/human Captain reviews remain. No layout/assets were changed.
+
 # Live-payment request follow-up — 28 October 2026
 
 [LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records the owner's

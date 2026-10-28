@@ -1,3 +1,14 @@
+# Latest completion follow-up — 28 October 2026
+
+[COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) supersedes the earlier photo
+test-only gate: the actual private service is verified and enabled for test/live
+jobs. Unsupported modes and stale capture sessions fail closed; Captain errors
+use the existing toast. No fake photo result, training progress, approval or
+payment was introduced. The complete live-mode emulator flow uses explicitly
+simulated provider/model adapters, while deployed private-service checks use
+public fixtures. Neither is a physical iPhone or live transaction pass. Training
+policy/content, final support/legal data and human Captain approval remain open.
+
 # Live-payment request and checkout-only credit restriction — 28 October 2026
 
 [LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md) records deployed shared

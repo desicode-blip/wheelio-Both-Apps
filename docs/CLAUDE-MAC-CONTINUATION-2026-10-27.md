@@ -1,5 +1,12 @@
 # WashKrew
 
+**Latest 28 October completion:** read
+[COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) before this historical report
+or its PDF. Separate WashKrew live checkout and private test/live photo services
+are active. Preserve historical routing and use the current Mac guidance rather
+than switching the global catalog to test. Content, real human Captain approval
+and physical-device acceptance remain open; no live transaction pass is claimed.
+
 **28 October continuation:** [ADMIN-MERCHANT-2026-10-28.md](ADMIN-MERCHANT-2026-10-28.md)
 supersedes this report/PDF's pending merchant integration and CLI-only Captain
 review status. Separate merchant credentials/webhook, historical routing and a

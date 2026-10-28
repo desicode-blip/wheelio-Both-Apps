@@ -144,6 +144,57 @@ test('photo-review outages are labelled honestly and can retry without retaking 
   clock+=31000;service.photoChecks={reviewWash:async()=>[]};
   assert.deepEqual(await service.checkWashPhotos(auth('captain1'),{orderId:ref.id}),{issues:[],status:'checked'});
 });
+test('live checkout through Customer approval enforces private identity and photos while historical test photo checks stay usable',async()=>{
+  const live={...provider,keyId:'rzp_live_fixture',payments:new Map()};
+  service.paymentProviders={test:provider,'washkrew:live':live};
+  await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'washkrew',paymentPolicy:'no-credit-card-checkout',checkoutConfigId:'config_fixture'});
+  await db.doc('captains/captain1').update({paymentMode:'live'});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test',paymentModes:['test','live']});
+  const calls={compare:0,quality:0,review:0};service.evidence.read=async()=>Buffer.from('isolated fixture');service.evidence.deletePrefix=async()=>{};
+  service.photoChecks={compare:async()=>{calls.compare++;return {status:'candidateMatch'};},quality:async()=>{calls.quality++;return {issue:null};},reviewWash:async()=>{calls.review++;return [];}};
+  const b=await service.createBooking(customer,input('live-photo-flow')),checkout=await service.checkout(customer,b),d={orderId:b.bookingId},captain=auth('captain1');
+  const payment={id:'pay_live_photo_fixture',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured',method:'upi',upi:{payer_account_type:'credit_card'}};
+  live.payments.set(payment.id,payment);await service.captureWebhookPayment(payment.id,'live',checkout.orderId,'washkrew');
+  assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().paymentStatus,'captured');
+  await service.claim(captain,d);clock=Date.parse('2026-11-01T08:00:00+05:30');await service.progress(captain,{...d,action:'arrived'});
+  for(let side=0;side<4;side++)await service.evidenceUploaded(captain,{...d,stage:'before',side});
+  await assert.rejects(service.progress(captain,{...d,action:'start'}),{code:'failed-precondition'});
+  const attempt=await service.beginIdentity(captain,d);assert.equal((await service.verifyIdentity(captain,{...d,session:attempt.session})).verified,true);
+  await service.progress(captain,{...d,action:'start'});
+  for(let side=0;side<4;side++)await service.evidenceUploaded(captain,{...d,stage:'after',side});
+  await assert.rejects(service.progress(captain,{...d,action:'finish'}),{code:'failed-precondition'});
+  await service.checkWashPhotos(captain,d);await service.progress(captain,{...d,action:'finish'});
+  assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().status,'awaitingApproval');
+  await assert.rejects(service.approve(captain,d),{code:'permission-denied'});await service.approve(customer,d);await service.rate(customer,{...d,stars:5});
+  const earning=(await db.doc(`earnings/${b.bookingId}`).get()).data();assert.equal(earning.status,'approved');assert.equal(earning.paymentMode,'live');
+  const old=db.doc('orders/historical-photo-job');await old.set({captainId:'captain2',status:'onTheWay',arrivedAt:Timestamp.fromMillis(clock),paymentMode:'test'});
+  const previous=await service.beginIdentity(auth('captain2'),{orderId:old.id});assert.equal((await service.verifyIdentity(auth('captain2'),{orderId:old.id,session:previous.session})).verified,true);
+  assert.deepEqual(calls,{compare:2,quality:8,review:1});
+});
+
+test('enabled photo processing cannot be bypassed by another booking mode or malformed explicit modes',async()=>{
+  const ref=db.doc('orders/mode-gate'),captain=auth('captain1'),d={orderId:ref.id};
+  await ref.set({captainId:'captain1',status:'onTheWay',paymentMode:'live',arrivedAt:Timestamp.fromMillis(clock),slotStart:Timestamp.fromMillis(clock-1000)});
+  for(const modes of [undefined,[],['live','unknown'],['live','live']]){
+    await db.doc('privateConfig/photoChecks').set({enabled:true,paymentMode:'test',...(modes?{paymentModes:modes}:{})});
+    await assert.rejects(service.beginIdentity(captain,d),{code:'failed-precondition'});
+    await assert.rejects(service.evidenceUploaded(captain,{...d,stage:'before',side:0}),{code:'failed-precondition'});
+    await assert.rejects(service.progress(captain,{...d,action:'start'}),{code:'failed-precondition'});
+  }
+  assert.equal((await ref.get()).data().evidence,undefined);
+});
+
+test('an uploaded identity capture cannot be verified after its five-minute capture session expires',async()=>{
+  const ref=db.doc('orders/expired-capture'),captain=auth('captain1'),d={orderId:ref.id};
+  await ref.set({captainId:'captain1',status:'onTheWay',arrivedAt:Timestamp.fromMillis(clock),paymentMode:'test'});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,paymentMode:'test'});
+  let comparisons=0;service.photoChecks={compare:async()=>{comparisons++;return {status:'candidateMatch'};}};
+  const attempt=await service.beginIdentity(captain,d);clock+=5*60000;
+  await assert.rejects(service.verifyIdentity(captain,{...d,session:attempt.session}),{code:'permission-denied'});
+  assert.equal(comparisons,0);assert.equal((await ref.get()).data().identityStatus,undefined);
+  assert.equal((await db.doc(`identityChecks/${ref.id}`).get()).data().status,'uploading');
+});
+
 test('evidence registration checks decoded quality and cannot use an overwritten image generation',async()=>{
   const ref=db.doc('orders/quality-proof');await ref.set({captainId:'captain1',status:'onTheWay',arrivedAt:Timestamp.fromMillis(clock),slotStart:Timestamp.fromMillis(clock-1000),paymentMode:'test',identityStatus:'verified'});
   await db.doc('privateConfig/photoChecks').set({enabled:true,paymentMode:'test'});let checks=0;

@@ -1,5 +1,11 @@
 # Latest owner payment instruction — 28 October 2026
 
+**Later software completion:** [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md)
+records deployed test/live photo processing, identity-session enforcement,
+Captain error handling and the latest 120-test pass. This supersedes the older
+photo-test-only status. Real Captain reviews, approved training/support/legal/
+commercial input and physical iPhone/live-transaction acceptance remain open.
+
 The owner now authorizes real payments and explicitly bans only direct credit-card
 checkout; UPI remains allowed. Implementation, tests and the completed deployment
 are recorded in [LIVE-PAYMENTS-2026-10-28.md](LIVE-PAYMENTS-2026-10-28.md).

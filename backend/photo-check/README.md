@@ -1,5 +1,15 @@
 # Private photo checks
 
+**28 October update:** the owner requested completion after the separate merchant
+live cutover. The actual private service passed runtime checks and is now enabled
+for both test/live jobs via `privateConfig/photoChecks.paymentModes`. This explicit
+array supersedes the legacy single `paymentMode` field; malformed lists fail
+closed. `node backend/photo-check/activate.cjs live` verifies the deployed runtime
+and matching configured service URI before atomically preserving existing modes
+and adding live. It does not approve a Captain, training, KYC, a live transaction
+or physical-device acceptance. See
+[the completion report](../../docs/COMPLETION-2026-10-28.md) for remaining gates.
+
 This service runs in the existing `wheelio-apps` project, with zero minimum instances. It is callable only through Google Cloud IAM by the Functions runtime account. App clients use Firebase-authenticated, assignment-checked callables; they never receive a server credential or direct service access. No additional merchant account is involved.
 
 ## Identity

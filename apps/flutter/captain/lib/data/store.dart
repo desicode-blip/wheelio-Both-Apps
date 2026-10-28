@@ -1347,7 +1347,7 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
   List<Map<String,dynamic>> get photoReviewIssues=>[for(final i in liveOrder(current.id)?['photoReview']?['issues'] as List? ?? [])Map<String,dynamic>.from(i as Map)];
   int get photoReviewSide=>photoReviewIssues.firstOrNull?['side'] as int? ?? 0;
-  Future<List<dynamic>> liveCheckPhotos()async{final result=await live!.call('checkWashPhotos',{'orderId':current.id});return result['issues'] as List? ?? [];}
+  Future<List<dynamic>> liveCheckPhotos()=>_call(()async{final result=await live!.call('checkWashPhotos',{'orderId':current.id});return result['issues'] as List? ?? [];});
   Future<void> liveProgress(String action,{bool acknowledgePhotoIssues=false}) async {
     final orderId=current.id;
     if(orderId.isEmpty)throw StateError('Open your assigned job first.');

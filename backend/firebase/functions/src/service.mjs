@@ -6,6 +6,7 @@ import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import {startTraining,trainingHeartbeat,submitQuiz,trainingConfig} from './training.mjs';
 import {beginIdentity,verifyIdentity,reviewIdentity} from './identity.mjs';
 import {checkWashPhotos,photoFingerprint} from './wash-photo-review.mjs';
+import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
 
@@ -582,6 +583,7 @@ export class WashKrewService {
     if(!before||before.captainId!==uid)fail('permission-denied','This job is not yours.');
     const completed=o=>(action==='arrived'&&o.arrivedAt&&active.includes(o.status))||(action==='noteHeard'&&o.noteHeard&&active.includes(o.status))||(action==='start'&&['washing','photosReady','approved','disputed'].includes(o.status))||(action==='finish'&&['photosReady','approved','disputed'].includes(o.status));
     if(completed(before))return {ok:true};
+    if(identitySettings?.enabled&&!photoModeEnabled(identitySettings,before.paymentMode))fail('failed-precondition','Photo checks need operations setup for this booking mode.');
     if(['arrived','start','finish'].includes(action)&&dateMillis(before.slotStart)>this.now())fail('failed-precondition','This booking window has not opened yet.');
     if(['start','finish'].includes(action)) {
       const stage=action==='start'?'before':'after';
@@ -599,12 +601,12 @@ export class WashKrewService {
       let update={updatedAt:stamp()};
       if(action==='arrived'&&o.status==='onTheWay')update.arrivedAt=stamp();
       else if(action==='start'&&o.status==='onTheWay'&&o.arrivedAt){
-        if(identitySettings?.enabled&&identitySettings.paymentMode===o.paymentMode&&o.identityStatus!=='verified')fail('failed-precondition','Complete the Captain identity check before starting. Help can request a human review.');
+        if(photoModeEnabled(identitySettings,o.paymentMode)&&o.identityStatus!=='verified')fail('failed-precondition','Complete the Captain identity check before starting. Help can request a human review.');
         if((o.customerMedia?.note_audio||o.customerMedia?.note_video)&&!o.noteHeard)fail('failed-precondition','Listen to the owner note before starting.');
         update={...update,status:'washing',startedAt:stamp()};
       }
       else if(action==='finish'&&o.status==='washing'){
-        if(identitySettings?.aiEnabled&&identitySettings.paymentMode===o.paymentMode){
+        if(identitySettings?.aiEnabled&&photoModeEnabled(identitySettings,o.paymentMode)){
           if(!o.photoReview||o.photoReview.status==='checking'||o.photoReview.fingerprint!==photoFingerprint(o))fail('failed-precondition','Check the current after photos before sending.');
           if((o.photoReview.issues?.length||o.photoReview.status!=='checked')&&data.acknowledgePhotoIssues!==true)fail('failed-precondition','Review the photo warnings before sending.');
         }
@@ -626,7 +628,8 @@ export class WashKrewService {
     const metadata=await this.evidence.metadata(path);
     if(!metadata||!/^image\/(jpeg|png|webp)$/.test(metadata.contentType)||Number(metadata.size)<=0||Number(metadata.size)>8*1024*1024)fail('invalid-argument','Upload an image smaller than 8 MB.');
     const checks=(await this.db.doc('privateConfig/photoChecks').get()).data();
-    if(checks?.enabled&&checks.paymentMode===order.paymentMode){
+    if(checks?.enabled&&!photoModeEnabled(checks,order.paymentMode))fail('failed-precondition','Photo checks need operations setup for this booking mode.');
+    if(photoModeEnabled(checks,order.paymentMode)){
       const result=await this.photoChecks.quality(await this.evidence.read(path,metadata.generation));
       if(!result||!Object.hasOwn(result,'issue'))fail('unavailable','Photo checking did not return a result. Try again.');
       if(result.issue)fail('failed-precondition',result.issue==='tooDark'?'This photo is too dark. Add light and take it again.':'This photo is too small, unreadable or obscured. Take it again.');

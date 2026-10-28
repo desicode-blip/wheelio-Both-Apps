@@ -1,4 +1,14 @@
-# Current handoff — 27 October 2026
+# Latest handoff — 28 October 2026
+
+Read [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) first. Separate WashKrew
+live payments and test/live private photo processing are now active, and the
+private Captain admin is deployed. This supersedes older test-only/merchant-
+pending instructions below. Do not change global payment mode for a device test
+or fabricate a production Captain. Training policy/content, human approvals,
+approved support/legal/commercial inputs and physical iPhone/APNs acceptance
+remain open. The preparation/signing commands below still apply.
+
+# Historical handoff — 27 October 2026
 
 **Latest owner update:** use [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/` as the continuation brief. Aman will supply training design placeholders; these do not count as completed training. He is handling a separate WashKrew Razorpay merchant application/access. Do not activate the previous shared Trustkeyper live setup; new-merchant integration and acceptance remain pending. Native compilation can proceed independently of merchant onboarding.
 

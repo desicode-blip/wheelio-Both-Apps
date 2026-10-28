@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {Timestamp,FieldValue} from 'firebase-admin/firestore';
 import {PhotoCheckError} from './photo-checks.mjs';
+import {photoModeEnabled} from './photo-policy.mjs';
 const fail=(code,message)=>{throw new PhotoCheckError(code,message);};
 const orderId=value=>{if(!/^[A-Za-z0-9_-]{1,100}$/.test(value??''))fail('invalid-argument','Invalid booking.');return value;};
 export async function beginIdentity(service,auth,data){
@@ -9,7 +10,7 @@ export async function beginIdentity(service,auth,data){
   return service.db.runTransaction(async tx=>{
     const [order,cap,previous]=await Promise.all([tx.get(service.db.doc(`orders/${oid}`)),tx.get(service.db.doc(`captains/${uid}`)),tx.get(ref)]),o=order.data(),p=previous.data();
     if(o?.captainId!==uid||!cap.data()?.approved||o.status!=='onTheWay'||!o.arrivedAt)fail('permission-denied','Arrive at your assigned vehicle before this check.');
-    if(!cfg?.enabled||cfg.paymentMode!==o.paymentMode)fail('failed-precondition','Identity checks need operations setup for this booking mode.');
+    if(!photoModeEnabled(cfg,o.paymentMode))fail('failed-precondition','Identity checks need operations setup for this booking mode.');
     if(o.identityStatus==='verified')return {verified:true};
     const recent=p?.captainId===uid&&now-(p.windowStartAt?.toMillis()??0)<3600000;
     if(recent&&(p.attemptCount>=5||now-p.updatedAt.toMillis()<5000))fail('resource-exhausted','Please wait before another selfie attempt, or ask Help for a review.');
@@ -21,9 +22,11 @@ export async function beginIdentity(service,auth,data){
 }
 export async function verifyIdentity(service,auth,data){
   const uid=service.actor(auth),oid=orderId(data.orderId),ref=service.db.doc(`identityChecks/${oid}`),p=(await ref.get()).data(),orderRef=service.db.doc(`orders/${oid}`),o=(await orderRef.get()).data();
-  if(!p||p.captainId!==uid||p.session!==data.session||p.status!=='uploading'||p.expiresAt.toMillis()<service.now()||o?.captainId!==uid||o.status!=='onTheWay')fail('permission-denied','Reopen the identity check for your assigned job.');
+  const currentCapture=order=>order?.captainId===uid&&order.status==='onTheWay'&&order.identityCaptureSession===data.session&&(order.identityCaptureExpiresAt?.toMillis()??0)>service.now();
+  if(!p||p.captainId!==uid||p.session!==data.session||p.status!=='uploading'||p.expiresAt.toMillis()<service.now()||!currentCapture(o))fail('permission-denied','Reopen the identity check for your assigned job.');
+  if(!photoModeEnabled((await service.db.doc('privateConfig/photoChecks').get()).data(),o.paymentMode))fail('failed-precondition','Identity checks need operations setup for this booking mode.');
   const lease=randomUUID();
-  await service.db.runTransaction(async tx=>{const [check,order]=await Promise.all([tx.get(ref),tx.get(orderRef)]);if(check.data()?.session!==p.session||check.data()?.status!=='uploading'||order.data()?.captainId!==uid||order.data()?.status!=='onTheWay')fail('failed-precondition','This identity attempt is already being checked.');tx.update(ref,{status:'checking',lease});});
+  await service.db.runTransaction(async tx=>{const [check,order]=await Promise.all([tx.get(ref),tx.get(orderRef)]);if(check.data()?.session!==p.session||check.data()?.status!=='uploading'||!currentCapture(order.data()))fail('failed-precondition','Reopen the current identity attempt before checking.');tx.update(ref,{status:'checking',lease});});
   const baseline=`kyc/${uid}/selfie.jpg`;
   const read=async path=>{const meta=await service.evidence.metadata(path);if(!meta||!/^image\/(jpeg|png|webp)$/.test(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>8*1024*1024)fail('failed-precondition','A clear approved Captain photo and a fresh selfie are required.');return service.evidence.read(path,meta.generation);};
   let result;

@@ -1,5 +1,11 @@
 # Live-payment request and credit-card checkout restriction — 28 October 2026
 
+**Later completion update:** [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md)
+supersedes the photo-test-only gate below. The verified private service now
+supports both live and historical test jobs; no hardware or live transaction
+acceptance is claimed. The current training requirement/content decision and
+remaining human/business inputs are recorded there.
+
 The owner explicitly requested real payments, superseding the earlier instruction
 to remain in test mode. The owner then clarified: **block the credit-card checkout
 option only**. UPI remains allowed, including a credit card linked inside a UPI

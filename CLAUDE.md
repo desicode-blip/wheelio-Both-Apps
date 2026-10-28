@@ -2,6 +2,18 @@
 
 ## Owner handoff update - 27 October 2026
 
+**Latest completion follow-up (28 October):** read
+`docs/COMPLETION-2026-10-28.md`. Live/historical-test private photo checks are now
+deployed and enabled, five-minute automated selfie sessions are enforced, and
+Captain photo-check failures show the existing error toast. 120 backend tests,
+4 Captain tests, Captain analysis/web build and portable native checks passed.
+No physical-device or live transaction pass is claimed. Zero Captains are
+approved. Training policy/content is still an owner decision: the audit found
+training not required in current config and no published videos. An async
+question asks approved videos/quiz versus a documented in-person process. Do not
+invent the policy or award fake training. Support/legal/commercial input and
+real human Captain approvals remain open. This supersedes older photo-mode notes.
+
 **Latest owner payment instruction (28 October):** real payments are now authorized
 and only the direct credit-card checkout option is banned. UPI, including a linked
 credit card, remains allowed. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the deployed
@@ -9,8 +21,8 @@ implementation and verified cutover. Owner authentication and Functions/Hosting
 deployment succeeded. New bookings report live/WashKrew, policy
 `no-credit-card-checkout`, configuration `config_TtDpJ7HJM4hHb2` (saved as merchant
 default). Historical merchant/mode routing is preserved. No live charge/refund
-acceptance is claimed. Zero Captains are approved; private photo services remain
-test-gated pending physical/operational acceptance. Training, human reviews,
+acceptance is claimed. Zero Captains are approved; private photo services support
+both test/live jobs, with physical/operational acceptance still pending. Training, human reviews,
 approved content and device checks remain required; do not treat payment cutover
 as a completed operational launch. This update supersedes older test-mode notes.
 

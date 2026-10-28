@@ -1,6 +1,7 @@
 import {createHash,randomUUID} from 'node:crypto';
 import {Timestamp} from 'firebase-admin/firestore';
 import {PhotoCheckError} from './photo-checks.mjs';
+import {photoModeEnabled} from './photo-policy.mjs';
 export const photoFingerprint=o=>createHash('sha256').update(JSON.stringify([0,1,2,3].map(i=>{const e=o.evidence?.[`after_${i}`];return [e?.path,e?.generation,e?.uploadedAt?.toMillis?.()];}))).digest('hex');
 const fail=(code,message)=>{throw new PhotoCheckError(code,message);};
 export async function checkWashPhotos(service,auth,data){
@@ -19,7 +20,7 @@ export async function checkWashPhotos(service,auth,data){
   if(selected.cached)return {issues:selected.cached.issues??[],status:selected.cached.status};
   let issues=[],status='checked';
   try{
-    if(!cfg?.enabled||!cfg.aiEnabled||cfg.paymentMode!==selected.o.paymentMode)throw Error('Review configuration pending');
+    if(!photoModeEnabled(cfg,selected.o.paymentMode)||!cfg.aiEnabled)throw Error('Review configuration pending');
     const photos=[];
     for(let i=0;i<4;i++){
       const evidence=selected.o.evidence[`after_${i}`],expected=`orders/${ref.id}/${uid}/after_${i}.jpg`;
