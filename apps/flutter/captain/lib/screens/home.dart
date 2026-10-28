@@ -341,7 +341,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                                 children: [
                                   WText(store.t('Finish KYC to take jobs', 'काम लेने के लिए KYC पूरा करें', 'పనులకు KYC పూర్తి చేయండి'), WType.title, size: 17),
                                   const SizedBox(height: 3),
-                                  WText('${store.kycStagesDone}/4 · ${store.t('Aadhaar, photo, bank, training', 'आधार, फ़ोटो, बैंक, ट्रेनिंग', 'ఆధార్, ఫోటో, బ్యాంక్, శిక్షణ')}', WType.caption),
+                                  WText('${store.kycStagesDone}/${store.kycStageCount} · ${store.trainingEnabled ? store.t('Aadhaar, photo, bank, training', 'आधार, फ़ोटो, बैंक, ट्रेनिंग', 'ఆధార్, ఫోటో, బ్యాంక్, శిక్షణ') : store.t('Aadhaar, photo, bank', 'आधार, फ़ोटो, बैंक', 'ఆధార్, ఫోటో, బ్యాంక్')}', WType.caption),
                                 ],
                               ),
                             ),

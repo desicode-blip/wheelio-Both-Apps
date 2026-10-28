@@ -1,5 +1,12 @@
 # Latest completion follow-up — 28 October 2026
 
+**Latest owner choice:** videos/training and quiz are hidden. The existing three
+KYC stages lead to application review; admin approval permits working, with the
+server still blocking unapproved Captains. Profile/refresher entry points and
+cached training routes respect the flag. No fake completion is added. 121 backend
+tests and 6 Captain tests passed; Captain analysis/web build passed. Read
+[COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md). Native builds need a Mac rebuild.
+
 [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) records the published live/test
 photo policy, five-minute identity capture enforcement and Captain photo-error
 handling in the existing UI. 120 backend tests, 4 Captain tests, Captain analysis/

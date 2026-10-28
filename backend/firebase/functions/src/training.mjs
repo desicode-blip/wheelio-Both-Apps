@@ -8,6 +8,7 @@ export class TrainingError extends Error {constructor(code,message){super(messag
 const fail=(code,message)=>{throw new TrainingError(code,message);};
 export function trainingConfig(cfg){
   const t=cfg.training;
+  if(t?.enabled===false)fail('failed-precondition','Training and quizzes are currently disabled. Your application requires admin approval.');
   if(!t?.version||!Array.isArray(t.videos)||t.videos.length!==3||t.videos.some(v=>!/^https:\/\//.test(v.url??'')||!Number.isFinite(v.seconds)||v.seconds<10||v.seconds>3600))fail('failed-precondition','Approved training videos are awaiting publication.');
   return t;
 }

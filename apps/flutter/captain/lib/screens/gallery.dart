@@ -34,7 +34,7 @@ final gallerySections = <(String, List<GalleryEntry>)>[
     const _E('W03h', 'Home after sign-up (KYC card)', tab: 0, stage: 2),
     _E('W16', 'Accept a job → quick KYC', prep: (s) => s..steps = {}..kycFromJob = true, routes: const [R(N.steps)], stage: 2),
     const _E('W16a', 'Job rings for a new captain (accept → KYC)', routes: [R(N.jobAlert)], stage: 2),
-    _E('W04', '4 steps (process overview)', prep: (s) => s.steps = {}, routes: const [R(N.steps)], stage: 2),
+    _E('W04', 'KYC steps (process overview)', prep: (s) => s.steps = {}, routes: const [R(N.steps)], stage: 2),
     const _E('W05', 'Verify Aadhaar', routes: [R(N.aadhaar)], stage: 2),
     const _E('W05b', 'Aadhaar photo not clear', routes: [R(N.aadhaar, flag: true)], stage: 2),
     const _E('W06', 'Your photo (selfie)', routes: [R(N.selfie)], stage: 2),
@@ -166,7 +166,7 @@ class WGalleryScreen extends StatelessWidget {
         }),
         for (final s in gallerySections) ...[
           Padding(padding: const EdgeInsets.only(top: 20, bottom: 4), child: WText(s.$1, WType.section, weight: semibold)),
-          for (final e in s.$2) ...[
+          for (final e in s.$2.where((e)=>store.trainingEnabled||!e.routes.any((r)=>[N.training,N.video,N.quiz,N.quizResult,N.refresher].contains(r.n)))) ...[
             Pressable(
               feedback: false,
               onTap: () => _open(context, e),

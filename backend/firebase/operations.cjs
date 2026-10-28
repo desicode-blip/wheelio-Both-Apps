@@ -40,7 +40,11 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-captain-reviewers') {
+  if(command==='configure-admin-approval') {
+    const current=await api('/config/operations');
+    await api('/config/operations?updateMask.fieldPaths=training.enabled&updateMask.fieldPaths=training.required&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:{training:{mapValue:{fields:fields({enabled:false,required:false})}}}});
+    console.log('Training and quiz are hidden and not required. Human admin approval still gates work. No Captain was approved and no training completion was awarded. Other configuration was preserved.');
+  } else if(command==='configure-captain-reviewers') {
     if(!uid)throw Error('Usage: configure-captain-reviewers PRIVATE_REVIEWERS_JSON');
     const input=JSON.parse(readFileSync(uid,'utf8')),emails=input.emails?.map(v=>typeof v==='string'?v.trim().toLowerCase():'');
     if(!Array.isArray(emails)||!emails.length||emails.length>20||new Set(emails).size!==emails.length||emails.some(e=>! /^[a-z0-9.!#$%&'+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(e)))throw Error('Supply distinct approved reviewer Google emails.');
@@ -159,6 +163,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
+  } else throw Error('Commands: configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

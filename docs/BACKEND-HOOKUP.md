@@ -1,5 +1,12 @@
 # Latest completion follow-up — 28 October 2026
 
+**Latest explicit owner policy:** hide training/videos and quiz; actual admin
+approval is the gate to work. `training.enabled` and `training.required` are false.
+The three real identity/selfie/payout stages still submit to authorized human
+review. No fake watch progress, quiz/training success, approval or online state
+was added. Disabled training endpoints reject direct/stale requests. The real
+submission/admin-approval/online gate passed isolated integration tests.
+
 [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) supersedes the earlier photo
 test-only gate: the actual private service is verified and enabled for test/live
 jobs. Unsupported modes and stale capture sessions fail closed; Captain errors

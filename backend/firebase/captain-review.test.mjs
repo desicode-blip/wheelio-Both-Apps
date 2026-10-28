@@ -35,6 +35,24 @@ test('human approval records reviewer/note/societies and notifies without fabric
  const notification=(await db.doc(`notifications/${result.reviewId}`).get()).data();assert.equal(notification.kind,'applicationReview');assert.equal(notification.role,'captain');
  await assert.rejects(service.reviewCaptainApplication(reviewer(),await decision()),{code:'failed-precondition'});
 });
+
+test('disabled training permits submission and admin approval; only an approved Captain can work without fake training records',async()=>{
+ const applicant={uid:'applicant',token:{phone_number:'+919000000002'}},customer={uid:'customer',token:{phone_number:'+919000000003'}};
+ await db.doc('config/operations').update({paymentMode:'live',paymentMerchant:'washkrew',training:{enabled:false,required:false}});
+ await db.doc('captains/applicant').update({kycStatus:'notSubmitted',paymentMode:'test',workingSlots:[{startMinute:240,endMinute:1320}]});
+ await assert.rejects(service.captainOnline(applicant,{online:true}),{code:'permission-denied'});
+ await service.submitCaptainApplication(applicant,{societyIds:['soc_avatar']});
+ const submitted=(await db.doc('captains/applicant').get()).data();assert.equal(submitted.kycStatus,'underReview');assert.equal(submitted.paymentMode,'live');assert.equal(submitted.approved,false);
+ for(const call of [()=>service.startTraining(applicant,{index:0}),()=>service.trainingHeartbeat(applicant,{index:0,session:'old',positionSeconds:20}),()=>service.submitQuiz(applicant,{version:'wash-safety-1',answers:[0,0,1,0,0]})])await assert.rejects(call,{code:'failed-precondition'});
+ await assert.rejects(service.captainOnline(applicant,{online:true}),{code:'permission-denied'});
+ const detail=await service.getCaptainApplication(reviewer(),{captainId:'applicant'});assert.equal(detail.training.enabled,false);assert.equal(detail.training.required,false);
+ await service.reviewCaptainApplication(reviewer(),await decision());
+ assert.equal((await db.doc('captains/applicant').get()).data().online,false);
+ await service.captainOnline(applicant,{online:true});
+ assert.equal((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.some(s=>s.available),true);
+ const approved=(await db.doc('captains/applicant').get()).data();assert.equal(approved.online,true);assert.equal(approved.approvedBy,email);assert.equal(approved.trainingCompletedAt,undefined);assert.equal(approved.quizPassedAt,undefined);
+ assert.equal((await db.collection('captains/applicant/training').get()).empty,true);
+});
 test('approval requires actual uploads, human review flags, active requested societies and current training',async()=>{
  for(const patch of [{identityReviewed:false},{payoutReviewed:false},{societyIds:['soc_avali']},{societyIds:[]},{reason:'x'}])await assert.rejects(service.reviewCaptainApplication(reviewer(),await decision(patch)));
  metadata=null;await assert.rejects(service.reviewCaptainApplication(reviewer(),await decision()),{code:'failed-precondition'});metadata={contentType:'image/jpeg',size:100};

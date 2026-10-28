@@ -1,5 +1,10 @@
 # Private Captain reviews
 
+**28 October owner policy:** training/videos and quiz are hidden and not required
+for now. The detail view says **Admin document review**. Actual document/payout/
+society review and authorized approval remain mandatory; no automatic approval
+or training completion is awarded. Approved Captains can choose to go online.
+
 Published at https://wheelio-apps.web.app/admin/. This separate operations page
 does not replace or redesign either Flutter app. Its static sign-in shell is
 public; every application, image and decision requires server authorization.

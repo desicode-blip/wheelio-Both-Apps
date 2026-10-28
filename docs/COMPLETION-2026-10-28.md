@@ -5,6 +5,47 @@ test-only payment/photo notes and the historical Mac handoff PDF where they
 conflict. Customer/Captain staging layouts, assets, tokens, bundle IDs and the
 `wheelio-apps` project are preserved. Android remains deferred.
 
+## Latest owner decision: admin approval, training hidden
+
+The owner explicitly chose to hide videos/training and quiz for now. The live
+configuration is `training.enabled: false`, `training.required: false`; existing
+content and historical progress are preserved rather than relabelled as passed.
+Captain KYC shows the existing three Aadhaar, selfie and payout stages, then the
+existing rules/submission and work-profile screens. Training/quiz/refresher
+entry points and the profile training row are hidden; stale training routes
+return to KYC or the approved Captain's profile. Other layouts/assets are kept.
+
+An authorized admin reviews identity/payout documents and selects requested
+service societies in `/admin/`. Approval is recorded and the Captain can go
+online and work, subject to their work periods/societies and existing work
+restrictions. Pending/corrected/unapproved applicants cannot go online or obtain
+assignment. No Captain is auto-approved and no training/quiz success is invented.
+The admin detail page describes the current process as **Admin document review**.
+Existing website wording now describes approval instead of promising training;
+the website layout/styles are unchanged.
+
+`node backend/firebase/operations.cjs configure-admin-approval` atomically updates
+only the two training policy fields. Direct video/progress/quiz calls reject
+while disabled. Restore training only after a future explicit owner decision;
+the approved-content publisher accepts `training.enabled: true` with genuine
+video content and the chosen requirement. Do not publish the example template
+to re-enable it unintentionally.
+
+This release passed **121 backend/rules tests**, **6 Captain tests**, Captain
+analysis and its release web build. The new server regression covers actual
+submission → authorized admin approval → online/Customer availability without
+training fields, with rejection before approval. The Flutter regression covers
+the visible three-step screen and navigation to submission without fake marks.
+The earlier checks below remain historical evidence for their stated scope.
+
+Production checks confirmed both training flags false and live payment/merchant/
+credit-card policy unchanged. Published Captain/admin/website files match the
+release output, including `https://washkrew.com/`; updated Functions reject
+anonymous requests. A browser preview confirmed the three KYC rows and the
+removed profile training entry. That visual preview used explicit labelled demo
+data, not an approved real Captain; normal app policy uses the verified server
+flags. No real applicant was approved or charged by this change.
+
 ## Completed and published
 
 - Separate WashKrew live payments, saved default gateway configuration
@@ -65,7 +106,7 @@ conflict. Customer/Captain staging layouts, assets, tokens, bundle IDs and the
 
 | Item | Actual status and next action |
 | --- | --- |
-| Training requirement/content | Configuration audit found no published approved videos and training was not currently required. The owner was asked whether to enforce real videos/quiz or a documented human-confirmed in-person process. This task does not invent that policy, mark training complete or count placeholders. Publish approved content/process after that decision. |
+| Training | Hidden and not required by the owner's explicit decision. Admin approval gates work. Approved videos are not a current launch blocker; any later restoration needs a new owner decision. |
 | Support and policies | Support phone/email/hours, operating legal entity and approved terms/privacy URL are absent from app configuration. Aman must supply the approved values; no dummy number, policy or legal approval was invented. Use `operator.cjs publish-content` after review. |
 | Commercial/coverage confirmation | Existing prices, payouts and three active societies were preserved. Confirm live commercial terms and actual coverage rather than treating inherited catalog values as a new business approval. |
 | Real Captain approval | There are **zero approved Captains**. An approved human reviewer must inspect real private identity/payout details, training and requested societies at https://wheelio-apps.web.app/admin/. Approval leaves a Captain offline; they choose to go online. No QA Captain or automatic approval was added. |

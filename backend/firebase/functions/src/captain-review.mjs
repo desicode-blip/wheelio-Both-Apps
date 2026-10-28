@@ -48,7 +48,7 @@ export async function getCaptainApplication(service,auth,data){
   return {...summary(snapshot),workStatus:c.workStatus??null,online:c.online===true,
     requestedSocietyIds:c.requestedSocietyIds??[],societyIds:c.societyIds??[],societies:(cfg.societies??[]).filter(s=>s.active).map(s=>({id:s.id,name:s.name,area:s.area??''})),
     payout:c.payout??(c.upi?{method:'upi',upi:c.upi}:null),workingSlots:c.workingSlots??null,workingWindows:c.workingWindows??[],photos,
-    training:{required:cfg.training?.required===true,configured:!!cfg.training?.version,version:cfg.training?.version??null,
+    training:{enabled:cfg.training?.enabled===true||(cfg.training?.enabled!==false&&cfg.training?.required===true),required:cfg.training?.required===true,configured:!!cfg.training?.version,version:cfg.training?.version??null,
       completed:!!cfg.training?.version&&!!c.trainingCompletedAt&&c.trainingVersion===cfg.training.version,quizPassed:!!cfg.training?.version&&!!c.quizPassedAt&&c.trainingVersion===cfg.training.version},
     reviewReason:c.reviewReason??'',reviewIssues:c.reviewIssues??[],paymentModeConfigured:cfg.paymentMode??'test',
     history:history.docs.map(d=>{const r=d.data();return {id:d.id,decision:r.decision,reason:r.reason,reviewer:r.reviewer.email,createdAt:millis(r.createdAt),societyIds:r.societyIds??[]};})};

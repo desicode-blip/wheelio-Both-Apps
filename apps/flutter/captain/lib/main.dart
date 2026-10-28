@@ -178,7 +178,9 @@ class _GalleryTab extends StatelessWidget {
   }
 }
 
-Widget _destination(R r) => switch (r.n) {
+Widget _destination(R r) => Builder(builder:(context){
+  if(!context.store.trainingEnabled && [N.training,N.video,N.quiz,N.quizResult,N.refresher].contains(r.n))return context.store.signedUp ? const MeTab() : const StepsScreen();
+  return switch (r.n) {
   N.welcome => const WelcomeScreen(),
   N.signUp => SignUpScreen(login: r.flag),
   N.otp => WOtpScreen(login: r.flag),
@@ -223,4 +225,4 @@ Widget _destination(R r) => switch (r.n) {
   N.ownerNote => const OwnerNoteScreen(),
   N.helpFlow => HelpFlowScreen(topic: r.topic!),
   N.gallery => const WGalleryScreen(),
-};
+};});

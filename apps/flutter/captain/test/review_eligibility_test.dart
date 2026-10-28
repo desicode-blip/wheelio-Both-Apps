@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 import 'package:washkrew_captain/data/store.dart';
+import 'package:washkrew_captain/screens/onboarding.dart';
 
 // Exercises the production-state guards without Firebase or a real account.
 class FirebaseStateStore extends CaptainStore {
@@ -8,6 +10,31 @@ class FirebaseStateStore extends CaptainStore {
 }
 
 void main() {
+  testWidgets('hidden training leaves three KYC steps leading to review without awarding completion', (tester) async {
+    tester.view.physicalSize=const Size(430,1100);tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+    final store=FirebaseStateStore()..registered=true;
+    store.liveConfig={'training':{'enabled':false,'required':false}};
+    store.steps={KycStep.aadhaar:KycState.done,KycStep.photo:KycState.done,KycStep.bank:KycState.done};
+    final router=WRouterC();
+    expect(store.nextStep,isNull);expect(store.stepsDone,3);expect(store.kycStagesDone,3);expect(store.kycStageCount,3);
+    expect(store.signedUp,isFalse);expect(store.canGoOnline,isFalse);
+    expect(store.steps.containsKey(KycStep.training),isFalse);expect(store.steps.containsKey(KycStep.quiz),isFalse);
+    await tester.pumpWidget(CaptainScope(store:store,router:router,child:const MaterialApp(home:StepsScreen())));
+    expect(find.text('3 steps to take jobs'),findsOneWidget);expect(find.text('Onboarding'),findsNothing);expect(find.text('Short training videos and a quiz'),findsNothing);
+    await tester.tap(find.text('Continue'));await tester.pump();expect(router.last?.n,N.rules);
+    await tester.pumpWidget(const SizedBox());store.dispose();router.dispose();
+  });
+  test('training can be explicitly restored without counting stale completion toward the hidden KYC stages', () {
+    final store=FirebaseStateStore();
+    store.liveConfig={'training':{'enabled':false,'required':false}};
+    store.steps={KycStep.training:KycState.done,KycStep.quiz:KycState.done};
+    expect(store.stepsDone,0);expect(store.kycStagesDone,0);expect(store.trainingEnabled,isFalse);
+    store.liveConfig={'training':{'enabled':true,'required':true}};
+    expect(store.trainingEnabled,isTrue);expect(store.kycStageCount,4);
+    store.steps={KycStep.aadhaar:KycState.done,KycStep.photo:KycState.done,KycStep.bank:KycState.done};
+    expect(store.nextStep,KycStep.training);store.dispose();
+  });
   test('preview review and onboarding skips cannot grant Firebase approval or Online', () {
     final store=FirebaseStateStore();
     store.registered=true;

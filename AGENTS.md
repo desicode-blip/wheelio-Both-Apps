@@ -2,16 +2,25 @@
 
 ## Owner handoff update - 27 October 2026
 
+- **Latest owner decision (28 October): training and quiz are hidden for now.**
+  Captain onboarding has the existing three Aadhaar/selfie/payout stages, then
+  application review. Human approval in `/admin/` is the gate to working; an
+  unapproved Captain cannot go online or receive assignment. Server config is
+  `training.enabled: false`, `training.required: false`. Do not award training
+  completion or invent in-person training. Keep the feature code for a later
+  explicit owner decision to restore it. This supersedes older training-content
+  launch blockers and the pending training-policy question below. See
+  `docs/COMPLETION-2026-10-28.md`.
+
 - **Latest completion follow-up (28 October):** read
   `docs/COMPLETION-2026-10-28.md`. Separate live payments and private photo
   processing for both live/historical test jobs are deployed and verified.
   Five-minute selfie sessions are enforced, and Captain photo-check errors use
   the existing toast. 120 backend tests and the updated Captain checks passed.
   No physical iPhone or real-money acceptance is claimed. Zero Captains are
-  approved. Approved training/support/legal/commercial inputs and human reviews
-  remain open. The audit found training not required in current config; the
-  owner was asked to choose approved videos/quiz or a documented in-person
-  process. Do not invent that policy or grant fake training completion.
+  approved. Support/legal/commercial inputs and human reviews remain open.
+  The owner has now chosen to hide training and use admin approval, as recorded
+  above. Do not invent an in-person policy or grant fake training completion.
   This supersedes older photo-test-only and pending-merchant notes below.
 
 - **Latest 28 October payment instruction:** the owner now authorizes real
@@ -24,7 +33,7 @@
   live charge/refund acceptance is claimed. There are zero approved Captains;
   photo services now support both test/live; real device/operational acceptance
   remains pending.
-  Do not silently ban credit-funded UPI or bypass training/approval/device gates.
+  Do not silently ban credit-funded UPI or change the owner's approval/device gates.
 
 - **28 October follow-up:** read `docs/ADMIN-MERCHANT-2026-10-28.md`. Separate
   WashKrew live secrets/webhook and merchant-safe historical routing are now
@@ -105,4 +114,4 @@ pnpm preview
 
 ## Current state
 
-Normal Flutter URLs use Firebase. New bookings use the separate WashKrew live merchant and the saved debit-card/UPI/netbanking checkout configuration; historical bookings keep their original merchant/mode. Read `docs/COMPLETION-2026-10-28.md` for the latest verified status. Private photo checks support both test/live jobs. Zero Captains are approved and no physical-device/live transaction acceptance is claimed. The staging design removed payment banners; do not restore them. The SwiftUI reference and `?demo=true` remain isolated sample experiences. Customer SMS/account completion and older test-payment acceptance are recorded in `docs/WEB-ACCEPTANCE.md`. Approved training/support/legal content, commercial/coverage review, real human Captain approval and physical iPhone/GPS/APNs acceptance still gate operational launch. Legacy Next.js/Neon/Cloudflare notes are historical.
+Normal Flutter URLs use Firebase. New bookings use the separate WashKrew live merchant and the saved debit-card/UPI/netbanking checkout configuration; historical bookings keep their original merchant/mode. Read `docs/COMPLETION-2026-10-28.md` for the latest verified status. Private photo checks support both test/live jobs. Training/quiz are hidden and not required under the owner's current admin-approval policy. Zero Captains are approved and no physical-device/live transaction acceptance is claimed. The staging design removed payment banners; do not restore them. The SwiftUI reference and `?demo=true` remain isolated sample experiences. Customer SMS/account completion and older test-payment acceptance are recorded in `docs/WEB-ACCEPTANCE.md`. Approved support/legal content, commercial/coverage review, real human Captain approval and physical iPhone/GPS/APNs acceptance still gate operational launch. Legacy Next.js/Neon/Cloudflare notes are historical.

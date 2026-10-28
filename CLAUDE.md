@@ -2,16 +2,24 @@
 
 ## Owner handoff update - 27 October 2026
 
+**Latest owner decision (28 October):** hide training videos and quiz for now.
+The existing Aadhaar/selfie/payout stages lead to submission and human review in
+`/admin/`. Approved Captains can go online and work; unapproved ones remain
+blocked by the server. `training.enabled` and `training.required` are explicitly
+false. No fake watch/quiz/training records are written. Do not invent in-person
+training or restore this feature without the owner's decision. This supersedes
+older missing-training launch gates and the pending question below. Read
+`docs/COMPLETION-2026-10-28.md` for the current release.
+
 **Latest completion follow-up (28 October):** read
 `docs/COMPLETION-2026-10-28.md`. Live/historical-test private photo checks are now
 deployed and enabled, five-minute automated selfie sessions are enforced, and
 Captain photo-check failures show the existing error toast. 120 backend tests,
 4 Captain tests, Captain analysis/web build and portable native checks passed.
 No physical-device or live transaction pass is claimed. Zero Captains are
-approved. Training policy/content is still an owner decision: the audit found
-training not required in current config and no published videos. An async
-question asks approved videos/quiz versus a documented in-person process. Do not
-invent the policy or award fake training. Support/legal/commercial input and
+approved. The owner has now chosen hidden training/quiz and admin approval, as
+recorded above; no in-person policy or fake training is to be invented.
+Support/legal/commercial input and
 real human Captain approvals remain open. This supersedes older photo-mode notes.
 
 **Latest owner payment instruction (28 October):** real payments are now authorized

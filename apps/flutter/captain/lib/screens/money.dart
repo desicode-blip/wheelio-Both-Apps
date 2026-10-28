@@ -258,7 +258,7 @@ class ProbationScreen extends StatelessWidget {
     return WScreen(
       gutter: WSpace.gutterCaptain,
       scrolls: false,
-      footer: WFooter(child: WButton(store.t('Watch 30-sec tip', '30 सेकंड की टिप देखें', '30 సెకన్ల చిట్కా చూడండి'), icon: WIcon.play, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () => context.router.go(N.refresher))),
+      footer: store.trainingEnabled ? WFooter(child: WButton(store.t('Watch 30-sec tip', '30 सेकंड की टिप देखें', '30 సెకన్ల చిట్కా చూడండి'), icon: WIcon.play, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () => context.router.go(N.refresher))) : null,
       children: [
         const Spacer(),
         const Center(child: WStateCircle(WIcon.calendar, tone: Tone.wait, size: 112)),
@@ -441,8 +441,10 @@ class MeTab extends StatelessWidget {
               const WDivider(inset: 54),
               WListRow(icon: WIcon.star, title: store.t('My level', 'मेरा लेवल', 'నా స్థాయి'), subtitle: store.t('Day ${store.levelDay} of 3', 'दिन ${store.levelDay} / 3', 'రోజు ${store.levelDay} / 3'), onTap: () => router.go(N.level)),
             ],
-            const WDivider(inset: 54),
-            WListRow(icon: WIcon.play, title: store.t('Training videos', 'ट्रेनिंग वीडियो', 'శిక్షణ వీడియోలు'), onTap: () => router.go(N.training)),
+            if(store.trainingEnabled) ...[
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.play, title: store.t('Training videos', 'ट्रेनिंग वीडियो', 'శిక్షణ వీడియోలు'), onTap: () => router.go(N.training)),
+            ],
             const WDivider(inset: 54),
             WListRow(icon: WIcon.sparkle, title: store.t('Why wash with ${Brand.name}', '${Brand.name} के साथ क्यों', '${Brand.name} తో ఎందుకు'), onTap: () => router.go(N.welcome)),
           ]),

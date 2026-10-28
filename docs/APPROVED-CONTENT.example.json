@@ -2,6 +2,7 @@
   "support": {"phone": "", "email": "", "hours": ""},
   "legal": {"entity": "", "termsPrivacyUrl": ""},
   "training": {
+    "enabled": true,
     "version": "pending-aman",
     "required": true,
     "videos": [

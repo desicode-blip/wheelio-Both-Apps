@@ -15,8 +15,8 @@ export function approvedContent(input){
   }
   if(input.training){
     const t=trainingConfig(input);
-    if(!/^[A-Za-z0-9_-]{1,60}$/.test(t.version)||t.videos.some(v=>!https(v.url))||typeof t.required!=='boolean')throw Error('Check the approved training version, URLs and requirement.');
-    result.training={version:t.version,required:t.required,videos:t.videos.map(v=>({url:v.url,seconds:v.seconds}))};
+    if(!/^[A-Za-z0-9_-]{1,60}$/.test(t.version)||t.videos.some(v=>!https(v.url))||typeof t.required!=='boolean'||(t.enabled!==undefined&&typeof t.enabled!=='boolean'))throw Error('Check the approved training version, URLs and requirement.');
+    result.training={version:t.version,required:t.required,...(t.enabled!==undefined?{enabled:t.enabled}:{}),videos:t.videos.map(v=>({url:v.url,seconds:v.seconds}))};
   }
   if(!Object.keys(result).length||Object.keys(input).some(k=>!['support','legal','training'].includes(k)))throw Error('Publish only support, legal and/or training configuration.');
   return result;

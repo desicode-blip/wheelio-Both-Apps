@@ -92,7 +92,8 @@ class StepsScreen extends StatelessWidget {
       };
     }
 
-    final list = problem ? [_Stage.aadhaar, _Stage.photo, _Stage.bank] : _Stage.values;
+    final list = [_Stage.aadhaar, _Stage.photo, _Stage.bank,
+      if(!problem && store.trainingEnabled) _Stage.onboarding];
     final current = list.indexWhere((s) => state(s) != KycState.done);
 
     /// Round marker on the left: done = green tick, now = filled blue, later = soft grey.
@@ -154,7 +155,7 @@ class StepsScreen extends StatelessWidget {
           WTitle(store.t('1 thing to fix', '1 चीज़ ठीक करें', '1 విషయం సరిచేయండి'), top: 10),
           WBody(store.t('We couldn’t match your selfie with Aadhaar.', 'आपकी सेल्फ़ी आधार से मेल नहीं खाई।', 'మీ సెల్ఫీ ఆధార్‌తో సరిపోలలేదు.'), top: 6, bottom: 26),
         ] else ...[
-          WTitle(store.t('4 steps to take jobs', 'काम लेने के 4 कदम', 'పనులు తీసుకోవడానికి 4 దశలు'), top: 14),
+          WTitle(store.t('${store.kycStageCount} steps to take jobs', 'काम लेने के ${store.kycStageCount} कदम', 'పనులు తీసుకోవడానికి ${store.kycStageCount} దశలు'), top: 14),
           WBody(store.t('Here’s what comes next. We’ll take you through each one.', 'आगे यह होगा। हम हर कदम में आपकी मदद करेंगे।', 'తర్వాత ఇవి ఉంటాయి. ప్రతి దశలో మేము మీకు సహాయం చేస్తాము.'), top: 6, bottom: 26),
         ],
         for (final (i, s) in list.indexed)

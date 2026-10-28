@@ -1,5 +1,10 @@
 # WashKrew website (washkrew.com)
 
+**28 October policy update:** the owner paused in-app training/videos and quiz.
+Existing text now describes admin-approved Captains and document review instead
+of claiming training/quiz completion. The existing website structure/styles and
+assets are preserved; app stores remain separate from this policy change.
+
 The public marketing site for WashKrew. Plain static HTML and CSS, no build step. Built 27 October 2026 from the WashKrew design system (logo palette `#0049FF` / `#22282D`, canvas `#F6F9FD`, Roboto) and the brand book voice.
 
 **Deployment update (27 October):** the `washkrew` Hosting site now exists in `wheelio-apps`, and this website is deployed at <https://washkrew.web.app/>. Both custom domains are registered and the GoDaddy DNS/certificate records are saved; Firebase HTTPS provisioning is still pending. Reuse the existing site for future deploys. See [the deployment record](../../docs/WEBSITE-DEPLOYMENT-2026-10-27.md) for checks and the precise certificate boundary.

@@ -427,13 +427,18 @@ class CaptainStore extends ChangeNotifier {
   bool get canAccept => signedUp;
   Job get current => (isLive ? queue.where((j) => j.id == _workflowOrderId).firstOrNull : null) ?? queue.where((j) => j.status == JobStatus.now).firstOrNull ?? (isLive ? Job(id:'',plate:'',type:'',isBike:false,pay:0,tower:'',floor:'',slot:'',window:'',time:'',owner:'',society:'',area:'',distance:'',reachBy:'',finishBy:'') : sampleQueue()[0]);
   List<Job> get upNext => queue.where((j) => j.status != JobStatus.done).toList();
-  KycStep? get nextStep => KycStep.values.where((s) => steps[s] != KycState.done).firstOrNull;
-  int get stepsDone => steps.values.where((s) => s == KycState.done).length;
+  bool get trainingEnabled => liveConfig['training']?['enabled'] == true ||
+      (liveConfig['training']?['enabled'] != false && liveConfig['training']?['required'] == true);
+  List<KycStep> get onboardingSteps => [KycStep.aadhaar, KycStep.photo, KycStep.bank,
+      if(trainingEnabled) ...[KycStep.training, KycStep.quiz]];
+  KycStep? get nextStep => onboardingSteps.where((s) => steps[s] != KycState.done).firstOrNull;
+  int get stepsDone => onboardingSteps.where((s) => steps[s] == KycState.done).length;
+  int get kycStageCount => trainingEnabled ? 4 : 3;
 
-  /// KYC as the captain sees it: Aadhaar, photo, bank, onboarding (videos + quiz).
+  /// Count only visible KYC stages; hidden training is never marked complete.
   int get kycStagesDone =>
       [steps[KycStep.aadhaar], steps[KycStep.photo], steps[KycStep.bank]].where((s) => s == KycState.done).length +
-      (steps[KycStep.training] == KycState.done && steps[KycStep.quiz] == KycState.done ? 1 : 0);
+      (trainingEnabled && steps[KycStep.training] == KycState.done && steps[KycStep.quiz] == KycState.done ? 1 : 0);
   String get langName => switch (lang) { Lang.hi => 'हिन्दी', Lang.te => 'తెలుగు', Lang.en => 'English' };
 
   /// Inline translation: English, Hindi, Telugu.

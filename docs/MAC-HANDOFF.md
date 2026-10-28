@@ -4,7 +4,8 @@ Read [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) first. Separate WashKr
 live payments and test/live private photo processing are now active, and the
 private Captain admin is deployed. This supersedes older test-only/merchant-
 pending instructions below. Do not change global payment mode for a device test
-or fabricate a production Captain. Training policy/content, human approvals,
+or fabricate a production Captain. Training/quiz are now hidden and not required
+by the owner's decision; human admin approval permits working. Human approvals,
 approved support/legal/commercial inputs and physical iPhone/APNs acceptance
 remain open. The preparation/signing commands below still apply.
 
