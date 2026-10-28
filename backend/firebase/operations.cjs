@@ -98,6 +98,36 @@ async function main() {
     const config=JSON.parse(readFileSync(path.join(__dirname,'operations.test.json'),'utf8'));
     await api('/config/operations','PATCH',{fields:fields(config)});
     console.log('Configured WashKrew test payments, catalog and societies. No captains were fabricated or approved.');
+  } else if(command==='configure-storage-rules') {
+    // Cross-service Storage rules read Firestore to enforce account ownership,
+    // KYC review locks and assigned-job access. Noninteractive CLI deploys can
+    // skip this permission check. Grant only Google's documented service role
+    // to the existing Storage service agent, never to a person or allUsers.
+    const project='https://cloudresourcemanager.googleapis.com/v1/projects/wheelio-apps';
+    const request=async(url,method='GET',body)=>{
+      const response=await fetch(url,{method,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(20000)});
+      if(!response.ok)throw Error(`Storage rules IAM setup failed (${response.status}).`);
+      return response.json();
+    };
+    const metadata=await request(project),number=String(metadata.projectNumber);
+    if(!/^\d+$/.test(number))throw Error('Cannot resolve the existing Firebase project number.');
+    const member=`serviceAccount:service-${number}@gcp-sa-firebasestorage.iam.gserviceaccount.com`,role='roles/firebaserules.firestoreServiceAgent';
+    const read=()=>request(project+':getIamPolicy','POST',{options:{requestedPolicyVersion:3}});
+    const has=policy=>(policy.bindings??[]).some(b=>b.role===role&&!b.condition&&b.members?.includes(member));
+    let configured=false;
+    for(let attempt=0;attempt<3;attempt++){
+      const policy=await read();
+      if(has(policy)){configured=true;break;}
+      if(!policy.etag||!(policy.bindings??[]).some(b=>b.role==='roles/firebasestorage.serviceAgent'&&!b.condition&&b.members?.includes(member)))throw Error('The existing Firebase Storage service agent could not be verified.');
+      const binding=policy.bindings.find(b=>b.role===role&&!b.condition);
+      if(binding)binding.members.push(member);else policy.bindings.push({role,members:[member]});
+      const response=await fetch(project+':setIamPolicy',{method:'POST',headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({policy}),signal:AbortSignal.timeout(20000)});
+      if(response.status===409)continue;
+      if(!response.ok)throw Error(`Storage rules IAM setup failed (${response.status}).`);
+      configured=has(await read());break;
+    }
+    if(!configured)throw Error('Storage rules permission was not confirmed; retry after checking concurrent IAM changes.');
+    console.log('Verified Firebase Storage can read Firestore for its existing security rules. Private KYC/job rules, human admin approval and all other IAM bindings remain enforced. No documents or Captains were created or approved.');
   } else if(command==='configure-storage') {
     const url='https://storage.googleapis.com/storage/v1/b/wheelio-apps.firebasestorage.app';
     const request=async(route,options={})=>{
@@ -163,6 +193,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
+  } else throw Error('Commands: configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-storage-rules | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

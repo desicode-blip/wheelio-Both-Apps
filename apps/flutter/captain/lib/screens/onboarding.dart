@@ -252,18 +252,6 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
     if (mounted) setState(() => view = _AadhaarView.clear);
   }
 
-  /// DigiLocker needs the approved provider account. The existing photo-upload
-  /// action below remains the available route while that integration is pending.
-  Future<void> _digiLocker() async {
-    final store = context.store, router = context.router;
-    if (store.isLive) {
-      store.blockLive('DigiLocker is not connected yet. Use Upload Aadhaar photo below.');
-      return;
-    }
-    store.complete(KycStep.aadhaar);
-    router.replace(const [R(N.steps)]);
-  }
-
   void _continue() {
     context.store.complete(KycStep.aadhaar);
     context.router.replace(const [R(N.steps)]);
@@ -295,7 +283,7 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
     final store = context.store;
     Widget tip(WIcon icon, String text) => Padding(padding: const EdgeInsets.only(bottom: 14), child: Row(children: [WIconView(icon, size: 17, color: WColor.primaryStrong), const SizedBox(width: 12), WText(text, WType.bodyStrong, color: WColor.heading, size: 16.5)]));
     final footer = switch (view) {
-      _AadhaarView.start => WButton(store.t('Open DigiLocker', 'DigiLocker खोलें', 'DigiLocker తెరవండి'), size: ButtonSize.captain, onTap: _digiLocker),
+      _AadhaarView.start => WButton(store.t('Upload Aadhaar photo', 'आधार की फ़ोटो अपलोड करें', 'ఆధార్ ఫోటో అప్‌లోడ్ చేయండి'), size: ButtonSize.captain, onTap: _choose),
       _AadhaarView.checking => WButton(store.t('Checking…', 'जाँच रहे हैं…', 'చూస్తున్నాం…'), size: ButtonSize.captain, loading: true, enabled: false),
       _AadhaarView.clear => WButton(store.t('Continue', 'जारी रखें', 'కొనసాగించండి'), size: ButtonSize.captain, onTap: _continue),
       _AadhaarView.unclear => WButton(store.t('Take again', 'फिर से लें', 'మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: _choose),
@@ -310,14 +298,12 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
           _AadhaarView.start => [
               const Padding(padding: EdgeInsets.only(top: 22), child: Align(alignment: Alignment.centerLeft, child: WIconView(WIcon.idCard, size: 26, color: WColor.primaryStrong))),
               WTitle(store.t('Verify Aadhaar', 'आधार सत्यापित करें', 'ఆధార్ ధృవీకరించండి'), top: 8),
-              WBody(store.t('Fastest with DigiLocker. Takes 1 minute.', 'DigiLocker से सबसे जल्दी। 1 मिनट लगेगा।', 'DigiLocker తో వేగంగా. 1 నిమిషం పడుతుంది.'), top: 4, bottom: 18),
+              WBody(store.t('Upload a clear photo. An admin reviews your documents before you can take jobs.', 'साफ़ फ़ोटो अपलोड करें। काम लेने से पहले एडमिन आपके दस्तावेज़ जाँचेंगे।', 'స్పష్టమైన ఫోటో అప్‌లోడ్ చేయండి. మీరు పనులు తీసుకునే ముందు అడ్మిన్ మీ పత్రాలను సమీక్షిస్తారు.'), top: 4, bottom: 18),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
-                child: Row(children: [const WIconView(WIcon.shield, size: 17), const SizedBox(width: 12), Expanded(child: WText(store.t('We only see your name, photo and age.', 'हम सिर्फ़ आपका नाम, फ़ोटो और उम्र देखते हैं।', 'మేము మీ పేరు, ఫోటో, వయసు మాత్రమే చూస్తాము.'), WType.caption, color: WColor.heading, size: 14.5))]),
+                child: Row(children: [const WIconView(WIcon.shield, size: 17), const SizedBox(width: 12), Expanded(child: WText(store.t('Your documents are private and reviewed by our team.', 'आपके दस्तावेज़ निजी हैं और हमारी टीम उनकी समीक्षा करती है।', 'మీ పత్రాలు గోప్యంగా ఉంటాయి మరియు మా టీమ్ వాటిని సమీక్షిస్తుంది.'), WType.caption, color: WColor.heading, size: 14.5))]),
               ),
-              const SizedBox(height: 14),
-              Align(alignment: Alignment.centerLeft, child: WButton(store.t('Upload Aadhaar photo', 'आधार की फ़ोटो अपलोड करें', 'ఆధార్ ఫోటో అప్‌లోడ్ చేయండి'), kind: ButtonKind.text, fullWidth: false, onTap: _choose)),
             ],
           _AadhaarView.checking => [
               WTitle(store.t('Checking your photo', 'आपकी फ़ोटो जाँच रहे हैं', 'మీ ఫోటో చూస్తున్నాం'), top: 22),

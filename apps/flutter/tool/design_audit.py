@@ -22,6 +22,9 @@ BASELINE = 'af036f070aa624310b97b8277bfb6aabf9d8c4cc'
 OUT = ROOT / '.cache/design-audit'
 TEMPLATE = Path(__file__).with_name('design_audit_capture.dart.template').read_text(encoding='utf8')
 FLUTTER = os.environ.get('FLUTTER_BIN', 'flutter')
+# Explicit owner request on 28 October: remove DigiLocker and use phone uploads
+# on W05. All other authored views still compare directly with af036f0.
+APPROVED_DESIGNS = {('captain', 'W05'): ROOT / 'output/design-audit/captain-W05-document-upload-approved.png'}
 
 
 def flutter(cwd, args):
@@ -124,6 +127,10 @@ def main():
             mask = delta.max(axis=2) > 8
             y, x = np.where(mask)
             row = {'app': app, 'id': screen, 'exact': bool(not delta.any()), 'changed': int(mask.sum()), 'box': [int(x.min()), int(y.min()), int(x.max()), int(y.max())] if len(x) else None}
+            approved = APPROVED_DESIGNS.get((app, screen))
+            if approved:
+                row['approved_reference'] = approved.relative_to(ROOT).as_posix()
+                row['approved_exact'] = approved.is_file() and np.array_equal(np.asarray(new), np.asarray(Image.open(approved).convert('RGB')))
             # Flutter's animated offer timer has at most four antialias pixels
             # of jitter in this fixed region. No other layout region is masked.
             row['timer_only'] = app == 'captain' and 0 < row['changed'] <= 4 and all(352 <= int(v) <= 354 for v in x) and all(120 <= int(v) <= 125 for v in y)
@@ -136,8 +143,9 @@ def main():
                     panel.paste(im, (5 + i * 395, 32))
                 panel.save(panels / f'{app}-{screen}.png')
     (OUT / 'results.json').write_text(json.dumps({'baseline': BASELINE, 'states': rows}, indent=2))
-    failures = [r for r in rows if r['changed'] and not r['timer_only']]
-    print(f"{len(rows)} states: {sum(r['exact'] for r in rows)} pixel-exact, {sum(r['timer_only'] for r in rows)} timer-only, {len(failures)} need review. See {OUT}")
+    failures = [r for r in rows if 'approved_reference' in r and not r['approved_exact']]
+    failures += [r for r in rows if 'approved_reference' not in r and r['changed'] and not r['timer_only']]
+    print(f"{len(rows)} states: {sum(r['exact'] for r in rows)} pixel-exact to af036f0, {sum(r.get('approved_exact', False) for r in rows)} match owner-approved changes, {sum(r['timer_only'] for r in rows)} timer-only, {len(failures)} need review. See {OUT}")
     if failures:
         raise SystemExit(1)
 

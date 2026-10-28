@@ -1,3 +1,13 @@
+# Phone document upload and real admin review - 28 October 2026
+
+W05 now uses the existing phone camera/gallery upload as its primary action,
+per the owner's explicit request. Removed DigiLocker and its sample auto-complete
+action; no new fake result or approval is added. Real Firebase uploads stay private
+and review-locked. Upload-specific errors preserve the failed KYC stage. The
+production Storage service agent's required cross-service Firestore role was
+missing and is now repaired/verified, without weakening client rules. Read
+[KYC-UPLOAD-2026-10-28.md](KYC-UPLOAD-2026-10-28.md). Native retesting remains.
+
 # Design lock and single app source - 28 October 2026
 
 The owner pinned Customer/Captain design to **af036f0** and requested removal of

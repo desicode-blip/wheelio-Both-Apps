@@ -1,5 +1,11 @@
 # Customer and Captain design audit - 28 October 2026
 
+**Later owner-approved exception:** W05 now removes DigiLocker and makes phone
+document upload primary, followed by human admin review. See
+[KYC-UPLOAD-2026-10-28.md](KYC-UPLOAD-2026-10-28.md). The automated guard uses its
+explicit approved snapshot for W05 and af036f0 for all other states. The original
+157/157 comparison below records the pre-exception audit, not the later UI policy.
+
 The owner's design reference is **af036f070aa624310b97b8277bfb6aabf9d8c4cc**
 (**af036f0**). Functionality must run in that frontend. No new layout, palette,
 type scale, component set, logo or app assets are approved by this audit.

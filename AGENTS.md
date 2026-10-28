@@ -7,6 +7,9 @@
   components, typography, assets and palette. Connect actual handlers/data in
   those screens; never create guessed replacements or generic Firebase screens.
   Read `docs/DESIGN-AUDIT-2026-10-28.md`. Do not restore the removed payment banner.
+- Owner-approved W05 exception (28 October): DigiLocker is removed; use phone
+  document upload followed by private human admin review. Read
+  `docs/KYC-UPLOAD-2026-10-28.md`. Other screens stay pinned to af036f0.
 - The only apps are `apps/flutter/customer` and `apps/flutter/captain`, sharing
   `packages/washkrew_ui` and `packages/washkrew_firebase`. The owner explicitly
   requested removal of the retired SwiftUI, Next.js/React and legacy Flutter

@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'phone_otp.dart';
+import 'backend.dart' show kycUploadError;
 
 import 'checkout_stub.dart'
     if (dart.library.io) 'checkout_native.dart'
@@ -386,16 +387,22 @@ class LiveBackend {
   }
 
   Future<void> uploadKyc(String kind, Uint8List bytes) async {
+    final accountId = uid;
+    if (accountId == null || !phoneVerified) throw StateError('Log in as a Captain before uploading your documents.');
     if (!['aadhaar', 'selfie', 'bank'].contains(kind) ||
-        bytes.length > 8 * 1024 * 1024)
+        bytes.isEmpty || bytes.length > 8 * 1024 * 1024)
       throw ArgumentError('Choose an image smaller than 8 MB.');
     final png = bytes.length > 4 && bytes[0] == 0x89 && bytes[1] == 0x50;
-    await storage
-        .ref('kyc/$uid/$kind.jpg')
-        .putData(
-          bytes,
-          SettableMetadata(contentType: png ? 'image/png' : 'image/jpeg'),
-        );
+    try {
+      await storage
+          .ref('kyc/$accountId/$kind.jpg')
+          .putData(
+            bytes,
+            SettableMetadata(contentType: png ? 'image/png' : 'image/jpeg'),
+          );
+    } catch (error) {
+      throw StateError(kycUploadError(error));
+    }
   }
 
   Future<void> uploadCustomerPhoto(

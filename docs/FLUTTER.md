@@ -1,3 +1,12 @@
+# Captain document upload - 28 October 2026
+
+The owner explicitly replaced W05's DigiLocker option with phone document upload
+and existing human admin approval. Only that approved screen changes; the design
+guard checks its exact upload-only snapshot. Camera/gallery/cancel use the existing
+controls. Real upload errors do not advance KYC. The missing production Storage
+cross-service Firestore permission was repaired and verified. Read
+[KYC-UPLOAD-2026-10-28.md](KYC-UPLOAD-2026-10-28.md) for evidence and iPhone retest.
+
 # Design lock and single app source - 28 October 2026
 
 The owner pinned Customer/Captain design to **af036f0** and requested removal of

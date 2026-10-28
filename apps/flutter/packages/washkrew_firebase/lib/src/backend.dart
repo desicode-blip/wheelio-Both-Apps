@@ -87,3 +87,21 @@ String backendError(Object error) {
   }
   return 'Something went wrong. Please try again.';
 }
+
+/// Upload-specific wording must not mislabel errors from reading existing photos.
+String kycUploadError(Object error) {
+  if (error is FirebaseException && error.plugin == 'firebase_storage') {
+    debugPrint('KYC photo upload failed: ${error.plugin}/${error.code}');
+    return switch (error.code) {
+      'unauthenticated' => 'Log in again, then retry the photo upload.',
+      'unauthorized' || 'permission-denied' =>
+        'The photo upload was blocked. Refresh your application status and try again. Documents cannot be replaced while under review or after approval.',
+      'retry-limit-exceeded' || 'unavailable' || 'unknown' =>
+        'The photo upload could not be confirmed. Check your connection and try again.',
+      'quota-exceeded' => 'Photo uploads are temporarily unavailable. Please try again later.',
+      'canceled' => 'The photo upload was cancelled. Please try again.',
+      _ => 'The photo could not be saved. Please try again.',
+    };
+  }
+  return backendError(error);
+}

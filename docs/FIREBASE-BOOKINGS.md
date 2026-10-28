@@ -118,3 +118,13 @@ Use Java 21+. `rules.test.mjs` covers the earlier private request portal. `acces
 The source rules audit is recorded in `rules-audit.json`. Storage rules limit each object to 8 MB and a fixed path namespace; only booking parties can download wash photos. Transactions and server-owned collections protect business transitions. Browser MIME metadata does not prove image content or photo authenticity; this release does not claim automated fraud detection.
 
 Unconnected auxiliary demo features remain available only in the explicit demo: recorded voice/video notes, FCM delivery, in-app map tiles, automated training/AI checks, masked calls, promotional credits, phone changes, account deletion and automated bank payouts. Live navigation does not claim those actions succeeded. Text entry notes, photo uploads, foreground snapshots and explicit location sharing work independently of them.
+# Storage upload prerequisite - 28 October 2026
+
+After verifying Storage rules that consult Firestore, run
+`node backend/firebase/operations.cjs configure-storage-rules` as the existing
+owner. Noninteractive Firebase CLI deployment can skip this cross-service IAM
+check. This idempotently verifies/grants only the documented Firestore rules
+service role to the existing Firebase Storage service agent. It preserves
+client authorization, private KYC/assignment rules and other IAM bindings.
+The missing production role was repaired on 28 October; see
+`docs/KYC-UPLOAD-2026-10-28.md`. Do not make buckets/photos public to fix uploads.
