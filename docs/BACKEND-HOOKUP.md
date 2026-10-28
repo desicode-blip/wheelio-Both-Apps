@@ -1,3 +1,22 @@
+# Design lock and single app source - 28 October 2026
+
+The owner pinned Customer/Captain design to **af036f0** and requested removal of
+alternate apps. Only `apps/flutter/customer` and `apps/flutter/captain` remain.
+The 157 matching-state renders were pixel-exact. All four analyses, 40 Flutter
+tests, both release web builds and portable iOS checks passed. This is not a
+new physical-device or real checkout acceptance.
+Root development commands now launch these apps. The unused generic Firebase
+frontend and its legacy request repository were removed; the actual LiveBackend,
+phone OTP, payment, assignment, tracking and photo controllers remain. The existing
+cancel/refund screen handles an unsupported payment method instead of a separate
+new screen. No new fake, timer, sample approval or production data was introduced.
+Training stays hidden by the owner's separate decision; payment restrictions and
+the current-app-only deletion rule remain enforced. See
+[DESIGN-AUDIT-2026-10-28.md](DESIGN-AUDIT-2026-10-28.md).
+
+Historical references below to removed SwiftUI/Next.js/legacy paths are provenance
+only. Their source is recoverable from Git af036f0, never the current build target.
+
 # Latest completion follow-up — 28 October 2026
 
 **Latest explicit owner policy:** hide training/videos and quiz; actual admin

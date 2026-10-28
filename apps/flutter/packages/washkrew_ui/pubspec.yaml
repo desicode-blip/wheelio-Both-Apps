@@ -30,7 +30,7 @@ flutter:
   # WashKrew logo PNGs (1x, 2.0x, 3.0x), rendered from the SVG masters in /brand.
   assets:
     - lib/brand/
-  # Roboto ships with the apps (same files as apps/ios/Shared/Fonts), so text looks
+  # Roboto ships with both current apps, so text looks
   # the same everywhere and never waits for a download.
   fonts:
     - family: Roboto

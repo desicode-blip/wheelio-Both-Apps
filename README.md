@@ -1,153 +1,84 @@
 # WashKrew
 
-Pay-per-wash, photo-verified exterior wash for cars and bikes in Hyderabad gated societies.
+The current Customer and Captain apps live in **apps/flutter/customer** and
+**apps/flutter/captain**. Both use the shared Flutter design and Firebase packages.
+These are the only mobile app implementations in this checkout.
 
-**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Flutter package and code names were renamed too (`washkrew_ui`, `washkrew_firebase`, `washkrew_customer`, `washkrew_captain`, `WashKrewRuntime`). A few technical identifiers still say wheelio on purpose: bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, the SwiftUI project file `Wheelio.xcodeproj`, and the repo and folder names. Renaming those needs new App Store and Firebase setup.
+The owner locked the design to commit **af036f0**. Preserve its layouts,
+components, fonts, palette and assets while connecting real functionality.
+The owner separately approved hiding training/quiz and excluding direct credit
+card checkout. See [the design audit](docs/DESIGN-AUDIT-2026-10-28.md).
 
-## Active Firebase web app
+## Run the current apps
 
-The active release uses Firebase Authentication, Cloud Firestore, Cloud Storage, Cloud Functions and Firebase Hosting. The project is **`wheelio-apps`**, under **`ajay@trustkeyper.com`**. Customer and Captain share Flutter code for web and iPhone; Android is not generated.
-
-Live: [website](https://wheelio-apps.web.app/) · [Customer](https://wheelio-apps.web.app/app/) · [Captain](https://wheelio-apps.web.app/captain/).
-
-- `/`: responsive prelaunch website (`apps/hosting/`).
-- **washkrew.com** (not yet live): the new public website in `apps/website/`, deployed to its own Firebase Hosting site. Go-live steps are in [apps/website/README.md](apps/website/README.md).
-- `/app/`: Customer SMS login, profiles, persisted bookings, test payments/refunds, photo evidence, tracking, approval and rating.
-- `/captain/`: Captain applications, operator approval, atomic job assignment, foreground location, wash evidence, status updates and earnings.
-- Add `?demo=true` to either app URL for the original designed sample-data experience. It is explicitly labeled; no real bookings or payments happen there.
-
-Payments remain explicitly **test mode**. Live merchant credentials and a separate signed live webhook are configured; Razorpay website approval, commercial review, approved live-mode captains and device acceptance remain launch gates. Application approval, dispute decisions and payout transfers remain human operations. Native camera/media, OTP and Razorpay integration are included; Apple signing/APNs and physical iPhone checks remain for the Mac. The old Neon database has not been migrated. See [Firebase bookings](docs/FIREBASE-BOOKINGS.md) and [live launch status](docs/LIVE-LAUNCH.md).
-
-**Building on the Mac:** follow [MAC-HANDOFF.md](docs/MAC-HANDOFF.md). Use the Flutter workspaces in `apps/flutter/customer/ios/` and `apps/flutter/captain/ios/`; the older SwiftUI project is a sample-data reference.
+Use Flutter **3.38.6**, Node.js 24 and pnpm 11. If Flutter is not on PATH, set
+`FLUTTER_BIN` to its executable. Copy `firebase.example.json` to
+`firebase.local.json` and configure the public Firebase app identifiers; never
+put merchant secrets into a client configuration.
 
 ```sh
-bash apps/flutter/tool/run-ios.sh --prepare
-# Configure signing in both Flutter Runner.xcworkspace files, then connect iPhone:
-bash apps/flutter/tool/run-ios.sh
+pnpm dev             # Customer Flutter web app, localhost:8081
+pnpm dev:captain     # Captain Flutter web app, localhost:8082
+pnpm typecheck       # Both apps and shared packages
+pnpm test            # App and shared Firebase tests
+pnpm build           # Both release web apps plus admin and landing page
+pnpm preview         # Preview that build at localhost:8083
 ```
 
-```sh
-# Install Flutter and Firebase CLI first. Copy firebase.example.json to firebase.local.json.
-node apps/flutter/tool/build-firebase.mjs
-firebase deploy --only functions,firestore,storage,hosting --project wheelio-apps --account ajay@trustkeyper.com
-node backend/firebase/operations.cjs configure-api-access
-```
+Normal builds connect to Firebase **wheelio-apps**. The server selects payment
+mode: the deployed configuration currently uses the separate WashKrew **LIVE**
+merchant. A real checkout charges money. Training/quiz are hidden; human admin
+approval is required before a Captain can work. Do not seed fake Captains,
+payments or fixed OTPs in production. `?demo=true` is a labelled, isolated design
+gallery using sample data; it is not functional acceptance.
 
-The Next.js/Cloudflare/Neon instructions below describe the retained earlier implementation. `pnpm deploy` now deploys Firebase Hosting and Firestore; `pnpm deploy:cloudflare:legacy` retains the old deployment command.
+## Install on an iPhone
 
-## Project structure
+On a Mac with Xcode and CocoaPods, use `apps/flutter/tool/run-ios.sh` and follow
+[the complete Aman/Claude guide](docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md).
+The Xcode workspaces are **apps/flutter/customer/ios/Runner.xcworkspace** and
+**apps/flutter/captain/ios/Runner.xcworkspace**. Keep bundle IDs
+`com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `8CCQQM7TP3`.
+See [Mac setup](docs/MAC-HANDOFF.md). Windows tests do not prove native signing,
+compilation, camera/GPS/APNs or real payment-app switching.
 
-All three platforms live in `apps/`; backend services, designs and documentation are shared at the root.
+## Repository layout
 
-```text
-Wheelio/
-├── apps/
-│   ├── web/                    # Next.js website (App Router + TypeScript)
-│   │   ├── src/app/            # Landing page, layout, styles and metadata
-│   │   ├── src/components/     # Reusable website components
-│   │   └── public/             # Future static assets
-│   ├── flutter/                # Active Customer and Captain apps (web first, then iOS, Android)
-│   │   ├── customer/           # Customer app
-│   │   ├── captain/            # Captain (washer) app
-│   │   ├── packages/washkrew_ui/ # Shared design system, navigation and phone frame
-│   │   └── tool/serve.mjs      # Local preview server for web builds
-│   ├── ios/                    # Native SwiftUI apps (reference for the Flutter port)
-│   │   ├── Wheelio.xcodeproj/  # Customer and Captain shared schemes
-│   │   ├── Customer/           # App, Data, Screens and Assets
-│   │   ├── Captain/            # App, Data, Screens and Assets
-│   │   └── Shared/             # Design system, fonts and formatting
-│   └── android/                # Reserved; only .gitkeep for now
-├── backend/                    # Shared Supabase schema and edge functions
-├── designs/                    # Screen design exports and navigation map
-├── docs/                       # Status, integration notes and build brief
-├── legacy/                     # Preserved earlier Flutter implementation
-│   ├── apps/customer/
-│   ├── packages/washkrew_ui/
-│   └── tool/bootstrap_customer.sh
-├── package.json                # Root web development commands
-├── pnpm-workspace.yaml         # JavaScript workspace (apps/web)
-└── pnpm-lock.yaml              # Reproducible web dependencies
-```
+| Path | Purpose |
+| --- | --- |
+| apps/flutter/customer | Current Customer app: web and iOS |
+| apps/flutter/captain | Current Captain app: web and iOS |
+| apps/flutter/packages/washkrew_ui | Authoritative shared design system/assets |
+| apps/flutter/packages/washkrew_firebase | Shared Firebase and native integrations |
+| apps/admin | Private Google-authorized Captain review webpage |
+| apps/website | Current washkrew.com marketing website; separate Hosting site |
+| apps/hosting | Default Firebase site's landing page |
+| backend/firebase | Current Functions, rules, operations and tests |
+| backend/photo-check | Private photo/identity service |
+| brand, designs, Wheelio-designs | Approved brand and design exports |
+| docs, output/pdf | Reports, build and acceptance guides |
 
-The Flutter apps and the native iOS apps use their own tools; they are not JavaScript workspace packages. `legacy/` holds an older, unfinished Flutter customer app from before the iOS apps; the active Flutter code in `apps/flutter/` does not use it. `Wheelio-designs/` is an additional design export retained from the original folder.
+The retired SwiftUI, Next.js/React and legacy Flutter apps and empty Android
+placeholder were removed at the owner's request on 28 October. Their history
+remains in Git; do not recreate them or follow older build instructions. Historical
+database files are archives, not an instruction to migrate or delete any database.
+Android platform work remains deferred until requested.
 
-## Website and web backend
+## Hosting and operations
 
-The Next.js app in `apps/web/` deploys to Cloudflare Workers using OpenNext. Its API Route Handlers and Better Auth endpoint run in the same Worker. The database layer uses Neon Postgres with Drizzle ORM and Better Auth's Drizzle adapter. Use Node.js 24 and pnpm 11 (`.nvmrc` and `packageManager` record the versions).
+- Customer: https://wheelio-apps.web.app/app/
+- Captain: https://wheelio-apps.web.app/captain/
+- Private admin: https://wheelio-apps.web.app/admin/
+- Website: https://washkrew.com/
 
-Copy `apps/web/.env.example` to `apps/web/.env.local` and fill in the Neon `DATABASE_URL`, a `BETTER_AUTH_SECRET` (at least 32 characters), and `BETTER_AUTH_URL`. The local env file is ignored by Git. From the root:
+After a verified build, `pnpm deploy` publishes default Firebase Hosting.
+Functions/rules/photo service changes have separate documented deployment steps;
+see [Firebase bookings](docs/FIREBASE-BOOKINGS.md). Keep the organization's policy
+and documented HTTP gateway authorization intact. Do not deploy to Cloudflare or
+use the retired Neon frontend. Run backend/rules checks with `pnpm firebase:test`
+after installing the backend npm dependencies; Java 21+ is needed.
 
-```sh
-pnpm install
-pnpm dev
-```
-
-`pnpm dev` runs Next.js locally; `pnpm preview` builds and serves the app using the Cloudflare Workers runtime. `pnpm deploy` builds and deploys the Worker named `wheelio-web` after Wrangler is connected to the intended Cloudflare account. Set the same values as Worker secrets/environment variables in the Cloudflare dashboard for deployment. More details are in [apps/web/README.md](apps/web/README.md).
-
-The full Neon schema migration has been applied and verified. To apply future migrations or inspect the database:
-
-```sh
-pnpm db:migrate
-pnpm db:check
-```
-
-The 27-table schema, customer action functions, access policies and configuration passed migrations and behavior tests in a disposable PostgreSQL/PostGIS database. The live Neon migration and web API authentication checks passed on 12 October 2026. See [backend/NEON-DATABASE.md](backend/NEON-DATABASE.md) for details and remaining integrations. Original Supabase files are preserved; existing data and edge functions have not been transferred.
-
-These commands also run from the root:
-
-```sh
-pnpm typecheck
-pnpm build
-pnpm start
-```
-
-The website remains a prelaunch landing page introducing the wash service, explaining the three-step flow, and showing a coming-soon notice. It uses the existing WashKrew colours and bundled Roboto fonts. Booking and app download links are not live, and the page does not collect visitor data.
-
-The web app also carries earlier React demo ports of both iOS apps, now superseded by the Flutter apps, running on the same sample data: the Customer app at `/app` and the Captain app at `/captain` (not linked from the landing page, and marked noindex). On a laptop each app sits in a phone frame in the middle of the page; on a phone it fills the screen. Every screen, state and demo switch from the iOS Screens gallery is available through the "Screens" tab on the left edge. Demo login code: 123456. The code lives in `apps/web/src/phone/`.
-
-## Flutter apps (Customer and Captain)
-
-Both apps are now built in Flutter from one codebase in `apps/flutter/`. The web app is the first launch target, followed by iOS and then Android. They are screen-by-screen ports of the SwiftUI apps, running on the same sample data with the same Screens gallery. On a laptop, the phone screen sits in the middle of the window with grey on both sides; on a phone, it fills the screen. Swipes become visible buttons on the web. The decisions, structure and commands are in [docs/FLUTTER.md](docs/FLUTTER.md).
-
-```sh
-cd apps/flutter/captain
-flutter build web --release --pwa-strategy=none
-node ../tool/serve.mjs build/web 8082
-```
-
-## iOS apps / Xcode (reference)
-
-Open `apps/ios/Wheelio.xcodeproj` in Xcode. Choose the **Customer** or **Captain** scheme, select an iPhone simulator or your connected iPhone, and press Run. Captain is the washer app. Both schemes are shared and tracked so they are available in a fresh checkout.
-
-Both apps currently use sample data. In each app, the **Screens** tab opens the designed screens; **Step through all screens** in the Captain app walks W01–W50. The source groups remain relative to the project, so moving the whole iOS folder preserves source and asset references, bundle identifiers and signing settings.
-
-For a simulator build without device signing:
-
-```sh
-xcodebuild -project apps/ios/Wheelio.xcodeproj -scheme Customer -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath apps/ios/DerivedData CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project apps/ios/Wheelio.xcodeproj -scheme Captain -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath apps/ios/DerivedData CODE_SIGNING_ALLOWED=NO build
-```
-
-## Android
-
-`apps/android/` is reserved for future Android work. No Android project, framework or dependencies have been added. `.gitkeep` lets Git retain the otherwise empty directory.
-
-## Shared resources
-
-| Path | Contents |
-|---|---|
-| `backend/supabase/` | Database migrations, security rules, sample data, Razorpay webhook and AI photo check |
-| `backend/API-CONTRACT.md` | Server actions needed by the apps |
-| `backend/whatsapp-templates.md` | Entry-pass bot messages for Meta approval |
-| `designs/` | 124 exported screens plus the design read-me |
-| `docs/FLUTTER.md` | Flutter app structure, the phone-frame and web-swipe decisions, and commands |
-| `docs/STATUS.md` | Current platform structure and historical build progress |
-| `docs/CONNECT-LATER.md` | Service integration checklist and historical Flutter notes |
-| `docs/BUILD-BRIEF.md` | Build plan, accounts and open business decisions |
-| `docs/screen-index.csv` | Screen flows and navigation links |
-| `CLAUDE.md` | Current project conventions for coding sessions |
-
-## Online sources
-
-- Design (live): https://claude.ai/artifact/QrsfqjaXnQ9fpY7spb1XAN
-- Google Drive "WashKrew" folder: https://drive.google.com/drive/folders/1iIwNXlTps-X5rACETmyfAqnT9boJ3kpU
+Read [AGENTS.md](AGENTS.md) before editing. Current operational limits and human
+inputs are in [completion notes](docs/COMPLETION-2026-10-28.md). Physical iPhone
+acceptance, approved support/legal/commercial inputs and real Captain reviews
+remain required; do not call an automated or sample-gallery check a device pass.

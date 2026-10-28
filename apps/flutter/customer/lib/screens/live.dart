@@ -70,16 +70,6 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.onTheWay => o.captainCantFind ? _cantFind(o) : _onTheWay(o),
         OrderStatus.washing => _washing(o),
         OrderStatus.photosReady => CheckWashView(order: o),
-        OrderStatus.cancelled when o.cancellationReason == 'paymentMethodNotAllowed' => _state(WFullState(
-            icon: WIcon.rupee,
-            tone: Tone.wait,
-            title: 'Payment method not accepted',
-            message: 'Use UPI, a debit card or netbanking. Credit-card checkout is not accepted. ${refundStatusText(o.refundStatus,null).detail}',
-            primary: 'Book again',
-            secondary: 'See refund',
-            onPrimary: () => _again(o),
-            onSecondary: () => router.go(N.refund),
-          )),
         OrderStatus.cancelled when o.creditGiven > 0 => _state(WFullState(
             icon: WIcon.rupee,
             tone: Tone.ok,
@@ -105,7 +95,9 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
                 icon: WIcon.check,
                 tone: Tone.ok,
                 title: 'Booking cancelled',
-                message: store.isLive?'${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}':'${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
+                message: store.isLive
+                    ? '${o.cancellationReason == 'paymentMethodNotAllowed' ? 'Use UPI, a debit card or netbanking. Credit-card checkout is not accepted. ' : ''}${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}'
+                    : '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
                 primary: 'Book another time',
                 secondary: 'Track refund',
                 onPrimary: () => _again(o),

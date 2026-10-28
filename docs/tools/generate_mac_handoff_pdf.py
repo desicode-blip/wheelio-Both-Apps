@@ -25,7 +25,7 @@ PALE = colors.HexColor("#F0F5FF")
 
 def register_fonts():
     choices = [
-        (ROOT / "apps/ios/Shared/Fonts/Roboto-Regular.ttf", ROOT / "apps/ios/Shared/Fonts/Roboto-Bold.ttf"),
+        (ROOT / "apps/flutter/packages/washkrew_ui/lib/fonts/Roboto-Regular.ttf", ROOT / "apps/flutter/packages/washkrew_ui/lib/fonts/Roboto-Bold.ttf"),
         (Path("C:/Windows/Fonts/arial.ttf"), Path("C:/Windows/Fonts/arialbd.ttf")),
         (Path("/Library/Fonts/Arial.ttf"), Path("/Library/Fonts/Arial Bold.ttf")),
         (Path("/System/Library/Fonts/Supplemental/Arial.ttf"), Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")),

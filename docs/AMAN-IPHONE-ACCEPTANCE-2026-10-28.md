@@ -7,8 +7,8 @@ This is the current start-to-finish guide: pull the source, build both apps,
 create the accounts, approve the Captain, book and pay, perform the wash, track
 it, approve/rate it, and check cancellation/refund and device recovery.
 
-Application baseline: `c1d1ad0`, plus the commit containing this guide and its
-PDF. Always record `git rev-parse HEAD` after pulling; do not check out the older
+Design baseline: **af036f0**. Use the latest staging functionality and the
+commit containing this updated guide and PDF. Always record `git rev-parse HEAD` after pulling; do not check out the older
 baseline alone. Repo: https://github.com/desicode-blip/wheelio-Both-Apps
 
 ### Read these facts before any test
@@ -79,8 +79,9 @@ then `git fetch origin staging`, `git switch staging` and
 do not use a hard reset or force-push to erase work.
 
 The active native apps are `apps/flutter/customer` and `apps/flutter/captain`.
-The SwiftUI `apps/ios/Wheelio.xcodeproj`, old Next.js apps and `legacy/` are
-references, not this acceptance build. Normal builds need no Razorpay secrets,
+The retired SwiftUI, Next.js and legacy Flutter apps have been removed at the
+owner's request. Do not restore them. The two current Flutter Runner workspaces
+are the only iPhone build targets; see `docs/DESIGN-AUDIT-2026-10-28.md`. Normal builds need no Razorpay secrets,
 Firebase owner CLI login, credential PDFs or Apple private key in app source.
 
 <!-- pagebreak -->

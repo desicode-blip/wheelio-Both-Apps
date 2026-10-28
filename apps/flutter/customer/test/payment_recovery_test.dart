@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:washkrew_customer/data/models.dart';
 import 'package:washkrew_customer/data/store.dart';
 import 'package:washkrew_customer/screens/auth_pay.dart';
+import 'package:washkrew_customer/screens/live.dart';
 
 // No Firebase or payment SDK is initialized by this fixture. It supplies the
 // server outcome at the point where checkout returns to the Customer screen.
@@ -26,6 +27,27 @@ class ResolvedPaymentStore extends AppStore {
 }
 
 void main() {
+  testWidgets('unsupported funding keeps the designed cancellation and refund action', (tester) async {
+    tester.view.physicalSize = const Size(430, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final store = ResolvedPaymentStore(OrderStatus.cancelled, PaymentOutcome.pending);
+    store.sampleOrder(OrderStatus.cancelled);
+    store.currentOrder!
+      ..cancellationReason = 'paymentMethodNotAllowed'
+      ..refundStatus = 'pending';
+    final router = AppRouter();
+    await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: LiveOrderScreen())));
+    expect(find.text('Booking cancelled'), findsOneWidget);
+    expect(find.textContaining('Credit-card checkout is not accepted.'), findsOneWidget);
+    await tester.tap(find.text('Track refund'));
+    expect(router.last?.n, N.refund);
+    await tester.pumpWidget(const SizedBox());
+    store.dispose();
+    router.dispose();
+  });
+
   test('unpaid and unconfirmed bookings stay visible for checkout recovery', () {
     expect(OrderStatus.pendingPayment.isUpcoming, isTrue);
     expect(OrderStatus.paymentPending.isUpcoming, isTrue);

@@ -7,22 +7,16 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @wheelio/web dev",
-    "build": "pnpm --filter @wheelio/web build",
-    "start": "pnpm --filter @wheelio/web start",
-    "typecheck": "pnpm --filter @wheelio/web typecheck",
-    "preview": "pnpm --filter @wheelio/web preview",
-    "deploy": "firebase deploy --only hosting,firestore",
+    "dev": "node apps/flutter/tool/workspace.mjs dev customer",
+    "dev:captain": "node apps/flutter/tool/workspace.mjs dev captain",
+    "build": "node apps/flutter/tool/build-firebase.mjs",
+    "start": "node apps/flutter/tool/serve.mjs build/firebase-hosting 8083",
+    "typecheck": "node apps/flutter/tool/workspace.mjs analyze",
+    "test": "node apps/flutter/tool/workspace.mjs test",
+    "preview": "node apps/flutter/tool/serve.mjs build/firebase-hosting 8083",
+    "deploy": "firebase deploy --only hosting",
     "firebase:build": "node apps/flutter/tool/build-firebase.mjs",
     "firebase:preview": "firebase emulators:start --only hosting",
-    "firebase:test": "firebase emulators:exec --project demo-wheelio --only firestore,auth \"npm --prefix backend/firebase test\"",
-    "deploy:cloudflare:legacy": "pnpm --filter @wheelio/web deploy",
-    "upload": "pnpm --filter @wheelio/web upload",
-    "cf-typegen": "pnpm --filter @wheelio/web cf-typegen",
-    "db:generate": "pnpm --filter @wheelio/web db:generate",
-    "db:migrate": "pnpm --filter @wheelio/web db:migrate",
-    "db:check": "pnpm --filter @wheelio/web db:check",
-    "db:test": "pnpm --filter @wheelio/web db:test",
-    "db:auth-check": "pnpm --filter @wheelio/web db:auth-check"
+    "firebase:test": "firebase emulators:exec --project demo-wheelio --only firestore,auth,storage \"npm --prefix backend/firebase test\""
   }
 }

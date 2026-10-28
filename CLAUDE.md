@@ -1,124 +1,30 @@
-# WashKrew
+# WashKrew - Claude continuation
 
-## Owner handoff update - 27 October 2026
+Read and follow **AGENTS.md** in this directory. It is the current common policy
+for every coding agent and supersedes older historical handoff instructions.
 
-**Read first for Aman's iPhone acceptance:**
-`docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF
-`output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf`. Guide Aman
-section by section from Mac setup and separate Customer/Captain account creation
-through admin approval, booking, live checkout, assignment, wash evidence,
-tracking, Customer approval, refunds and device recovery. Record actual results
-as PASS/FAIL/BLOCKED. The guide's LIVE-payment and hidden-training policy
-supersedes older handoff snapshots; never claim an unobserved hardware pass.
+Start with:
 
-**Latest owner decision (28 October):** hide training videos and quiz for now.
-The existing Aadhaar/selfie/payout stages lead to submission and human review in
-`/admin/`. Approved Captains can go online and work; unapproved ones remain
-blocked by the server. `training.enabled` and `training.required` are explicitly
-false. No fake watch/quiz/training records are written. Do not invent in-person
-training or restore this feature without the owner's decision. This supersedes
-older missing-training launch gates and the pending question below. Read
-`docs/COMPLETION-2026-10-28.md` for the current release.
+1. `docs/DESIGN-AUDIT-2026-10-28.md` - owner design lock **af036f0**, visual
+   comparison, removed alternate apps and known testing limits.
+2. `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/` - guide
+   Aman through both apps on his iPhone, record actual results, reproduce failures.
+3. `docs/MAC-HANDOFF.md` - Flutter/Xcode/CocoaPods setup and current workspaces.
+4. `docs/COMPLETION-2026-10-28.md` and `docs/LIVE-PAYMENTS-2026-10-28.md` - current
+   LIVE merchant, hidden training, human approvals and operational limits.
+5. `docs/BACKEND-HOOKUP.md` before connecting a new backend service.
 
-**Latest completion follow-up (28 October):** read
-`docs/COMPLETION-2026-10-28.md`. Live/historical-test private photo checks are now
-deployed and enabled, five-minute automated selfie sessions are enforced, and
-Captain photo-check failures show the existing error toast. 120 backend tests,
-4 Captain tests, Captain analysis/web build and portable native checks passed.
-No physical-device or live transaction pass is claimed. Zero Captains are
-approved. The owner has now chosen hidden training/quiz and admin approval, as
-recorded above; no in-person policy or fake training is to be invented.
-Support/legal/commercial input and
-real human Captain approvals remain open. This supersedes older photo-mode notes.
+Only build `apps/flutter/customer` and `apps/flutter/captain`. The old independent
+SwiftUI, Next.js/React and legacy Flutter apps were removed at the owner's request;
+do not recover them as the build target. Open the current Flutter apps' respective
+`ios/Runner.xcworkspace` files. Keep bundle IDs and Apple team. Fix functionality
+inside the designed screens; do not redesign. Root pnpm commands now target Flutter.
 
-**Latest owner payment instruction (28 October):** real payments are now authorized
-and only the direct credit-card checkout option is banned. UPI, including a linked
-credit card, remains allowed. Read `docs/LIVE-PAYMENTS-2026-10-28.md` for the deployed
-implementation and verified cutover. Owner authentication and Functions/Hosting
-deployment succeeded. New bookings report live/WashKrew, policy
-`no-credit-card-checkout`, configuration `config_TtDpJ7HJM4hHb2` (saved as merchant
-default). Historical merchant/mode routing is preserved. No live charge/refund
-acceptance is claimed. Zero Captains are approved; private photo services support
-both test/live jobs, with physical/operational acceptance still pending. Training, human reviews,
-approved content and device checks remain required; do not treat payment cutover
-as a completed operational launch. This update supersedes older test-mode notes.
+Training/quiz/refresher are hidden, not required and grant no fake completion.
+Human `/admin/` approval is mandatory for working. Payments are LIVE on the separate
+WashKrew merchant; no direct credit-card checkout, UPI-linked credit remains allowed.
+Never assume that an older report's test-mode/training-required statement is current.
 
-**28 October follow-up:** `docs/ADMIN-MERCHANT-2026-10-28.md` supersedes the older
-pending merchant-integration and CLI-only Captain-approval status. Separate
-WashKrew live secrets/webhook and merchant-safe historical routing are deployed;
-payments remain test. The separate `/admin/` page supports human reviews by the
-four approved Google accounts, with actual Flutter inbox/correction state.
-New-merchant acceptance, real human approvals, approved content and physical
-iPhone/APNs checks remain gates. Preserve the Customer/Captain staging design.
-
-Read `docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md` (PDF in `output/pdf/`) and `docs/MAC-HANDOFF.md` first. These current owner decisions supersede conflicting historical paragraphs below:
-
-- Preserve the staging design and use the active Flutter Customer/Captain apps. Compile/sign/test on Aman's Mac; do not use the SwiftUI sample project or generate Android.
-- Aman is supplying **training design placeholders**, not videos for now. Use only his assets in the existing regions. Never count a placeholder as watched training, a passed quiz, verified KYC or working playback; do not silently bypass production gates.
-- Razorpay told the owner WashKrew needs a **separate merchant account**. Aman is handling the application/documents/access. The old shared Trustkeyper live credentials are not an approved launch path. Keep test mode and preserve old payment/refund obligations. New merchant integration, historical merchant-safe routing and new-merchant acceptance are pending; do not duplicate onboarding or regenerate Trustkeyper keys.
-- Software baseline `81c40ee` passed 89 backend/rules tests, 24 Flutter tests, 3 model tests, both web builds and app/shared/tool analyses. Xcode compilation, signed iPhone installation, APNs and physical acceptance remain unproved. Approved content, commercial/coverage decisions and live approvals are separate gates.
-
-> **25 October 2026: active apps use Firebase.** Project `wheelio-apps` belongs to `ajay@trustkeyper.com`, with Trustkeyper billing. The Flutter Customer/Captain apps have real OTP, persisted bookings, camera/media, assignment, wash tracking/evidence, approval/refunds, wallets, earnings and private notifications. Native iPhone source uses Firebase by default; physical iPhone and Apple push acceptance remain for the owner's Mac. The merged source passed four Flutter analyses, 57 backend/rules/payment/notification tests, 8 Customer tests, 5 shared native-login/checkout tests and both release web builds. The existing live Razorpay pair is now installed securely in the generic Wheelio secrets, and the owner-approved separate live webhook is enabled. Archived test secrets still serve test bookings/refunds; booking mode remains **test**. WashKrew's website is under Razorpay review (24–48 hours shown); commercial review and actual approved live captains are also required before launch. No merchant key was regenerated and no Trustkeyper setting was changed. KYC/dispute decisions and bank payouts remain human operations. See `docs/LIVE-LAUNCH.md`, `docs/IOS-FIREBASE.md`, `docs/WEB-ACCEPTANCE.md` and `docs/FIREBASE-BOOKINGS.md`. Run the documented post-deploy HTTP gateway step without disabling the organization policy. Private credential documents and secret values never belong in Git. The Next.js/Neon/Cloudflare sections below are historical. Explicit demo builds stay labelled and isolated.
-
-Doorstep, photo-verified exterior washes for cars and bikes in Hyderabad gated societies.
-
-**Name: WashKrew** (renamed from Wheelio on 25 October 2026; company WASHKREW, website washkrew.com). Use `Brand.name` / `Brand.captainApp` in Flutter, never a literal. Logo masters (SVG) and mock-ups are in `brand/`; the Flutter `WLogo` widget (`packages/washkrew_ui/lib/src/brand.dart`) is the only way to show the logo. Flutter package and code names were renamed too (`washkrew_ui`, `washkrew_firebase`, `washkrew_customer`, `washkrew_captain`, `WashKrewRuntime`). A few technical identifiers still say wheelio on purpose: bundle IDs `com.amanmaheshwari.wheelio.*`, Firebase project `wheelio-apps`, `WHEELIO_DEMO`, the SwiftUI project file `Wheelio.xcodeproj`, and the repo and folder names. Renaming those needs new App Store and Firebase setup.
-
-## Current layout (15 October 2026)
-
-- `apps/web/` — Next.js App Router website with TypeScript, deployable to Cloudflare Workers through OpenNext. API Route Handlers and Better Auth use Neon Postgres through Drizzle. `src/app/` owns pages, layouts, metadata, API routes and CSS; `src/lib/` owns auth and database setup. Colours and bundled Roboto fonts follow the iOS design system. `/app` (Customer) and `/captain` (Captain) are web ports of the iOS apps on sample data, built from `src/phone/` (design system in `src/phone/ds/`, one folder per app); on a laptop they render in a centred phone frame, on a phone they fill the screen. They are superseded by the Flutter apps as the launch target and stay only until the Flutter web build is deployed.
-- `apps/flutter/` — **active app stack**: Flutter Customer (`customer/`) and Captain (`captain/`) apps sharing `packages/washkrew_ui` (design system, navigation, phone frame, device services). Release order: web first, then iOS, then Android, all from this code. `web` and `ios` platforms exist (iOS added 23 Oct 2026: bundle IDs match the SwiftUI apps, team 8CCQQM7TP3, iOS 15+). Normal iPhone builds use Firebase; explicit demo builds stay labelled and isolated. Install on a connected iPhone with `apps/flutter/tool/run-ios.sh` (needs Flutter and CocoaPods on the Mac); see `docs/IOS-FIREBASE.md`. Add `android` with `flutter create --platforms` when that target starts. Ported screen by screen from `apps/ios/`; read `docs/FLUTTER.md` before changing them.
-- `apps/ios/` — native SwiftUI Customer and Captain (washer) apps, the design and behaviour reference for the Flutter apps. Open `apps/ios/Wheelio.xcodeproj`; Customer and Captain are shared schemes. Each app has `App/`, `Data/`, `Screens/` and assets. `Shared/` is used by both targets.
-- `apps/website/` — the washkrew.com public website (27 Oct 2026): static HTML/CSS on the logo palette, deployed to its own Firebase Hosting site so the apps' deployment is untouched. Buttons open a "Get the app" dialog; store links live in `STORE_LINKS` in `public/index.html`. Owner decision (27 Oct 2026): the site says "Now live in Hyderabad"; it estimates the visitor's city by IP and says "Now live" only for cities in `LIVE_CITIES`, "Coming soon to <city>" elsewhere. Go-live steps: `apps/website/README.md`.
-- `apps/android/` — reserved and empty except `.gitkeep`. Do not generate an Android application until requested.
-- `backend/supabase/` — preserved migrations, seed data and edge functions. The application schema is ported to Neon/Drizzle under `apps/web/drizzle/` and verified locally and applied to live Neon, and existing data/edge functions have not been transferred. `backend/NEON-DATABASE.md` records the active migration and identity rules. `backend/API-CONTRACT.md` describes the original service contract.
-- `designs/` — screen design exports. `Main.dc.html` is the design read-me; `wheelio-screens.json` is the navigation map.
-- `docs/` — status, integration checklist, build brief and screen index.
-- `legacy/` — an older, unfinished Flutter customer app from before the iOS apps, preserved for reference. It contains `apps/customer`, `packages/wheelio_ui` and `tool/bootstrap_customer.sh`. It is not used by `apps/flutter/`.
-
-## Commands
-
-Use Node.js 24 and pnpm 11. Run these from the repository root:
-
-```sh
-pnpm install
-pnpm dev
-pnpm typecheck
-pnpm build
-pnpm preview
-```
-
-`pnpm deploy` deploys the web app to Cloudflare Workers. `pnpm db:generate` and `pnpm db:migrate` are ready for use after Neon credentials are configured; do not apply them to a database until the schema is reviewed.
-
-Flutter 3.38 is at `~/development/flutter/bin`. In `apps/flutter/customer` or `apps/flutter/captain`: `flutter analyze`, `flutter run -d chrome`, and `flutter build web --release --pwa-strategy=none`. Preview a build with `node apps/flutter/tool/serve.mjs <app>/build/web <port>` (also `flutter-customer` / `flutter-captain` in `.claude/launch.json`).
-
-The SwiftUI apps are built and run in Xcode using the Customer or Captain scheme. Simulator build commands are in README.md. The root pnpm workspace contains only `apps/web`; Flutter and native projects do not need package.json files.
-
-## Design rules
-
-- Owner design lock: preserve current staging screen composition, components, typography, palette and assets. Wire actual data/handlers into the existing Customer and Captain screens. Do not introduce generic Firebase replacement screens, guessed layouts or the deliberately removed payment banner. Backend mode isolation is still required. Current implementation and outstanding gates: `docs/FUNCTIONALITY-2026-10-26.md`.
-
-- The active iOS design system is in `apps/ios/Shared/DesignSystem/`. Since 25 Oct 2026 the Flutter colours follow the WashKrew logo: primary blue `#0049FF`, heading charcoal `#22282D` (tokens in `apps/flutter/packages/washkrew_ui/lib/src/tokens.dart`; the SwiftUI reference still has the old `#3160FF` / `#172231`), and canvas `#F6F9FD`.
-- One primary action per app screen. Green is reserved for pay, approve or accept; red is for errors and destructive actions.
-- One small decision per screen in the booking flow.
-- Payment screens explain that money is held and released after approval.
-- Colour is never the only signal; use an icon and a word. Touch targets are at least 48 px (64 for washer controls).
-- Undecided business values stay as configuration and placeholders, never invented prices or promises.
-- The apps keep their phone layout on every screen size: on laptops the phone screen is centred with grey on both sides, never re-laid out for wide screens. On the web, every swipe has a visible control instead (see `docs/FLUTTER.md`).
-- The landing page is prelaunch. Do not imply app downloads or live booking are available before those services exist.
-
-## Current implementation
-
-Normal Flutter Customer/Captain builds use the deployed Firebase controllers; server payments remain test mode. Only explicit demo builds and the SwiftUI reference use sample data and fixed demo codes; those must never reach production controllers. The in-app demo Screens gallery is a design reference, not integration acceptance. The Next.js/Neon/Better Auth commands and `/api/health` belong to the historical web stack. See the current owner handoff above before resuming any older migration instructions.
-
-## Connecting the backend
-
-- Before connecting any backend service, read `docs/BACKEND-HOOKUP.md` and show it to Aman. Add a line there whenever a new screen fakes data, a timer or a test button.
-
-## Keeping the apps consistent
-
-- Development happens in Flutter (`apps/flutter/`). Every app change must land in Flutter in the same task. If a change is made in the SwiftUI reference (`apps/ios/`), port it to Flutter before committing, so the two never drift. Update `docs/FLUTTER.md` (status and decisions) and `docs/BACKEND-HOOKUP.md` (anything faked) with it.
-
-## Git
-
-- Commit every change you make before finishing a task, so no work is left uncommitted. Commit on the branch you are working on and do not push unless asked.
+Do not claim a source, emulator or design-gallery check proves physical iPhone
+camera, GPS, APNs, payment app switching, KYC or real charge/refund acceptance. Keep
+private information out of reports. Commit changes; push only when Aman asks.

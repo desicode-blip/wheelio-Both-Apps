@@ -1,6 +1,6 @@
 # WashKrew Customer (Flutter)
 
-The active Customer app for Firebase web and iPhone, ported from `apps/ios/Customer`. Use this Flutter project for the connected iPhone release. The SwiftUI project remains a sample-data reference; Android is not generated.
+The current Customer app for Firebase web and iPhone. Its design is locked to Git **af036f0**. Other app implementations were removed at the owner's request. Build this Flutter project; Android is not generated.
 
 For iPhone preparation, signing, Release installation and final checks, follow [MAC-HANDOFF.md](../../../docs/MAC-HANDOFF.md).
 

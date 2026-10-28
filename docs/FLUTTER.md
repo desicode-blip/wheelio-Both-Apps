@@ -1,3 +1,22 @@
+# Design lock and single app source - 28 October 2026
+
+The owner pinned Customer/Captain design to **af036f0** and requested removal of
+alternate apps. Only `apps/flutter/customer` and `apps/flutter/captain` remain.
+The 157 matching-state renders were pixel-exact. All four analyses, 40 Flutter
+tests, both release web builds and portable iOS checks passed. Physical iPhone
+acceptance remains for Aman's Mac.
+Root development commands now launch these apps. The unused generic Firebase
+frontend and its legacy request repository were removed; the actual LiveBackend,
+phone OTP, payment, assignment, tracking and photo controllers remain. The existing
+cancel/refund screen handles an unsupported payment method instead of a separate
+new screen. No new fake, timer, sample approval or production data was introduced.
+Training stays hidden by the owner's separate decision; payment restrictions and
+the current-app-only deletion rule remain enforced. See
+[DESIGN-AUDIT-2026-10-28.md](DESIGN-AUDIT-2026-10-28.md).
+
+Historical references below to removed SwiftUI/Next.js/legacy paths are provenance
+only. Their source is recoverable from Git af036f0, never the current build target.
+
 # Latest completion follow-up — 28 October 2026
 
 **iPhone handoff:** [AMAN-IPHONE-ACCEPTANCE-2026-10-28.md](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md)
@@ -203,9 +222,9 @@ Decided on 15 October 2026: both WashKrew apps, Customer and Captain (washer), a
 2. **iOS**: later, from the same code.
 3. **Android**: after iOS, from the same code.
 
-**All development happens in Flutter.** The Flutter apps are ports of the SwiftUI apps in `apps/ios/`. They have the same screens, states, copy (English, Hindi and Telugu for Captain), interactions, sample data and Screens gallery. The SwiftUI apps remain the design reference until the Flutter apps ship on iOS.
+**All development happens in Flutter.** The current design reference is the Flutter source at Git `af036f0`. The original SwiftUI ports are preserved in Git history only, not in this checkout.
 
-**Keeping them consistent:** every app change lands in Flutter in the same task. If something is changed in the SwiftUI reference first, it is ported to Flutter before it is committed. Anything a screen fakes (demo data, timers, test buttons) goes on the list in [BACKEND-HOOKUP.md](BACKEND-HOOKUP.md).
+**Keeping them consistent:** every app change lands directly in the current Flutter apps; do not maintain alternate implementations. Anything a screen fakes (demo data, timers, test buttons) goes on the list in [BACKEND-HOOKUP.md](BACKEND-HOOKUP.md).
 
 ## Where the code lives
 

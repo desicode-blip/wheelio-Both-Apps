@@ -1,3 +1,10 @@
+# Historical database archive - no current frontend
+
+The Next.js/Neon frontend was retired and removed on 28 October 2026 at the
+owner's request. The current apps use Firebase; the migration commands/paths
+below are historical, recoverable in Git af036f0. Do not run them as setup for
+the current apps, migrate data or delete any database during frontend cleanup.
+
 # Neon database migration
 
 The active web backend uses Neon PostgreSQL, Drizzle and Better Auth. The migrations in `apps/web/drizzle/` port the original Supabase application schema to this stack. This is a schema migration; no existing Supabase user or business data has been copied.
