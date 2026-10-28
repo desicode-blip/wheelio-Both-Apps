@@ -2,6 +2,15 @@
 
 ## Owner handoff update - 27 October 2026
 
+**Read first for Aman's iPhone acceptance:**
+`docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF
+`output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf`. Guide Aman
+section by section from Mac setup and separate Customer/Captain account creation
+through admin approval, booking, live checkout, assignment, wash evidence,
+tracking, Customer approval, refunds and device recovery. Record actual results
+as PASS/FAIL/BLOCKED. The guide's LIVE-payment and hidden-training policy
+supersedes older handoff snapshots; never claim an unobserved hardware pass.
+
 **Latest owner decision (28 October):** hide training videos and quiz for now.
 The existing Aadhaar/selfie/payout stages lead to submission and human review in
 `/admin/`. Approved Captains can go online and work; unapproved ones remain

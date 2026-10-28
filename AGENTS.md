@@ -2,6 +2,15 @@
 
 ## Owner handoff update - 27 October 2026
 
+- **Latest iPhone testing handoff (28 October):** read
+  `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and
+  `output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf` first on
+  Aman's Mac. This is the full two-app account-creation, human admin approval,
+  booking/payment/wash/tracking/refund and device-check guide for Claude to walk
+  Aman through. It supersedes older test-only/training-required test instructions.
+  It requires separate Customer/Captain numbers and distinguishes actual
+  hardware/live transactions from automated or simulated acceptance.
+
 - **Latest owner decision (28 October): training and quiz are hidden for now.**
   Captain onboarding has the existing three Aadhaar/selfie/payout stages, then
   application review. Human approval in `/admin/` is the gate to working; an

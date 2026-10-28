@@ -1,5 +1,12 @@
 # Latest completion follow-up — 28 October 2026
 
+**iPhone handoff:** [AMAN-IPHONE-ACCEPTANCE-2026-10-28.md](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md)
+and its PDF in `output/pdf/` give Claude the complete walkthrough for Aman's
+Customer/Captain account creation and physical acceptance. The iOS helper no
+longer prints a hardcoded "currently test" claim; it tells the tester to confirm
+the actual server mode. Portable iOS tooling tests passed. No app design or
+runtime backend behavior was changed by this documentation/tooling follow-up.
+
 **Latest owner choice:** videos/training and quiz are hidden. The existing three
 KYC stages lead to application review; admin approval permits working, with the
 server still blocking unapproved Captains. Profile/refresher entry points and

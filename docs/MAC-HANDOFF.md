@@ -1,5 +1,11 @@
 # Latest handoff — 28 October 2026
 
+**Aman and Claude's full walkthrough:**
+[iPhone acceptance guide](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md), also supplied as
+[a 14-page PDF](../output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf).
+Read it first for current account creation, admin approval, live payment and
+two-role iPhone testing. It provides the result record and failure checklist.
+
 Read [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) first. Separate WashKrew
 live payments and test/live private photo processing are now active, and the
 private Captain admin is deployed. This supersedes older test-only/merchant-

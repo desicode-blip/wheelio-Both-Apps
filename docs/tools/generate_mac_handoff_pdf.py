@@ -25,6 +25,7 @@ PALE = colors.HexColor("#F0F5FF")
 
 def register_fonts():
     choices = [
+        (ROOT / "apps/ios/Shared/Fonts/Roboto-Regular.ttf", ROOT / "apps/ios/Shared/Fonts/Roboto-Bold.ttf"),
         (Path("C:/Windows/Fonts/arial.ttf"), Path("C:/Windows/Fonts/arialbd.ttf")),
         (Path("/Library/Fonts/Arial.ttf"), Path("/Library/Fonts/Arial Bold.ttf")),
         (Path("/System/Library/Fonts/Supplemental/Arial.ttf"), Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")),
@@ -39,9 +40,9 @@ def register_fonts():
     return "Helvetica", "Helvetica-Bold"
 
 
-def inline(text):
+def inline(text, code_font="Courier"):
     escaped = html.escape(text)
-    escaped = re.sub(r"`([^`]+)`", r'<font name="Courier" size="8.1">\1</font>', escaped)
+    escaped = re.sub(r"`([^`]+)`", lambda match: f'<font name="{code_font}" size="8.8">{match.group(1)}</font>', escaped)
     return re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", escaped)
 
 
@@ -56,8 +57,14 @@ class Rule(Flowable):
         self.canv.line(0, 5, self.width, 5)
 
 
-def render(source, target):
+def render(source, target, *, title="WashKrew - Mac and iPhone continuation report", header="WASHKREW  /  ENGINEERING HANDOFF", footer="27 October 2026  |  staging  |  Test mode", subject="Remaining implementation, device acceptance, training placeholders and separate Razorpay merchant migration"):
     regular, bold = register_fonts()
+    code_font = "Courier"
+    for font_path in [Path("C:/Windows/Fonts/consola.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")]:
+        if font_path.exists():
+            pdfmetrics.registerFont(TTFont("Handoff-Code", str(font_path)))
+            code_font = "Handoff-Code"
+            break
     width = A4[0] - 88
     styles = {
         "title": ParagraphStyle("title", fontName=bold, fontSize=30, leading=34, textColor=BLUE, spaceAfter=10),
@@ -66,12 +73,12 @@ def render(source, target):
         "body": ParagraphStyle("body", fontName=regular, fontSize=9.6, leading=13.6, textColor=INK, spaceAfter=8, splitLongWords=True),
         "cell": ParagraphStyle("cell", fontName=regular, fontSize=8.7, leading=11.8, textColor=INK, splitLongWords=True),
         "headcell": ParagraphStyle("headcell", fontName=bold, fontSize=8.7, leading=11.8, textColor=colors.white),
-        "code": ParagraphStyle("code", fontName="Courier", fontSize=8.1, leading=11.5, textColor=INK, borderColor=colors.HexColor("#D8E3F8"), borderWidth=0.6, borderPadding=8, backColor=PALE, spaceBefore=5, spaceAfter=10),
+        "code": ParagraphStyle("code", fontName=code_font, fontSize=9, leading=12.5, textColor=INK, borderColor=colors.HexColor("#D8E3F8"), borderWidth=0.6, borderPadding=8, backColor=PALE, spaceBefore=5, spaceAfter=10),
         "bullet": ParagraphStyle("bullet", fontName=regular, fontSize=9.6, leading=13.6, textColor=INK, leftIndent=14, firstLineIndent=-14, spaceAfter=6),
     }
 
     def p(text, kind="body"):
-        return Paragraph(inline(text), styles[kind])
+        return Paragraph(inline(text, code_font), styles[kind])
 
     story = []
     pages = source.read_text(encoding="utf-8").split("<!-- pagebreak -->")
@@ -120,7 +127,11 @@ def render(source, target):
             elif line.startswith("# "):
                 story.append(p(line[2:], "title"))
             elif re.match(r"^\d+\. ", line):
-                story.append(p(line, "bullet"))
+                paragraph = [line]
+                while index + 1 < len(lines) and lines[index + 1].strip() and not re.match(r"^(#|\||```|\d+\. )", lines[index + 1].strip()):
+                    index += 1
+                    paragraph.append(lines[index].strip())
+                story.append(p(" ".join(paragraph), "bullet"))
             else:
                 paragraph = [line]
                 while index + 1 < len(lines) and lines[index + 1].strip() and not re.match(r"^(#|\||```|\d+\. )", lines[index + 1].strip()):
@@ -133,18 +144,18 @@ def render(source, target):
         canvas.saveState()
         canvas.setFont(bold, 8.4)
         canvas.setFillColor(BLUE)
-        canvas.drawString(44, A4[1] - 28, "WASHKREW  /  ENGINEERING HANDOFF")
+        canvas.drawString(44, A4[1] - 28, header)
         canvas.setStrokeColor(colors.HexColor("#DCE4EF"))
         canvas.setLineWidth(.5)
         canvas.line(44, 35, A4[0] - 44, 35)
         canvas.setFillColor(MUTED)
         canvas.setFont(regular, 8)
-        canvas.drawString(44, 22, "27 October 2026  |  staging  |  Test mode")
+        canvas.drawString(44, 22, footer)
         canvas.drawRightString(A4[0] - 44, 22, f"Page {doc.page}")
         canvas.restoreState()
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    document = SimpleDocTemplate(str(target), pagesize=A4, rightMargin=44, leftMargin=44, topMargin=48, bottomMargin=48, title="WashKrew - Mac and iPhone continuation report", author="WashKrew project handoff", subject="Remaining implementation, device acceptance, training placeholders and separate Razorpay merchant migration", pageCompression=1)
+    document = SimpleDocTemplate(str(target), pagesize=A4, rightMargin=44, leftMargin=44, topMargin=48, bottomMargin=48, title=title, author="WashKrew project handoff", subject=subject, pageCompression=1)
     document.build(story, onFirstPage=decorate, onLaterPages=decorate)
     print(target)
 
@@ -153,5 +164,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=Path, default=ROOT / "docs/CLAUDE-MAC-CONTINUATION-2026-10-27.md")
     parser.add_argument("--output", type=Path, default=ROOT / "output/pdf/WashKrew-Mac-Continuation-Report-2026-10-27.pdf")
+    parser.add_argument("--title", default="WashKrew - Mac and iPhone continuation report")
+    parser.add_argument("--header", default="WASHKREW  /  ENGINEERING HANDOFF")
+    parser.add_argument("--footer", default="27 October 2026  |  staging  |  Test mode")
+    parser.add_argument("--subject", default="Remaining implementation, device acceptance, training placeholders and separate Razorpay merchant migration")
     args = parser.parse_args()
-    render(args.source, args.output)
+    render(args.source, args.output, title=args.title, header=args.header, footer=args.footer, subject=args.subject)

@@ -298,7 +298,7 @@ Future<void> main(List<String> arguments) async {
     stdout.writeln(
       args.demo
           ? 'LABELLED DEMO BUILD — sample data only.'
-          : 'FIREBASE BUILD — payment mode comes from the server (currently test).',
+          : 'FIREBASE BUILD — payment mode comes from the server. Confirm its current mode before checkout.',
     );
     for (final app in args.apps) {
       final cwd = '${root.path}/apps/flutter/$app';

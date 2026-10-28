@@ -1,5 +1,12 @@
 # WashKrew
 
+**Current start-to-finish iPhone test instructions:** use
+[AMAN-IPHONE-ACCEPTANCE-2026-10-28.md](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md) and
+its [14-page PDF](../output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf)
+before this historical report/PDF. The current walkthrough covers both real
+accounts, admin approval with training hidden, live payments, booking/wash/
+tracking/refund and physical permission/push checks.
+
 **Latest 28 October completion:** read
 [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) before this historical report
 or its PDF. Separate WashKrew live checkout and private test/live photo services
