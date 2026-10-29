@@ -88,6 +88,7 @@ Select **Runner → Signing & Capabilities**, enable automatic signing and selec
 | Captain | `com.amanmaheshwari.wheelio.captain` |
 
 The saved team is `28JNT7H8KA` (paid "Sumit Mandal" Apple Developer Program team, from 29 Oct 2026; the free personal team `8CCQQM7TP3` limited a phone to 3 apps and 7-day profiles); verify access in Xcode rather than changing the bundle IDs to work around a signing error. The old SwiftUI app and other alternate app implementations were removed at the owner's request. Do not restore or build them. Use only the two Flutter workspaces above; the design reference is Git af036f0.
+Push (29 Oct 2026): both Runner targets now sign with `Runner/Runner.entitlements` (`aps-environment`), and Info.plist already has the `remote-notification` background mode. Delivery still needs an APNs key from team 28JNT7H8KA uploaded to Firebase `wheelio-apps` → Project settings → Cloud Messaging (owner action).
 
 Enable **Push Notifications** for both Runner targets and verify Background Modes → Remote notifications. Upload the owning team's APNs authentication key in Firebase `wheelio-apps` → Project settings → Cloud Messaging for the iOS apps. Keep Apple private keys outside Git. Native phone Auth also uses APNs and its configured reCAPTCHA return scheme; test both login and notifications. See [Firebase phone-auth setup](https://firebase.google.com/docs/auth/flutter/phone-auth).
 
