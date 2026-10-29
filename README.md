@@ -40,7 +40,7 @@ Start with [the app switching flow](docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md)
 for the exact Captain, admin, Customer, payment and wash order.
 The Xcode workspaces are **apps/flutter/customer/ios/Runner.xcworkspace** and
 **apps/flutter/captain/ios/Runner.xcworkspace**. Keep bundle IDs
-`com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `8CCQQM7TP3`.
+`com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `28JNT7H8KA` (paid "Sumit Mandal" team since 29 Oct 2026; previously free personal team `8CCQQM7TP3`).
 See [Mac setup](docs/MAC-HANDOFF.md). Windows tests do not prove native signing,
 compilation, camera/GPS/APNs or real payment-app switching.
 

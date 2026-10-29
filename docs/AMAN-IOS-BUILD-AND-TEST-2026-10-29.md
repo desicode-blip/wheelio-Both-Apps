@@ -40,7 +40,7 @@ Production payments are LIVE. Training/video/quiz/refresher screens stay hidden.
 ### Source and prerequisites
 
 Use Flutter **3.38.6**, Xcode with the iPhone's iOS SDK, CocoaPods and the existing
-Apple team **8CCQQM7TP3**. Unlock/connect/trust the iPhone; enable Developer Mode
+Apple team **28JNT7H8KA** (paid "Sumit Mandal" team; was free personal team 8CCQQM7TP3 before 29 Oct). Unlock/connect/trust the iPhone; enable Developer Mode
 when requested. Run `flutter doctor -v` and fix actual Xcode/iOS findings.
 
 For an existing checkout, preserve changes shown by the first command. If it is

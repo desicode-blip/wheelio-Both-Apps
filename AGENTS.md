@@ -64,7 +64,7 @@ screens explain holding/releasing money after approval. Undecided prices/promise
 stay configuration. Do not advertise downloads or service before they exist.
 
 Technical identifiers deliberately retained: Firebase project `wheelio-apps`, bundle
-IDs `com.amanmaheshwari.wheelio.customer` / `.captain`, Apple team `8CCQQM7TP3`,
+IDs `com.amanmaheshwari.wheelio.customer` / `.captain`, Apple team `28JNT7H8KA` (paid "Sumit Mandal" team since 29 Oct 2026; previously free personal team `8CCQQM7TP3`),
 `WHEELIO_DEMO`, repo/folder names. Renaming needs explicit setup and authorization.
 
 ## Backend and build
