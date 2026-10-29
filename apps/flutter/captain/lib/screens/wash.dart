@@ -644,7 +644,7 @@ class JobDoneScreen extends StatelessWidget {
         WText(late ? store.t('Done, 12 min late', 'हो गया, 12 मिनट लेट', 'పూర్తైంది, 12 నిమిషాలు ఆలస్యం') : store.t('Shine done!', 'चमक गई!', 'మెరిసింది!'), WType.section, weight: semibold, size: 24, align: TextAlign.center),
         const SizedBox(height: 12),
         WBody(
-          late ? store.t('Try to start earlier next time.', 'अगली बार जल्दी शुरू करें।', 'తదుపరిసారి ముందుగా మొదలుపెట్టండి.') : store.t('Owner checks the photos. Money comes tonight before 12.', 'मालिक फ़ोटो देखेंगे। पैसे आज रात 12 बजे से पहले आएंगे।', 'యజమాని ఫోటోలు చూస్తారు. డబ్బు ఈ రాత్రి 12 లోపు వస్తుంది.'),
+          late ? store.t('Try to start earlier next time.', 'अगली बार जल्दी शुरू करें।', 'తదుపరిసారి ముందుగా మొదలుపెట్టండి.') : store.isLive ? store.t('Owner checks the photos. Payouts are confirmed separately.', 'मालिक फ़ोटो देखेंगे। भुगतान की पुष्टि अलग से होगी।', 'యజమాని ఫోటోలు చూస్తారు. చెల్లింపు వేరుగా నిర్ధారిస్తారు.') : store.t('Owner checks the photos. Money comes tonight before 12.', 'मालिक फ़ोटो देखेंगे। पैसे आज रात 12 बजे से पहले आएंगे।', 'యజమాని ఫోటోలు చూస్తారు. డబ్బు ఈ రాత్రి 12 లోపు వస్తుంది.'),
           center: true,
         ),
         const SizedBox(height: 26),

@@ -1,3 +1,19 @@
+# Complete role workflow follow-up - 29 October 2026
+
+[FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md) records manual admin
+approval -> eligible Captain Online -> Customer booking -> acceptance -> fresh
+selfie -> four before/four after -> Customer approval/rating -> approved unpaid
+earning. The full 121-test backend suite also passed. This follow-up uses the
+original booking window and offer TTL; the earlier shifted-time fixtures below
+were not reused. Capture is still an explicit loopback simulation, not a provider
+payment. A paused pending application was reconstructed before actual UI review;
+an ignored QA-only official Auth redirect adapter solved the local Google-popup
+limitation without changing production admin source/access. Public/dark photo
+fixtures, local real face checks, intentional AI outage and ignored checkpoints
+are test-only. No new app testing button, production fake or service was added.
+Existing live copy/handlers now report unavailable WhatsApp, actual assignment and
+approval versus payout truthfully; the disconnected design fixture stays intact.
+
 # Local browser acceptance - 29 October 2026
 
 [WEB-ACCEPTANCE-2026-10-29.md](WEB-ACCEPTANCE-2026-10-29.md) distinguishes actual

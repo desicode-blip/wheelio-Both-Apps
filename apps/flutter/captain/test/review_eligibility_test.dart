@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:washkrew_captain/data/store.dart';
 import 'package:washkrew_captain/screens/onboarding.dart';
+import 'package:washkrew_captain/screens/wash.dart';
 
 // Exercises the production-state guards without Firebase or a real account.
 class FirebaseStateStore extends CaptainStore {
@@ -10,6 +11,15 @@ class FirebaseStateStore extends CaptainStore {
 }
 
 void main() {
+  testWidgets('completed Firebase job does not promise an unrecorded midnight payout', (tester) async {
+    tester.view.physicalSize=const Size(430,1100);tester.view.devicePixelRatio=1;
+    addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+    final store=FirebaseStateStore(),router=WRouterC();
+    await tester.pumpWidget(CaptainScope(store:store,router:router,child:const MaterialApp(home:JobDoneScreen())));
+    expect(find.text('Owner checks the photos. Payouts are confirmed separately.'),findsOneWidget);
+    expect(find.textContaining('Money comes tonight'),findsNothing);
+    await tester.pumpWidget(const SizedBox());store.dispose();router.dispose();
+  });
   testWidgets('hidden training leaves three KYC steps leading to review without awarding completion', (tester) async {
     tester.view.physicalSize=const Size(430,1100);tester.view.devicePixelRatio=1;
     addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);

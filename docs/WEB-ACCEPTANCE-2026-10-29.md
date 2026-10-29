@@ -1,5 +1,10 @@
 # Customer / Captain browser acceptance — 29 October 2026
 
+**Later follow-up:** [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md)
+completes the previously HTTP-only wash/photo/Customer approval/rating steps in
+the browser, using a new local booking in its actual time window and original
+offer TTL. This earlier report remains historical evidence, including its limits.
+
 Source: staging `cc3f0b6` plus the error-recovery changes in this report's commit.
 Design remains af036f0, with the owner's approved W05 upload-only exception.
 No layouts, colours, components, assets, app IDs or native projects changed.

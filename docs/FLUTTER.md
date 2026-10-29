@@ -1,3 +1,15 @@
+# Complete Customer / Captain browser workflow - 29 October 2026
+
+Read [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md). Admin review,
+Captain Online/assignment, fresh identity, before/after uploads, live wash state,
+Customer approval/rating and approved unpaid earnings passed through the actual
+web controls, with explicit local capture/fixture boundaries. Full backend suite:
+121 passed. Flutter suite: 52 passed. Real confirmation no longer opens a sample
+WhatsApp conversation; existing regions report assignment and payment approval
+without promising an unrecorded Captain bank transfer. No authored layout,
+component, palette, font, asset or native project was changed. Both iPhone apps
+must be rebuilt/retested on the Mac; actual live charge/refund remains unverified.
+
 # Browser workflow and error recovery - 29 October 2026
 
 Read [WEB-ACCEPTANCE-2026-10-29.md](WEB-ACCEPTANCE-2026-10-29.md) for actual

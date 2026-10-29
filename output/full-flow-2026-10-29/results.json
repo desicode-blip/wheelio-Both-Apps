@@ -1,0 +1,38 @@
+{
+  "environment": "loopback demo-wheelio only",
+  "orderId": "74629b3cd333ba1dbbe1458c22d131d5",
+  "status": "approved",
+  "paymentStatus": "captured",
+  "paymentMode": "test",
+  "capture": "explicit local simulation; no provider charge",
+  "captainId": "full-flow-captain",
+  "captainApproved": true,
+  "captainKycStatus": "approved",
+  "captainOnline": true,
+  "workHours": [
+    {
+      "startMinute": 240,
+      "endMinute": 1320
+    }
+  ],
+  "rating": 5,
+  "ratingTags": [
+    "Spotless",
+    "On time"
+  ],
+  "earning": {
+    "amountPaise": 11600,
+    "status": "approved",
+    "paid": false
+  },
+  "identityStatus": "verified",
+  "customerPhotoCount": 4,
+  "beforePhotoCount": 4,
+  "afterPhotoCount": 4,
+  "photoIssuesAcknowledged": true,
+  "privateReviewDecisions": [
+    "approve"
+  ],
+  "receiptRequests": 1,
+  "receiptsServed": 1
+}

@@ -481,27 +481,29 @@ class BookedScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  WIconBox(WIcon.whatsapp, size: 44, tone: Tone.ok),
-                  SizedBox(width: 12),
+                  const WIconBox(WIcon.whatsapp, size: 44, tone: Tone.ok),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [WText('One last thing: your gate pass', WType.title), WText('We sent you a WhatsApp message', WType.caption)],
+                      children: [const WText('One last thing: your gate pass', WType.title), WText(store.isLive ? 'WhatsApp messaging is not connected yet.' : 'We sent you a WhatsApp message', WType.caption)],
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 14),
-              const WText('Reply there with your MyGate or society entry pass, so the captain can get in.', WType.body),
+              WText(store.isLive ? 'No gate-pass message has been sent. Check your society’s entry requirements before the wash.' : 'Reply there with your MyGate or society entry pass, so the captain can get in.', WType.body),
               const SizedBox(height: 14),
-              WButton('Open WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => router.go(N.whatsApp)),
+              WButton('Open WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => store.blockLive('WhatsApp gate-pass messaging is not connected yet.') ? null : router.go(N.whatsApp)),
             ],
           ),
         ),
         const SizedBox(height: 18),
-        if (o != null && o.slotAhead)
+        if (store.isLive && o?.captain != null)
+          WBanner(tone: Tone.info, icon: WIcon.search, text: '${o!.captain!.name} accepted your booking. Open tracking for the latest status.')
+        else if (o != null && o.slotAhead)
           const WBanner(tone: Tone.info, icon: WIcon.calendar, text: 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
         else
           const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),

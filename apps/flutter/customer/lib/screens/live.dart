@@ -112,7 +112,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
             onPrimary: () => router.go(N.rate),
             onSecondary: () => router.go(N.reportProblem),
           )),
-        OrderStatus.approved => _state(WFullState(icon: WIcon.sparkle, tone: Tone.ok, title: 'Wash approved', message: '${Fmt.rupees(o.price)} released to ${o.captain?.name ?? 'Raju'}.', primary: 'Go home', onPrimary: router.popToRoot)),
+        OrderStatus.approved => _state(WFullState(icon: WIcon.sparkle, tone: Tone.ok, title: 'Wash approved', message: store.isLive ? 'Your ${Fmt.rupees(o.price)} wash payment is approved.' : '${Fmt.rupees(o.price)} released to ${o.captain?.name ?? 'Raju'}.', primary: 'Go home', onPrimary: router.popToRoot)),
         _ => const DisputeStatusScreen(),
       };
     }
@@ -410,7 +410,7 @@ class _CheckWashViewState extends State<CheckWashView> {
           child: Row(children: [
             const WIconBox(WIcon.sparkle, size: 48, tone: Tone.ok, radius: 24),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const WText('Shine restored', WType.section, weight: semibold), WText('Approve to release ${Fmt.rupees(o.price)} to $name', WType.caption)])),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const WText('Shine restored', WType.section, weight: semibold), WText(store.isLive ? 'Approve your ${Fmt.rupees(o.price)} wash payment' : 'Approve to release ${Fmt.rupees(o.price)} to $name', WType.caption)])),
           ]),
         ),
         _pair('Front', 0),
@@ -561,7 +561,7 @@ class _RateScreenState extends State<RateScreen> {
           const SizedBox(height: 18),
           WText('How did $name do?', WType.screen),
           const SizedBox(height: 8),
-          WText('${Fmt.rupees(o?.price ?? 149)} released to $name. Thanks for approving.', WType.body, align: TextAlign.center),
+          WText(store.isLive ? 'Your ${Fmt.rupees(o?.price ?? 0)} wash payment is approved. Thank you.' : '${Fmt.rupees(o?.price ?? 149)} released to $name. Thanks for approving.', WType.body, align: TextAlign.center),
           const SizedBox(height: 26),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             for (var i = 1; i <= 5; i++) ...[
