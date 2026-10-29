@@ -1,4 +1,27 @@
-# Latest handoff — 28 October 2026
+# Current pull/build/test handoff - 29 October 2026
+
+Start with [Aman's current build and test guide](AMAN-IOS-BUILD-AND-TEST-2026-10-29.md)
+and [its PDF](../output/pdf/WashKrew-Aman-iOS-Build-and-Test-2026-10-29.pdf).
+The exact source/web verification is in [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md).
+Use the existing `run-ios.sh --prepare`, then `run-ios.sh` commands for the two
+current Flutter workspaces. Preserve local Mac changes, bundle IDs, team and locks.
+No native project/dependency or screen was changed for this documentation handoff.
+Both native source checks and standalone iOS tooling checks were rerun on Windows;
+Xcode compilation/signing, provisioning/APNs and physical acceptance require the Mac.
+
+Payments are **LIVE on the separate WashKrew merchant**. The web walkthrough's
+capture was simulated locally; it does not verify actual live charges/refunds.
+Training stays hidden. Aadhaar uses camera/gallery upload followed by authorized
+human review at https://wheelio-apps.web.app/admin/. Use two different phone numbers
+for Customer and Captain; self-assignment is excluded. The new guide covers native
+receipt delivery, which remains unverified, and records one-phone testing limits.
+Use [the result template](IOS-ACCEPTANCE-RESULTS-TEMPLATE.md) without premarking PASS.
+
+Everything below records earlier handoffs. Older test-payment/training statements
+do not override the current guide or AGENTS.md. One-time Apple capability and
+foreground-location pod-flag setup still need checking with the actual Mac build.
+
+# Prior handoff — 28 October 2026
 
 **Aman and Claude's full walkthrough:**
 [iPhone acceptance guide](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md), also supplied as

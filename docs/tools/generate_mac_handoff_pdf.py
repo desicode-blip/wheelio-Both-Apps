@@ -42,6 +42,7 @@ def register_fonts():
 
 def inline(text, code_font="Courier"):
     escaped = html.escape(text)
+    escaped = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", lambda match: f'<link href="{match.group(2)}" color="#0049FF"><u>{match.group(1)}</u></link>', escaped)
     escaped = re.sub(r"`([^`]+)`", lambda match: f'<font name="{code_font}" size="8.8">{match.group(1)}</font>', escaped)
     return re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", escaped)
 

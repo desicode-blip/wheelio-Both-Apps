@@ -1,3 +1,11 @@
+# iPhone guide handoff - 29 October 2026
+
+The new `AMAN-IOS-BUILD-AND-TEST-2026-10-29.md` / PDF packages the current native
+build commands and role order for Aman. No app/backend service, fake result,
+timer, test button, dependency or production setting was added. Physical cases
+start NOT RUN in the results template. Keep the prior isolated web fixtures
+distinct from actual native identity, payment/refund, GPS, camera and APNs results.
+
 # Complete role workflow follow-up - 29 October 2026
 
 [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md) records manual admin

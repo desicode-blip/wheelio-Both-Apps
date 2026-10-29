@@ -1,3 +1,13 @@
+# Current iPhone source handoff - 29 October 2026
+
+[AMAN-IOS-BUILD-AND-TEST-2026-10-29.md](AMAN-IOS-BUILD-AND-TEST-2026-10-29.md)
+and its PDF under `output/pdf/` are the compact pull/build/testing instructions for
+Aman and Claude. They include both workspaces, admin URL, exact role-switching
+sequence, native recovery cases and the remaining live-payment/device boundaries.
+The separate result template starts every physical case at NOT RUN. Existing
+native source/tooling checks were rerun; no iOS project/dependency, app UI or
+production configuration was changed for this documentation-only handoff.
+
 # Complete Customer / Captain browser workflow - 29 October 2026
 
 Read [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md). Admin review,

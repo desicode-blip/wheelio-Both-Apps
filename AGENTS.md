@@ -21,6 +21,9 @@
 - Read `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/`
   before continuing on Aman's Mac. Use the two Flutter `ios/Runner.xcworkspace`
   files. Record actual PASS/FAIL/BLOCKED evidence for both roles.
+  The latest compact build/test sequence is
+  `docs/AMAN-IOS-BUILD-AND-TEST-2026-10-29.md` and its PDF in `output/pdf/`;
+  use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for the native result record.
 
 ## Latest owner decisions
 

@@ -5,6 +5,14 @@ for every coding agent and supersedes older historical handoff instructions.
 
 Start with:
 
+**Current iPhone build/test handoff (29 October):** read
+`docs/AMAN-IOS-BUILD-AND-TEST-2026-10-29.md` and its PDF
+`output/pdf/WashKrew-Aman-iOS-Build-and-Test-2026-10-29.pdf` first. Guide Aman
+one role/action at a time and use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for
+actual native results. `docs/FULL-WORKFLOW-2026-10-29.md` records the latest
+Windows/web evidence and simulated-payment limits. Older guides are detail/history;
+the current LIVE merchant, upload-only Aadhaar and hidden training policy win.
+
 For the exact order of Captain -> Admin -> Captain -> Customer and the live wash,
 first read `docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md` (short PDF in `output/pdf/`).
 Guide Aman one action at a time, then use the detailed acceptance guide below.
