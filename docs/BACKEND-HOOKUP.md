@@ -1,3 +1,15 @@
+# Backend follow-up to Aman's latest staging - 30 October 2026
+
+[BACKEND-FOLLOWUP-2026-10-30.md](BACKEND-FOLLOWUP-2026-10-30.md) checks the latest
+report against actual server behavior. Exact minute-based work periods and breaks
+were already connected; new integration checks confirm booking/claim behavior.
+Per-device FCM failures now produce safe diagnostics instead of silent success.
+APNs activation still needs Aman's real paid-team .p8 key and Key ID; no fake
+credential, test push, production account or KYC approval was introduced. The
+three-callable warm-instance proposal is separately gated by the owner's cost
+choice. No frontend or native design/source was changed, and no new provider,
+app test button or production fake was added.
+
 # iPhone guide handoff - 29 October 2026
 
 The new `AMAN-IOS-BUILD-AND-TEST-2026-10-29.md` / PDF packages the current native

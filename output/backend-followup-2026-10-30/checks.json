@@ -1,0 +1,131 @@
+{
+  "verifiedAt": "2026-10-30T05:55:02.454Z",
+  "project": "wheelio-apps",
+  "sourceBase": "79d17af",
+  "uiTree": "22b670f27d9bb85384c371583263b878b7e91603",
+  "backendTests": {
+    "passed": 128,
+    "failed": 0,
+    "skipped": 0
+  },
+  "functions": [
+    {
+      "name": "getAvailability",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T05:53:12.008762877Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi",
+      "httpGateway": true
+    },
+    {
+      "name": "setCaptainPreferences",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T05:53:17.350017810Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi",
+      "httpGateway": true
+    },
+    {
+      "name": "saveCustomerPlace",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T05:53:17.351174933Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi",
+      "httpGateway": true
+    },
+    {
+      "name": "sendInboxPush",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T05:53:17.799155192Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi",
+      "httpGateway": false
+    }
+  ],
+  "endpoints": [
+    {
+      "name": "setCaptainPreferences",
+      "unauthenticatedStatus": 401
+    },
+    {
+      "name": "saveCustomerPlace",
+      "unauthenticatedStatus": 401
+    },
+    {
+      "name": "claimJob",
+      "unauthenticatedStatus": 401
+    },
+    {
+      "name": "reviewCaptainApplication",
+      "unauthenticatedStatus": 401
+    },
+    {
+      "name": "approveWash",
+      "unauthenticatedStatus": 401
+    },
+    {
+      "name": "registerPushToken",
+      "unauthenticatedStatus": 401
+    }
+  ],
+  "availability": {
+    "status": 200,
+    "windows": [
+      {
+        "startHour": 4,
+        "endHour": 6
+      },
+      {
+        "startHour": 6,
+        "endHour": 8
+      },
+      {
+        "startHour": 8,
+        "endHour": 10
+      },
+      {
+        "startHour": 10,
+        "endHour": 12
+      },
+      {
+        "startHour": 12,
+        "endHour": 14
+      },
+      {
+        "startHour": 14,
+        "endHour": 16
+      },
+      {
+        "startHour": 16,
+        "endHour": 18
+      },
+      {
+        "startHour": 18,
+        "endHour": 20
+      },
+      {
+        "startHour": 20,
+        "endHour": 22
+      }
+    ]
+  },
+  "configuration": {
+    "paymentMode": "live",
+    "paymentMerchant": "washkrew",
+    "paymentPolicy": "no-credit-card-checkout",
+    "trainingEnabled": false,
+    "trainingRequired": false,
+    "photosEnabled": true,
+    "photoModes": [
+      "test",
+      "live"
+    ]
+  },
+  "warming": "disabled pending owner/Aman cost decision",
+  "apns": "key file / Key ID and physical delivery acceptance pending",
+  "productionWrites": "Cloud Functions deployment/gateway configuration only; no test user, booking, KYC approval, payment or notification created"
+}

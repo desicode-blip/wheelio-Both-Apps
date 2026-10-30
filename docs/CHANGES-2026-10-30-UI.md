@@ -1,5 +1,9 @@
 # App changes from Aman's session — 29–30 October 2026 (for Ajay)
 
+**Backend follow-up:** [BACKEND-FOLLOWUP-2026-10-30.md](BACKEND-FOLLOWUP-2026-10-30.md)
+records the current hours/break verification, APNs-key dependency, push diagnostics
+and optional warming decision. The original session report below is preserved.
+
 UI and iOS-build changes on the current Flutter apps (`apps/flutter/customer`,
 `apps/flutter/captain`), on top of staging `d86e686`. Design stays pinned to `af036f0`.
 **No backend code changed.** The earlier list from 27 October is

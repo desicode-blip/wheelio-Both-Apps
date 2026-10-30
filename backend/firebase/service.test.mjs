@@ -598,6 +598,26 @@ test('under-review work preferences save without granting capacity or online eli
   assert.deepEqual((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.filter(s=>s.available).map(s=>s.startHour),[8]);
 });
 
+test('a saved break removes booking capacity between exact work periods',async()=>{
+  clock=Date.parse('2026-11-01T05:30:00+05:30');
+  await db.doc('captains/captain2').update({approved:false});
+  const workingSlots=[{startMinute:360,endMinute:480},{startMinute:600,endMinute:720}];
+  await service.captainPreferences(auth('captain1'),{workingSlots,areaPreference:{mode:'all'}});
+  assert.deepEqual((await db.doc('captains/captain1').get()).data().workingSlots,workingSlots);
+  assert.deepEqual((await service.availability(customer,{societyId:'soc_avatar',day:'2026-11-01'})).slots.filter(s=>s.available).map(s=>s.startHour),[6,10]);
+  await assert.rejects(service.createBooking(customer,{...input('break-booking'),startHour:8,endHour:10}),{code:'resource-exhausted'});
+});
+
+test('changing exact work periods invalidates an outstanding offer before claim',async()=>{
+  await db.doc('captains/captain2').update({approved:false});
+  await service.captainPreferences(auth('captain1'),{workingSlots:[{startMinute:480,endMinute:720}]});
+  const booking=await paid('hours-edited-before-claim');
+  assert.equal((await db.collection('jobOffers').where('orderId','==',booking.bookingId).get()).size,1);
+  await service.captainPreferences(auth('captain1'),{workingSlots:[{startMinute:600,endMinute:720}]});
+  await assert.rejects(service.claim(auth('captain1'),{orderId:booking.bookingId}),{code:'failed-precondition'});
+  assert.equal((await db.doc('orders/'+booking.bookingId).get()).data().status,'searching');
+});
+
 test('work periods validate half-hour bounds, breaks and legacy edits without broadening exact hours',async()=>{
   for(const workingSlots of [[{startMinute:239,endMinute:300}],[{startMinute:240,endMinute:270}],[{startMinute:270,endMinute:1330}],[{startMinute:541,endMinute:630}],Array(5).fill({startMinute:240,endMinute:300})]){
     await assert.rejects(service.captainPreferences(auth('captain1'),{workingSlots}),{code:'invalid-argument'});

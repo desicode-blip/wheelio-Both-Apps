@@ -1,3 +1,11 @@
+# Backend follow-up - 30 October 2026
+
+Aman's staging UI/native changes through 79d17af are preserved unchanged. Read
+[BACKEND-FOLLOWUP-2026-10-30.md](BACKEND-FOLLOWUP-2026-10-30.md) for the hours/break
+verification, safe FCM error diagnostics and remaining Apple key/cost decisions.
+This follow-up changes backend code/tests and reports only; no screen, handler,
+asset, font, camera, native project, signing team or Flutter dependency is edited.
+
 # Current iPhone source handoff - 29 October 2026
 
 [AMAN-IOS-BUILD-AND-TEST-2026-10-29.md](AMAN-IOS-BUILD-AND-TEST-2026-10-29.md)

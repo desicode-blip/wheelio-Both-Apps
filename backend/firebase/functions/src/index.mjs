@@ -22,6 +22,8 @@ import {PrivatePhotoChecks,PhotoCheckError} from './photo-checks.mjs';
 import {removedAppAccess} from './account-access.mjs';
 import {readObjectMetadata} from './storage-evidence.mjs';
 import {CaptainReviewError} from './captain-review.mjs';
+import {callableRuntime} from './runtime-policy.mjs';
+import {pushResultSummary} from './push-results.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -55,7 +57,7 @@ function callable(method, payment = false, maps = false) {
   // Domain-restricted sharing forbids allUsers IAM bindings. The owner-only
   // configure-api-access operation enables the HTTP gateway after deployment;
   // Firebase ID tokens and service authorization below remain mandatory.
-  return onCall({ cors, invoker: 'private', ...(['checkWashPhotos','verifyIdentity'].includes(method)?{timeoutSeconds:120,memory:'512MiB'}:{}), secrets:[...(payment?paymentSecrets:[]),...(maps?[mapsKey]:[])] }, async request => {
+  return onCall({ cors, invoker: 'private', ...callableRuntime(method), secrets:[...(payment?paymentSecrets:[]),...(maps?[mapsKey]:[])] }, async request => {
     try {
       if(request.auth?.uid&&removedAppAccess((await db.doc(`users/${request.auth.uid}`).get()).data(),method,request.data??{}))throw new ServiceError('permission-denied','This app account has been removed or is being deleted. Log in with a fresh SMS code to register again.');
       return await service(payment,maps)[method](request.auth, request.data ?? {});
@@ -246,6 +248,11 @@ export const sendInboxPush = onDocumentCreated({document:'notifications/{notific
   if(!eligible.length)return;
   try {
     const result=await getMessaging().sendEachForMulticast({tokens:eligible.map(d=>d.data().token),notification:{title:notice.title,body:notice.body},data:{orderId:notice.orderId??'',role:notice.role},apns:{payload:{aps:delivery.sound?{sound:'default'}:{}}}});
-    for(let i=0;i<result.responses.length;i++)if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(result.responses[i].error?.code))await eligible[i].ref.delete();
+    const summary=pushResultSummary(result,eligible.length);
+    for(const index of summary.invalidTokenIndexes)await eligible[index].ref.delete();
+    if(summary.failed)logger.error('Push provider rejected deliveries; inbox entry retained',{
+      notificationId:event.params.notificationId,role:notice.role,sent:summary.sent,failed:summary.failed,
+      errors:summary.errors,configurationError:summary.configurationError,
+    });
   }catch(error){logger.error('Push delivery failed; inbox entry retained',{code:error.code??'messaging'});throw error;}
 });
