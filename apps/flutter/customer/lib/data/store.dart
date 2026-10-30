@@ -1038,6 +1038,14 @@ class AppStore extends ChangeNotifier {
 
   // MARK: Booking
 
+  /// A photo taken in the guided camera screen itself (30 Oct). Kept on the phone and
+  /// uploaded with the booking, like the picker path.
+  void keepPhoto(PhotoAngle a, Uint8List bytes) {
+    draftPhotoBytes[a] = bytes;
+    draft.photos[a] = UploadState.done;
+    changed();
+  }
+
   /// BACKEND: storage upload. Fails the back photo once when the demo switch is on.
   Future<bool> uploadPhoto(PhotoAngle a, {bool gallery = false}) async {
     if (isLive || !kIsWeb) {

@@ -64,3 +64,32 @@ weighing the always-on cost.
 | First-time work profile → Done | waits | **unchanged**: approval/availability need the saved preferences, and failure must keep the captain on the screen |
 | Online switch | already moves at once (server confirms, reverts on failure) | unchanged |
 | OTP, KYC uploads, payout, application, accept job, arrival, selfie check, note heard, photos, check photos, start, finish, vehicle help, phone/UPI change | wait | **unchanged on purpose**: the server decides; they already show loading states |
+
+---
+
+## 4. Customer guided photos (C08): live camera inside the box, photo taken in place
+
+**What Aman asked:** on "Front · 1 of 4", the camera should open by itself inside the dark
+box, keeping the dotted outline as a guide; the instruction goes under the box with only
+the side word in bold (front, back, left side, right side); the round button takes the
+photo right there (no separate camera screen); a see-through dark layer keeps the dotted
+lines visible on bright scenes; and the outline matches a two-wheeler or a four-wheeler.
+
+**What changed**
+- New dependency `camera` 0.12.0+2 (in `washkrew_ui`; both apps' `pubspec.lock` updated).
+  `WCameraController` / `WCameraPreview` (`packages/washkrew_ui/lib/src/live_camera.dart`):
+  back camera, high preset, JPEG; released when the app goes to the background and
+  restarted when it returns; reports denied vs no camera.
+- `CameraScreen` (`customer/lib/screens/booking.dart`): preview fills the existing rounded
+  box (cropped to fit); black layer at 10% (`_guideScrim`, one number to tune) over it; the
+  dashed outline on top with a soft dark edge under the white dashes. Shutter: takes the
+  photo, short white flash + haptic, keeps it (`AppStore.keepPhoto`), moves to the next
+  missing side, closes after the fourth. The flash icon now toggles the flash.
+- Instruction under the box: "Fit the **front** of the vehicle in the outline" (bold side).
+- `VehicleOutlinePainter`: car front/back (windscreen, lights, tyres) and side (cabin
+  shifts for left/right); two-wheeler front/back (handlebar, light, one tyre) and side (two
+  wheels, body, handlebar). Chosen from the booking's vehicle type.
+- Camera denied: the existing "Camera access needed" screen, with Settings. No usable
+  camera (laptop/simulator): falls back to the previous picker/sample path.
+
+**Backend needed:** none. Photos still upload with the booking as before.

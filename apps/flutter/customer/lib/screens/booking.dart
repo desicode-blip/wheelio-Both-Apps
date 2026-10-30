@@ -464,15 +464,74 @@ class CameraScreen extends StatefulWidget {
   State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
+class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver {
   bool denied = false;
-  bool busy = false, settings = false;
+  bool busy = false, settings = false, flash = false;
   late PhotoAngle current = widget.angle;
+
+  /// Live camera inside the box (30 Oct). If the phone has no usable camera
+  /// (laptop, simulator), the shutter falls back to the picker/sample path.
+  final camera = WCameraController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    camera.addListener(_cameraChanged);
+    if (!widget.forceDenied) camera.start();
+  }
+
+  void _cameraChanged() {
+    if (mounted && camera.denied && !denied) setState(() { denied = true; settings = true; });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) camera.stop();
+    if (state == AppLifecycleState.resumed && !denied) camera.start();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    camera.removeListener(_cameraChanged);
+    camera.dispose();
+    super.dispose();
+  }
+
+  void _next(PhotoAngle a) {
+    final store = context.store;
+    final next = PhotoAngle.values.where((x) => store.draft.photos[x] == null && x != a).firstOrNull;
+    if (next != null) {
+      setState(() => current = next);
+    } else {
+      context.router.pop();
+    }
+  }
 
   Future<void> _shoot({bool gallery = false}) async {
     if (busy) { return; }
     final store = context.store;
     final a = current;
+    // In-screen capture when the live camera is running.
+    if (camera.ready && !gallery) {
+      setState(() => busy = true);
+      try {
+        final bytes = await camera.capture();
+        if (!mounted || bytes == null) return;
+        HapticFeedback.mediumImpact();
+        setState(() => flash = true);
+        Future.delayed(const Duration(milliseconds: 140), () { if (mounted) setState(() => flash = false); });
+        store.keepPhoto(a, bytes);
+      } catch (e) {
+        if (mounted) store.set(() => store.toast = 'The photo could not be taken. Try again.');
+        return;
+      } finally {
+        if (mounted) setState(() => busy = false);
+      }
+      if (mounted) _next(a);
+      return;
+    }
     setState(() { busy = true; settings = false; });
     bool captured;
     try {
@@ -490,12 +549,7 @@ class _CameraScreenState extends State<CameraScreen> {
       if (mounted) setState(() => busy = false);
     }
     if (!mounted || !captured) return;
-    final next = PhotoAngle.values.where((x) => store.draft.photos[x] == null && x != a).firstOrNull;
-    if (next != null) {
-      setState(() => current = next);
-    } else {
-      context.router.pop();
-    }
+    _next(a);
   }
 
   @override
@@ -514,7 +568,14 @@ class _CameraScreenState extends State<CameraScreen> {
               message: 'Photos help the captain find your vehicle. Allow camera to continue.',
               primary: 'Allow camera',
               secondary: 'Skip photos for now',
-              onPrimary: () => settings ? Device.openSettings() : setState(() => denied = false),
+              onPrimary: () {
+                if (settings) {
+                  Device.openSettings();
+                } else {
+                  setState(() => denied = false);
+                  camera.start();
+                }
+              },
               onSecondary: () {
                 store.set(() {
                   for (final a in PhotoAngle.values) {
@@ -530,6 +591,9 @@ class _CameraScreenState extends State<CameraScreen> {
     }
     final pad = MediaQuery.paddingOf(context);
     final index = PhotoAngle.values.indexOf(current);
+    final bike = store.draft.type?.kind == VehicleKind.bike;
+    final word = current.label.toLowerCase();
+    final textStyle = wStyle(WType.body, color: Colors.white.withValues(alpha: 0.9));
     return Material(
       color: WColor.camera,
       child: Padding(
@@ -540,29 +604,44 @@ class _CameraScreenState extends State<CameraScreen> {
             Expanded(
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(color: WColor.cameraPanel, borderRadius: BorderRadius.circular(20)),
                 child: Stack(
                   children: [
-                    const Center(
-                      child: CustomPaint(size: Size(250, 160), painter: CarOutlinePainter()),
-                    ),
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 22,
-                      child: WText(
-                        'Fit the ${current.label.toLowerCase()} of the vehicle in the outline',
-                        WType.body,
-                        color: Colors.white.withValues(alpha: 0.9),
-                        align: TextAlign.center,
+                    // The live camera fills the box.
+                    Positioned.fill(child: WCameraPreview(camera)),
+                    // See-through dark layer so the dotted guide stays visible in bright light.
+                    Positioned.fill(child: IgnorePointer(child: ColoredBox(color: Colors.black.withValues(alpha: _guideScrim)))),
+                    Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: CustomPaint(
+                          key: ValueKey('$bike-$current'),
+                          size: VehicleOutlinePainter.sizeFor(bike, current),
+                          painter: VehicleOutlinePainter(bike: bike, angle: current),
+                        ),
                       ),
                     ),
+                    if (flash) const Positioned.fill(child: IgnorePointer(child: ColoredBox(color: Color(0xCCFFFFFF)))),
+                    if (busy) const Positioned.fill(child: IgnorePointer(child: Center(child: WSpinner(color: WColor.white, size: 30)))),
                   ],
                 ),
               ),
             ),
+            // The guidance sits under the box; only the side to shoot is bold.
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24),
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+              child: Text.rich(
+                TextSpan(style: textStyle, children: [
+                  const TextSpan(text: 'Fit the '),
+                  TextSpan(text: word, style: textStyle.copyWith(fontWeight: FontWeight.w700, color: WColor.white)),
+                  const TextSpan(text: ' of the vehicle in the outline'),
+                ]),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
               child: Row(
                 children: [
                   const SizedBox(width: 60),
@@ -571,7 +650,20 @@ class _CameraScreenState extends State<CameraScreen> {
                   const Spacer(),
                   SizedBox(
                     width: 60,
-                    child: Center(child: WIconView(WIcon.flash, size: 20, color: Colors.white.withValues(alpha: 0.5))),
+                    child: Center(
+                      child: ListenableBuilder(
+                        listenable: camera,
+                        builder: (context, _) => Pressable(
+                          label: camera.flashOn ? 'Flash on' : 'Flash off',
+                          onTap: camera.ready ? camera.toggleFlash : null,
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Center(child: WIconView(WIcon.flash, size: 20, color: Colors.white.withValues(alpha: camera.flashOn ? 1 : 0.5))),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -582,6 +674,10 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 }
+
+/// How dark the see-through layer over the live camera is (0.10 = black at 10%,
+/// i.e. 90% see-through). One number to tune after trying it outdoors.
+const double _guideScrim = 0.10;
 
 class ShutterButton extends StatelessWidget {
   const ShutterButton({super.key, required this.onTap, this.size = 78});
@@ -606,6 +702,97 @@ class ShutterButton extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Dashed guide for the guided camera: a car or a two-wheeler, seen from the side
+/// being photographed. White dashes over a soft dark edge, so they read on any scene.
+class VehicleOutlinePainter extends CustomPainter {
+  const VehicleOutlinePainter({required this.bike, required this.angle});
+  final bool bike;
+  final PhotoAngle angle;
+
+  static bool _side(PhotoAngle a) => a == PhotoAngle.left || a == PhotoAngle.right;
+
+  static Size sizeFor(bool bike, PhotoAngle a) => bike
+      ? (_side(a) ? const Size(260, 170) : const Size(130, 230))
+      : (_side(a) ? const Size(270, 160) : const Size(230, 180));
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final w = s.width, h = s.height;
+    final p = Path();
+    if (!bike && _side(angle)) {
+      // Car, side: body, cabin (towards the back of the car), two wheels.
+      final cabinLeft = angle == PhotoAngle.left ? w * 0.18 : w * 0.26;
+      p
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, h * 0.30, w, h * 0.48), const Radius.circular(22)))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(cabinLeft, h * 0.02, w * 0.56, h * 0.30), const Radius.circular(12)))
+        ..addOval(Rect.fromLTWH(w * 0.12, h * 0.64, h * 0.32, h * 0.32))
+        ..addOval(Rect.fromLTWH(w - w * 0.12 - h * 0.32, h * 0.64, h * 0.32, h * 0.32));
+    } else if (!bike) {
+      // Car, front or back: windscreen, body, lights, two tyres.
+      final front = angle == PhotoAngle.front;
+      p
+        ..addPath(Path()
+          ..moveTo(w * 0.22, h * 0.36)
+          ..lineTo(w * 0.30, h * 0.06)
+          ..lineTo(w * 0.70, h * 0.06)
+          ..lineTo(w * 0.78, h * 0.36)
+          ..close(), Offset.zero)
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.04, h * 0.36, w * 0.92, h * 0.40), const Radius.circular(18)))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.08, h * 0.76, w * 0.16, h * 0.20), const Radius.circular(6)))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.76, h * 0.76, w * 0.16, h * 0.20), const Radius.circular(6)));
+      if (front) {
+        p
+          ..addOval(Rect.fromLTWH(w * 0.12, h * 0.46, w * 0.14, h * 0.13))
+          ..addOval(Rect.fromLTWH(w * 0.74, h * 0.46, w * 0.14, h * 0.13))
+          ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.36, h * 0.52, w * 0.28, h * 0.12), const Radius.circular(4)));
+      } else {
+        p
+          ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.10, h * 0.46, w * 0.18, h * 0.09), const Radius.circular(3)))
+          ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.72, h * 0.46, w * 0.18, h * 0.09), const Radius.circular(3)))
+          ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.38, h * 0.58, w * 0.24, h * 0.10), const Radius.circular(3)));
+      }
+    } else if (_side(angle)) {
+      // Two-wheeler, side: two wheels, body/seat line, handlebar.
+      final r = h * 0.24;
+      final front = angle == PhotoAngle.left; // the front wheel on the left when shooting the left side
+      final fx = front ? w * 0.04 : w - w * 0.04 - 2 * r, bx = front ? w - w * 0.04 - 2 * r : w * 0.04;
+      p
+        ..addOval(Rect.fromLTWH(fx, h - 2 * r - 4, 2 * r, 2 * r))
+        ..addOval(Rect.fromLTWH(bx, h - 2 * r - 4, 2 * r, 2 * r))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.24, h * 0.36, w * 0.52, h * 0.26), const Radius.circular(16)))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(front ? w * 0.42 : w * 0.30, h * 0.24, w * 0.28, h * 0.12), const Radius.circular(8)))
+        ..moveTo(front ? w * 0.26 : w * 0.74, h * 0.40)
+        ..lineTo(front ? w * 0.16 : w * 0.84, h * 0.06);
+    } else {
+      // Two-wheeler, front or back: handlebar, light, body, one tyre.
+      final front = angle == PhotoAngle.front;
+      p
+        ..moveTo(0, h * 0.14)
+        ..lineTo(w, h * 0.14)
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.22, h * 0.20, w * 0.56, h * 0.46), const Radius.circular(22)))
+        ..addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.36, h * 0.64, w * 0.28, h * 0.34), const Radius.circular(14)));
+      if (front) {
+        p.addOval(Rect.fromLTWH(w * 0.36, h * 0.27, w * 0.28, w * 0.28));
+      } else {
+        p.addRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.34, h * 0.30, w * 0.32, h * 0.08), const Radius.circular(3)));
+      }
+    }
+    final halo = Paint()
+      ..color = Colors.black.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5;
+    final dash = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    drawDashed(canvas, p, halo, 9, 7);
+    drawDashed(canvas, p, dash, 9, 7);
+  }
+
+  @override
+  bool shouldRepaint(VehicleOutlinePainter old) => old.bike != bike || old.angle != angle;
 }
 
 /// Dashed car outline for the guided camera.
