@@ -1,0 +1,122 @@
+{
+  "checkedAt": "2026-10-30T14:28:36.012Z",
+  "kind": "Read-only existing-record audit; no payment, refund, approval or booking initiated",
+  "project": "wheelio-apps",
+  "liveOrdersQueried": 2,
+  "queryLimit": 1000,
+  "matchedWashkrewLivePayments": [
+    {
+      "bookingReferenceHash": "de85431e099ccfb7",
+      "createdAt": "2026-10-30T01:07:21.721Z",
+      "bookedAt": null,
+      "bookingStatus": "cancelled",
+      "paymentMode": "live",
+      "merchant": "washkrew",
+      "cashPaise": 14900,
+      "paymentStatusInApp": "captured",
+      "paymentStatusAtProvider": "captured",
+      "method": "upi",
+      "paymentMatchesOrder": true,
+      "paymentMatchesAmount": true,
+      "currency": "INR",
+      "refundedPaiseAtProvider": 0,
+      "refundStatusInApp": "delayed",
+      "refundAmountPaiseInApp": 14900,
+      "refundsAtProvider": [],
+      "storedRefundMatchesProvider": null,
+      "cancellationPolicy": {
+        "kind": "refund"
+      },
+      "cancellationBenefit": null,
+      "cancellationFeePaise": null
+    },
+    {
+      "bookingReferenceHash": "a7e71c5101212695",
+      "createdAt": "2026-10-29T16:51:41.550Z",
+      "bookedAt": null,
+      "bookingStatus": "cancelled",
+      "paymentMode": "live",
+      "merchant": "washkrew",
+      "cashPaise": 14900,
+      "paymentStatusInApp": "captured",
+      "paymentStatusAtProvider": "refunded",
+      "method": "upi",
+      "paymentMatchesOrder": true,
+      "paymentMatchesAmount": true,
+      "currency": "INR",
+      "refundedPaiseAtProvider": 14900,
+      "refundStatusInApp": "processed",
+      "refundAmountPaiseInApp": 14900,
+      "refundsAtProvider": [
+        {
+          "status": "processed",
+          "amountPaise": 14900,
+          "createdAt": "2026-10-30T05:06:20.000Z"
+        }
+      ],
+      "storedRefundMatchesProvider": true,
+      "cancellationPolicy": {
+        "kind": "refund"
+      },
+      "cancellationBenefit": null,
+      "cancellationFeePaise": null
+    }
+  ],
+  "unmatchedWashkrewLiveOrders": 0,
+  "captains": {
+    "total": 2,
+    "approved": 1,
+    "approvedOnlineLive": 1,
+    "reviewStateCounts": {
+      "approved": 1,
+      "notSubmitted": 1
+    }
+  },
+  "configuration": {
+    "paymentMode": "live",
+    "paymentMerchant": "washkrew",
+    "paymentPolicy": "no-credit-card-checkout",
+    "checkoutPresentation": "allNonCredit",
+    "cancellationPolicy": {
+      "refundMinutes": 5,
+      "lateCreditBps": 5000,
+      "kind": "refundThenCredit"
+    },
+    "training": {
+      "enabled": false,
+      "required": false
+    },
+    "supportConfiguredKeys": [],
+    "legalConfiguredKeys": [],
+    "activeSocieties": 3,
+    "additionalContentKeys": []
+  },
+  "limits": [
+    "Existing records do not establish acceptance of newly deployed five-minute and wallet policy",
+    "Provider processed status is not bank-credit confirmation",
+    "No physical iPhone, APNs delivery or new payment-method acceptance performed"
+  ],
+  "refundQueue": [
+    {
+      "bookingReferenceHash": "de85431e099ccfb7",
+      "amount": 14900,
+      "paymentMode": "live",
+      "lastErrorStatus": 400,
+      "lastErrorCode": "BAD_REQUEST_ERROR",
+      "nextAttemptAt": "2026-10-30T15:13:04.959Z",
+      "paymentMerchant": "washkrew",
+      "status": "retry",
+      "attempts": 12,
+      "updatedAt": "2026-10-30T14:13:04.970Z"
+    },
+    {
+      "bookingReferenceHash": "a7e71c5101212695",
+      "amount": 14900,
+      "paymentMode": "live",
+      "paymentMerchant": "washkrew",
+      "status": "processed",
+      "attempts": 1,
+      "updatedAt": "2026-10-30T05:07:06.503Z"
+    }
+  ]
+}

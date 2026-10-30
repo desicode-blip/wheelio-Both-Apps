@@ -35,9 +35,10 @@ gallery using sample data; it is not functional acceptance.
 ## Install on an iPhone
 
 On a Mac with Xcode and CocoaPods, use `apps/flutter/tool/run-ios.sh` and follow
-[the complete Aman/Claude guide](docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md).
-Start with [the app switching flow](docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md)
-for the exact Captain, admin, Customer, payment and wash order.
+[the current Aman/Claude guide](docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
+and [its testing PDF](output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf).
+It covers the exact Captain, admin, Customer, payment, wash, cancellation and
+wallet order, with current policies and remaining physical acceptance gates.
 The Xcode workspaces are **apps/flutter/customer/ios/Runner.xcworkspace** and
 **apps/flutter/captain/ios/Runner.xcworkspace**. Keep bundle IDs
 `com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `28JNT7H8KA` (paid "Sumit Mandal" team since 29 Oct 2026; previously free personal team `8CCQQM7TP3`).

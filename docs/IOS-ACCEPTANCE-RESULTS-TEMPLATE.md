@@ -1,7 +1,7 @@
 # WashKrew - physical iPhone acceptance record
 
 Copy this to a local dated result file before testing. No native case below is
-pre-approved or pre-marked PASS. Read AMAN-IOS-BUILD-AND-TEST-2026-10-29.md first.
+pre-approved or pre-marked PASS. Read AMAN-IOS-BUILD-AND-TEST-2026-10-30.md first.
 Keep personal/financial/identity data and private evidence outside Git/shared reports.
 
 - Date / tester:
@@ -21,7 +21,7 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | --- | --- | --- |
 | Customer signed build + cold launch | NOT RUN | |
 | Captain signed build + cold launch | NOT RUN | |
-| Both designs match af036f0 + approved W05 | NOT RUN | |
+| Approved designs + Aman's retained UI changes through 79d17af | NOT RUN | |
 | Customer SMS/account/session recovery | NOT RUN | |
 | Captain SMS/account/session recovery | NOT RUN | |
 | Aadhaar camera/gallery/cancel/retake | NOT RUN | |
@@ -45,6 +45,13 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Permissions/network/background/reopen | NOT RUN | |
 | APNs delivery/inbox/tap on both apps | NOT RUN | |
 | Separately authorized cancellation/refund | NOT RUN | |
+| New policy: early cash refund + used-credit restoration | NOT RUN | |
+| New policy: late 50% total-value fee + 50% wallet once | NOT RUN | |
+| Stale cancellation quote requires renewed confirmation | NOT RUN | |
+| Exact paise, mixed payment, full-wallet booking and reuse | NOT RUN | |
+| All supported UPI/debit/netbanking/provider-wallet groups | NOT RUN | |
+| Direct credit-card / EMI / pay-later checkout hidden | NOT RUN | |
+| Existing delayed live refund: provider processed + bank credit | NOT RUN | |
 
 ## Failures and fixes
 

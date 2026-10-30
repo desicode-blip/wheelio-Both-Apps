@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-30T14:35:26.677Z",
+  "source": "Read-only signed-in Razorpay LIVE dashboard observation",
+  "balances": {
+    "currentPaise": 14196,
+    "reservePaise": 0,
+    "refundCreditsPaise": 0,
+    "existingRefundOwedPaise": 14900,
+    "shortfallPaise": 704
+  },
+  "savedCheckout": {
+    "name": "WashKrew No Credit",
+    "configId": "config_TtDpJ7HJM4hHb2",
+    "isDefault": true,
+    "debitCustomBlockPresent": true,
+    "upiOn": true,
+    "netbankingOn": true,
+    "generalCardsOn": false,
+    "emiOn": false,
+    "changesSaved": false
+  },
+  "financialActionsInitiated": [],
+  "limit": "Balance shortfall is an operational blocker; generic provider 400 does not establish it as the sole cause. No new-policy or iPhone acceptance claimed."
+}

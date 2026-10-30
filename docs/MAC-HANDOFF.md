@@ -1,16 +1,20 @@
-# Current pull/build/test handoff - 29 October 2026
+# Current pull/build/test handoff - 30 October 2026
 
-Start with [Aman's current build and test guide](AMAN-IOS-BUILD-AND-TEST-2026-10-29.md)
-and [its PDF](../output/pdf/WashKrew-Aman-iOS-Build-and-Test-2026-10-29.pdf).
-The exact source/web verification is in [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md).
+Start with [Aman's current build and test guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
+and [its PDF](../output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf).
+Read [current policy and verification](REFUND-WALLET-CHECKOUT-2026-10-30.md) and
+[remaining live checks](REMAINING-CHECKS-2026-10-30.md). Earlier full-flow browser
+evidence remains in [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md).
 Use the existing `run-ios.sh --prepare`, then `run-ios.sh` commands for the two
 current Flutter workspaces. Preserve local Mac changes, bundle IDs, team and locks.
 No native project/dependency or screen was changed for this documentation handoff.
 Both native source checks and standalone iOS tooling checks were rerun on Windows;
 Xcode compilation/signing, provisioning/APNs and physical acceptance require the Mac.
 
-Payments are **LIVE on the separate WashKrew merchant**. The web walkthrough's
-capture was simulated locally; it does not verify actual live charges/refunds.
+Payments are **LIVE on the separate WashKrew merchant**. The older web walkthrough's
+capture was simulated locally. Read-only matching now verifies two existing live
+UPI captures and one provider-processed refund, with another refund delayed.
+This does not establish the new five-minute/wallet policy or native acceptance.
 Training stays hidden. Aadhaar uses camera/gallery upload followed by authorized
 human review at https://wheelio-apps.web.app/admin/. Use two different phone numbers
 for Customer and Captain; self-assignment is excluded. The new guide covers native

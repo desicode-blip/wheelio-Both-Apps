@@ -1,4 +1,9 @@
 # WashKrew
+**Superseded:** use [the 30 October guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
+and its current PDF. This older guide/PDF remains historical; its build baseline,
+test totals, old cancellation examples and visual-count claims are not current
+acceptance evidence.
+
 ## Aman + Claude: build and test both iPhone apps
 
 **29 October 2026 | GitHub staging | Customer + Captain + private admin**

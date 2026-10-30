@@ -1,3 +1,13 @@
+# Current iPhone acceptance package - 30 October 2026
+
+Use [the refreshed guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md) and
+[its PDF](../output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf) instead of
+the older PDFs. The guide keeps Aman's UI/native changes, paid team and exact
+role order, with current five-minute/wallet and all-non-credit checkout cases.
+[Remaining checks](REMAINING-CHECKS-2026-10-30.md) separate existing live payment /
+refund evidence from outstanding merchant funding, APNs and device acceptance.
+No app, native project, dependency or design file changed for this handoff.
+
 # Cancellation, wallet and payment choice - 30 October 2026
 
 Read [REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md).
