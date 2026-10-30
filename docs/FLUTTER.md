@@ -162,6 +162,10 @@ Aman's decision: the Firebase (real-data) builds must look exactly like the desi
 
 Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No real money is charged" or any live/test equivalent), at any time, because it broke the top spacing (it added its own safe-area band and pushed every screen down). `PaymentEnvironmentLabel` was removed from `washkrew_firebase` and from both apps' `builder`. The server's `paymentMode` still decides test or live payments; only the on-screen label is gone. Do not add it back.
 
+## 30 October 2026: Customer C09 "Locate me"
+
+- Big `MapLocateButton` (icon + "Locate me") at the bottom-right of the C09 map, live and sample. Live: GPS → `locatePlace` → map animates and the pin updates; outside served societies the pin stays and a message explains. Card title uses `Place.title` (no trailing comma). Notes: [CHANGES-2026-10-30-UI.md](CHANGES-2026-10-30-UI.md).
+
 ## 27 October 2026: UI-only changes (Aman)
 
 Aman's UI changes on staging `752e222`, with no backend changes. The running list for Ajay, with what each item needs connected, is [CHANGES-2026-10-27-UI.md](CHANGES-2026-10-27-UI.md).

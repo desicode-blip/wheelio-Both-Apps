@@ -656,6 +656,31 @@ class _LocationScreenState extends State<LocationScreen> {
   late bool off = widget.forceOff || (context.store.isLive&&context.store.savedPlaces.isEmpty&&context.store.orders.isEmpty);
   late Place? place = context.store.isLive ? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
 
+  /// "Locate me" on the map: the phone's GPS, matched to a served society.
+  /// Outside served societies the pin stays where it is (no guessed coverage).
+  Future<(double, double)?> _locateMe() async {
+    final store = context.store;
+    try {
+      final found = await store.locatePlace();
+      if (!mounted) return null;
+      if (found == null || found.latitude == null || found.longitude == null) {
+        store.set(() => store.toast = 'You’re outside the societies we serve. Move the pin, or tap Change to choose your society.');
+        return null;
+      }
+      final current = place;
+      if (current == null || current.society.id != found.society.id) {
+        setState(() => place = found);
+      } else {
+        current.latitude = found.latitude;
+        current.longitude = found.longitude;
+      }
+      return (found.latitude!, found.longitude!);
+    } catch (e) {
+      store.set(() => store.toast = backendError(e));
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
@@ -711,6 +736,7 @@ class _LocationScreenState extends State<LocationScreen> {
           key:ValueKey(place!.society.id),config:Map<String,dynamic>.from(store.liveConfig['maps'] as Map? ?? {}),
           latitude:store.mapCenter(place).$1,longitude:store.mapCenter(place).$2,
           onMoved:(latitude,longitude){place.latitude=latitude;place.longitude=longitude;},
+          onLocate:_locateMe,
         ):const MapPlaceholder()),
         Padding(
           padding: const EdgeInsets.fromLTRB(WSpace.gutter, 18, WSpace.gutter, 0),
@@ -723,7 +749,7 @@ class _LocationScreenState extends State<LocationScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [WText('${place!.society.name}, ${place.tower}', WType.title), WText(place.addressLine, WType.caption)],
+                    children: [WText(place!.title, WType.title), WText(place.addressLine, WType.caption)],
                   ),
                 ),
                 WLink('Change', onTap: () => router.go(N.addressSearch)),
@@ -802,9 +828,9 @@ class _MapPlaceholderState extends State<MapPlaceholder> {
                     ),
                   ),
                   Positioned(
-                    right: 26,
-                    bottom: 16,
-                    child: WIconButton(WIcon.locate, label: 'My location', onTap: () => setState(() => off = Offset.zero)),
+                    right: 12,
+                    bottom: 12,
+                    child: MapLocateButton(onTap: () => setState(() => off = Offset.zero)),
                   ),
                 ],
               ),

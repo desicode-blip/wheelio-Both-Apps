@@ -13,10 +13,14 @@ class LivePlaceMap extends StatefulWidget {
     required this.latitude,
     required this.longitude,
     required this.onMoved,
+    this.onLocate,
   });
   final Map<String, dynamic> config;
   final double latitude, longitude;
   final void Function(double latitude, double longitude) onMoved;
+
+  /// "Locate me": returns the phone's position to move the map to, or null to stay.
+  final Future<(double, double)?> Function()? onLocate;
   @override
   State<LivePlaceMap> createState() => _LivePlaceMapState();
 }
@@ -24,7 +28,20 @@ class LivePlaceMap extends StatefulWidget {
 class _LivePlaceMapState extends State<LivePlaceMap> {
   late Future<void> ready = loader.prepareMap(widget.config);
   late LatLng position = LatLng(widget.latitude, widget.longitude);
-  bool moved = false;
+  bool moved = false, locating = false;
+  GoogleMapController? _map;
+
+  Future<void> _locate() async {
+    setState(() => locating = true);
+    try {
+      final found = await widget.onLocate!();
+      if (found != null && mounted) {
+        await _map?.animateCamera(CameraUpdate.newLatLngZoom(LatLng(found.$1, found.$2), 17));
+      }
+    } finally {
+      if (mounted) setState(() => locating = false);
+    }
+  }
   @override
   Widget build(BuildContext context) => FutureBuilder<void>(
     future: ready,
@@ -47,6 +64,7 @@ class _LivePlaceMapState extends State<LivePlaceMap> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
+            onMapCreated: (controller) => _map = controller,
             onCameraMove: (camera) {
               position = camera.target;
               moved = true;
@@ -64,6 +82,9 @@ class _LivePlaceMapState extends State<LivePlaceMap> {
               child: WIconView(WIcon.location, size: 40, color: WColor.primary),
             ),
           ),
+          // Bottom right: clear of the Google logo (bottom left) and the centre pin.
+          if (widget.onLocate != null)
+            Positioned(right: 12, bottom: 12, child: MapLocateButton(busy: locating, onTap: _locate)),
         ],
       );
     },
