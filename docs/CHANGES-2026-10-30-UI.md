@@ -1,7 +1,40 @@
-# App changes from Aman's session — 30 October 2026 (for Ajay)
+# App changes from Aman's session — 29–30 October 2026 (for Ajay)
 
-UI changes on the current Flutter apps (staging, design pinned to af036f0). No backend
-change. Items are added as the session goes on.
+UI and iOS-build changes on the current Flutter apps (`apps/flutter/customer`,
+`apps/flutter/captain`), on top of staging `d86e686`. Design stays pinned to `af036f0`.
+**No backend code changed.** The earlier list from 27 October is
+`docs/CHANGES-2026-10-27-UI.md` (items 1–9, already on staging/main).
+
+## At a glance
+
+| # | Change | App | Commit | Backend work? |
+|---|---|---|---|---|
+| 1 | Big "Locate me" button on the vehicle-location map (C09) | Customer | 271e6f7 | No |
+| 2 | Speed: Next/Rate/photo no longer wait for saves the next screen doesn't need | Customer | 571282e | Optional (min instances) |
+| 3 | Speed: Where I work Save and profile photo apply at once | Captain | b0f59a3 | No |
+| 4 | Live camera inside the guide box, photo taken in place, bike/car outlines (C08) | Customer | 25de3be, 46164b4 | No |
+| 5 | iOS signing moved to the paid Apple Developer team `28JNT7H8KA` | Both | b2860cb | No |
+| 6 | Push Notifications entitlement (`aps-environment`) | Both | cc0e6de | **Yes — APNs key in Firebase** |
+
+## What Ajay needs to do (backend / accounts)
+
+1. **APNs key (needed for real push on iPhone).** In Apple Developer (team `28JNT7H8KA`)
+   create an APNs Auth Key (.p8) and upload it in Firebase project `wheelio-apps` →
+   Project settings → Cloud Messaging → Apple app configuration, for both bundle IDs.
+   Until then the apps build and run, but FCM cannot deliver to iPhones.
+2. **Optional, speed:** set `minInstances: 1` on the busiest callable Functions
+   (booking availability, `saveCustomerPlace`, captain preferences) to remove cold starts.
+   The app no longer blocks on most of them, but first loads still feel the cold start.
+3. **Before App Store launch:** the paid team is an *Individual* account, so the store
+   would show the person's name as seller. A WashKrew *Organization* account (needs a
+   D-U-N-S number) is required to publish under the company name.
+4. **Still open from 27 October:** store the captain's exact working hours (slots and
+   breaks) on the server; today the app maps them to the server's 4-hour windows
+   (see `CHANGES-2026-10-27-UI.md`).
+
+Nothing in this list changes payments, approvals, training or KYC rules.
+
+---
 
 ## 1. Customer "Is your vehicle here?" (C09): big "Locate me" button on the map
 
@@ -93,3 +126,27 @@ lines visible on bright scenes; and the outline matches a two-wheeler or a four-
   camera (laptop/simulator): falls back to the previous picker/sample path.
 
 **Backend needed:** none. Photos still upload with the booking as before.
+
+---
+
+## 5. iOS signing: paid Apple Developer team (both apps)
+
+**Why:** the free personal team allowed only 3 apps per phone and 7-day profiles, and
+has no push. Aman bought a paid membership and asked to move all work to it.
+
+**What changed:** `DEVELOPMENT_TEAM = 28JNT7H8KA` in both `ios/Runner.xcodeproj/project.pbxproj`
+(all configurations). Bundle IDs unchanged. Docs updated: `AGENTS.md`, `README.md`,
+`docs/MAC-HANDOFF.md`, `docs/AMAN-IOS-BUILD-AND-TEST-2026-10-29.md`. A developer building
+on another Mac must be signed in to Xcode with an account that belongs to this team.
+
+**Backend needed:** none.
+
+---
+
+## 6. Push Notifications entitlement (both apps)
+
+**What changed:** new `ios/Runner/Runner.entitlements` in each app with
+`aps-environment = development`, linked via `CODE_SIGN_ENTITLEMENTS` in Debug, Release and
+Profile. Xcode switches it to production automatically for App Store/TestFlight builds.
+
+**Backend needed:** yes — the APNs key upload in "What Ajay needs to do" above.
