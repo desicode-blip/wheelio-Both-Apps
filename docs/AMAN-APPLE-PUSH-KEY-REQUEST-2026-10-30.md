@@ -6,6 +6,10 @@ activation is an **Apple Push Notification service (APNs) authentication key**
 from the paid Apple team **28JNT7H8KA**. This is separate from Razorpay and the
 Firebase Google login. Do not send an Apple password or SMS code.
 
+Owner clarification: Aman prepares and privately transfers the Apple key.
+**Ajay's side uploads/configures it in Firebase**. Aman does not need Firebase
+access or instructions to perform that upload.
+
 ## Message to forward
 
 "Aman, please check the paid Apple Developer account, team 28JNT7H8KA, for an
@@ -13,7 +17,9 @@ existing Apple Push Notifications authentication key. We need the downloaded
 AuthKey .p8 file, its Key ID, and which environment(s) it supports, so we can
 connect Firebase notifications for both WashKrew apps. The app bundle IDs are
 com.amanmaheshwari.wheelio.customer and com.amanmaheshwari.wheelio.captain.
-Please share the file securely with Ajay, outside Git and public chat. Do not
+Please share the file and Key ID securely with Ajay, outside Git and chat.
+We will handle the Firebase upload/configuration here; you only need to prepare
+the Apple key and later test notifications on the iPhone. Do not
 revoke or regenerate a key used by another app. If no suitable key exists, the
 Apple Account Holder/Admin needs to create and download one."
 
@@ -42,7 +48,8 @@ to be replaced for this backend task.
 
 ## Firebase connection and actual acceptance
 
-Once the correct file/Key ID is available, use
+Once Ajay has saved the privately transferred file outside the repository on his
+computer, Ajay's agent will use
 [wheelio-apps Cloud Messaging settings](https://console.firebase.google.com/project/wheelio-apps/settings/cloudmessaging).
 For each existing iOS app, upload the appropriate APNs authentication key with
 its Key ID and team **28JNT7H8KA**. Follow the environment-specific fields shown

@@ -2,7 +2,9 @@
 
 Copy the text below into Claude in the existing WashKrew repository. Do not put
 the Apple private key into GitHub or chat. Push source changes and a redacted
-setup/results note instead.
+setup/results note instead. Per Ajay's clarification, **Ajay's side handles the
+Firebase upload/configuration**; Aman only prepares the Apple key and tests the
+phone after that configuration is confirmed.
 
 ---
 
@@ -35,25 +37,24 @@ his screens. Only change data/controller/backend behavior where needed.
    introducing a batch-days contract. Do not show sample, expired or invented
    slots as bookable. Keep the existing screens and interactions.
 
-2. Finish Apple push setup. Use paid Apple team **28JNT7H8KA**, Firebase project
+2. Prepare the Apple push key for Ajay. Use paid Apple team **28JNT7H8KA**, Firebase project
    **wheelio-apps**, and the existing bundle IDs:
    `com.amanmaheshwari.wheelio.customer` and
    `com.amanmaheshwari.wheelio.captain`. Locate a suitable existing APNs
    authentication `.p8` key and its Key ID, or guide Aman (Apple Account
    Holder/Admin) to create one with the correct environment/topic permissions.
-   Aman must complete Apple/Google authentication and key-creation confirmation
+   Aman must complete Apple authentication and key-creation confirmation
    himself. Do not revoke or regenerate credentials used elsewhere. Store the
    key securely **outside this repository**; do not print it, paste it into chat,
    log it, bundle it into either app or commit/upload it to GitHub.
 
-3. In the existing project's
-   [Firebase Cloud Messaging settings](https://console.firebase.google.com/project/wheelio-apps/settings/cloudmessaging),
-   configure the matching APNs key/Key ID/team for both registered iOS apps.
-   Respect the development/sandbox and production fields shown there. Preserve
-   unrelated credentials. If Aman lacks Firebase access, record the blocker and
-   arrange a private handoff to Ajay, not a Git commit containing the key. Follow
-   [Firebase's Flutter setup](https://firebase.google.com/docs/cloud-messaging/flutter/get-started)
-   and [Apple's key setup](https://developer.apple.com/help/account/keys/create-a-private-key/).
+3. Hand the `.p8` file, Key ID, team ID and supported environment/topic details
+   privately to Ajay, outside GitHub and chat. Ajay will save the file outside
+   the repository on his computer so his agent can configure the existing
+   Firebase project. **Do not upload or configure Firebase from Aman's Mac**;
+   Ajay's side owns that step. Do not request Firebase access for Aman. Record
+   "APNs key prepared; Firebase configuration pending Ajay" until Ajay confirms
+   completion. Follow [Apple's key setup](https://developer.apple.com/help/account/keys/create-a-private-key/).
 
 4. Build **both current Flutter apps** from their `ios/Runner.xcworkspace` files
    on the Mac, retaining the bundle IDs/paid team. Use release/profile builds for
@@ -66,11 +67,12 @@ his screens. Only change data/controller/backend behavior where needed.
    focused tests where needed. Do not claim instantaneous first-ever network
    availability with on-demand Functions.
 
-5. On the real iPhone, verify notification permission/token registration and
+5. After Ajay confirms Firebase configuration, on the real iPhone verify notification permission/token registration and
    actual foreground/background/locked-screen delivery and notification taps
    for both apps. Use authorized events/accounts only. No fake production
    Captain approval, fixture booking, unsolicited push or unapproved live
-   payment. Record PASS/FAIL/BLOCKED honestly, with no device tokens, private
+   payment. Until configuration is confirmed, mark delivery checks BLOCKED and
+   continue the slot/build checks. Record PASS/FAIL/BLOCKED honestly, with no device tokens, private
    documents, phone numbers or other personal information in committed evidence.
 
 6. Write `docs/AMAN-IOS-SLOTS-AND-PUSH-RESULTS.md` containing code/build versions,

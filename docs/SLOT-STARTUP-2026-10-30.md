@@ -71,5 +71,7 @@ Do not prefetch all societies or rely on stale capacity for payment/assignment.
 
 [AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md](AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md)
 contains the forwardable Mac task. It also clarifies that the APNs `.p8` stays
-private and outside Git. Aman configures Firebase from his Mac, then commits
-only tested source changes and a secret-free result/configuration note.
+private and outside Git. Per the owner's clarification, Aman privately transfers
+the Apple key/details to Ajay; Ajay's side handles Firebase configuration. Aman
+commits only tested source changes and a secret-free result/configuration note,
+then tests phone notification delivery after Ajay confirms the setup.
