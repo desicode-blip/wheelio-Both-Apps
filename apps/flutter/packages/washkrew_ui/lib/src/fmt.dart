@@ -1,4 +1,4 @@
-// Formatting helpers (Indian English), ported from apps/ios/Shared/Formatting.swift. Money is whole rupees.
+// Formatting helpers (Indian English). Preserve paise while keeping whole-rupee labels unchanged.
 
 const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -37,7 +37,11 @@ class Fmt {
     return [m[1], m[2]!.padLeft(2, '0'), if (m[3]!.isNotEmpty) m[3], m[4]].join(' ');
   }
 
-  static String rupees(int amount) => '${amount < 0 ? '−₹' : '₹'}${_inr(amount.abs())}';
+  static String rupees(num amount) {
+    final paise = (amount * 100).round(), absolute = paise.abs();
+    final fraction = absolute % 100;
+    return '${paise < 0 ? '−₹' : '₹'}${_inr(absolute ~/ 100)}${fraction == 0 ? '' : '.${fraction.toString().padLeft(2, '0')}'}';
+  }
   static String clock(int seconds) => '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 
   /// "8 – 10 AM" when both ends share AM/PM, otherwise "10 AM – 12 PM".

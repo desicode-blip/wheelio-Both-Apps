@@ -70,11 +70,11 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.onTheWay => o.captainCantFind ? _cantFind(o) : _onTheWay(o),
         OrderStatus.washing => _washing(o),
         OrderStatus.photosReady => CheckWashView(order: o),
-        OrderStatus.cancelled when o.creditGiven > 0 => _state(WFullState(
+        OrderStatus.cancelled when o.creditGiven > 0 || (o.cancellationSummary != null && o.refund == null) => _state(WFullState(
             icon: WIcon.rupee,
             tone: Tone.ok,
             title: 'Booking cancelled',
-            message: '${Fmt.rupees(o.creditGiven)} (${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}) is added as credit. It comes off your next booking, so you pay only the rest.',
+            message: o.cancellationSummary ?? '${Fmt.rupees(o.creditGiven)} (${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}) is added as credit. It comes off your next booking, so you pay only the rest.',
             primary: 'Book again',
             secondary: 'Go home',
             onPrimary: () => _again(o),
@@ -96,7 +96,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
                 tone: Tone.ok,
                 title: 'Booking cancelled',
                 message: store.isLive
-                    ? '${o.cancellationReason == 'paymentMethodNotAllowed' ? 'Use UPI, a debit card or netbanking. Credit-card checkout is not accepted. ' : ''}${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}'
+                    ? '${o.cancellationSummary ?? (o.cancellationReason == 'paymentMethodNotAllowed' ? 'Use UPI, a debit card, netbanking or a supported wallet. Credit-card checkout is not accepted. ' : '')} ${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}'
                     : '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
                 primary: 'Book another time',
                 secondary: 'Track refund',
@@ -121,17 +121,18 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
 
   Widget _state(Widget s) => WScreen(scrolls: false, header: const PlainHeader(), children: [Expanded(child: s)]);
 
-  /// No captain / captain no-show: cancelled automatically, full refund to the customer's UPI.
+  /// Service failure: cash returns to its original method and reserved credit is restored.
   Widget _autoCancelled(Order o, WIcon icon, String title, String why) {
     final router = context.router;
     final r = o.refund;
+    final walletOnly = context.store.isLive && o.price == 0 && o.walletReleased && (o.creditUsed > 0 || o.usedFreeWash);
     final waiting = !context.store.isLive && (r?.awaitingUPI ?? true);
     return WScreen(
       scrolls: false,
       header: const PlainHeader(),
       footer: WStackedFooter(children: waiting
           ? [WButton('Add UPI ID for refund', icon: WIcon.rupee, onTap: () => router.push(R(N.refundUPI, id: o.id))), WButton('Book another time', kind: ButtonKind.text, onTap: () => _again(o))]
-          : [WButton('Book another time', onTap: () => _again(o)), WButton('See refund', kind: ButtonKind.text, onTap: () => router.go(N.refund))]),
+          : [WButton('Book another time', onTap: () => _again(o)), WButton(walletOnly ? 'Go home' : 'See refund', kind: ButtonKind.text, onTap: () => walletOnly ? router.popToRoot() : router.go(N.refund))]),
       children: [
         const SizedBox(height: 10),
         Align(alignment: Alignment.centerLeft, child: WStateCircle(icon, tone: Tone.wait, size: 72)),
@@ -142,16 +143,16 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         const SizedBox(height: 20),
         WCard(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [const WText('Full refund', WType.label), const Spacer(), WText(Fmt.rupees(r?.amount ?? o.price), WType.valueStrong, mono: true)]),
+            Row(children: [WText(walletOnly ? o.usedFreeWash ? 'Free wash restored' : 'Wallet restored' : 'Full refund', WType.label), const Spacer(), WText(walletOnly && o.usedFreeWash ? '1 free wash' : Fmt.rupees(walletOnly ? o.returnedWalletCredit : r?.amount ?? o.price), WType.valueStrong, mono: true)]),
             const SizedBox(height: 8),
-            WText(context.store.isLive?refundStatusText(o.refundStatus,null).detail:waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
+            WText(context.store.isLive ? walletOnly ? o.usedFreeWash ? 'Your free wash has been restored.' : '${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : '${refundStatusText(o.refundStatus,null).detail}${o.returnedWalletCredit > 0 ? ' ${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : ''}' : waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
           ]),
         ),
       ],
     );
   }
 
-  // C20a Booked for a later slot: what's booked, the customer's own photos, and cancel (15 min).
+  // C20a Booked for a later slot: what's booked, customer photos and cancellation.
   Widget _booked(Order o) {
     final notes = o.note.summary;
     return WScreen(
@@ -275,7 +276,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
     Widget answer(WIcon icon, String title, String code) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Pressable(
-            onTap: () => store.answerCantFind(code),
+            onTap: () => store.isLive && code == 'not_here' && o.liveCancelPolicy?['kind'] == 'refundThenCredit' ? openCancelSheet(context, o) : store.answerCantFind(code),
             child: Container(
               height: 48,
               decoration: outlinedDecoration(radius: 10),

@@ -37,30 +37,23 @@ void main() {
     },
   );
   test(
-    'selected checkout method keeps the verified order and offers compatible instruments',
+    'selected method reorders groups without hiding other non-credit methods or restricting UPI apps',
     () {
-      for (final selected in ['gpay', 'phonepe', 'upi_id', 'card']) {
+      for (final selected in ['gpay', 'phonepe', 'upi_id', 'card', 'netbanking', 'wallet']) {
         final result = checkoutOptions({
           ...options,
           'selectedMethod': selected,
         }, '+919000000001');
         expect(result['order_id'], 'order_123');
-        expect(
-          (result['prefill'] as Map)['method'],
-          selected == 'card' ? 'card' : 'upi',
-        );
+        expect((result['prefill'] as Map).containsKey('method'), false);
         final display = (result['config'] as Map)['display'] as Map;
-        final instrument =
-            (((display['blocks'] as Map)['selected'] as Map)['instruments']
-                        as List)
-                    .single
-                as Map;
-        if (selected == 'gpay' || selected == 'phonepe')
-          expect(instrument['apps'], [
-            selected == 'gpay' ? 'google_pay' : 'phonepe',
-          ]);
+        final instruments = [for (final block in (display['blocks'] as Map).values) ...(block['instruments'] as List)];
+        expect(instruments.map((i) => i['method']).toSet(), {'upi', 'card', 'netbanking', 'wallet'});
+        expect(instruments.any((i) => i.containsKey('apps')), false);
+        expect((display['sequence'] as List).length, 4);
+        expect((display['sequence'] as List).toSet().length, 4);
         expect((display['preferences'] as Map)['show_default_blocks'], false);
-        if (selected == 'card') expect(instrument['types'], ['debit']);
+        expect(instruments.singleWhere((i) => i['method'] == 'card')['types'], ['debit']);
       }
       expect(
         () => checkoutOptions({...options, 'selectedMethod': 'invented'}, ''),
@@ -71,7 +64,7 @@ void main() {
   test(
     'all checkout paths exclude credit cards and retain a server configuration',
     () {
-      for (final selected in [null, 'gpay', 'phonepe', 'upi_id', 'card']) {
+      for (final selected in [null, 'gpay', 'phonepe', 'upi_id', 'card', 'netbanking', 'wallet']) {
         final result = checkoutOptions({
           ...options,
           'selectedMethod': selected,

@@ -16,4 +16,6 @@ test('owner checkout-only ban retains UPI funding while blocking credit-card che
  assert.equal(acceptsFunding({method:'card',card:{type:'debit'}},'no-credit-card-checkout'),true);
  assert.equal(acceptsFunding({method:'card',card:{type:'credit'}},'no-credit-card-checkout'),false);
  assert.equal(acceptsFunding({method:'card'},'no-credit-card-checkout'),false);
+ assert.equal(acceptsFunding({method:'wallet',wallet:'mobikwik'},'no-credit-card-checkout'),true);
+ for(const method of ['emi','paylater','cardless_emi','unknown'])assert.equal(acceptsFunding({method},'no-credit-card-checkout'),false);
 });

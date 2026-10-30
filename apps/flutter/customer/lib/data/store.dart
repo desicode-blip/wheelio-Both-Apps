@@ -321,14 +321,22 @@ class BookingDraft {
   bool useFreeWash;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
-  int creditApplied;
+  num creditApplied;
   bool isRepeat;
 
   int get photosDone => photos.values.where((s) => s == UploadState.done).length;
   bool get photosComplete => PhotoAngle.values.every((a) => photos[a] == UploadState.done);
   bool get hasFailedPhoto => photos.values.contains(UploadState.failed);
-  int get basePrice => type?.price ?? 0;
-  int get price => useFreeWash ? 0 : (basePrice - creditApplied).clamp(0, basePrice);
+  num get basePrice => type?.price ?? 0;
+  int get basePricePaise => (basePrice * 100).round();
+  int get pricePaise => useFreeWash ? 0 : (basePricePaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
+  num get price => pricePaise / 100;
+  void applyWalletCredit(num balance, {bool enabled = true}) {
+    var applied = enabled && !useFreeWash ? (balance * 100).round().clamp(0, basePricePaise) : 0;
+    final remainder = basePricePaise - applied;
+    if (remainder > 0 && remainder < 100) applied = max(0, basePricePaise - 100);
+    creditApplied = applied / 100;
+  }
 }
 
 class OtpResult {
@@ -364,7 +372,8 @@ class AppStore extends ChangeNotifier {
   String? draftBookingId;
   StreamSubscription<dynamic>? _walletSubscription;
   String _walletIdentity = '';
-  int _walletFree = 0, _walletCredit = 0;
+  int _walletFree = 0;
+  num _walletCredit = 0;
   final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
   final Map<String, MediaClip> draftMedia = {};
   static const demoOtp = '123456';
@@ -444,7 +453,7 @@ class AppStore extends ChangeNotifier {
             if (types.isNotEmpty) {
               VehicleType.all = [
                 for (final v in types)
-                  VehicleType(VehicleKind.values.byName(v['kind']), v['name'], (v['minutes'] as num).toInt(), (v['pricePaise'] as num).toInt() ~/ 100),
+                  VehicleType(VehicleKind.values.byName(v['kind']), v['name'], (v['minutes'] as num).toInt(), (v['pricePaise'] as num) / 100),
               ];
               if (draft.type != null) draft.type = VehicleType.all.where((t) => t.kind == draft.type!.kind).firstOrNull;
             }
@@ -490,7 +499,7 @@ class AppStore extends ChangeNotifier {
       if (identity != _walletIdentity) return;
       final d = s.data() ?? {};
       _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
-      _walletCredit = (d['creditPaise'] as num? ?? 0).toInt() ~/ 100;
+      _walletCredit = (d['creditPaise'] as num? ?? 0) / 100;
       customer?.freeWashes = _walletFree; customer?.credit = _walletCredit;
       changed();
     }, onError: (Object e) { backendMessage = backendError(e); changed(); });
@@ -602,11 +611,11 @@ class AppStore extends ChangeNotifier {
       'washStatusCheck' => (NotificationKind.washStatusCheck, 'We’re checking your wash', 'Your slot ended. Open your booking for the latest status.'),
       'disputeDecision' => (NotificationKind.disputeDecision, 'Your report has an update', o?.dispute?.decisionNote ?? 'Open your report to see the review decision.'),
       'phoneChanged' => (NotificationKind.phoneChanged, 'Mobile number updated', 'Your verified mobile number was updated.'),
-      'cancelled' => (NotificationKind.bookingCancelled, 'Booking cancelled', o?.freeWashGiven == true
+      'cancelled' => (NotificationKind.bookingCancelled, 'Booking cancelled', o?.cancellationSummary ?? (o?.freeWashGiven == true
           ? '1 free wash is added to your account. Use it on your next booking.'
           : (o?.creditGiven ?? 0) > 0
           ? '${Fmt.rupees(o!.creditGiven)} credit is added. It comes off your next booking.'
-          : 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has started.'),
+          : 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has started.')),
       'disputed' => (NotificationKind.disputeDecision, 'We’ve got your report', o == null ? 'We’re checking the photos.' : 'We’re checking the photos for ${o.vehicle.plate}.'),
       'refund' => (NotificationKind.refundCredited, 'Refund update', 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has an update.'),
       _ => (NotificationKind.bookingConfirmed, (d['title'] as String? ?? '').replaceFirst('Test · ', ''), d['body'] as String? ?? ''),
@@ -618,7 +627,7 @@ class AppStore extends ChangeNotifier {
     DateTime? date(dynamic value) => value == null ? null : (value.toDate() as DateTime).toLocal();
     final kind = VehicleKind.values.byName(data['vehicleKind']);
     final type =
-        VehicleType.all.where((t) => t.kind == kind).firstOrNull ?? VehicleType(kind, data['vehicleName'], 20, (data['pricePaise'] as num).toInt() ~/ 100);
+        VehicleType.all.where((t) => t.kind == kind).firstOrNull ?? VehicleType(kind, data['vehicleName'], 20, (data['basePricePaise'] as num? ?? data['pricePaise']) / 100);
     final society = Society(data['societyId'], data['societyName'], data['area'], data['city'] ?? 'Hyderabad');
     final place = Place(society, tower: data['tower'] ?? '', floor: data['floor'], slot: data['parking'] ?? '',addressKey:data['addressKey'],latitude:(data['vehiclePosition']?['latitude'] as num?)?.toDouble(),longitude:(data['vehiclePosition']?['longitude'] as num?)?.toDouble());
     final captain = data['captain'] as Map?;
@@ -629,7 +638,7 @@ class AppStore extends ChangeNotifier {
       place: place,
       slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt(),
         windows: [for(final w in data['requestedWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())], anyTime: data['anyTime']==true),
-      price: (data['pricePaise'] as num).toInt() ~/ 100,
+      price: (data['pricePaise'] as num) / 100,
       status: data['dispute']?['outcome']=='rejected'?OrderStatus.disputeRejected:data['status'] == 'approved' && data['approvalSource'] == 'automatic' ? OrderStatus.autoApproved : data['status'] == 'cancelled' && data['cancellationReason'] == 'slotExpired' ? data['captainId'] == null ? OrderStatus.noCaptain : OrderStatus.captainNoShow : OrderStatus.values.byName(data['status']),
       createdAt: date(data['createdAt']) ?? DateTime.now(),
       captain: captain == null
@@ -656,9 +665,12 @@ class AppStore extends ChangeNotifier {
     );
     order.liveCancelPolicy = Map<String, dynamic>.from(data['cancellationPolicy'] as Map? ?? {'kind': 'refund'});
     order.usedFreeWash = data['freeWashUsed'] == true;
-    order.creditUsed = (data['creditUsedPaise'] as num? ?? 0).toInt() ~/ 100;
+    order.bookedAt = date(data['bookedAt']);
+    order.cancellationOutcome = data['cancellationBenefit'] is Map ? Map<String, dynamic>.from(data['cancellationBenefit']) : null;
+    order.walletReleased = data['walletReleased'] == true;
+    order.creditUsed = (data['creditUsedPaise'] as num? ?? 0) / 100;
     order.freeWashGiven = data['cancellationBenefit']?['kind'] == 'freeWash';
-    order.creditGiven = (data['cancellationBenefit']?['creditPaise'] as num? ?? 0).toInt() ~/ 100;
+    order.creditGiven = data['cancellationBenefit']?['kind'] == 'credit' ? (data['cancellationBenefit']?['creditPaise'] as num? ?? 0) / 100 : 0;
     order.arrivalUpdatedAt=date(data['arrivalUpdatedAt']);
     order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
@@ -682,7 +694,7 @@ class AppStore extends ChangeNotifier {
     }
     if (order.refundStatus != 'none') {
       order.refund = Refund(
-        amount: (data['refundAmountPaise'] as num? ?? data['pricePaise']).toInt() ~/ 100,
+        amount: (data['refundAmountPaise'] as num? ?? data['pricePaise']) / 100,
         startedAt: date(data['cancelledAt']) ?? date(data['dispute']?['resolvedAt']) ?? date(data['dispute']?['createdAt']) ?? DateTime.now(),
         method: 'Original payment method',
         bankRef: data['providerRefundId'] ?? 'Pending',
@@ -1054,13 +1066,15 @@ class AppStore extends ChangeNotifier {
   }
 
   List<PaymentMethod> get paymentMethods {
-    // Live: the same designed list; every choice opens Razorpay (passing the choice on is P0).
+    // Reuse the designed rows; checkout reorders groups and retains all supported methods.
     final upi = !isLive && customer?.phone == samplePhone ? 'UPI · ananya@okhdfc' : 'UPI';
     return [
       PaymentMethod('gpay', 'Google Pay', upi),
       const PaymentMethod('phonepe', 'PhonePe', 'UPI'),
       const PaymentMethod('upi_id', 'Other UPI app', 'Enter UPI ID'),
       const PaymentMethod('card', 'Debit card', 'Credit cards not accepted'),
+      if (isLive) const PaymentMethod('netbanking', 'Netbanking', 'Pay using your bank'),
+      if (isLive) const PaymentMethod('wallet', 'Other wallets', 'Supported Razorpay wallets'),
     ];
   }
 
@@ -1146,7 +1160,8 @@ class AppStore extends ChangeNotifier {
         'anyTime': s.anyTime,
         'useFreeWash': d.useFreeWash,
         'useCredit': d.creditApplied > 0,
-        'expectedAmountPaise': d.price * 100,
+        'expectedAmountPaise': d.pricePaise,
+        if (liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit') 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
         'endHour': s.endHour,
@@ -1355,13 +1370,19 @@ class AppStore extends ChangeNotifier {
     bankRef: _bankRef(),
   );
 
-  /// Customer cancels before the wash starts. No cash refund:
-  /// within 15 minutes of booking → 1 free wash; later → 50% of the booking's value as credit.
-  /// BACKEND: rpc cancel_order must apply these rules on the server
-  /// (today the live backend refunds instead; see docs/BACKEND-HOOKUP.md).
-  Future<void> cancel(String id) async {
+  /// Live cancellation uses the saved server policy and a confirmed quote.
+  /// The disconnected design reference retains its original free-wash rule.
+  Future<Map<String, dynamic>?> cancellationQuote(String id) async {
+    if (!isLive) return null;
+    final result = await live!.call('getCancellationQuote', {'orderId': id});
+    return result['quote'] is Map ? Map<String, dynamic>.from(result['quote']) : null;
+  }
+  Future<void> cancel(String id, {String? confirmation}) async {
     if (isLive) {
-      await live!.call('cancelBooking', {'orderId': id});
+      final data = {'orderId': id};
+      if (confirmation != null) data['confirmation'] = confirmation;
+      await live!.call('cancelBooking', data);
+      await _refreshLiveOrder(id);
       return;
     }
     final o = orders.where((x) => x.id == id).firstOrNull;

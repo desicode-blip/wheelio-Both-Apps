@@ -1901,7 +1901,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final free = store.customer?.freeWashes ?? 0;
     // Credit from a late cancellation comes off automatically (not with a free wash).
     final credit = store.customer?.credit ?? 0;
-    d.creditApplied = d.useFreeWash || !_useCredit ? 0 : credit.clamp(0, d.basePrice);
+    d.applyWalletCredit(credit, enabled: _useCredit);
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
@@ -1940,7 +1940,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         const SizedBox(height: 18),
         WKeyValueCard(
           boldLast: true,
-          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), ('Total', Fmt.rupees(d.price))],
+          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), if (store.isLive && store.liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit') ('Cancellation', 'Full refund within 5 minutes of confirmation. Later: 50% fee, 50% to your wallet.'), ('Total', Fmt.rupees(d.price))],
         ),
         // Only when they have one: a short note that a free wash can pay for this booking.
         if (free > 0) ...[

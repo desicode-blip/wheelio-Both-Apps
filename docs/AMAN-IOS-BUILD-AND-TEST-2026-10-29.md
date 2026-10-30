@@ -3,6 +3,15 @@
 
 **29 October 2026 | GitHub staging | Customer + Captain + private admin**
 
+**30 October payment update:** Read
+[REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md) before
+testing. Its owner-confirmed five-minute original-method refund / later 50% fee
+and 50% wallet rule supersedes older cancellation examples in the PDF. Rebuild
+the current Customer source: an older installed binary cannot acknowledge the
+new terms and must update before creating a new booking. Verify all supported
+UPI, debit-card, netbanking and provider-wallet groups; credit cards/EMI/paylater
+stay hidden. A completed web deployment does not update a native installation.
+
 Use the latest staging source containing this guide. The verified application
 baseline is **42a37a4**; record the actual full commit after pulling. The Customer
 and Captain designs stay pinned to **af036f0**, with the approved upload-only

@@ -10,7 +10,7 @@ import {readFile} from 'node:fs/promises';
 let app,db,service,clock,provider,counter;
 const auth=uid=>({uid,token:{phone_number:'+919876543210'}});
 const customer=auth('customer'), config=JSON.parse(await readFile(new URL('./operations.test.json',import.meta.url)));
-const input=(requestId='request-1')=>({requestId,plate:'TS09AB1234',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'T3',floor:'B2',parking:'42',note:'Near ramp',washKind:'wetOutside',day:'2026-11-01',startHour:8,endHour:10,pricePaise:1});
+const input=(requestId='request-1')=>({requestId,plate:'TS09AB1234',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'T3',floor:'B2',parking:'42',note:'Near ramp',washKind:'wetOutside',day:'2026-11-01',startHour:8,endHour:10,pricePaise:1,acceptedCancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}});
 before(()=>{
   if(!process.env.FIRESTORE_EMULATOR_HOST)throw Error('Run only through Firebase emulators:exec.');
   app=initializeApp({projectId:'demo-wheelio'},'service-tests');db=getFirestore(app);
@@ -542,6 +542,86 @@ test('wallet cancellation snapshots grant early free wash or late credit only on
   assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
   assert.equal((await db.doc('wallets/customer_live').get()).exists,false);
   assert.equal((await db.collection('refunds').get()).size,0);
+});
+test('five-minute cash refund requires owner confirmation and queues one original-method refund',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}});
+ await assert.rejects(service.createBooking(customer,{...input(),acceptedCancellationPolicy:null}),{code:'failed-precondition'});
+ const b=await paid();
+ await assert.rejects(service.getCancellationQuote(auth('other'),{orderId:b.bookingId}),{code:'permission-denied'});
+ await assert.rejects(service.getCancellationQuote(null,{orderId:b.bookingId}),{code:'unauthenticated'});
+ await assert.rejects(service.cancel(customer,{orderId:b.bookingId}),{code:'failed-precondition'});
+ const {quote}=await service.getCancellationQuote(customer,{orderId:b.bookingId});
+ assert.equal(quote.cashRefundPaise,14900);assert.equal(quote.feePaise,0);
+ await Promise.all([service.cancel(customer,{orderId:b.bookingId,confirmation:quote.confirmation}),service.cancel(customer,{orderId:b.bookingId,confirmation:quote.confirmation})]);
+ await service.processRefund(b.bookingId);await service.processRefund(b.bookingId);
+ assert.equal(provider.refundCalls,1);assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).data().amount,14900);
+ assert.equal((await db.doc('wallets/customer_test').get()).exists,false);
+});
+test('confirmation time starts the window and crossing five minutes requires a new fee confirmation',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}});
+ const b=await service.createBooking(customer,input()),checkout=await service.checkout(customer,b);
+ clock+=7*60000;
+ await db.doc('captains/captain1').update({lastSeenAt:Timestamp.fromMillis(clock)});
+ await service.capturePayment({id:'pay_delayed_checkout',order_id:checkout.orderId,amount:14900,currency:'INR',status:'captured'});
+ const captured=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(captured.bookedAt.toMillis(),clock);
+ await service.claim(auth('captain1'),{orderId:b.bookingId});
+ clock+=5*60000;
+ const early=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(early.cashRefundPaise,14900);
+ clock++;
+ await assert.rejects(service.cancel(customer,{orderId:b.bookingId,confirmation:early.confirmation}),{code:'failed-precondition'});
+ assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().status,'onTheWay');
+ const late=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(late.feePaise,7450);assert.equal(late.walletCreditPaise,7450);
+ await Promise.all([service.cancel(customer,{orderId:b.bookingId,confirmation:late.confirmation}),service.cancel(customer,{orderId:b.bookingId,confirmation:late.confirmation})]);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7450);
+ assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).exists,false);
+ assert.equal((await db.doc('captains/captain1').get()).data().activeJobCount,0);
+ assert.equal((await db.doc(`slotCapacity/${captured.slotKey}`).get()).data().reserved,0);
+});
+test('mixed ₹150 bookings refund ₹100 cash plus ₹50 credit early, but return only ₹75 wallet credit late',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000},vehicleTypes:config.vehicleTypes.map(t=>t.kind==='hatchback'?{...t,pricePaise:15000}:t)});
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',freeWashes:0,creditPaise:5000});
+ async function mixed(requestId){const b=await service.createBooking(customer,{...input(requestId),useCredit:true,expectedAmountPaise:10000}),c=await service.checkout(customer,b);await service.capturePayment({id:'pay_'+requestId,order_id:c.orderId,amount:10000,currency:'INR',status:'captured'});return b;}
+ const early=await mixed('early-mixed'),q=(await service.getCancellationQuote(customer,{orderId:early.bookingId})).quote;
+ await service.cancel(customer,{orderId:early.bookingId,confirmation:q.confirmation});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,5000);
+ assert.equal((await db.doc(`refunds/${early.bookingId}`).get()).data().amount,10000);
+ const late=await mixed('late-mixed');clock+=300001;
+ const lq=(await service.getCancellationQuote(customer,{orderId:late.bookingId})).quote;
+ await service.cancel(customer,{orderId:late.bookingId,confirmation:lq.confirmation});
+ await service.cancel(customer,{orderId:late.bookingId,confirmation:lq.confirmation});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
+ assert.equal((await db.doc(`orders/${late.bookingId}`).get()).data().cancellationFeePaise,7500);
+ assert.equal((await db.doc(`refunds/${late.bookingId}`).get()).exists,false);
+ assert.equal((await db.doc('wallets/customer_live').get()).exists,false);
+});
+test('wallet-only cancellation returns half once and automatic service failure still restores the full value',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}});
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:14900,freeWashes:0});
+ const b=await service.createBooking(customer,{...input('wallet-only'),useCredit:true,expectedAmountPaise:0});
+ await service.checkout(customer,b);assert.equal(counter,0);clock+=300001;
+ const q=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ await service.cancel(customer,{orderId:b.bookingId,confirmation:q.confirmation});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7450);
+ const next=await service.createBooking(customer,{...input('automatic'),useCredit:true,expectedAmountPaise:7450}),c=await service.checkout(customer,next);
+ await service.capturePayment({id:'pay_auto_failure',order_id:c.orderId,amount:7450,currency:'INR',status:'captured'});
+ clock=Date.parse('2026-11-01T10:01:00+05:30');
+ await service.cancel({uid:'customer'},{orderId:next.bookingId},{expired:true});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7450);
+ assert.equal((await db.doc(`refunds/${next.bookingId}`).get()).data().amount,7450);
+ assert.equal((await db.doc(`orders/${next.bookingId}`).get()).data().cancellationFeePaise,0);
+});
+test('a new cancellation policy never relabels an older booking and permitted provider wallets can fund jobs',async()=>{
+ const old=await paid('historical');
+ await db.doc('config/operations').update({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000},paymentPolicy:'no-credit-card-checkout',checkoutPresentation:'allNonCredit',checkoutConfigId:'config_archived'});
+ assert.equal((await service.getCancellationQuote(customer,{orderId:old.bookingId})).quote,null);
+ await service.cancel(customer,{orderId:old.bookingId});
+ assert.equal((await db.doc(`refunds/${old.bookingId}`).get()).data().amount,14900);
+ const b=await service.createBooking(customer,input('provider-wallet')),c=await service.checkout(customer,b);
+ assert.equal(c.checkoutConfigId,null);
+ await service.capturePayment({id:'pay_wallet',order_id:c.orderId,amount:14900,currency:'INR',status:'captured',method:'wallet',wallet:'mobikwik'});
+ assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().status,'searching');
 });
 test('multiple windows choose capacity, expire into the next window and respect captain hours',async()=>{
   for(const uid of ['captain1','captain2'])await service.captainPreferences(auth(uid),{workingWindows:[{startHour:10,endHour:14}]});

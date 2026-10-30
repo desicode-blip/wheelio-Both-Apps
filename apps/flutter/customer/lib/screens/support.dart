@@ -139,6 +139,8 @@ class _HelpScreenState extends State<HelpScreen> {
   @override
   Widget build(BuildContext context) {
     final router = context.router;
+    final currentCancellation = context.store.isLive && context.store.liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit';
+    final questions = [for (final (i, faq) in faqs.indexed) i == 2 && currentCancellation ? (faq.$1, 'Cancel within 5 minutes of booking confirmation for a full refund to your original payment method and restoration of used wallet credit. Later, 50% of the total booking value is a cancellation fee and 50% goes to your wallet for a future booking. Cancellation closes when washing starts.') : faq];
     return WScreen(
       header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Help', trailing: null, onLeading: router.pop)),
       children: [
@@ -146,7 +148,7 @@ class _HelpScreenState extends State<HelpScreen> {
         for (final t in HelpTopic.values) ...[WSelectionTile(icon: t.icon, title: t.title, onTap: () => router.push(R(N.helpCaptain, topic: t))), const SizedBox(height: 10)],
         WSelectionTile(icon: WIcon.warning, title: 'Emergency', subtitle: 'Damage, an accident or a safety worry', iconTone: Tone.error, onTap: () => router.go(N.helpEmergency)),
         const WSectionLabel('Common questions', top: 26),
-        for (final (i, f) in faqs.indexed) ...[
+        for (final (i, f) in questions.indexed) ...[
           Pressable(
             feedback: false,
             onTap: () => setState(() => open = open == i ? null : i),

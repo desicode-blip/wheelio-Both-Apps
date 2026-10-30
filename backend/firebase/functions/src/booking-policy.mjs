@@ -12,6 +12,13 @@ export function walletPrice(basePrice, wallet, { useFreeWash = false, useCredit 
 
 export function cancellationPolicy(config) {
   const p = config?.cancellationPolicy;
+  if (p?.kind === 'refundThenCredit') {
+    if (!Number.isSafeInteger(p.refundMinutes) || p.refundMinutes < 0 || p.refundMinutes > 60 ||
+        !Number.isSafeInteger(p.lateCreditBps) || p.lateCreditBps < 0 || p.lateCreditBps > 10000) {
+      throw new Error('Cancellation policy is not configured.');
+    }
+    return {kind:'refundThenCredit',refundMinutes:p.refundMinutes,lateCreditBps:p.lateCreditBps};
+  }
   if (p?.kind !== 'wallet') return { kind: 'refund' };
   if (!Number.isSafeInteger(p.freeWashMinutes) || p.freeWashMinutes < 0 || p.freeWashMinutes > 60 ||
       !Number.isSafeInteger(p.lateCreditBps) || p.lateCreditBps < 0 || p.lateCreditBps > 10000) {
@@ -22,6 +29,16 @@ export function cancellationPolicy(config) {
 
 export function cancellationBenefit(order, now) {
   const p = order.cancellationPolicy ?? { kind: 'refund' };
+  if (p.kind === 'refundThenCredit' && order.paymentStatus === 'captured') {
+    // Existing promotional free-wash entitlements are restored, never converted
+    // into spendable money or multiplied by cancelling a free booking.
+    if (order.freeWashUsed) return {kind:'walletRestored',freeWashes:0,creditPaise:0,cashRefundPaise:0,feePaise:0};
+    const cash=order.pricePaise,credit=order.creditUsedPaise??0,total=cash+credit;
+    const start=(order.bookedAt??order.createdAt)?.toMillis?.()??now;
+    if(now-start<=p.refundMinutes*60000) return {kind:'refund',freeWashes:0,creditPaise:credit,cashRefundPaise:cash,feePaise:0,restoreReserved:false};
+    const returned=Math.floor(total*p.lateCreditBps/10000);
+    return {kind:'credit',freeWashes:0,creditPaise:returned,cashRefundPaise:0,feePaise:total-returned,restoreReserved:false};
+  }
   if (p.kind !== 'wallet' || order.paymentStatus !== 'captured') return null;
   // An entirely wallet-funded booking restores its original entitlement; it
   // cannot manufacture another free wash or additional credit by cancellation.

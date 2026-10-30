@@ -40,7 +40,18 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-admin-approval') {
+  if(command==='configure-payment-methods') {
+    const current=await api('/config/operations');
+    if(current.fields?.paymentMode?.stringValue!=='live'||current.fields?.paymentMerchant?.stringValue!=='washkrew')throw Error('Verify the separate WashKrew live merchant before changing new checkout presentation.');
+    await api('/config/operations?updateMask.fieldPaths=checkoutPresentation&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({checkoutPresentation:'allNonCredit'})});
+    console.log('New orders use explicit runtime UPI, debit-card, netbanking and provider-wallet groups instead of pinning the historical saved checkout layout. The saved configuration ID, merchant keys, funding ban and existing order snapshots are preserved. No payment was created.');
+  } else if(command==='configure-cancellation-refund-wallet') {
+    const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/getCancellationQuote',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+    if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify getCancellationQuote before activating the new cancellation terms.');
+    const current=await api('/config/operations');
+    await api('/config/operations?updateMask.fieldPaths=cancellationPolicy&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({cancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}})});
+    console.log('New bookings: original-method cash refund and reserved-credit restoration within five minutes of confirmation; later, 50% of total cash-plus-wallet value is a fee and 50% returns to the wallet. Existing booking snapshots, merchant, payment mode and balances were preserved.');
+  } else if(command==='configure-admin-approval') {
     const current=await api('/config/operations');
     await api('/config/operations?updateMask.fieldPaths=training.enabled&updateMask.fieldPaths=training.required&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:{training:{mapValue:{fields:fields({enabled:false,required:false})}}}});
     console.log('Training and quiz are hidden and not required. Human admin approval still gates work. No Captain was approved and no training completion was awarded. Other configuration was preserved.');
@@ -143,7 +154,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
+    const names=['registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;
@@ -193,6 +204,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-storage-rules | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
+  } else throw Error('Commands: configure-cancellation-refund-wallet | configure-payment-methods | configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-storage-rules | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

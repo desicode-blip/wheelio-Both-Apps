@@ -50,7 +50,7 @@ class VehicleType {
   final VehicleKind kind;
   final String name;
   final int minutes;
-  final int price;
+  final num price;
 
   String get shortName => switch (kind) {
     VehicleKind.bike => 'Scooter',
@@ -202,9 +202,8 @@ class Customer {
   String name;
   int freeWashes;
 
-  /// Rupees from bookings cancelled after the first 15 minutes (50% of the price).
-  /// Comes off the next booking.
-  int credit = 0;
+  /// Wallet credit in rupees, preserving paise, usable for the next booking.
+  num credit = 0;
   bool notificationsOn;
 
   /// Saved the first time we need to send a refund (UPI only for now). Editable in Profile.
@@ -273,7 +272,7 @@ enum PaymentOutcome { success, failed, pending }
 
 class Refund {
   Refund({required this.amount, required this.startedAt, required this.method, required this.bankRef, this.credited = false, this.needsUPI = false, this.upi});
-  final int amount;
+  final num amount;
   DateTime startedAt;
   String method;
   final String bankRef;
@@ -330,10 +329,17 @@ class Order {
     String? cancellationReason;
   bool testPayment = false;
   DateTime? serverSlotStart;
+  DateTime? bookedAt;
+  Map<String, dynamic>? cancellationOutcome;
+  bool walletReleased = false;
+  num get returnedWalletCredit => cancellationOutcome?['restoreReserved'] == false
+      ? (cancellationOutcome?['creditPaise'] as num? ?? 0) / 100
+      : (walletReleased ? creditUsed : 0) + (cancellationOutcome?['creditPaise'] as num? ?? 0) / 100;
   Map<String, dynamic>? liveCancelPolicy;
   String get cancellationTerms {
     final p = liveCancelPolicy;
     if (paymentStatus != 'captured') return 'No payment has been confirmed. Any reserved free wash or credit will be restored.';
+    if (p?['kind'] == 'refundThenCredit') return 'Within ${p?['refundMinutes']} minutes of confirmation, your payment returns to its original method and used wallet credit is restored. Later, 50% of the total booking value is a cancellation fee and 50% returns to your wallet.';
     if (price == 0) return 'Your reserved free wash or credit will be restored. No cash payment was taken.';
     if (p?['kind'] != 'wallet') return 'Eligible payment is refunded to the original payment method, less any configured cancellation fee. Reserved credit is restored.';
     final minutes = (p?['freeWashMinutes'] as num).toInt();
@@ -371,17 +377,33 @@ class Order {
 
   final String id;
 
-  /// Cancelled by the customer within 15 minutes: no refund, 1 free wash added to their account.
+  /// An entitlement awarded under a saved legacy free-wash cancellation policy.
   bool freeWashGiven = false;
 
-  /// Cancelled after 15 minutes: rupees credited for the next booking (50%).
-  int creditGiven = 0;
+  /// Server-recorded wallet return, in rupees with paise retained.
+  num creditGiven = 0;
 
   /// Credit from an earlier cancellation used to pay for this booking.
-  int creditUsed = 0;
+  num creditUsed = 0;
 
   /// What the booking was worth: the price paid plus any credit, or the full wash price for a free wash.
-  int get value => usedFreeWash ? vehicle.type.price : price + creditUsed;
+  num get value => usedFreeWash ? vehicle.type.price : price + creditUsed;
+
+  String? get cancellationSummary {
+    final outcome = cancellationOutcome;
+    if (liveCancelPolicy?['kind'] != 'refundThenCredit') return null;
+    if (outcome == null) {
+      if (!walletReleased) return null;
+      final cash = refund?.amount ?? 0;
+      return '${cash > 0 ? '${Fmt.rupees(cash)} refund requested to your original payment method. ' : ''}${usedFreeWash ? 'Your free wash has been restored.' : '${Fmt.rupees(returnedWalletCredit)} wallet credit restored.'} No cancellation fee.';
+    }
+    final wallet = (outcome['creditPaise'] as num? ?? 0) / 100;
+    final cash = (outcome['cashRefundPaise'] as num? ?? 0) / 100;
+    final fee = (outcome['feePaise'] as num? ?? 0) / 100;
+    if (outcome['kind'] == 'walletRestored') return 'Your free wash has been restored. No cash payment was taken.';
+    if (outcome['kind'] == 'credit') return '${Fmt.rupees(wallet)} added to your wallet for a future booking. ${Fmt.rupees(fee)} retained as the cancellation fee. No cash refund.';
+    return '${cash > 0 ? '${Fmt.rupees(cash)} refund requested to your original payment method. ' : ''}${wallet > 0 ? '${Fmt.rupees(wallet)} wallet credit restored. ' : ''}No cancellation fee.';
+  }
 
   /// Still before the slot starts (nothing to wash or photograph yet).
   bool get slotAhead => (serverSlotStart ?? slot.start).isAfter(DateTime.now());
@@ -403,7 +425,7 @@ class Order {
   final Vehicle vehicle;
   final Place place;
   TimeSlot slot;
-  final int price;
+  final num price;
   OrderStatus status;
   final DateTime createdAt;
   EntryNote note;
@@ -441,7 +463,7 @@ class Order {
   String get vehicleLine => '${vehicle.plate} · ${vehicle.type.shortName}';
 }
 
-/// Business values not decided yet. While null the UI shows the placeholder text from the designs.
+/// Disconnected design/reference defaults. Live money rules use saved server terms.
 class BusinessRules {
   /// Cancelling within this long after booking: no refund, 1 free wash instead.
   static const cancelWindow = Duration(minutes: 15);
@@ -449,7 +471,7 @@ class BusinessRules {
   /// Cancelling later (until the wash starts): this share of the price becomes credit
   /// for the next booking. No cash refund either way.
   static const lateCancelCreditPercent = 50;
-  static int lateCancelCredit(int price) => (price * lateCancelCreditPercent / 100).round();
+  static int lateCancelCredit(num price) => (price * lateCancelCreditPercent / 100).round();
   static const int? cancellationFee = null;
   static const int? waitFee = null;
 

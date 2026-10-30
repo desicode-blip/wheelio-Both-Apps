@@ -1,3 +1,21 @@
+# Five-minute refund/wallet and all non-credit checkout - 30 October 2026
+
+[REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md) records
+the owner-confirmed policy, atomic credit handling and exact gateway controls.
+New `getCancellationQuote` stays in the existing Firebase service, requires the
+requesting Customer's phone-authenticated account and checks booking ownership.
+Removed Customer roles cannot request it. New-policy creation requires accepted
+terms, and cancellation requires the current server quote; expiry requires a
+fresh explicit confirmation. Service-failure refunds and historical obligations
+remain intact. `configure-cancellation-refund-wallet` changes only the future
+policy; `configure-payment-methods` changes only new checkout presentation.
+
+New test fixtures use local emulator data, provider adapters and widget futures,
+including a refreshed simulated Captain heartbeat after a seven-minute checkout.
+The real heartbeat/claim gate is not weakened. Fonts are loaded in widget tests
+to measure the existing phone layout, not replaced to hide an overflow. There is
+no new provider, app timer/test button, production fixture or real-money test.
+
 # Customer availability preload/cache follow-up - 30 October 2026
 
 [CLIENT-AVAILABILITY-2026-10-30.md](CLIENT-AVAILABILITY-2026-10-30.md) records the

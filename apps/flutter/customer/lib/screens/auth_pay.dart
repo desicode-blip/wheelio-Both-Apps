@@ -504,7 +504,7 @@ class BookedScreen extends StatelessWidget {
         if (store.isLive && o?.captain != null)
           WBanner(tone: Tone.info, icon: WIcon.search, text: '${o!.captain!.name} accepted your booking. Open tracking for the latest status.')
         else if (o != null && o.slotAhead)
-          const WBanner(tone: Tone.info, icon: WIcon.calendar, text: 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
+          WBanner(tone: Tone.info, icon: WIcon.calendar, text: store.isLive && o.liveCancelPolicy?['kind'] == 'refundThenCredit' ? 'We’ll assign a captain before your slot and notify you. Cancel within 5 minutes of confirmation for a full refund. Later: 50% cancellation fee and 50% wallet credit, until washing starts.' : 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
         else
           const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),
       ],

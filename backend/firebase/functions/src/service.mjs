@@ -216,6 +216,7 @@ export class WashKrewService {
         address = request.address;
       }
       const policy = cancellationPolicy(config);
+      if(policy.kind==='refundThenCredit'&&(!data.acceptedCancellationPolicy||['kind','refundMinutes','lateCreditBps'].some(k=>data.acceptedCancellationPolicy[k]!==policy[k])))fail('failed-precondition','Reopen the latest app and review the cancellation terms before paying.');
       tx.set(ref, {
         customerId: uid, customerFirstName: profile.data().name.split(' ')[0], captainId: null,
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
@@ -229,7 +230,7 @@ export class WashKrewService {
         ...pricing, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
         captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
-        paymentPolicy:config.paymentPolicy??null,checkoutConfigId:config.checkoutConfigId??null,
+        paymentPolicy:config.paymentPolicy??null,checkoutPresentation:config.checkoutPresentation??null,checkoutConfigId:config.checkoutPresentation==='allNonCredit'?null:config.checkoutConfigId??null,
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
         evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
       });
@@ -382,6 +383,7 @@ export class WashKrewService {
     const selection=canReserve?windows[selected]:null;
     const cashRefund=!canReserve&&o.pricePaise>0;
     tx.update(ref,{paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
+      ...(canReserve?{bookedAt:Timestamp.fromMillis(this.now())}:{}),
       status:canReserve?'searching':'cancelled',capacityReserved:canReserve,
       ...(canReserve?{...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
         {cancellationReason:rejectionReason??'slotUnavailable',refundStatus:cashRefund?'queued':'none',walletReleased:!!o.walletReserved}),updatedAt:stamp()});
@@ -397,7 +399,7 @@ export class WashKrewService {
   restoreWallet(tx, wallet, order, benefit = null) {
     const restore=order.walletReserved&&!order.walletReleased;
     const free=(restore&&order.freeWashUsed?1:0)+(benefit?.freeWashes??0);
-    const credit=(restore?(order.creditUsedPaise??0):0)+(benefit?.creditPaise??0);
+    const credit=(restore&&benefit?.restoreReserved!==false?(order.creditUsedPaise??0):0)+(benefit?.creditPaise??0);
     if(free||credit)tx.set(wallet.ref,{customerId:order.customerId,paymentMode:order.paymentMode,
       freeWashes:(wallet.data()?.freeWashes??0)+free,creditPaise:(wallet.data()?.creditPaise??0)+credit,updatedAt:stamp()},{merge:true});
   }
@@ -731,6 +733,18 @@ export class WashKrewService {
     });
     return {ok:true};
   }
+  cancellationQuote(orderId,order,now=this.now()) {
+    const benefit=cancellationBenefit(order,now);
+    if(order.cancellationPolicy?.kind!=='refundThenCredit'||!benefit)return null;
+    const values={orderId,kind:benefit.kind,cashRefundPaise:benefit.cashRefundPaise??0,walletCreditPaise:benefit.creditPaise??0,feePaise:benefit.feePaise??0,freeWashesRestored:order.freeWashUsed?1:0};
+    return {...values,confirmation:hash(JSON.stringify(values)),currency:'INR',refundMinutes:order.cancellationPolicy.refundMinutes,refundDeadlineAt:dateMillis(order.bookedAt??order.createdAt)+order.cancellationPolicy.refundMinutes*60000};
+  }
+  async getCancellationQuote(auth,data) {
+    const uid=this.actor(auth),orderId=id(data.orderId),order=(await this.db.doc(`orders/${orderId}`).get()).data();
+    if(!order||order.customerId!==uid)fail('permission-denied','This booking is not yours.');
+    if(!['pendingPayment','searching','onTheWay'].includes(order.status))fail('failed-precondition','This booking can no longer be cancelled.');
+    return {quote:this.cancellationQuote(orderId,order)};
+  }
   async cancel(auth,data,{expired = false, paymentExpired = false} = {}) {
     const uid=expired||paymentExpired?auth.uid:this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
@@ -740,22 +754,27 @@ export class WashKrewService {
       if(paymentExpired && (o.status!=='pendingPayment'||dateMillis(o.paymentExpiresAt)>this.now()))return;
       if(expired && (dateMillis(o.slotEnd)>this.now() || o.arrivedAt))return;
       if(!['pendingPayment','searching','onTheWay'].includes(o.status))fail('failed-precondition','Contact support to cancel a wash that has started.');
-      const benefit=!expired&&!paymentExpired?cancellationBenefit(o,this.now()):null;
-      const fee=!benefit&&!expired&&o.status==='onTheWay'?cfg.data()?.cancellationFeePaise:0;
-      if(!Number.isSafeInteger(fee)||fee<0||fee>o.pricePaise)fail('failed-precondition','Cancellation terms are not configured. Contact support.');
+      const cancelledAt=this.now();
+      const benefit=!expired&&!paymentExpired?cancellationBenefit(o,cancelledAt):null;
+      const quote=!expired&&!paymentExpired?this.cancellationQuote(orderId,o,cancelledAt):null;
+      if(quote&&data.confirmation!==quote.confirmation)fail('failed-precondition','Cancellation terms have changed. Review the amounts and confirm again.');
+      const fee=benefit?.feePaise??(!benefit&&!expired&&o.status==='onTheWay'?cfg.data()?.cancellationFeePaise:0);
+      const feeLimit=benefit?.restoreReserved===false?o.pricePaise+(o.creditUsedPaise??0):o.pricePaise;
+      if(!Number.isSafeInteger(fee)||fee<0||fee>feeLimit)fail('failed-precondition','Cancellation terms are not configured. Contact support.');
       const slot=o.capacityReserved?await tx.get(this.db.doc(`slotCapacity/${o.slotKey}`)):null;
       const captain=o.captainId?await tx.get(this.db.doc(`captains/${o.captainId}`)):null;
       const offers=await tx.get(this.db.collection('jobOffers').where('orderId','==',orderId));
       const wallet=await tx.get(this.walletRef(uid,o.paymentMode));
-      const refund=o.paymentStatus==='captured'&&!benefit&&o.pricePaise>0;
+      const refundAmount=o.paymentStatus==='captured'?(benefit?benefit.cashRefundPaise??0:o.pricePaise-fee):0;
+      const refund=refundAmount>0;
       tx.update(ref,{status:'cancelled',cancelledAt:stamp(),capacityReserved:false,walletReleased:!!o.walletReserved,
         ...(benefit?{cancellationBenefit:benefit}:{}),cancellationReason:paymentExpired?'paymentExpired':expired?'slotExpired':'customerCancelled',
-        refundStatus:refund?'queued':'none',refundAmountPaise:refund?o.pricePaise-fee:0,updatedAt:stamp()});
+        refundStatus:refund?'queued':'none',refundAmountPaise:refundAmount,cancellationFeePaise:fee,updatedAt:stamp()});
       this.restoreWallet(tx,wallet,o,benefit);
       if(slot)tx.set(slot.ref,{reserved:Math.max(0,(slot.data()?.reserved??1)-1)},{merge:true});
       if(captain?.exists)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),updatedAt:stamp()});
       for(const offer of offers.docs)tx.update(offer.ref,{status:'withdrawn',updatedAt:stamp()});
-      if(refund)tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:o.pricePaise-fee,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
+      if(refund)tx.set(this.db.doc(`refunds/${orderId}`),{bookingId:orderId,customerId:uid,paymentId:o.razorpayPaymentId,amount:refundAmount,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
       this.event(tx,ref,'customerCancelled',{status:'cancelled'});
     });
     return {ok:true};

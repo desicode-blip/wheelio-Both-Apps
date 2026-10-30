@@ -96,6 +96,7 @@ export const updateCaptainLocation = callable('location', false, true);
 export const approveWash = callable('approve');
 export const rateWash = callable('rate');
 export const cancelBooking = callable('cancel');
+export const getCancellationQuote = callable('getCancellationQuote');
 export const reportWashProblem = callable('reportProblem');
 export const recordCaptainDisputeResponse = callable('captainDisputeResponse');
 export const createSupportRequest = callable('supportRequest');

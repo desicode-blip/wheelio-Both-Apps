@@ -1,0 +1,247 @@
+{
+  "checkedAt": "2026-10-30T12:46:45.292Z",
+  "sourceBase": "d648769",
+  "project": "wheelio-apps",
+  "configuration": {
+    "paymentMode": "live",
+    "paymentMerchant": "washkrew",
+    "paymentPolicy": "no-credit-card-checkout",
+    "checkoutPresentation": "allNonCredit",
+    "archivedCheckoutConfigId": "config_TtDpJ7HJM4hHb2",
+    "cancellationPolicy": {
+      "lateCreditBps": 5000,
+      "kind": "refundThenCredit",
+      "refundMinutes": 5
+    },
+    "trainingEnabled": false,
+    "trainingRequired": false
+  },
+  "functions": [
+    {
+      "name": "createBooking",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:29.037625523Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "createCheckout",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:27.096616398Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "verifyPayment",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:26.940401446Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "checkPayment",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:27.190766544Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "razorpayWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:27.312958969Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "razorpayLiveWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:26.495221279Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "washkrewRazorpayLiveWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:27.182757186Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "getCancellationQuote",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:15.075545881Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi",
+      "service": "projects/wheelio-apps/locations/asia-south1/services/getcancellationquote"
+    },
+    {
+      "name": "cancelBooking",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:25.570617557Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "updateVehicleHelp",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:26.590504683Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "maintainBookings",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T11:59:29.797121359Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "getAvailability",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-30T08:09:40.547780682Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    }
+  ],
+  "quoteGatewayEnabled": true,
+  "authGates": [
+    {
+      "name": "getCancellationQuote",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "cancelBooking",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "createBooking",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "createCheckout",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "claimJob",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "reviewCaptainApplication",
+      "unsignedStatus": 401
+    }
+  ],
+  "availability": {
+    "status": 200,
+    "windows": [
+      {
+        "startHour": 4,
+        "endHour": 6
+      },
+      {
+        "startHour": 6,
+        "endHour": 8
+      },
+      {
+        "startHour": 8,
+        "endHour": 10
+      },
+      {
+        "startHour": 10,
+        "endHour": 12
+      },
+      {
+        "startHour": 12,
+        "endHour": 14
+      },
+      {
+        "startHour": 14,
+        "endHour": 16
+      },
+      {
+        "startHour": 16,
+        "endHour": 18
+      },
+      {
+        "startHour": 18,
+        "endHour": 20
+      },
+      {
+        "startHour": 20,
+        "endHour": 22
+      }
+    ]
+  },
+  "tests": {
+    "backendPassed": 138,
+    "backendFailed": 0,
+    "flutterPassed": 70,
+    "flutterFailed": 0,
+    "analysesPassed": 4,
+    "releaseWebBuilds": [
+      "customer",
+      "captain"
+    ]
+  },
+  "design": {
+    "captainUnchanged": true,
+    "nativeSourcesUnchanged": true,
+    "sharedLayoutsTokensFontsBrandUnchanged": true,
+    "changes": "Existing Customer controls receive policy copy, quote state, amount precision and payment-method rows; no replacement layout"
+  },
+  "artifacts": [
+    {
+      "name": "customer",
+      "status": 200,
+      "sha256": "648033e72e4547b261a5698e265cb87bf9e681e50b57b7b61a09e5a03c776a4e",
+      "matchesVerifiedLocalBuild": true
+    },
+    {
+      "name": "captain",
+      "status": 200,
+      "sha256": "53575831aad77afe0d853f74c26176a745d96bd8095ffd123e8d186f1284d3eb",
+      "matchesVerifiedLocalBuild": true
+    },
+    {
+      "name": "admin",
+      "status": 200,
+      "sha256": "77d66ac279000d560f5d1af596dea5dec32f2e8d2d9a28ba686216ae298f9b19",
+      "matchesVerifiedLocalBuild": true
+    }
+  ],
+  "hosting": {
+    "release": "sites/wheelio-apps/releases/1793364135342000",
+    "version": "sites/wheelio-apps/versions/4fe56de24040da76",
+    "releasedAt": "2026-10-30T12:42:15.342Z"
+  },
+  "merchantReadback": {
+    "liveKeysAuthenticate": true,
+    "methodsStatus": 200,
+    "upi": true,
+    "cards": true,
+    "netbankingBankCount": 44,
+    "wallets": [
+      "airtelmoney",
+      "mobikwik",
+      "olamoney",
+      "payzapp"
+    ]
+  },
+  "limits": [
+    "No actual live charge/refund or physical iPhone acceptance performed",
+    "No production test user, Captain, booking, wallet credit or approval created",
+    "Saved Razorpay dashboard configuration not inspected after Computer Use URL safety stop; new orders use explicit runtime groups",
+    "APNs key remains pending from Aman"
+  ]
+}

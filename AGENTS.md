@@ -34,10 +34,21 @@
   Unapproved Captains cannot work. No placeholder grants training/quiz/KYC success.
   Keep the feature code for a later explicit owner decision to restore it.
 - New bookings use the **separate WashKrew LIVE Razorpay merchant**, policy
-  `no-credit-card-checkout`, saved config `config_TtDpJ7HJM4hHb2`. UPI (including
-  linked credit cards), debit cards and netbanking are allowed; direct credit-card
-  checkout/EMI/paylater are excluded. Do not regenerate old shared keys. Historical
+  `no-credit-card-checkout`. Owner clarification (30 October): expose all supported
+  UPI apps, debit cards, netbanking and provider wallets; EMI/paylater remain hidden.
+  `checkoutPresentation: allNonCredit` uses explicit runtime groups without pinning
+  the older saved layout. Keep `config_TtDpJ7HJM4hHb2` for historical records.
+  Credit-linked UPI stays allowed. Do not regenerate old shared keys. Historical
   payment/refund records keep their original merchant and mode; never relabel them.
+- Owner-confirmed Customer cancellation policy (30 October): new bookings snapshot
+  `refundThenCredit`, five minutes from server booking confirmation. Within five
+  minutes, refund cash to its original method and restore used wallet credit.
+  Later (before washing), retain 50% of total cash-plus-wallet booking value as
+  the fee and return 50% to the WashKrew wallet. Account in integer paise; never
+  restore the used credit again on top of that 50%. The existing review/cancel/
+  wallet controls display the amounts. Require a current server quote before
+  applying the cancellation. Preserve historical saved terms and full service-
+  failure refunds. Read `docs/REFUND-WALLET-CHECKOUT-2026-10-30.md`.
 - Payment cutover does not establish live charge/refund or physical acceptance.
   Read `docs/LIVE-PAYMENTS-2026-10-28.md` and `docs/COMPLETION-2026-10-28.md`.
   Private photo services support test/live, with fresh five-minute selfie sessions;

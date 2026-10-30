@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart' show backendError;
 
 import '../data/models.dart';
 import '../data/store.dart';
@@ -154,7 +155,7 @@ class CaptainCard extends StatelessWidget {
 /// "₹149 is held safely. It's released to the captain only after you approve the after-photos."
 class HeldSafelyBanner extends StatelessWidget {
   const HeldSafelyBanner({super.key, required this.amount});
-  final int amount;
+  final num amount;
   @override
   Widget build(BuildContext context) => Container(
     width: double.infinity,
@@ -287,8 +288,7 @@ class ProfilePhotoPicker extends StatelessWidget {
 }
 
 
-/// "Cancel booking · 12 min left". Shown only while the 15-minute cancel window is open;
-/// opens the cancel sheet for this order. Counts down by itself.
+/// Cancel before washing starts; the sheet confirms the saved refund/fee terms.
 class CancelLink extends StatefulWidget {
   const CancelLink({super.key, required this.order, this.compact = false});
   final Order order;
@@ -329,7 +329,7 @@ void openCancelSheet(BuildContext context, Order o) {
   showWSheet<void>(context, height: 480, builder: (c) => AppScope(store: store, router: context.router, child: const CancelSheet()));
 }
 
-// MARK: C29 Cancel sheet: within 15 minutes of booking, no refund, 1 free wash instead.
+// MARK: C29 Cancel sheet. Live quotes use the saved policy; reference states stay intact.
 
 class CancelSheet extends StatefulWidget {
   const CancelSheet({super.key});
@@ -341,6 +341,49 @@ class _CancelSheetState extends State<CancelSheet> {
   String? reason;
   bool loading = false;
   String? error;
+  String? _quoteOrderId;
+  Map<String, dynamic>? _quote;
+  bool _checkingTerms = false;
+  int _quoteRevision = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final store = context.store, order = store.currentOrder;
+    if (store.isLive && order?.liveCancelPolicy?['kind'] == 'refundThenCredit' && order?.paymentStatus == 'captured' && _quoteOrderId != order!.id) {
+      _quoteOrderId = order.id;
+      _loadQuote();
+    }
+  }
+
+  Future<void> _loadQuote({bool keepError = false}) async {
+    final store = context.store, id = _quoteOrderId;
+    if (id == null) return;
+    final revision = ++_quoteRevision;
+    setState(() { _checkingTerms = true; _quote = null; if (!keepError) error = null; });
+    try {
+      final quote = await store.cancellationQuote(id);
+      if (quote == null || quote['orderId'] != id || quote['currency'] != 'INR' || quote['confirmation'] is! String ||
+          ['cashRefundPaise', 'walletCreditPaise', 'feePaise', 'freeWashesRestored'].any((k) => quote[k] is! int || (quote[k] as int) < 0)) {
+        throw StateError('Cancellation terms could not be confirmed. Please retry.');
+      }
+      if (mounted && revision == _quoteRevision && _quoteOrderId == id) setState(() => _quote = quote);
+    } catch (e) {
+      if (mounted && revision == _quoteRevision) setState(() => error = e is StateError ? e.message : backendError(e));
+    } finally {
+      if (mounted && revision == _quoteRevision) setState(() => _checkingTerms = false);
+    }
+  }
+
+  String get _quoteText {
+    final q = _quote;
+    if (_checkingTerms) return 'Checking cancellation terms…';
+    if (q == null) return 'Confirm the cancellation amounts before cancelling.';
+    final cash = (q['cashRefundPaise'] as int) / 100, wallet = (q['walletCreditPaise'] as int) / 100, fee = (q['feePaise'] as int) / 100;
+    if (q['freeWashesRestored'] > 0) return 'Your reserved free wash will be restored. No cash refund.';
+    if (q['kind'] == 'credit') return 'Cancellation fee: ${Fmt.rupees(fee)} (50%). ${Fmt.rupees(wallet)} (50%) goes to your wallet for a future booking. No cash refund.';
+    return '${cash > 0 ? '${Fmt.rupees(cash)} returns to your original payment method. ' : ''}${wallet > 0 ? '${Fmt.rupees(wallet)} wallet credit is restored. ' : ''}No cancellation fee.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -358,6 +401,7 @@ class _CancelSheetState extends State<CancelSheet> {
     }
     // Live bookings follow the server's saved policy; the screen is the same design.
     final policy = o!.liveCancelPolicy;
+    final quoted = store.isLive && policy?['kind'] == 'refundThenCredit' && o.paymentStatus == 'captured';
     final wallet = !store.isLive || (policy?['kind'] == 'wallet' && o.paymentStatus == 'captured' && o.price > 0);
     final early = store.isLive && wallet
         ? DateTime.now().difference(o.createdAt).inSeconds <= (policy!['freeWashMinutes'] as num).toInt() * 60
@@ -369,7 +413,9 @@ class _CancelSheetState extends State<CancelSheet> {
         const WText('Cancel this booking?', WType.section, weight: semibold),
         const SizedBox(height: 14),
         // Say exactly what they get back before they confirm.
-        if (!wallet)
+        if (quoted)
+          WBanner(tone: Tone.ok, icon: WIcon.rupee, text: _quoteText)
+        else if (!wallet)
           WBanner(tone: Tone.ok, icon: WIcon.rupee, text: o.cancellationTerms)
         else if (early)
           const WBanner(tone: Tone.ok, icon: WIcon.gift, title: 'You get 1 free wash', text: 'For your next booking. No cash refund.')
@@ -386,21 +432,25 @@ class _CancelSheetState extends State<CancelSheet> {
         WFlow(children: [for (final r in const ['Changed plans', 'Booked by mistake', 'Wrong time', 'Other']) WChip(r, selected: reason == r, onTap: () => setState(() => reason = r))]),
         if (error != null) ...[const SizedBox(height: 12), WText(error!, WType.caption, color: WColor.destructive)],
         const SizedBox(height: 18),
-        WButton('Cancel booking', kind: ButtonKind.danger, loading: loading, onTap: () async {
+        WButton(quoted && _quote == null && !_checkingTerms ? 'Retry' : 'Cancel booking', kind: ButtonKind.danger, loading: loading || _checkingTerms, onTap: () async {
+          if (quoted && _quote == null) { await _loadQuote(); return; }
           final nav = Navigator.of(context);
           setState(() {
             loading = true;
             error = null;
           });
           try {
-            await store.cancel(o.id);
-            store.set(() => store.toast = !wallet ? 'Booking cancelled.' : early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
+            await store.cancel(o.id, confirmation: quoted ? _quote!['confirmation'] as String : null);
+            if (!mounted) return;
+            store.set(() => store.toast = quoted || !wallet ? 'Booking cancelled.' : early ? 'Booking cancelled. 1 free wash added.' : 'Booking cancelled. ${Fmt.rupees(credit)} credit added.');
             nav.pop();
           } catch (e) {
+            if (!mounted) return;
             setState(() {
               loading = false;
-              error = e is StateError ? e.message : 'Couldn’t cancel. Please try again.';
+              error = e is StateError ? e.message : backendError(e);
             });
+            if (quoted) await _loadQuote(keepError: true);
           }
         }),
         const SizedBox(height: 10),

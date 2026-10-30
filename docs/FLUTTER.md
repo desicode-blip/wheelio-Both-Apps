@@ -1,3 +1,12 @@
+# Cancellation, wallet and payment choice - 30 October 2026
+
+Read [REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md).
+The owner confirmed five-minute original-method refunds, then 50% fee/50% wallet
+based on total paid cash plus credit. Existing Review/cancel/result/credit controls
+carry the terms, server-confirmed quote and paise-accurate amounts. Checkout shows
+all supported UPI, debit-card, netbanking and provider-wallet groups; EMI/paylater
+remain hidden. No replacement app design or native project change was made.
+
 # Customer preload/cache follow-up - 30 October 2026
 
 Read [CLIENT-AVAILABILITY-2026-10-30.md](CLIENT-AVAILABILITY-2026-10-30.md). Real
