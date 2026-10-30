@@ -1,5 +1,10 @@
 # Slot startup without paid idle instances - 30 October 2026
 
+Later follow-up: Ajay's agent implemented earlier Customer preloading and cache
+context/request-order fixes; read [CLIENT-AVAILABILITY-2026-10-30.md](CLIENT-AVAILABILITY-2026-10-30.md).
+Aman's task is now [Apple key preparation only](AMAN-CLAUDE-APNS-KEY-ONLY-2026-10-30.md).
+The measurements below describe the prior backend-only change.
+
 The owner chose to pursue lower waiting time without enabling the proposed
 roughly US$9/month idle-instance baseline. `interactiveWarmMinimum` remains **0**;
 normal request/database/storage/SMS usage is still metered. No keep-alive timer,
@@ -70,8 +75,7 @@ device timings must be measured before claiming the desired user experience.
 Do not prefetch all societies or rely on stale capacity for payment/assignment.
 
 [AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md](AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md)
-contains the forwardable Mac task. It also clarifies that the APNs `.p8` stays
-private and outside Git. Per the owner's clarification, Aman privately transfers
-the Apple key/details to Ajay; Ajay's side handles Firebase configuration. Aman
-commits only tested source changes and a secret-free result/configuration note,
-then tests phone notification delivery after Ajay confirms the setup.
+now points to the key-only prompt, superseding the earlier combined task. The
+APNs `.p8` stays private and outside Git. Aman privately transfers key/details to
+Ajay; Ajay's side handles Firebase configuration and software work. Later actual
+phone delivery tests follow Ajay's configuration confirmation.

@@ -1,3 +1,12 @@
+# Customer availability preload/cache follow-up - 30 October 2026
+
+[CLIENT-AVAILABILITY-2026-10-30.md](CLIENT-AVAILABILITY-2026-10-30.md) records the
+earlier known-society preload, context invalidation and shared pending requests.
+The existing getAvailability single-day API and refresh timer are retained. No
+new service, app timer/test control, fake availability or production data is
+added. New tests use isolated futures/profile state only. APNs remains pending
+Aman's privately transferred key; Ajay's side will configure Firebase.
+
 # Slot startup without idle-instance charges - 30 October 2026
 
 The owner chose the on-demand approach: optional warming stays at zero. Private

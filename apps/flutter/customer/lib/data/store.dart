@@ -15,6 +15,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
+import 'availability_cache.dart';
 
 // MARK: Routes
 
@@ -348,6 +349,11 @@ class AppStore extends ChangeNotifier {
   bool backendReady = false;
   bool bookingsEnabled = false;
   bool testPayments = false;
+  final _availability = BookingAvailabilityCache();
+  int _availabilityRevision = 0;
+  String _availabilityPolicy = '';
+  (String, String, DateTime)? _prefetchedAvailability;
+  String get availabilityContext => '${live?.uid ?? _liveUid}:${testPayments ? 'test' : 'live'}:$_availabilityRevision';
   String? backendMessage;
   List<Society> liveSocieties = [];
   List<(int, int)> liveWindows = [];
@@ -447,8 +453,14 @@ class AppStore extends ChangeNotifier {
                 if (s['active'] == true) Society(s['id'], s['name'], s['area'], s['city'] ?? 'Hyderabad', s['pincode'] ?? ''),
             ];
             liveWindows = [for (final w in config['slotWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())];
+            final policy = jsonEncode({for (final key in ['paymentMode', 'bookingsEnabled', 'capacityPerSlot', 'slotWindows', 'societies']) key: config[key]});
+            if (policy != _availabilityPolicy) {
+              _availabilityPolicy = policy;
+              _invalidateAvailability();
+            }
             backendReady = types.isNotEmpty;
             backendMessage = backendReady ? null : 'The booking catalog is unavailable. Check your connection and reopen ${Brand.name}.';
+            _prefetchKnownAvailability();
             changed();
           },
           onError: (Object e) {
@@ -486,6 +498,7 @@ class AppStore extends ChangeNotifier {
 
   void _bindLiveAccount(String uid) {
     _liveUid = uid;
+    _invalidateAvailability();
     for (final s in _accountSubscriptions) {
       s.cancel();
     }
@@ -537,6 +550,7 @@ class AppStore extends ChangeNotifier {
                 }
               }
               savedPlaces = [for (final p in data['savedPlaces'] as List? ?? []) Place(Society(p['societyId'],p['societyName'],p['area']??'',p['city']??'',p['pincode']??''),tower:p['tower']??'',floor:p['floor'],slot:p['parking']??'',latitude:(p['vehiclePosition']?['latitude'] as num?)?.toDouble(),longitude:(p['vehiclePosition']?['longitude'] as num?)?.toDouble())];
+              _prefetchKnownAvailability();
               changed();
             },
             onError: (Object e) {
@@ -681,6 +695,7 @@ class AppStore extends ChangeNotifier {
   @override
   void dispose() {
     _disposed=true;_liveUid='';
+    _invalidateAvailability();
     _preferenceSave?.cancel();
     _walletSubscription?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
@@ -697,6 +712,7 @@ class AppStore extends ChangeNotifier {
     if(_disposed)return;
     final before = isLive ? jsonEncode(_preferences()) : '';
     f();
+    _prefetchKnownAvailability();
     notifyListeners();
     if (isLive && before != jsonEncode(_preferences())) _savePreferences();
   }
@@ -732,29 +748,41 @@ class AppStore extends ChangeNotifier {
     saveDraftPlace().catchError((Object e) => set(() => toast = backendError(e)));
   }
 
-  /// Booking availability, fetched ahead (from the parking screen) and reused for 45 s,
-  /// so "When should we come?" opens with the slots ready. Failures are not kept.
-  final Map<String, (DateTime, Future<Set<int>>)> _availability = {};
-  Future<Set<int>> availabilityFor(String societyId, DateTime day, {bool fresh = false}) {
-    final d = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-    final key = '$societyId:$d';
-    final hit = _availability[key];
-    if (!fresh && hit != null && DateTime.now().difference(hit.$1) < const Duration(seconds: 45)) return hit.$2;
-    final request = live!.call('getAvailability', {'societyId': societyId, 'day': d})
-        .then((r) => {for (final s in r['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()});
-    _availability[key] = (DateTime.now(), request);
-    request.then((_) {}, onError: (Object _) {
-      if (identical(_availability[key]?.$2, request)) _availability.remove(key);
-    });
-    return request;
+  void _invalidateAvailability() {
+    _availabilityRevision++;
+    _availability.clear();
+    _prefetchedAvailability = null;
   }
 
-  /// Start loading the next three days' availability for the chosen place.
+  /// Account/catalog identity is also part of the screen's request-order guard.
+  Future<Set<int>> availabilityFor(String societyId, DateTime day, {bool fresh = false}) {
+    final d = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    _availability.setContext(availabilityContext);
+    return _availability.load('$societyId:$d', () async {
+      final r = await live!.call('getAvailability', {'societyId': societyId, 'day': d});
+      return {for (final s in r['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()};
+    }, fresh: fresh);
+  }
+
+  Place? get _availabilityPlace => draft.place ?? savedPlaces.where((p) => liveSocieties.any((s) => s.id == p.society.id)).firstOrNull;
+
+  void _prefetchKnownAvailability() {
+    if (!isLive || !backendReady || _disposed) return;
+    final p = _availabilityPlace;
+    if (p == null) return;
+    final context = (availabilityContext, p.society.id, startOfDay(DateTime.now()));
+    if (_prefetchedAvailability == context) return;
+    _prefetchedAvailability = context;
+    prefetchAvailability();
+  }
+
+  /// Preload only one known society; errors remain retryable on the slot screen.
   void prefetchAvailability() {
-    final p = draft.place;
-    if (!isLive || p == null) return;
+    final p = _availabilityPlace;
+    if (!isLive || !backendReady || _disposed || p == null) return;
+    final today = startOfDay(DateTime.now());
     for (var i = 0; i < 3; i++) {
-      availabilityFor(p.society.id, addDays(startOfDay(DateTime.now()), i));
+      unawaited(availabilityFor(p.society.id, addDays(today, i)).then<void>((_) {}, onError: (Object _, StackTrace _) {}));
     }
   }
 
@@ -1075,6 +1103,7 @@ class AppStore extends ChangeNotifier {
     draftPhotoBytes.clear();
     draftMedia.clear();
     draft = BookingDraft(type: v.type, wash: wash, plate: v.plate, place: (place ?? v.place)?.copy(), isRepeat: true);
+    prefetchAvailability();
     notifyListeners();
   }
 
@@ -1084,6 +1113,7 @@ class AppStore extends ChangeNotifier {
     draftPhotoBytes.clear();
     draftMedia.clear();
     draft = BookingDraft();
+    prefetchAvailability();
     notifyListeners();
   }
 

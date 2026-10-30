@@ -1669,7 +1669,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
     if (!store.isLive || store.draft.place == null) return;
     final d = days[dayIndex];
     final day = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-    final key = '${store.draft.place!.society.id}:$day';
+    final key = '${store.availabilityContext}:${store.draft.place!.society.id}:$day';
     final saved = store.draft.slot;
     final restore = saved != null && startOfDay(saved.date) == d;
     capacity.load(key, () async {

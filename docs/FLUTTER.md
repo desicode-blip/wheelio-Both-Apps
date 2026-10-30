@@ -1,3 +1,13 @@
+# Customer preload/cache follow-up - 30 October 2026
+
+Read [CLIENT-AVAILABILITY-2026-10-30.md](CLIENT-AVAILABILITY-2026-10-30.md). Real
+slot preloading starts earlier for a known saved/selected society. Cache and
+request-order guards separate account/catalog contexts, deduplicate pending
+work and preserve genuine retry. Only data/controller code changes; authored
+UI and native sources stay intact. Paid warming stays off. Aman's Claude task
+is [Apple key preparation only](AMAN-CLAUDE-APNS-KEY-ONLY-2026-10-30.md); Ajay's
+side handles performance/backend work and the later Firebase upload.
+
 # Slot startup and Mac prompt - 30 October 2026
 
 Paid idle instances remain disabled. The Functions entry point now defers PDF/ZIP

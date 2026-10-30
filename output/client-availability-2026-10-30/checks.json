@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-30T10:50:13.736Z",
+  "sourceBase": "6a990a3",
+  "designBase": "79d17af",
+  "checks": {
+    "bookingScreenOnlyContextKeyChanged": true,
+    "otherCustomerScreensUnchanged": true,
+    "captainAndSharedSourcesUnchanged": true,
+    "analyses": 4,
+    "flutterTests": {
+      "customer": 31,
+      "captain": 10,
+      "firebasePackage": 21,
+      "total": 62
+    },
+    "releaseWebBuilds": [
+      "customer",
+      "captain"
+    ]
+  },
+  "artifacts": [
+    {
+      "name": "app",
+      "path": "build/firebase-hosting/app/main.dart.js",
+      "bytes": 3624541,
+      "sha256": "d217bae29a3cc8b4b9c2b049cbe25c1f374f3f51ccee8c87e907383c77c5d701"
+    },
+    {
+      "name": "captain",
+      "path": "build/firebase-hosting/captain/main.dart.js",
+      "bytes": 3725927,
+      "sha256": "025d18a8d4aba21aa9f05ea1e5e3a6e827d3dda3f458d2c8dca69411a012a1d2"
+    },
+    {
+      "name": "admin",
+      "path": "build/firebase-hosting/admin/admin.mjs",
+      "bytes": 12894,
+      "sha256": "77d66ac279000d560f5d1af596dea5dec32f2e8d2d9a28ba686216ae298f9b19"
+    }
+  ],
+  "availabilityRuntime": {
+    "state": "ACTIVE",
+    "min": 0,
+    "max": 5,
+    "memory": "256Mi"
+  },
+  "hostingLatest": {
+    "name": "sites/wheelio-apps/releases/1793357362700000",
+    "version": "sites/wheelio-apps/versions/43cbe17ef39cd4e3",
+    "releasedAt": "2026-10-30T10:49:22.700Z"
+  },
+  "limits": [
+    "No physical iPhone timing/Xcode acceptance established",
+    "APNs private key and real phone delivery pending",
+    "No new live charge/refund or production fixture created"
+  ],
+  "hostedArtifacts": [
+    {
+      "name": "app",
+      "status": 200,
+      "sha256MatchesLocal": true
+    },
+    {
+      "name": "captain",
+      "status": 200,
+      "sha256MatchesLocal": true
+    },
+    {
+      "name": "admin",
+      "status": 200,
+      "sha256MatchesLocal": true
+    }
+  ]
+}
