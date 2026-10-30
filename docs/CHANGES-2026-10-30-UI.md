@@ -24,3 +24,31 @@ icon, with an icon and text, placed sensibly.
 
 **Backend needed:** none. It uses the existing location matching. Coverage for other
 societies still depends on their configured coordinates/boundaries.
+
+---
+
+## 2. Speed: screens no longer wait for saves the next step doesn't need (Customer)
+
+**What Aman saw:** on "Where is it parked?" (C10), **Next** took a long time before
+the next screen appeared. He asked for every such delay to be found and removed,
+Customer first, then Captain.
+
+**Cause:** the button waited for a Cloud Function (`saveCustomerPlace`) to answer before
+moving on. Every first call after a quiet period also pays a Functions cold start.
+
+**Audit of Customer server waits (`customer/lib/screens`)**
+
+| Screen / action | Before | Now |
+|---|---|---|
+| C10 Parking → Next | waited for `saveCustomerPlace` | moves on at once; saves in the background (`saveDraftPlaceInBackground`), failure → toast. The booking itself still sends the place. |
+| C12 "When should we come?" | fetched `getAvailability` only when the screen opened | fetched ahead from C10 for the next 3 days (`prefetchAvailability`) and reused for 45 s (`availabilityFor`); failures are not cached; pull/refresh still asks fresh |
+| Rate the wash → Submit | waited for `rateWash` | closes at once; rating sends in the background, failure → toast |
+| Profile photo | waited for the upload before showing | shows at once; uploads in the background; on failure goes back to the old photo with a toast |
+| OTP, name, address check, pay, payment check, approve, cancel, report a problem, phone change, delete account | wait | **unchanged on purpose**: they need the server's real answer (money, identity, account) and already show a loading state |
+
+Screen transitions are the standard iOS slide (`CupertinoPage`); not changed.
+
+**Backend suggestion (Ajay, P1):** cold starts make the first call after idle slow. Consider
+`minInstances: 1` for the busiest callables (`getAvailability`, `createBooking`,
+`createCheckout`, `verifyPayment`, Captain `setCaptainOnline` / `claimJob`) in asia-south1,
+weighing the always-on cost.

@@ -720,9 +720,44 @@ class AppStore extends ChangeNotifier {
   }
   Future<void> setProfilePhoto(Uint8List? bytes) async {
     if (!isLive) { set(()=>profilePhoto=bytes); return; }
-    try { await live!.saveProfilePhoto('customer',bytes); profilePhoto=bytes; changed(); }
-    catch(e) { set(()=>toast=backendError(e)); }
+    final before = profilePhoto;
+    set(() => profilePhoto = bytes); // show it at once; the upload follows
+    try { await live!.saveProfilePhoto('customer',bytes); }
+    catch(e) { set(() { profilePhoto = before; toast = backendError(e); }); }
   }
+  // MARK: Speed (30 Oct): don't make screens wait for saves the next step doesn't need.
+
+  /// Saves the parking place without holding the screen; a failure shows a toast.
+  void saveDraftPlaceInBackground() {
+    saveDraftPlace().catchError((Object e) => set(() => toast = backendError(e)));
+  }
+
+  /// Booking availability, fetched ahead (from the parking screen) and reused for 45 s,
+  /// so "When should we come?" opens with the slots ready. Failures are not kept.
+  final Map<String, (DateTime, Future<Set<int>>)> _availability = {};
+  Future<Set<int>> availabilityFor(String societyId, DateTime day, {bool fresh = false}) {
+    final d = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    final key = '$societyId:$d';
+    final hit = _availability[key];
+    if (!fresh && hit != null && DateTime.now().difference(hit.$1) < const Duration(seconds: 45)) return hit.$2;
+    final request = live!.call('getAvailability', {'societyId': societyId, 'day': d})
+        .then((r) => {for (final s in r['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()});
+    _availability[key] = (DateTime.now(), request);
+    request.then((_) {}, onError: (Object _) {
+      if (identical(_availability[key]?.$2, request)) _availability.remove(key);
+    });
+    return request;
+  }
+
+  /// Start loading the next three days' availability for the chosen place.
+  void prefetchAvailability() {
+    final p = draft.place;
+    if (!isLive || p == null) return;
+    for (var i = 0; i < 3; i++) {
+      availabilityFor(p.society.id, addDays(startOfDay(DateTime.now()), i));
+    }
+  }
+
   Future<void> saveDraftPlace() async {
     final p=draft.place;
     if(!isLive||!isLoggedIn||p==null)return;

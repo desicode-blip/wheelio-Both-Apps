@@ -549,9 +549,8 @@ class _RateScreenState extends State<RateScreen> {
     return WScreen(
       header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(leading: null, trailing: WIcon.close, onTrailing: router.popToRoot)),
       footer: WFooterBar(showCall: false, child: WButton('Submit', onTap: () async {
-        try { if (o != null) await store.rate(o.id, stars, tags); }
-        catch (e) { store.set(()=>store.toast=backendError(e)); return; }
-        if (!context.mounted) return;
+        // Close at once; the rating sends in the background (a failure shows a toast).
+        if (o != null) store.rate(o.id, stars, tags).catchError((Object e) => store.set(() => store.toast = backendError(e)));
         router.popToRoot();
       })),
       children: [

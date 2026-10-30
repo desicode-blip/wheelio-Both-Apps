@@ -165,6 +165,7 @@ Aman's decision: the apps never show a payment-mode banner ("TEST PAYMENTS · No
 ## 30 October 2026: Customer C09 "Locate me"
 
 - Big `MapLocateButton` (icon + "Locate me") at the bottom-right of the C09 map, live and sample. Live: GPS → `locatePlace` → map animates and the pin updates; outside served societies the pin stays and a message explains. Card title uses `Place.title` (no trailing comma). Notes: [CHANGES-2026-10-30-UI.md](CHANGES-2026-10-30-UI.md).
+- Speed (Customer): C10 Next no longer waits for `saveCustomerPlace` (background save); C12 availability is prefetched from C10 and cached 45 s (`AppStore.availabilityFor`); rating and profile photo are optimistic. Money/identity/account calls still wait. See the changes note, item 2.
 
 ## 27 October 2026: UI-only changes (Aman)
 

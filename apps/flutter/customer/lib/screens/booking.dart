@@ -1099,9 +1099,11 @@ class _FloorSlotScreenState extends State<FloorSlotScreen> {
               store.draft.place?.slot = slot.trim();
               store.draft.place?.tower = tower.trim();
             });
-            final router=context.router;
-            try{await store.saveDraftPlace();if(mounted)router.go(N.entryNotes);}
-            catch(e){store.set(()=>store.toast=backendError(e));}
+            // Move on at once; the place saves in the background, and the time
+            // screen's availability starts loading now.
+            store.saveDraftPlaceInBackground();
+            store.prefetchAvailability();
+            context.router.go(N.entryNotes);
           },
         ),
       ),
@@ -1485,8 +1487,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
     final restore = saved != null && startOfDay(saved.date) == d;
     capacity.load(key, () async {
       try {
-        final result = await store.live!.call('getAvailability', {'societyId': store.draft.place!.society.id, 'day': day});
-        return {for (final s in result['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()};
+        return await store.availabilityFor(store.draft.place!.society.id, d, fresh: force);
       } catch(e) { throw 'Availability could not be loaded. ${backendError(e)}'; }
     }, refresh: force, initial: restore ? (saved.windows.isEmpty ? {saved.startHour} : {for (final w in saved.windows) w.$1}) : {}, initialAllDay: restore && saved.anyTime);
   }
