@@ -1,3 +1,13 @@
+# Slot startup without idle-instance charges - 30 October 2026
+
+The owner chose the on-demand approach: optional warming stays at zero. Private
+document codecs now load only for the corresponding authenticated download,
+reducing unrelated slot-function initialization. No new service, timer, fake
+capacity, app test button, production fixture or UI change was introduced.
+See [SLOT-STARTUP-2026-10-30.md](SLOT-STARTUP-2026-10-30.md) for actual measurement
+limits and the Mac handoff. Apple APNs private keys must stay outside Git;
+Aman should commit a secret-free setup/results report after configuring Firebase.
+
 # Backend follow-up to Aman's latest staging - 30 October 2026
 
 [BACKEND-FOLLOWUP-2026-10-30.md](BACKEND-FOLLOWUP-2026-10-30.md) checks the latest

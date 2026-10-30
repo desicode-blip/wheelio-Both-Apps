@@ -1,3 +1,13 @@
+# Slot startup and Mac prompt - 30 October 2026
+
+Paid idle instances remain disabled. The Functions entry point now defers PDF/ZIP
+initialization until a private document download needs it; no Flutter/native/UI
+file was changed. See [SLOT-STARTUP-2026-10-30.md](SLOT-STARTUP-2026-10-30.md) for
+bounded local measurements and
+[AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md](AMAN-CLAUDE-SLOTS-AND-PUSH-2026-10-30.md)
+for the Mac profiling/APNs task. The Apple private `.p8` is never a Git handoff;
+only tested code and a secret-free setup/results note may be pushed.
+
 # Backend follow-up - 30 October 2026
 
 Aman's staging UI/native changes through 79d17af are preserved unchanged. Read

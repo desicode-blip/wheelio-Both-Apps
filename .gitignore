@@ -15,6 +15,9 @@ pubspec.lock
 **/env/*.json
 !**/env/*.example.json
 backend/supabase/.env
+# Apple push/signing private keys stay outside the source handoff.
+*.p8
+*.p12
 supabase/.temp/
 .DS_Store
 

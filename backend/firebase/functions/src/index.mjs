@@ -2,8 +2,6 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import { getAuth } from 'firebase-admin/auth';
-import { ZipFile } from 'yazl';
-import { receiptPdf, evidenceFiles } from './documents.mjs';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { orderNotices, pushDelivery } from './notifications.mjs';
@@ -136,6 +134,8 @@ export const downloadBookingDocument = onRequest({invoker:'private',cors:false,t
   if(request.method!=='GET'){response.status(405).send('GET required');return;}
   try{
     const {download,order}=await service().consumeDocument(request.query.token);
+    // Document codecs are unnecessary on the availability/booking cold path.
+    const {receiptPdf,evidenceFiles}=await import('./documents.mjs');
     const safeRef=String(order.ref??download.orderId).replace(/[^A-Za-z0-9_-]/g,'');
     if(download.kind==='receipt'){
       response.set('Content-Type','application/pdf');response.set('Content-Disposition',`attachment; filename="WashKrew-${safeRef}-receipt.pdf"`);response.send(await receiptPdf(order));return;
@@ -143,6 +143,7 @@ export const downloadBookingDocument = onRequest({invoker:'private',cors:false,t
     const files=evidenceFiles(download.orderId,order),bucket=getStorage().bucket();
     for(const f of files)if(!(await bucket.file(f.path).exists())[0])throw new ServiceError('failed-precondition','An evidence image is not available. Contact support.');
     const [events,tracking]=await Promise.all([db.collection(`orders/${download.orderId}/events`).orderBy('createdAt').get(),db.doc(`orders/${download.orderId}/tracking/current`).get()]);
+    const {ZipFile}=await import('yazl');
     const zip=new ZipFile();
     zip.on('error',()=>response.destroy());response.on('close',()=>{if(!response.writableFinished)zip.outputStream.destroy();});
     zip.addBuffer(Buffer.from(JSON.stringify({booking:order,events:events.docs.map(d=>d.data()),foregroundLocation:tracking.data()??null,callLogAvailable:false},null,2)),'booking-record.json');

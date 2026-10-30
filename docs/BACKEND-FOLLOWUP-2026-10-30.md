@@ -1,5 +1,10 @@
 # Backend follow-up to Aman's 29-30 October report
 
+Later owner decision: keep idle warming off and pursue measured startup/preload
+improvements. See [SLOT-STARTUP-2026-10-30.md](SLOT-STARTUP-2026-10-30.md) and the
+Mac prompt linked there. The cost-choice references below record the earlier
+report state; they are superseded by that decision.
+
 Pulled staging **79d17af** by fast-forward with a clean working tree. Read
 `CHANGES-2026-10-30-UI.md` and checked its items against the actual Flutter and
 server code. Aman's UI, guided camera, map controls, background-save handlers,

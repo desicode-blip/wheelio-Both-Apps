@@ -1,0 +1,110 @@
+{
+  "measuredAt": "2026-10-30T08:06:14.618Z",
+  "node": "v24.18.1",
+  "method": "7 alternating fresh Node processes per source; import initialization only, not Cloud cold start, network, Firestore query or iPhone end-to-end latency",
+  "baseline": "29ff518",
+  "samples": {
+    "before": [
+      {
+        "ms": 723.0297,
+        "rssMiB": 116.70703125,
+        "codecs": 138
+      },
+      {
+        "ms": 811.2841,
+        "rssMiB": 116.23828125,
+        "codecs": 138
+      },
+      {
+        "ms": 744.8281,
+        "rssMiB": 117.125,
+        "codecs": 138
+      },
+      {
+        "ms": 687.6076,
+        "rssMiB": 112.59375,
+        "codecs": 138
+      },
+      {
+        "ms": 748.1219000000001,
+        "rssMiB": 113.1953125,
+        "codecs": 138
+      },
+      {
+        "ms": 692.3613,
+        "rssMiB": 113.25,
+        "codecs": 138
+      },
+      {
+        "ms": 697.5055,
+        "rssMiB": 113.125,
+        "codecs": 138
+      }
+    ],
+    "after": [
+      {
+        "ms": 774.9933000000001,
+        "rssMiB": 106.21875,
+        "codecs": 0
+      },
+      {
+        "ms": 605.3117,
+        "rssMiB": 105.57421875,
+        "codecs": 0
+      },
+      {
+        "ms": 583.4465,
+        "rssMiB": 105.60546875,
+        "codecs": 0
+      },
+      {
+        "ms": 578.3726,
+        "rssMiB": 105.7890625,
+        "codecs": 0
+      },
+      {
+        "ms": 609.3237,
+        "rssMiB": 105.65234375,
+        "codecs": 0
+      },
+      {
+        "ms": 594.597,
+        "rssMiB": 105.54296875,
+        "codecs": 0
+      },
+      {
+        "ms": 585.3212,
+        "rssMiB": 106.4609375,
+        "codecs": 0
+      }
+    ]
+  },
+  "summary": {
+    "before": {
+      "medianImportMs": 723.0297,
+      "medianRssMiB": 113.25,
+      "codecModules": [
+        138,
+        138,
+        138,
+        138,
+        138,
+        138,
+        138
+      ]
+    },
+    "after": {
+      "medianImportMs": 594.597,
+      "medianRssMiB": 105.65234375,
+      "codecModules": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}
