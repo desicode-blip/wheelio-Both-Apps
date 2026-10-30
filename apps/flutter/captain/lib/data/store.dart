@@ -979,7 +979,10 @@ class CaptainStore extends ChangeNotifier {
   }
   Future<void> setProfilePhoto(Uint8List? bytes) async {
     if(!isLive){set(()=>profilePhoto=bytes);return;}
-    try{await live!.saveProfilePhoto('captain',bytes);profilePhoto=bytes;changed();}catch(e){set(()=>toast=backendError(e));}
+    // Speed (30 Oct): show it at once; the upload follows, and a failure puts the old one back.
+    final before=profilePhoto;
+    set(()=>profilePhoto=bytes);
+    try{await live!.saveProfilePhoto('captain',bytes);}catch(e){set((){profilePhoto=before;toast=backendError(e);});}
   }
   Future<void> _notificationAction(List<String> ids,String action)async{try{await live!.notificationAction(ids,action);}catch(e){set(()=>toast=backendError(e));}}
 

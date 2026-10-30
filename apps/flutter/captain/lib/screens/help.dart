@@ -436,9 +436,30 @@ class _WorkAreaScreenState extends State<WorkAreaScreen> {
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Where I work', 'मैं कहाँ काम करूँ', 'నేను ఎక్కడ పని చేస్తాను'), help: false),
       footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () async {
-          if (!await _save(store) || !context.mounted) return;
-          store.set(() => store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}'));
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: _jobsAnswered, onTap: () {
+          // Speed (30 Oct): close at once; the server save runs in the background and a
+          // failure shows a toast. (First-time setup below still waits: approval needs it.)
+          final previous = (store.workMode, store.radiusKm, store.chosenSocieties, store.workPlace, store.workSlots);
+          store.set(() {
+            store.workMode = mode;
+            store.radiusKm = radius;
+            store.chosenSocieties = picked;
+            store.workPlace = place;
+            store.workSlots = mergeSlots(slots);
+            store.toast = store.t('Saved: ${store.workSummary}', 'सेव हुआ: ${store.workSummary}', 'సేవ్ అయింది: ${store.workSummary}');
+          });
+          if (store.isLive && store.registered) {
+            store.liveSaveWorkPreferences(mode, radius, picked, place, mergeSlots(slots)).catchError((Object e) {
+              store.set(() {
+                store.workMode = previous.$1;
+                store.radiusKm = previous.$2;
+                store.chosenSocieties = previous.$3;
+                store.workPlace = previous.$4;
+                store.workSlots = previous.$5;
+                store.toast = backendError(e);
+              });
+            });
+          }
           router.pop();
         }),
       ),

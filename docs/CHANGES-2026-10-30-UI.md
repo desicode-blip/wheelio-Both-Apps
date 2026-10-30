@@ -52,3 +52,15 @@ Screen transitions are the standard iOS slide (`CupertinoPage`); not changed.
 `minInstances: 1` for the busiest callables (`getAvailability`, `createBooking`,
 `createCheckout`, `verifyPayment`, Captain `setCaptainOnline` / `claimJob`) in asia-south1,
 weighing the always-on cost.
+
+## 3. Speed: Captain
+
+**Audit of Captain server waits (`captain/lib/screens`)**
+
+| Screen / action | Before | Now |
+|---|---|---|
+| Where I work → Save (Home "Jobs from · Change", Me) | waited for `setCaptainPreferences` (and GPS for Distance) | closes at once with "Saved: …"; saves in the background; on failure the previous values come back with a toast |
+| Profile photo | waited for the upload | shows at once; failure restores the old photo |
+| First-time work profile → Done | waits | **unchanged**: approval/availability need the saved preferences, and failure must keep the captain on the screen |
+| Online switch | already moves at once (server confirms, reverts on failure) | unchanged |
+| OTP, KYC uploads, payout, application, accept job, arrival, selfie check, note heard, photos, check photos, start, finish, vehicle help, phone/UPI change | wait | **unchanged on purpose**: the server decides; they already show loading states |
