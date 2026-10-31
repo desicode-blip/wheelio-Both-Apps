@@ -1,3 +1,13 @@
+# Guided camera and review feedback - 31 October 2026
+
+The existing Firebase KYC/evidence and human-review services are unchanged.
+Guided camera controls now capture from their own viewfinder, safely release the
+hardware, and await actual upload success. Test-only injected camera hardware,
+delayed upload futures and admin validation fixtures are confined to test files;
+they add no production bypass, account, timer or app testing control. Captain's
+simulated upload progress now runs only in the disconnected demo. See
+[CAPTAIN-ADMIN-CAMERA-2026-10-31.md](CAPTAIN-ADMIN-CAMERA-2026-10-31.md).
+
 # Native Android platform hookup - 31 October 2026
 
 The owner requested installing both current apps on the connected Android phone.
@@ -8,6 +18,10 @@ the Firebase native SDK, including its required anti-abuse fallback. No fake OTP
 new SMS provider, app timer/test button, seeded Captain or approval is introduced.
 The existing emulator bypass remains restricted to `demo-*` project builds.
 Physical UI checks use the real installed apps; they are not a live-charge test.
+New photo-grid tests use isolated widget stores, shipped fonts and explicit
+viewports only. They add no app testing control, timer, backend fixture or fake
+production upload. A real narrow-phone overflow was reproduced before repairing
+the existing grid constraints and safe-area handling.
 
 # Wallet-only cancellation with a two-hour cutoff - 31 October 2026
 

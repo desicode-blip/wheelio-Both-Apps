@@ -1,0 +1,85 @@
+{
+  "baseline": "957ee5b",
+  "states": [
+    {
+      "app": "customer",
+      "id": "C07",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "customer",
+      "id": "C07b",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "customer",
+      "id": "C07c",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "customer",
+      "id": "C08",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "customer",
+      "id": "C08b",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "captain",
+      "id": "W06",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "captain",
+      "id": "W07",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "captain",
+      "id": "W12",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "captain",
+      "id": "W32",
+      "exact": false,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    },
+    {
+      "app": "captain",
+      "id": "W37",
+      "exact": true,
+      "changed": 0,
+      "box": null,
+      "timer_only": false
+    }
+  ]
+}

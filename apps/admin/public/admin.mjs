@@ -2,6 +2,7 @@ import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase
 import {getAuth,setPersistence,browserSessionPersistence,GoogleAuthProvider,signInWithPopup,reauthenticateWithPopup,onAuthStateChanged,signOut,connectAuthEmulator} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFunctions,httpsCallable,connectFunctionsEmulator} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js';
 import {config} from './config.mjs';
+import {reviewRequirements} from './review-form.mjs';
 const $=id=>document.getElementById(id),app=initializeApp(config.firebase,'washkrew-admin'),auth=getAuth(app),functions=getFunctions(app,'asia-south1');
 if(config.emulator){
   if(!['localhost','127.0.0.1'].includes(location.hostname)||!config.firebase.projectId.startsWith('demo-'))throw Error('Emulator configuration is restricted to local demo projects.');
@@ -11,7 +12,7 @@ await setPersistence(auth,browserSessionPersistence);
 const base=config.emulator?'http://127.0.0.1:5001/'+config.firebase.projectId+'/asia-south1/':'https://asia-south1-'+config.firebase.projectId+'.cloudfunctions.net/';
 const labels={underReview:'Awaiting review',notSubmitted:'Not submitted',changesRequested:'Corrections requested',approved:'Approved'};
 let generation=0,selection=0,cursor=null,selected=null,mode='test',busy=false,photoURLs=[];
-const call=async(name,data={})=>(await httpsCallable(functions,name)(data)).data;
+const call=async(name,data={})=>(await httpsCallable(functions,name,{timeout:30000})(data)).data;
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
 const date=t=>t?new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Kolkata'}).format(t)+' IST':'—';
 function message(text,error=false){$('message').textContent=text;$('message').className=error?'error':'';$('message').hidden=!text;}
@@ -79,23 +80,28 @@ function renderDetail(c){
   const issues=element('fieldset'),legend=element('legend','For corrections, select the items to fix');issues.append(legend);const issueInputs=[];
   for(const [value,label] of [['aadhaar','Aadhaar photo'],['selfie','Selfie'],['payout','Payout details']]){const ch=check(label);ch.input.value=value;issues.append(ch.row);issueInputs.push(ch.input);}form.append(issues);
   const actions=element('div',undefined,'actions'),approve=element('button',c.paymentModeConfigured==='live'?'Approve for live bookings':'Approve for test bookings','approve'),correct=element('button','Request corrections');
-  const eligible=c.status==='underReview'&&c.photos.filter(p=>['aadhaar','selfie'].includes(p.kind)&&p.available).length===2&&(!c.training.required||(c.training.completed&&c.training.quizPassed));
-  const update=()=>{approve.disabled=busy||!eligible||!identity.input.checked||!payment.input.checked||!societyInputs.some(i=>i.checked)||note.value.trim().length<5;correct.disabled=busy||c.status!=='underReview'||!issueInputs.some(i=>i.checked)||note.value.trim().length<5;};
+  const actionStatus=element('p',undefined,'notice');actionStatus.setAttribute('role','status');actionStatus.setAttribute('aria-live','polite');
+  const values=()=>({note:note.value,identityReviewed:identity.input.checked,payoutReviewed:payment.input.checked,societyIds:societyInputs.filter(i=>i.checked).map(i=>i.value),issues:issueInputs.filter(i=>i.checked).map(i=>i.value)});
+  const update=()=>{
+    approve.disabled=busy||c.status!=='underReview';correct.disabled=busy||c.status!=='underReview';
+    if(!busy){const missing=reviewRequirements('approve',c,values());actionStatus.className='notice';actionStatus.textContent=missing.length?'Before approving: '+missing.join(' '):'Review requirements complete. Choose Approve, then confirm your decision.';}
+  };
   form.addEventListener('input',update);
   const confirmation=element('div',undefined,'notice');confirmation.hidden=true;const confirmationText=element('p'),confirmReview=element('button','Confirm review'),cancelReview=element('button','Cancel');confirmation.append(confirmationText,confirmReview,cancelReview);form.append(confirmation);
   let pendingDecision=null;
   cancelReview.onclick=()=>{pendingDecision=null;confirmation.hidden=true;};
   async function decide(decision){
     if(busy)return;
+    const missing=reviewRequirements(decision,c,values());if(missing.length){actionStatus.className='error';actionStatus.textContent=missing.join(' ');return;}
     const societies=societyInputs.filter(i=>i.checked).map(i=>i.value),changes=issueInputs.filter(i=>i.checked).map(i=>i.value);
-    confirmation.hidden=true;pendingDecision=null;busy=true;update();message('Saving your review…');
+    confirmation.hidden=true;pendingDecision=null;busy=true;update();actionStatus.textContent='Saving your review…';message('Saving your review…');
     try{await call('reviewCaptainApplication',{captainId:c.id,decision,expectedVersion:c.version,reason:note.value.trim(),societyIds:societies,issues:changes,identityReviewed:identity.input.checked,payoutReviewed:payment.input.checked});busy=false;await loadList();await loadDetail(c.id);message(decision==='approve'?'Captain approved for the selected societies. They can go online in the Captain app.':'Corrections requested. The Captain can update the marked items and submit again.');}
-    catch(e){busy=false;update();message(e.message||'Review was not saved. Refresh before trying again.',true);}
+    catch(e){busy=false;update();actionStatus.className='error';actionStatus.textContent=e.message||'Review was not saved. Refresh before trying again.';message(actionStatus.textContent,true);}
   }
-  function prepare(decision){pendingDecision=decision;confirmationText.textContent=decision==='approve'?'Approve '+c.name+' for '+societyInputs.filter(i=>i.checked).length+' selected societies in '+c.paymentModeConfigured+' mode?':'Send these correction requests to '+c.name+'?';confirmation.hidden=false;confirmReview.focus();}
+  function prepare(decision){const missing=reviewRequirements(decision,c,values());if(missing.length){actionStatus.className='error';actionStatus.textContent=missing.join(' ');if(note.value.trim().length<5)note.focus({preventScroll:true});actionStatus.scrollIntoView({block:'nearest'});return;}pendingDecision=decision;confirmationText.textContent=decision==='approve'?'Approve '+c.name+' for '+societyInputs.filter(i=>i.checked).length+' selected societies in '+c.paymentModeConfigured+' mode?':'Send these correction requests to '+c.name+'?';confirmation.hidden=false;confirmReview.focus();}
   confirmReview.onclick=()=>{if(pendingDecision)decide(pendingDecision);};
   form.addEventListener('input',()=>{pendingDecision=null;confirmation.hidden=true;});
-  approve.onclick=()=>prepare('approve');correct.onclick=()=>prepare('requestChanges');actions.append(approve,correct);form.append(actions);update();root.append(form);
+  approve.onclick=()=>prepare('approve');correct.onclick=()=>prepare('requestChanges');actions.append(approve,correct);form.append(actions,actionStatus);update();root.append(form);
   const history=section('Review history');if(!c.history.length)history.append(element('p','No recorded reviews.','muted'));
   for(const review of c.history){const entry=element('div',undefined,'history');entry.append(element('strong',review.decision==='approve'?'Approved':'Corrections requested'),element('p',review.reason),element('small',review.reviewer+' · '+date(review.createdAt)));history.append(entry);}root.append(history);
 }

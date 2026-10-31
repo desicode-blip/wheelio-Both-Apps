@@ -32,8 +32,6 @@ if (action === 'dev') {
 } else {
   for (const target of ['customer', 'captain', 'packages/washkrew_ui', 'packages/washkrew_firebase']) {
     run(target, ['pub', 'get', ...(target.startsWith('packages/') ? [] : ['--enforce-lockfile'])]);
-    // The UI package has no independent test suite; its widgets are covered by both apps.
-    if (action === 'test' && target === 'packages/washkrew_ui') continue;
     run(target, [action]);
   }
 }

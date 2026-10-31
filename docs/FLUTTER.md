@@ -1,9 +1,25 @@
+# Captain review and guided camera refinement - 31 October 2026
+
+[CAPTAIN-ADMIN-CAMERA-2026-10-31.md](CAPTAIN-ADMIN-CAMERA-2026-10-31.md)
+records visible admin approval requirements, direct in-screen selfie/job capture,
+camera lifecycle recovery, duplicate-action protection and current acceptance
+evidence. All four analyses, 105 Flutter tests and 155 backend tests pass. Ten
+affected screen states pass comparison with the pre-refinement source at 957ee5b:
+nine are pixel-exact; W32 has only 538 antialiased pixels with maximum channel
+delta 5/255. This comparison preserves the current authored UI and does not
+replace the historical design-lock audit. No new service or paid warm instance
+is introduced.
+
 # Android phone installation and native OTP - 31 October 2026
 
 The owner has now requested Android installation. Both maintained apps have native
 Android platform bindings to the same Firebase project, native OTP, Maps SDK,
 permissions and existing launcher icon masters. Their Flutter screen designs are
-unchanged. [ANDROID-DEVICE-CHECK-2026-10-31.md](ANDROID-DEVICE-CHECK-2026-10-31.md)
+preserved. The physical check found Customer photo-tile overflow on narrower
+phones: the existing grid now fits its image/caption and uses the parent's safe
+area handling, while retaining the original 390-pixel tile geometry. Nine
+regression cases and the full 57-test Customer suite pass.
+[ANDROID-DEVICE-CHECK-2026-10-31.md](ANDROID-DEVICE-CHECK-2026-10-31.md)
 records build/install evidence, local debug-signing scope and Firebase's required
 native verification fallback. Both iOS plists add Background fetch for silent
 verification; Aman's private APNs key remains pending. No real-SMS verification

@@ -1,8 +1,10 @@
 # Android installation and native OTP - 31 October 2026
 
 The owner requested installation of both maintained Flutter apps on the connected
-Android phone. Source starts at `af6d804`. No authored Customer/Captain screen,
-layout, typography, palette, brand master or asset inside Flutter is replaced.
+Android phone. Platform setup is committed as `df786d4`, following `af6d804`.
+No authored Customer/Captain screen, typography, palette, brand master or asset
+inside Flutter is replaced. The on-phone photo-grid constraint repair below
+retains the original 390-pixel tile geometry and existing components.
 
 ## Native setup
 
@@ -86,13 +88,45 @@ workers and Kotlin process usage are bounded, with caching enabled for later
 builds. Device serial, phone numbers and OTPs are not stored
 in this report.
 
-Four Flutter analyses and **83 Flutter tests** pass (48 Customer, 10 Captain,
+Four Flutter analyses and **92 Flutter tests** pass (57 Customer, 10 Captain,
 25 shared Firebase). The new native-configuration tests cover Android role/project
 selection, emulator isolation, platform-specific Maps keys and error propagation.
 Existing native OTP session tests still pass. Both portable iOS source checks pass;
 these are source checks, not Xcode compilation.
 
-Build/install/manual results will be recorded after the final APK checks.
+Both arm64 development APKs built successfully and were installed through the
+phone's installer after the owner accepted its confirmation for each app. The
+package IDs, app labels, minimum/target SDK 24/36 and APK certificate match the
+registered Android apps and SHA fingerprints. No keystore is included in Git.
+
+Physical checks completed:
+
+- Both distinct app icons/labels appear in the launcher.
+- Customer welcome, vehicle selection, wash selection, plate entry and photo
+  controls open in the existing phone layout. No replacement Firebase UI appears.
+- Captain language selection, welcome slides and guest home open. Starting work
+  as a guest enters account verification rather than granting working status.
+- The owner entered the real Captain SMS OTP on the phone. The signed-in home
+  appeared and still required KYC before work. No Captain was approved as a test.
+- Keyboard, system safe areas and existing footer controls were inspected in the
+  observed states. These are bounded checks, not every authenticated screen.
+
+The physical Customer photo screen exposed vertical overflow in all four tiles
+on the narrower Android display. Regression tests first reproduced failures at
+320 and 363 logical pixels, while the 390-pixel reference passed. The existing
+two-column grid now keeps its original aspect ratio wherever it fits, allows its
+existing fixed-height image/caption content enough space on narrow screens, and
+avoids applying system insets a second time inside `WScreen`. No tile, icon,
+font, colour, label, inter-column gap or control was replaced. Nine final tests
+pass across empty, partial and complete photo states at all three widths; the
+390-pixel cases assert the original tile geometry. The full Customer suite has
+57 passing tests, with final focused tests also rerun after the inset correction.
+
+Local public-screen evidence is in `output/android-native-2026-10-31/screens/`.
+No phone number, SMS code, real document image or precise parking address is
+included in those artifacts. Updated Customer installation and final photo-screen
+read-back are recorded with the final device evidence.
+
 An Android result does not establish iPhone compilation, camera, payment switching
 or APNs acceptance. No production Captain approval or payment is authorized merely
 by this UI inspection.

@@ -501,7 +501,9 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     camera.addListener(_cameraChanged);
-    if (!widget.forceDenied) camera.start();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.forceDenied && context.store.isLive && isTopScreen(context)) camera.start();
+    });
   }
 
   void _cameraChanged() {
@@ -511,7 +513,10 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) camera.stop();
-    if (state == AppLifecycleState.resumed && !denied) camera.start();
+    if (state == AppLifecycleState.resumed && !widget.forceDenied && context.store.isLive && isTopScreen(context)) {
+      if (denied) setState(() { denied=false;settings=false; });
+      camera.start();
+    }
   }
 
   @override
@@ -536,6 +541,11 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
     if (busy) { return; }
     final store = context.store;
     final a = current;
+    if (store.isLive && !gallery && !camera.ready) {
+      if (camera.failed) store.set(() => store.toast = 'The camera could not start. Retrying…');
+      camera.start();
+      return;
+    }
     // In-screen capture when the live camera is running.
     if (camera.ready && !gallery) {
       setState(() => busy = true);
@@ -669,7 +679,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                 children: [
                   const SizedBox(width: 60),
                   const Spacer(),
-                  ShutterButton(onTap: _shoot),
+                  ListenableBuilder(listenable:camera,builder:(context,_)=>ShutterButton(onTap:_shoot,loading:busy||(store.isLive&&!camera.ready&&!camera.failed&&!camera.denied))),
                   const Spacer(),
                   SizedBox(
                     width: 60,
@@ -703,12 +713,14 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
 const double _guideScrim = 0.10;
 
 class ShutterButton extends StatelessWidget {
-  const ShutterButton({super.key, required this.onTap, this.size = 78});
+  const ShutterButton({super.key, required this.onTap, this.size = 78, this.loading=false});
   final VoidCallback onTap;
   final double size;
+  final bool loading;
   @override
   Widget build(BuildContext context) => Pressable(
     label: 'Take photo',
+    enabled:!loading,
     onTap: onTap,
     child: Container(
       width: size,
@@ -722,6 +734,7 @@ class ShutterButton extends StatelessWidget {
         width: size * 0.8,
         height: size * 0.8,
         decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
+        child:loading?const Padding(padding:EdgeInsets.all(18),child:CircularProgressIndicator(strokeWidth:3)):null,
       ),
     ),
   );

@@ -274,35 +274,53 @@ class JobPhotosScreen extends StatelessWidget {
 // MARK: W32 Camera (in-app, time and location stamped)
 
 class JobCameraScreen extends StatefulWidget {
-  const JobCameraScreen({super.key, required this.after, required this.side});
+  const JobCameraScreen({super.key, required this.after, required this.side, this.cameraController});
   final bool after;
   final int side;
+  final WCameraController? cameraController;
   @override State<JobCameraScreen> createState()=>_JobCameraScreenState();
 }
-class _JobCameraScreenState extends State<JobCameraScreen>{
+class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingObserver {
   bool _busy=false;
+  bool _visible=false;
+  Uint8List? _captured;
+  late final camera=widget.cameraController??WCameraController();
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);camera.addListener(_cameraChanged);}
+  void _cameraChanged(){if(mounted)setState((){});}
+  void _appear(){_visible=true;if(context.store.isLive&&Device.appIsActive)camera.start();}
+  void _disappear(){_visible=false;camera.stop();}
+  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){if(_visible&&isTopScreen(context)&&!_busy&&context.store.isLive)camera.start();}else if(state==AppLifecycleState.inactive||state==AppLifecycleState.paused){camera.stop();}}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);camera.removeListener(_cameraChanged);camera.dispose();super.dispose();}
   bool get after=>widget.after;
   int get side=>widget.side;
 
   Future<void> _shoot(BuildContext context) async {
     if(_busy)return;
+    final store = context.store, router = context.router;
+    if(store.isLive&&!camera.ready){
+      if(camera.denied){store.set(()=>store.toast='Allow Camera access in Settings, then return here.');Device.openSettings();}
+      else{camera.start();}
+      return;
+    }
     setState(()=>_busy=true);
     try{
-    final store = context.store, router = context.router;
     if (store.isLive) {
-      // The phone camera takes the photo; it is uploaded as this side's evidence.
+      // The existing panel is the viewfinder; its shutter captures this side.
       Uint8List? bytes;
       try {
-        bytes = await Device.pickImage(camera: true);
+        bytes = await camera.capture();
       } catch (e) {
         store.set(() => store.toast = e is MediaAccessException ? e.message : backendError(e));
         return;
       }
       if (bytes == null) return;
+      if(!mounted)return;
+      setState(()=>_captured=bytes);
+      await camera.stop();
       final issue=await checkPhotoQuality(bytes);
       if(issue!=null){
         if(!context.mounted)return;
-        if(issue==PhotoIssue.tooDark){store.shots['rejected']=bytes;router.swapTop(R(N.photoDark,flag:after,index:side));}
+        if(issue==PhotoIssue.tooDark){store.shots['rejected']=bytes;_visible=false;router.swapTop(R(N.photoDark,flag:after,index:side));}
         else{store.set(()=>store.toast=photoIssueMessage(issue));}
         return;
       }
@@ -322,12 +340,13 @@ class _JobCameraScreenState extends State<JobCameraScreen>{
     store.set(() => (after ? store.afterDone : store.beforeDone).add(side));
     final done = after ? store.afterDone : store.beforeDone;
     final next = [0, 1, 2, 3].where((i) => !done.contains(i)).firstOrNull;
+    _visible=false;
     if (next != null) {
       router.swapTop(R(N.camera, flag: after, index: next));
     } else {
       router.pop();
     }
-    }finally{if(mounted)setState(()=>_busy=false);}
+    }finally{if(mounted){setState((){_busy=false;_captured=null;});if(_visible&&isTopScreen(context)&&context.store.isLive&&!camera.ready)camera.start();}}
   }
 
   @override
@@ -335,7 +354,8 @@ class _JobCameraScreenState extends State<JobCameraScreen>{
     final store = context.store, router = context.router;
     final pad = MediaQuery.paddingOf(context);
     final sideView = side >= 2;
-    return Material(
+    final starting=store.isLive&&!camera.ready&&!camera.denied&&!camera.failed&&!_busy;
+    return OnAppear(onAppear:_appear,onDisappear:_disappear,child:Material(
       color: WColor.camera,
       child: Padding(
         padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom),
@@ -356,8 +376,10 @@ class _JobCameraScreenState extends State<JobCameraScreen>{
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
               child: Container(
+                clipBehavior:Clip.antiAlias,
                 decoration: BoxDecoration(color: WColor.cameraPanel, borderRadius: BorderRadius.circular(16)),
                 child: Stack(children: [
+                  if(store.isLive)Positioned.fill(child:_captured!=null?Image.memory(_captured!,fit:BoxFit.cover):WCameraPreview(camera)),
                   // Dotted guide matches the side: front and back views, or the side profile.
                   Center(child: CustomPaint(size: sideView ? const Size(270, 100) : const Size(240, 180), painter: CarShapePainter(side, dashed: true))),
                   Positioned(top: 12, left: 12, child: WBadge(store.t('At the vehicle', 'गाड़ी के पास', 'వాహనం దగ్గర'), tone: Tone.ok, icon: WIcon.location)),
@@ -372,14 +394,14 @@ class _JobCameraScreenState extends State<JobCameraScreen>{
               const Spacer(),
               Pressable(
                 label: 'Take photo',
-                enabled:!_busy,
+                enabled:!_busy&&!starting,
                 onTap: () => _shoot(context),
                 child: Container(
                   width: 84,
                   height: 84,
                   decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: WColor.white, width: 5)),
                   alignment: Alignment.center,
-                  child: Container(width: 66, height: 66, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
+                  child: Container(width: 66, height: 66, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),child:_busy||starting?const Padding(padding:EdgeInsets.all(19),child:CircularProgressIndicator(strokeWidth:3)):null),
                 ),
               ),
               const Spacer(),
@@ -388,7 +410,7 @@ class _JobCameraScreenState extends State<JobCameraScreen>{
           ),
         ]),
       ),
-    );
+    ));
   }
 }
 
@@ -576,6 +598,8 @@ class _UploadingScreenState extends State<UploadingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_){
+      if(!mounted||context.store.isLive)return;
     () async {
       for (var i = 0; i < 20; i++) {
         await sleepMs(250);
@@ -583,6 +607,7 @@ class _UploadingScreenState extends State<UploadingScreen> {
         setState(() => progress = [for (final p in progress) (p + 0.05).clamp(0, 1).toDouble()]);
       }
     }();
+    });
   }
 
   @override

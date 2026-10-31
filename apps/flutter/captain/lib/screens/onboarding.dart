@@ -233,8 +233,9 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
     }
     if (bytes == null || !mounted) return;
     setState(() { photo = bytes; issue = null; view = _AadhaarView.checking; });
-    // Let the captain see the photo being checked, even when the check is quick.
-    final results = await Future.wait<Object?>([checkPhotoQuality(bytes), Future<void>.delayed(const Duration(milliseconds: 2200))]);
+    // Keep the authored demonstration timing only in sample mode. Real uploads
+    // continue as soon as their actual quality check finishes.
+    final results = await Future.wait<Object?>([checkPhotoQuality(bytes), if(!store.isLive) Future<void>.delayed(const Duration(milliseconds: 2200))]);
     if (!mounted) return;
     final found = results.first as PhotoIssue?;
     if (found != null) {
@@ -346,13 +347,48 @@ class _AadhaarScreenState extends State<AadhaarScreen> {
 
 // MARK: W06 Your photo (selfie)
 
-class SelfieScreen extends StatelessWidget {
-  const SelfieScreen({super.key});
+class SelfieScreen extends StatefulWidget {
+  const SelfieScreen({super.key, this.cameraController});
+  final WCameraController? cameraController;
+  @override State<SelfieScreen> createState() => _SelfieScreenState();
+}
+
+class _SelfieScreenState extends State<SelfieScreen> with WidgetsBindingObserver {
+  late final camera = widget.cameraController ?? WCameraController();
+  bool busy = false, visible = false;
+  Uint8List? captured;
+  @override void initState() { super.initState(); WidgetsBinding.instance.addObserver(this); camera.addListener(_cameraChanged); }
+  void _cameraChanged() { if (mounted) setState(() {}); }
+  void _appear() { visible = true; if (context.store.isLive && Device.appIsActive) camera.start(front: true); }
+  void _disappear() { visible = false; camera.stop(); }
+  @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) { if (visible && isTopScreen(context) && !busy && context.store.isLive) camera.start(front: true); }
+    else if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) { camera.stop(); }
+  }
+  @override void dispose() { WidgetsBinding.instance.removeObserver(this); camera.removeListener(_cameraChanged); camera.dispose(); super.dispose(); }
+  Future<void> _shoot() async {
+    if (busy) return;
+    final store = context.store, router = context.router;
+    if (!store.isLive) { store.complete(KycStep.photo); router.replace(const [R(N.steps)]); return; }
+    if (camera.denied) { store.set(() => store.toast = 'Allow Camera access in Settings, then return here.'); Device.openSettings(); return; }
+    if (!camera.ready) { camera.start(front: true); return; }
+    setState(() => busy = true);
+    try {
+      final bytes = await camera.capture();
+      if (bytes == null || !mounted) return;
+      setState(() => captured = bytes);
+      await camera.stop();
+      await store.liveUploadKyc('selfie', bytes);
+      if (mounted) { visible = false; router.replace(const [R(N.steps)]); }
+    } catch (e) { if (mounted) { setState(() => captured = null); store.set(() => store.toast = e is MediaAccessException ? e.message : backendError(e)); } }
+    finally { if (mounted) { setState(() => busy = false); if (visible && isTopScreen(context) && !camera.ready) camera.start(front: true); } }
+  }
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final pad = MediaQuery.paddingOf(context);
-    return Material(
+    final starting = store.isLive && !camera.ready && !camera.denied && !camera.failed && !busy;
+    return OnAppear(onAppear: _appear, onDisappear: _disappear, child: Material(
       color: WColor.camera,
       child: Padding(
         padding: EdgeInsets.only(top: pad.top, bottom: pad.bottom),
@@ -362,7 +398,10 @@ class SelfieScreen extends StatelessWidget {
           SizedBox(
             width: 226,
             height: 296,
-            child: CustomPaint(painter: _OvalPainter(), child: const Center(child: WIconView(WIcon.face, size: 60, color: Colors.white70))),
+            child: Stack(fit: StackFit.expand, children: [
+              if (store.isLive) ClipOval(child: captured != null ? Image.memory(captured!, fit: BoxFit.cover) : WCameraPreview(camera)),
+              CustomPaint(painter: _OvalPainter(), child: store.isLive ? null : const Center(child: WIconView(WIcon.face, size: 60, color: Colors.white70))),
+            ]),
           ),
           const Spacer(),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: WText(store.t('Face inside the oval. No cap, no mask.', 'चेहरा ओवल के अंदर। टोपी या मास्क नहीं।', 'ముఖం ఓవల్ లోపల. టోపీ, మాస్క్ వద్దు.'), WType.value, color: WColor.white, size: 16.5, align: TextAlign.center)),
@@ -370,35 +409,21 @@ class SelfieScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 22),
             child: Pressable(
               label: 'Take photo',
-              onTap: () async {
-                if (store.isLive) {
-                  final bytes = await Device.pickImage(camera: true, front: true).catchError((Object e) {
-                    store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
-                    return null;
-                  });
-                  if (bytes == null) return;
-                  try {
-                    await store.liveUploadKyc('selfie', bytes);
-                  } catch (_) {
-                    return;
-                  }
-                }
-                store.complete(KycStep.photo);
-                router.replace(const [R(N.steps)]);
-              },
+              enabled: !busy && !starting,
+              onTap: _shoot,
               child: Container(
                 width: 84,
                 height: 84,
                 decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: WColor.white, width: 5)),
                 alignment: Alignment.center,
-                child: Container(width: 66, height: 66, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle)),
+                child: Container(width: 66, height: 66, decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle), child: busy || starting ? const Padding(padding: EdgeInsets.all(19), child: CircularProgressIndicator(strokeWidth: 3)) : null),
               ),
             ),
           ),
           const TestSkipButton(step: KycStep.photo, dark: true),
         ]),
       ),
-    );
+    ));
   }
 }
 
@@ -430,6 +455,7 @@ class BankScreen extends StatefulWidget {
 }
 
 class _BankScreenState extends State<BankScreen> {
+  bool saving=false;
   int mode = 0;
   late String upi = context.store.isLive ? context.store.upi : 'raju.yadav@ybl';
   String account = '';
@@ -441,15 +467,20 @@ class _BankScreenState extends State<BankScreen> {
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Get paid', 'पैसे पाएं', 'డబ్బు పొందండి')),
       footer: WFooter(
-        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, enabled: mode == 0 ? upi.contains('@') : account.length >= 9, onTap: () async {
+        child: WButton(store.t('Save', 'सेव करें', 'సేవ్ చేయండి'), size: ButtonSize.captain, loading:saving, enabled: !saving&&(mode == 0 ? upi.contains('@') : account.length >= 9), onTap: () async {
+          if(saving)return;
+          final savedUpi=upi.trim(),savedAccount=mode==0?null:account;
+          setState(()=>saving=true);
+          try {
           if (store.isLive) {
-            try { await store.liveSavePayout(upi:upi.trim(),accountNumber:mode==0?null:account); }
+            try { await store.liveSavePayout(upi:savedUpi,accountNumber:savedAccount); }
             catch(_) { return; }
             if(!context.mounted)return;
           }
-          store.set(() => store.upi = upi.trim());
+          store.set(() => store.upi = savedAccount==null?savedUpi:store.upi);
           store.complete(KycStep.bank);
           router.replace(const [R(N.steps)]);
+          } finally {if(mounted)setState(()=>saving=false);}
         }),
       ),
       children: [
@@ -880,8 +911,12 @@ class QuizResultScreen extends StatelessWidget {
 
 // MARK: W12 Rules
 
-class RulesScreen extends StatelessWidget {
+class RulesScreen extends StatefulWidget {
   const RulesScreen({super.key});
+  @override State<RulesScreen> createState()=>_RulesScreenState();
+}
+class _RulesScreenState extends State<RulesScreen> {
+  bool submitting=false;
   @override
   Widget build(BuildContext context) {
     final store = context.store;
@@ -899,7 +934,10 @@ class RulesScreen extends StatelessWidget {
     return WScreen(
       gutter: WSpace.gutterCaptain,
       header: WHeader(title: store.t('Rules', 'नियम', 'నియమాలు')),
-      footer: WFooter(child: WButton(store.t('I agree', 'मैं सहमत हूँ', 'నేను అంగీకరిస్తున్నాను'), icon: WIcon.check, size: ButtonSize.captain, onTap: () async {
+      footer: WFooter(child: WButton(store.t('I agree', 'मैं सहमत हूँ', 'నేను అంగీకరిస్తున్నాను'), icon: WIcon.check, size: ButtonSize.captain, loading:submitting, enabled:!submitting, onTap: () async {
+        if(submitting)return;
+        setState(()=>submitting=true);
+        try {
         final router = context.router;
         // Live: agreeing sends the application for review.
         if (store.isLive) {
@@ -926,6 +964,7 @@ class RulesScreen extends StatelessWidget {
         store.startReview();
         // Documents sent and the review countdown runs: first set up the work profile.
         router.go(N.workSetup);
+        } finally {if(mounted)setState(()=>submitting=false);}
       })),
       children: [
         WTitle(store.t('How you earn here', 'यहाँ कमाई कैसे होती है', 'ఇక్కడ ఎలా సంపాదిస్తారు'), top: 10, bottom: 14),
