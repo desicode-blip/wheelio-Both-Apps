@@ -1,10 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 
 import 'ios_options.dart';
+import 'android_options.dart';
 
 /// Resolve and validate the target before initializing any Firebase SDK.
 FirebaseOptions buildOptions({
   required bool nativeIos,
+  bool nativeAndroid = false,
   required bool captain,
   required bool emulator,
   required String projectId,
@@ -16,6 +18,15 @@ FirebaseOptions buildOptions({
 }) {
   if (emulator && !projectId.startsWith('demo-')) {
     throw StateError('Emulator builds require a demo Firebase project.');
+  }
+  if (nativeAndroid && !emulator) {
+    final options = androidOptions(captain: captain);
+    if (projectId.isNotEmpty && projectId != options.projectId) {
+      throw StateError(
+        'This Android build is registered with ${options.projectId}.',
+      );
+    }
+    return options;
   }
   if (nativeIos && !emulator) {
     final options = iosOptions(captain: captain);

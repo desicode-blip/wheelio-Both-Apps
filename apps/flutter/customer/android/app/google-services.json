@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "763324255731",
+    "project_id": "wheelio-apps",
+    "storage_bucket": "wheelio-apps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763324255731:android:3370a35ef9bb652bef9686",
+        "android_client_info": {
+          "package_name": "com.amanmaheshwari.wheelio.captain"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "763324255731-qc8afu0ft2uj6886v4tk302fak1t7caq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDD0u37N_kYE-mD4rbE64zBY89iMImu0-U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763324255731-qc8afu0ft2uj6886v4tk302fak1t7caq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "763324255731-b9992c4gr834a3lnpgupcr9190bok325.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.amanmaheshwari.wheelio.customer"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:763324255731:android:d0687e4e12291913ef9686",
+        "android_client_info": {
+          "package_name": "com.amanmaheshwari.wheelio.customer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "763324255731-qc8afu0ft2uj6886v4tk302fak1t7caq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDD0u37N_kYE-mD4rbE64zBY89iMImu0-U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "763324255731-qc8afu0ft2uj6886v4tk302fak1t7caq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "763324255731-b9992c4gr834a3lnpgupcr9190bok325.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.amanmaheshwari.wheelio.customer"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

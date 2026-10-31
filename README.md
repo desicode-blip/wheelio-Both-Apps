@@ -72,7 +72,10 @@ The retired SwiftUI, Next.js/React and legacy Flutter apps and empty Android
 placeholder were removed at the owner's request on 28 October. Their history
 remains in Git; do not recreate them or follow older build instructions. Historical
 database files are archives, not an instruction to migrate or delete any database.
-Android platform work remains deferred until requested.
+The owner authorized Android installation on 31 October. Both current Flutter
+apps now have Android platform directories; the retired placeholder remains
+removed. See [the native device report](docs/ANDROID-DEVICE-CHECK-2026-10-31.md)
+for APK commands, USB signing scope, UI checks and native OTP limitations.
 
 ## Hosting and operations
 

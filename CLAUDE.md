@@ -5,6 +5,14 @@ for every coding agent and supersedes older historical handoff instructions.
 
 Start with:
 
+**Android/native OTP follow-up (31 October):** the owner requested installing
+both maintained apps on the connected Android phone. Read
+`docs/ANDROID-DEVICE-CHECK-2026-10-31.md`. Keep Flutter screen designs intact.
+Android certificates are for this laptop's USB acceptance signing; store signing
+is separate. Both iOS apps include Background fetch/Remote notifications, but
+Aman's private APNs key is still pending. Native Firebase verification can still
+require its own fallback; never disable verification for real SMS to hide it.
+
 **Current iPhone build/test handoff (30 October):** read
 `docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md` and its PDF
 `output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf` first. Guide Aman

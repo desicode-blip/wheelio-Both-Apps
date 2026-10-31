@@ -15,7 +15,11 @@
   requested removal of the retired SwiftUI, Next.js/React and legacy Flutter
   implementations. They remain recoverable in Git; do not rebuild or restore
   them. Keep current Firebase backend, admin, website, landing and design exports.
-- Develop every app change in Flutter. Do not generate Android until requested.
+- Develop every app change in Flutter. Owner authorized generating and installing
+  both Android apps on the connected phone on 31 October 2026. Keep their existing
+  Flutter UI. USB acceptance APKs use this laptop's debug certificate; they are
+  not Play Store releases. Never commit a private signing key. Read
+  `docs/ANDROID-DEVICE-CHECK-2026-10-31.md` for the current evidence and limitations.
   Keep the Firebase project, bundle IDs and Apple team. Windows checks do not
   establish Xcode compilation, signing or physical iPhone success.
 - Read `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/`
@@ -26,6 +30,14 @@
   use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for the native result record.
 
 ## Latest owner decisions
+
+- Phone OTP uses Firebase's native verification API on Android/iOS and the web
+  verification flow only in a browser. Do not add a custom bot-check screen to
+  native apps or disable app verification for real SMS. Android SHA-1/SHA-256 and
+  iOS silent APNs setup reduce challenges; Firebase may still require its secure
+  reCAPTCHA fallback, especially for sideloaded Android builds. The Apple APNs
+  key must be supplied privately and configured before claiming silent iPhone
+  verification. Web anti-abuse verification stays enabled.
 
 - Training videos, quiz and refresher entry points are **hidden and not required**
   for now (`training.enabled:false`, `training.required:false`). The three existing

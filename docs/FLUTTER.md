@@ -1,3 +1,14 @@
+# Android phone installation and native OTP - 31 October 2026
+
+The owner has now requested Android installation. Both maintained apps have native
+Android platform bindings to the same Firebase project, native OTP, Maps SDK,
+permissions and existing launcher icon masters. Their Flutter screen designs are
+unchanged. [ANDROID-DEVICE-CHECK-2026-10-31.md](ANDROID-DEVICE-CHECK-2026-10-31.md)
+records build/install evidence, local debug-signing scope and Firebase's required
+native verification fallback. Both iOS plists add Background fetch for silent
+verification; Aman's private APNs key remains pending. No real-SMS verification
+bypass, new OTP provider, test button or sample production account is added.
+
 # Wallet-only cancellation update - 31 October 2026
 
 [WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) is the current

@@ -14,6 +14,7 @@ class WashKrewFirebase {
     const emulator = bool.fromEnvironment('FIREBASE_USE_EMULATORS');
     final options = buildOptions(
       nativeIos: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+      nativeAndroid: !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
       captain: captain,
       emulator: emulator,
       projectId: projectId,

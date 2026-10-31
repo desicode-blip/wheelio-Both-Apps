@@ -2,15 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:washkrew_firebase/src/build_options.dart';
 import 'package:washkrew_firebase/src/ios_options.dart';
+import 'package:washkrew_firebase/src/android_options.dart';
 
 FirebaseOptions resolve({
   bool ios = true,
+  bool android = false,
   bool captain = false,
   bool emulator = false,
   String project = '',
   bool configured = false,
 }) => buildOptions(
   nativeIos: ios,
+  nativeAndroid: android,
   captain: captain,
   emulator: emulator,
   projectId: project,
@@ -62,6 +65,32 @@ void main() {
       'demo-wheelio',
     );
     expect(() => resolve(ios: false), throwsStateError);
+  });
+  test('Android uses its registered native app, never the browser app ID', () {
+    expect(resolve(ios: false, android: true), customerAndroid);
+    expect(resolve(ios: false, android: true, captain: true), captainAndroid);
+    expect(
+      resolve(
+        ios: false,
+        android: true,
+        project: 'wheelio-apps',
+        configured: true,
+      ).appId,
+      customerAndroid.appId,
+    );
+    expect(
+      () => resolve(ios: false, android: true, project: 'another-project'),
+      throwsStateError,
+    );
+    final demo = resolve(
+      ios: false,
+      android: true,
+      emulator: true,
+      project: 'demo-wheelio',
+      configured: true,
+    );
+    expect(demo.appId, 'local-app-id');
+    expect(demo.projectId, 'demo-wheelio');
   });
   test('native production builds reject an unrelated project override', () {
     expect(

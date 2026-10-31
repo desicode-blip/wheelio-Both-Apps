@@ -1,3 +1,14 @@
+# Native Android platform hookup - 31 October 2026
+
+The owner requested installing both current apps on the connected Android phone.
+See [ANDROID-DEVICE-CHECK-2026-10-31.md](ANDROID-DEVICE-CHECK-2026-10-31.md). The same
+Firebase/Maps providers now have Android app bindings and restricted credentials;
+existing server auth/booking/payment/KYC gates remain in force. Native OTP uses
+the Firebase native SDK, including its required anti-abuse fallback. No fake OTP,
+new SMS provider, app timer/test button, seeded Captain or approval is introduced.
+The existing emulator bypass remains restricted to `demo-*` project builds.
+Physical UI checks use the real installed apps; they are not a live-charge test.
+
 # Wallet-only cancellation with a two-hour cutoff - 31 October 2026
 
 [WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) supersedes

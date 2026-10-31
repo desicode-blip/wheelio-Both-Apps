@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Public, API- and Android package/certificate-restricted Maps SDK key. -->
+<resources><string name="google_maps_key" translatable="false">AIzaSyBnYB26Ux08EzLn3hCZvk7mCMS9krQbsIQ</string></resources>

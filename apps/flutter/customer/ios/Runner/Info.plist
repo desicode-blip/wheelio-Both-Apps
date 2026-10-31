@@ -42,7 +42,7 @@
 		<string>kotakbank</string>
 	</array>
 	<key>UIBackgroundModes</key>
-	<array><string>remote-notification</string></array>
+	<array><string>fetch</string><string>remote-notification</string></array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>CFBundleDevelopmentRegion</key>
