@@ -15,6 +15,7 @@ import { logger } from 'firebase-functions';
 import { RazorpayPayments, signatureMatches } from './payments.mjs';
 import { WashKrewService, ServiceError } from './service.mjs';
 import { GoogleRoutes } from './maps.mjs';
+import {GooglePlaces,PlaceSearchError} from './place-search.mjs';
 import { TrainingError } from './training.mjs';
 import {PrivatePhotoChecks,PhotoCheckError} from './photo-checks.mjs';
 import {removedAppAccess} from './account-access.mjs';
@@ -47,6 +48,7 @@ function service(withPayment = false, withMaps = false) {
     },
     accounts:{deleteUser:uid=>getAuth().deleteUser(uid)},
     maps:withMaps?new GoogleRoutes(mapsKey.value()):undefined,
+    places:withMaps?new GooglePlaces(mapsKey.value()):undefined,
     photoChecks:new PrivatePhotoChecks(db),
   });
 }
@@ -58,10 +60,10 @@ function callable(method, payment = false, maps = false) {
   return onCall({ cors, invoker: 'private', ...callableRuntime(method), secrets:[...(payment?paymentSecrets:[]),...(maps?[mapsKey]:[])] }, async request => {
     try {
       if(request.auth?.uid&&removedAppAccess((await db.doc(`users/${request.auth.uid}`).get()).data(),method,request.data??{}))throw new ServiceError('permission-denied','This app account has been removed or is being deleted. Log in with a fresh SMS code to register again.');
-      return await service(payment,maps)[method](request.auth, request.data ?? {});
+      return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError) throw new HttpsError(error.code, error.message);
+      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -78,6 +80,8 @@ export const setCaptainOnline = callable('captainOnline');
 export const setCaptainPreferences = callable('captainPreferences');
 export const setCaptainPosition = callable('captainPosition');
 export const matchServiceLocation = callable('serviceLocation');
+export const searchPlaceSuggestions = callable('searchPlaces',false,true);
+export const selectPlaceSuggestion = callable('selectPlace',false,true);
 export const submitCaptainApplication = callable('submitCaptainApplication');
 export const startCaptainTraining = callable('startTraining');
 export const recordTrainingProgress = callable('trainingHeartbeat');

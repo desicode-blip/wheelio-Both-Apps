@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-01",
+  "origin": "Public reference point for existing My Home Avatar; no device GPS",
+  "nearbyCount": 8,
+  "typedCount": 5,
+  "knownSociety": "soc_avatar",
+  "selectedCity": "Hyderabad",
+  "selectedPincode": "500089",
+  "invalidInputStatus": 400,
+  "realBookingsCreated": 0,
+  "captainsApproved": 0,
+  "credentialsReturned": false
+}

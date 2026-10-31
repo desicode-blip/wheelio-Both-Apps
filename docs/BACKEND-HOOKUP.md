@@ -1,3 +1,17 @@
+# GPS suggestions in the existing search field - 1 November 2026
+
+`searchPlaceSuggestions` / `selectPlaceSuggestion` connect the existing Customer
+result rows to the already configured Google Places provider and private Maps
+server key. Nearby housing, typed suggestions, selected-place details, debounce,
+expiry, quota and coverage checks are described in
+[GPS-SEARCH-NATIVE-OTP-2026-11-01.md](GPS-SEARCH-NATIVE-OTP-2026-11-01.md).
+Only explicit GPS requests ask for permission. Search field focus reuses existing
+permission and typing works while GPS is pending/denied. The 350 ms typing
+debounce is real request control, not a fake loader. Fake GPS/provider adapters
+and delayed reply futures are test-only; live smoke checks used a public
+reference point, never device GPS, QA Captains, bookings or payments. No native
+OTP testing bypass, production fixed OTP or new SMS provider was introduced.
+
 # Guided camera and review feedback - 31 October 2026
 
 The existing Firebase KYC/evidence and human-review services are unchanged.

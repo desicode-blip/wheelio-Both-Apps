@@ -1,0 +1,13 @@
+{
+  "customer": {
+    "signing": "Registered local Android Debug certificate",
+    "package": "com.amanmaheshwari.wheelio.customer",
+    "bytes": 40450494,
+    "buildSeconds": 952.1,
+    "installedHashMatched": true,
+    "sha256": "38a62a0b24119397422385b833e58ed14f8c8c36641c3760b0f1e6baa6190659"
+  },
+  "date": "2026-10-31",
+  "mode": "profile",
+  "purpose": "USB AOT performance acceptance; not Play Store signing"
+}

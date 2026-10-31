@@ -8,6 +8,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../app/design_flags.dart';
 import '../data/models.dart';
 import '../data/booking_availability.dart';
+import '../data/place_search.dart';
 import '../data/store.dart';
 import 'common.dart';
 
@@ -876,8 +877,16 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
+  bool requesting=false;
   late bool off = widget.forceOff || (context.store.isLive&&context.store.savedPlaces.isEmpty&&context.store.orders.isEmpty);
   late Place? place = context.store.isLive ? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
+  @override void initState(){
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_)async{
+      if(!mounted||widget.forceOff||place!=null||!context.store.placeSearchEnabled)return;
+      try{final position=await context.store.locateForSearch(requestPermission:false);if(mounted&&position!=null)setState(()=>off=false);}catch(_){/* The existing GPS/manual controls remain available. */}
+    });
+  }
 
   /// "Locate me" on the map: the phone's GPS, matched to a served society.
   /// Outside served societies the pin stays where it is (no guessed coverage).
@@ -887,6 +896,7 @@ class _LocationScreenState extends State<LocationScreen> {
       final found = await store.locatePlace();
       if (!mounted) return null;
       if (found == null || found.latitude == null || found.longitude == null) {
+        if(store.placeSearchEnabled){context.router.go(N.addressSearch);return null;}
         store.set(() => store.toast = 'You’re outside the societies we serve. Move the pin, or tap Change to choose your society.');
         return null;
       }
@@ -920,16 +930,20 @@ class _LocationScreenState extends State<LocationScreen> {
               tone: Tone.wait,
               title: 'Location is off',
               message: 'We use it only to find captains in your society. You can also type your address.',
-              primary: 'Turn on location',
+              primary: requesting?'Finding your location…':'Turn on location',
               secondary: 'Type address',
               onPrimary: () async {
+                if(requesting)return;
                 if(!store.isLive){setState(()=>off=false);return;}
+                setState(()=>requesting=true);
                 try{
+                  if(store.placeSearchEnabled){await store.locateForSearch();if(mounted)router.go(N.addressSearch);return;}
                   final found=await store.locatePlace();
                   if(!mounted)return;
                   if(found==null){store.set(()=>store.toast='Choose your society by address. Location matching is not configured for this area.');router.go(N.addressSearch);return;}
                   setState((){this.place=found;off=false;});
                 }catch(e){store.set(()=>store.toast=backendError(e));}
+                finally{if(mounted)setState(()=>requesting=false);}
               },
               onSecondary: () => router.go(N.addressSearch),
             ),
@@ -1077,6 +1091,52 @@ class AddressSearchScreen extends StatefulWidget {
 class _AddressSearchScreenState extends State<AddressSearchScreen> {
   late String query = context.store.isLive ? '' : 'my home av';
   bool picked = false;
+  bool selecting=false;
+  bool locating=false;
+  int selectionGeneration=0;
+  PlaceSearchSession? search;
+  @override void initState(){
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_)async{
+      if(!mounted||widget.savedOnly||!context.store.placeSearchEnabled)return;
+      final store=context.store;
+      search=PlaceSearchSession(store.searchPlaceSuggestions)..addListener(_changed);
+      setState(()=>locating=true);
+      // Reuse permission only: focusing the field must not trigger a GPS prompt.
+      try{await store.locateForSearch(requestPermission:false);}catch(_){/* Typing still works without GPS. */}
+      if(mounted){setState(()=>locating=false);search!.search(query,immediate:true);}
+    });
+  }
+  void _changed(){if(mounted)setState((){});}
+  void _queryChanged(String value){
+    if(selecting)search?.completeSelection();
+    selectionGeneration++;
+    setState((){query=value;selecting=false;});
+    search?.search(value);
+  }
+  @override void dispose(){search?.removeListener(_changed);search?.dispose();super.dispose();}
+  Future<void> _selectSuggestion(PlaceSuggestion suggestion)async{
+    if(selecting)return;
+    final store=context.store,router=context.router;
+    final generation=++selectionGeneration;
+    setState(()=>selecting=true);
+    try{
+      final result=await store.selectPlaceSuggestion(suggestion.id,search!.token);
+      if(!mounted||generation!=selectionGeneration)return;
+      search!.completeSelection();
+      final p=Map<String,dynamic>.from(result['place'] as Map);
+      final society=store.liveSocieties.where((s)=>s.id==result['societyId']).firstOrNull;
+      if(society!=null){
+        store.set(()=>store.draft.place=Place(society,latitude:(p['latitude'] as num).toDouble(),longitude:(p['longitude'] as num).toDouble()));
+        router.go(N.floorSlot);
+      }else{
+        store.searchedAddress=p;
+        ManualAddressScreen.prefill=p['name'] as String? ?? suggestion.name;
+        router.go(N.manualAddress);
+      }
+    }catch(e){if(mounted&&generation==selectionGeneration)store.set(()=>store.toast=backendError(e));}
+    finally{if(mounted&&generation==selectionGeneration)setState(()=>selecting=false);}
+  }
 
   /// Bold the part of the name after the search match.
   Widget _highlighted(String name) {
@@ -1090,7 +1150,8 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final choices=widget.savedOnly?store.savedPlaces.where((p)=>p.title.toLowerCase().contains(query.toLowerCase())).toList():[for(final s in store.searchSocieties(query))Place(s,tower:store.isLive?'':'Tower 3')];
+    final remote=search,providerMode=remote!=null&&(locating||store.hasSearchOrigin||query.trim().length>=2);
+    final choices=widget.savedOnly?store.savedPlaces.where((p)=>p.title.toLowerCase().contains(query.toLowerCase())).toList():providerMode&&remote.error==null?<Place>[]:[for(final s in store.searchSocieties(query))Place(s,tower:store.isLive?'':'Tower 3')];
     return WScreen(
       header: const BookingHeader(step: 3, label: 'Place', fraction: 0.6),
       footer: WFooterBar(
@@ -1099,8 +1160,18 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
       ),
       children: [
         const Padding(padding: EdgeInsets.only(top: 20, bottom: 18), child: WText('Where is your vehicle?', WType.screen)),
-        WTextField(label: 'Society or building', value: query, leadingIcon: WIcon.search, autofocus: true, onChanged: (v) => setState(() => query = v)),
+        WTextField(label: 'Society or building', value: query, leadingIcon: WIcon.search, autofocus: true, onChanged:_queryChanged),
         const SizedBox(height: 14),
+        if(locating||remote?.loading==true||selecting)const Padding(padding:EdgeInsets.all(12),child:Center(child:SizedBox(width:22,height:22,child:CircularProgressIndicator(strokeWidth:2)))),
+        if(providerMode&&remote.error!=null)WBanner(tone:Tone.wait,icon:WIcon.info,text:backendError(remote.error!)),
+        if(providerMode&&!locating&&!remote.loading&&remote.error==null&&remote.results.isEmpty)Padding(padding:const EdgeInsets.symmetric(vertical:12),child:WText(query.trim().isEmpty?'No nearby buildings found. Start typing your society or building.':'No matching places. Try another name or enter your address by hand.',WType.caption)),
+        if(providerMode)for(final suggestion in remote.results)...[
+          Pressable(feedback:false,enabled:!selecting,onTap:()=>_selectSuggestion(suggestion),child:Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Row(children:[
+            const WIconBox(WIcon.location,size:40,radius:10),const SizedBox(width:14),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_highlighted(suggestion.name),WText(suggestion.address,WType.caption)])),
+          ]))),const WDivider(),
+        ],
+        if(providerMode&&remote.results.isNotEmpty)const Padding(padding:EdgeInsets.only(top:10,bottom:5),child:WText('Google Maps',WType.small,size:12,weight:FontWeight.w400,color:Color(0xff5e5e5e))),
         for (final p in choices) ...[
           Pressable(
             feedback: false,
@@ -1135,6 +1206,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
                 onTap: () {
                   // Carry what they already typed into the society name.
                   ManualAddressScreen.prefill = query.trim();
+                  store.searchedAddress=null;
                   router.go(N.manualAddress);
                 },
               ),
@@ -1164,10 +1236,11 @@ class ManualAddressScreen extends StatefulWidget {
 }
 
 class _ManualAddressScreenState extends State<ManualAddressScreen> {
-  late String name = _titleCase(ManualAddressScreen.prefill);
-  String area = '';
-  String pincode = '';
-  String city = 'Hyderabad';
+  late final selected=context.store.searchedAddress;
+  late String name = _titleCase(selected?['name'] as String? ?? ManualAddressScreen.prefill);
+  late String area = selected?['area'] as String? ?? '';
+  late String pincode = selected?['pincode'] as String? ?? '';
+  late String city = selected?['city'] as String? ?? 'Hyderabad';
   int focusArea = 0, focusPin = 0, focusCity = 0;
 
   static String _titleCase(String s) =>

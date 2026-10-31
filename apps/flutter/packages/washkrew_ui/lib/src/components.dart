@@ -1179,12 +1179,13 @@ class WTextField extends StatefulWidget {
 class _WTextFieldState extends State<WTextField> {
   late final TextEditingController _c = TextEditingController(text: widget.value);
   final _focus = FocusNode();
+  Timer? _autofocusTimer;
 
   @override
   void initState() {
     super.initState();
     _focus.addListener(() => setState(() {}));
-    if (widget.autofocus) Timer(const Duration(milliseconds: 350), () { if (mounted) _focus.requestFocus(); });
+    if (widget.autofocus) _autofocusTimer=Timer(const Duration(milliseconds: 350), () { if (mounted) _focus.requestFocus(); });
   }
 
   @override
@@ -1196,6 +1197,7 @@ class _WTextFieldState extends State<WTextField> {
 
   @override
   void dispose() {
+    _autofocusTimer?.cancel();
     _c.dispose();
     _focus.dispose();
     super.dispose();

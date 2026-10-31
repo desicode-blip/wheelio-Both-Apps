@@ -1,3 +1,14 @@
+# GPS place suggestions and native OTP - 1 November 2026
+
+[GPS-SEARCH-NATIVE-OTP-2026-11-01.md](GPS-SEARCH-NATIVE-OTP-2026-11-01.md)
+records the requested nearby/typed dropdown in the existing Customer search
+screen, server-only Google Places integration, selection/coverage gates and
+current native verification constraints. The final Customer suite passes 63
+tests; all four packages total 111. The backend suite passes 162. Apple account
+unlock/team access and the APNs private key remain owner-side requirements.
+The native apps use Firebase's native SDK; USB installation can still trigger
+Firebase's fallback. Keep real SMS verification enabled.
+
 # Captain review and guided camera refinement - 31 October 2026
 
 [CAPTAIN-ADMIN-CAMERA-2026-10-31.md](CAPTAIN-ADMIN-CAMERA-2026-10-31.md)

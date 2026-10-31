@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-01",
+  "mode": "release",
+  "apps": {
+    "customer": {
+      "baseHref": "/app/",
+      "mainSha256": "947d710109eccc680903e4d222d33f58f848bd021c43516fba0cda4fc56a9af5",
+      "requiredPluginRegistryVerified": true
+    },
+    "captain": {
+      "baseHref": "/captain/",
+      "mainSha256": "d667e8c560faaabd6071878029bf1e63bf625b34eb19f75ec04a2c7e3d8a267b",
+      "requiredPluginRegistryVerified": true
+    }
+  }
+}

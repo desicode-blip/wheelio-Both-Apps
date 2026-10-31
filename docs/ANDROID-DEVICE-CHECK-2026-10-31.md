@@ -130,3 +130,24 @@ read-back are recorded with the final device evidence.
 An Android result does not establish iPhone compilation, camera, payment switching
 or APNs acceptance. No production Captain approval or payment is authorized merely
 by this UI inspection.
+
+## Follow-up refinement
+
+[CAPTAIN-ADMIN-CAMERA-2026-10-31.md](CAPTAIN-ADMIN-CAMERA-2026-10-31.md)
+records direct guided-camera capture, permission/lifecycle recovery, visible admin
+review requirements, versioned admin assets and duplicate-action guards. The
+updated suites pass 105 Flutter tests, 155 backend/emulator tests and two additional
+admin asset-build checks. Four Flutter analyses pass. Ten affected authored states
+pass their before/after visual comparison without a layout replacement.
+
+Responsiveness must be checked using an AOT build, rather than the installed JIT
+debug build. The USB performance-check command for each app is:
+
+```powershell
+flutter build apk --profile --target-platform android-arm64 --no-pub
+```
+
+Profile mode retains performance diagnostics and local development signing. It
+is not a signed Play Store release. First-build native plugin compilation on this
+laptop is substantially slower than subsequent cached builds. Installation must
+preserve existing app data and use the same registered package/certificate.

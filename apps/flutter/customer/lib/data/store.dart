@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
+import 'place_search.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
@@ -804,12 +805,31 @@ class AppStore extends ChangeNotifier {
     await live!.call('saveCustomerPlace',{'societyId':p.society.id,'tower':p.tower,'floor':p.floor??'','parking':p.slot,if(p.latitude!=null&&p.longitude!=null)'vehiclePosition':{'latitude':p.latitude,'longitude':p.longitude}});
   }
   Map<String,dynamic> liveConfig = {};
+  (double,double)? _searchOrigin;
+  DateTime? _searchOriginAt;
+  Map<String,dynamic>? searchedAddress;
+  bool get placeSearchEnabled=>isLive&&liveConfig['maps']?['places']?['enabled']==true;
+  bool get hasSearchOrigin=>_searchOriginAt!=null&&DateTime.now().difference(_searchOriginAt!)<const Duration(minutes:10);
+  Future<(double,double)?> locateForSearch({bool requestPermission=true})async{
+    if(_searchOriginAt!=null&&DateTime.now().difference(_searchOriginAt!)<const Duration(minutes:10))return _searchOrigin;
+    final position=requestPermission?await live!.currentPosition():await live!.positionIfAllowed();
+    if(position==null)return null;
+    _searchOrigin=(position.latitude,position.longitude);_searchOriginAt=DateTime.now();return _searchOrigin;
+  }
+  Future<List<PlaceSuggestion>> searchPlaceSuggestions(String query,String token)async{
+    final origin=_searchOriginAt!=null&&DateTime.now().difference(_searchOriginAt!)<const Duration(minutes:10)?_searchOrigin:null;
+    if(query.isEmpty&&origin==null)return [];
+    final result=await live!.call('searchPlaceSuggestions',{'query':query,'sessionToken':token,if(origin!=null)'origin':{'latitude':origin.$1,'longitude':origin.$2}});
+    return [for(final p in result['suggestions'] as List? ?? [])PlaceSuggestion.fromMap(Map<String,dynamic>.from(p as Map))];
+  }
+  Future<Map<String,dynamic>> selectPlaceSuggestion(String id,String token)=>live!.call('selectPlaceSuggestion',{'placeId':id,'sessionToken':token});
   (double,double) mapCenter(Place place){
     final society=(liveConfig['societies'] as List? ?? []).where((s)=>s['id']==place.society.id).firstOrNull;
     return (place.latitude??(society?['location']?['latitude'] as num?)?.toDouble()??17.385,place.longitude??(society?['location']?['longitude'] as num?)?.toDouble()??78.4867);
   }
   Future<Place?> locatePlace()async{
     final position=await live!.currentPosition();
+    _searchOrigin=(position.latitude,position.longitude);_searchOriginAt=DateTime.now();
     final result=await live!.call('matchServiceLocation',{'latitude':position.latitude,'longitude':position.longitude,'suggest':true});
     final society=searchSocieties('').where((s)=>s.id==result['societyId']).firstOrNull;
     return society==null?null:Place(society,latitude:position.latitude,longitude:position.longitude);

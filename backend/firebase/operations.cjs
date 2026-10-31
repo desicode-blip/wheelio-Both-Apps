@@ -40,7 +40,15 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-payment-methods') {
+  if(command==='configure-place-search') {
+    for(const name of ['searchPlaceSuggestions','selectPlaceSuggestion']){
+      const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+      if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify both place search controllers before activating the feature.');
+    }
+    const current=await api('/config/operations');
+    await api('/config/operations?updateMask.fieldPaths=maps.places&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:{maps:{mapValue:{fields:{places:{mapValue:{fields:fields({enabled:true,dailyLimit:1000})}}}}}}});
+    console.log('Google Places search enabled with 1,000 provider lookups/day, server rate limits and unchanged service coverage.');
+  } else if(command==='configure-payment-methods') {
     const current=await api('/config/operations');
     if(current.fields?.paymentMode?.stringValue!=='live'||current.fields?.paymentMerchant?.stringValue!=='washkrew')throw Error('Verify the separate WashKrew live merchant before changing new checkout presentation.');
     await api('/config/operations?updateMask.fieldPaths=checkoutPresentation&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({checkoutPresentation:'allNonCredit'})});
@@ -161,6 +169,7 @@ async function main() {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
     const names=['registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
+    names.push('searchPlaceSuggestions','selectPlaceSuggestion');
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
       const data=await response.json();if(!response.ok)throw Error(`API gateway setup failed (${response.status}): ${data.error?.message}`);return data;

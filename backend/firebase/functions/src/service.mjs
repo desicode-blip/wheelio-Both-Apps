@@ -9,6 +9,7 @@ import {checkWashPhotos,photoFingerprint} from './wash-photo-review.mjs';
 import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
+import {searchPlaces,selectPlace} from './place-search.mjs';
 
 export class ServiceError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -28,7 +29,7 @@ const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 
 const capacityKey=(society,day,hour,mode)=>hash(`${mode==='live'?'live:':''}${society}:${day}:${hour}`);
 
 export class WashKrewService {
-  constructor({ db, payments, paymentProviders, evidence, accounts, maps, photoChecks, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, photoChecks, now }); }
+  constructor({ db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now }); }
   getPayments(mode,merchant='trustkeyper') {
     merchant=merchant??'trustkeyper';
     if(!['trustkeyper','washkrew'].includes(merchant))fail('failed-precondition','This booking merchant is not configured. Contact support.');
@@ -46,6 +47,8 @@ export class WashKrewService {
     const s = await this.db.doc('config/operations').get();
     return s.exists ? s.data() : { bookingsEnabled: false, societies: [], vehicleTypes: [], slotWindows: [] };
   }
+  searchPlaces(auth,data,context){return searchPlaces(this,auth,data,context);}
+  selectPlace(auth,data,context){return selectPlace(this,auth,data,context);}
   worksWindow(captain, window, day = window.day) {
     const elapsed = (this.now() - Date.parse(`${day}T00:00:00+05:30`)) / 60000;
     return worksWindow(captain, window, elapsed);

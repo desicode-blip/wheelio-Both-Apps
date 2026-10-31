@@ -1,4 +1,26 @@
-# Firebase booking release — 21 October 2026
+# Current follow-up — 1 November 2026
+
+The current GPS search/native OTP record is
+[GPS-SEARCH-NATIVE-OTP-2026-11-01.md](GPS-SEARCH-NATIVE-OTP-2026-11-01.md).
+The two Places callables use the existing server Maps secret, guest-safe rate
+limits and unchanged service coverage. The `placeLookupLimits.expiresAt` field
+has a TTL override in the existing Standard `(default)` database.
+
+```sh
+npx -y firebase-tools@latest deploy --only "functions:wheelio:searchPlaceSuggestions,functions:wheelio:selectPlaceSuggestion,firestore:indexes" --project wheelio-apps --account ajay@trustkeyper.com
+node backend/firebase/operations.cjs configure-api-access
+node backend/firebase/operations.cjs configure-place-search
+```
+
+The organization can reject the CLI's invoker IAM step even after creating the
+function. Keep the organization policy; use the documented HTTP gateway operation,
+verify both functions are ACTIVE and verify their actual callable responses before
+enabling the feature. The app's normal booking/review/payment authorization stays
+enforced. Place discovery and coarse availability intentionally work before login.
+Do not infer current payment mode from the historical release record below; the
+server configuration and latest payment/cancellation reports are authoritative.
+
+# Firebase booking release — 21 October 2026 (historical)
 
 **Current payment decision, 27 October:** Aman is onboarding a separate WashKrew merchant account following Razorpay's advice to the owner. Do not activate the historical shared Trustkeyper live setup described below. New merchant access/integration and historical order/refund-safe migration remain pending. The current provider wiring selects by test/live mode, not merchant version; do not blindly replace archived credentials. See [the current continuation report](CLAUDE-MAC-CONTINUATION-2026-10-27.md), section 5. Payment mode remains test.
 

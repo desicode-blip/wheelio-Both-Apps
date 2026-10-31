@@ -449,6 +449,12 @@ class LiveBackend {
   Future<Uint8List?> media(String path) =>
       storage.ref(path).getData(20 * 1024 * 1024);
 
+  /// Search can reuse a granted permission; opening a field never prompts for GPS.
+  Future<Position?> positionIfAllowed()async{
+    final permission=await Geolocator.checkPermission().timeout(const Duration(seconds:5));
+    if(permission!=LocationPermission.whileInUse&&permission!=LocationPermission.always)return null;
+    return currentPosition();
+  }
   Future<Position> currentPosition() async {
     var permission = await Geolocator.checkPermission().timeout(
       const Duration(seconds: 5),
