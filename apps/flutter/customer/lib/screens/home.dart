@@ -307,7 +307,7 @@ class _HomeTabState extends State<HomeTab> {
                             children: [
                               WText('${a.slot.dayLabel} · ${a.slot.label}', WType.label, color: WColor.heading),
                               const Spacer(),
-                              StatusBadge(a.status, slotAhead: a.slotAhead),
+                              StatusBadge(a.status, slotAhead: a.slotAhead, walletCredit: a.returnsWalletCredit),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -409,7 +409,7 @@ class _BookingsTabState extends State<BookingsTab> {
     return switch (o.status) {
       OrderStatus.pendingPayment || OrderStatus.paymentPending => '$t · payment not confirmed',
       OrderStatus.cancelled => '$t · cancelled',
-      OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => '$t · ${Fmt.rupees(o.price)} refunded',
+      OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => o.returnsWalletCredit ? '$t · ${Fmt.rupees(o.returnedWalletCredit)} wallet credit' : '$t · ${Fmt.rupees(o.price)} refunded',
       OrderStatus.approved || OrderStatus.autoApproved || OrderStatus.disputeRejected => '$t · ${Fmt.rupees(o.price)} paid',
       _ => '$t · ${Fmt.rupees(o.price)} held',
     };
@@ -469,7 +469,7 @@ class _BookingsTabState extends State<BookingsTab> {
                                     color: WColor.heading,
                                   ),
                                   const Spacer(),
-                                  StatusBadge(o.status, slotAhead: o.slotAhead),
+                                  StatusBadge(o.status, slotAhead: o.slotAhead, walletCredit: o.returnsWalletCredit),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -531,7 +531,7 @@ class BookingDetailScreen extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           children: [
-            StatusBadge(o.status),
+            StatusBadge(o.status, walletCredit: o.returnsWalletCredit),
             if (o.status == OrderStatus.approved) ...[const SizedBox(width: 8), WBadge('${Fmt.rupees(o.price)} paid', tone: Tone.ok, icon: WIcon.check)],
           ],
         ),
@@ -560,7 +560,7 @@ class BookingDetailScreen extends StatelessWidget {
             ('Vehicle', o.vehicle.plate),
             ('Captain', o.captain == null ? '—' : '${o.captain!.name}${o.rating != null ? ' · you rated ${o.rating}' : ''}'),
             ('Time', '${Fmt.time(o.startedAt ?? o.slot.start)} – ${Fmt.time(o.finishedAt ?? o.slot.start)}'),
-            (o.refund != null ? 'Refunded' : 'Paid', '${Fmt.rupees(o.price)} · ${o.paidWith?.title ?? 'UPI'}'),
+            (o.returnsWalletCredit ? 'Wallet credit' : o.refund != null ? 'Refunded' : 'Paid', o.returnsWalletCredit ? '${Fmt.rupees(o.returnedWalletCredit)} for a future booking' : '${Fmt.rupees(o.price)} · ${o.paidWith?.title ?? 'UPI'}'),
           ],
         ),
         const SizedBox(height: 16),

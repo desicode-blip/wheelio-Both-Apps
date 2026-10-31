@@ -1,7 +1,9 @@
 # WashKrew - physical iPhone acceptance record
 
 Copy this to a local dated result file before testing. No native case below is
-pre-approved or pre-marked PASS. Read AMAN-IOS-BUILD-AND-TEST-2026-10-30.md first.
+pre-approved or pre-marked PASS. Read WALLET-CANCELLATION-2026-10-31.md, then
+AMAN-IOS-BUILD-AND-TEST-2026-10-30.md for build/role order. New financial rules
+override the older PDF's cash-refund examples; old bookings retain saved terms.
 Keep personal/financial/identity data and private evidence outside Git/shared reports.
 
 - Date / tester:
@@ -45,8 +47,12 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Permissions/network/background/reopen | NOT RUN | |
 | APNs delivery/inbox/tap on both apps | NOT RUN | |
 | Separately authorized cancellation/refund | NOT RUN | |
-| New policy: early cash refund + used-credit restoration | NOT RUN | |
-| New policy: late 50% total-value fee + 50% wallet once | NOT RUN | |
+| New policy: 100% cash-plus-credit value to wallet within five minutes | NOT RUN | |
+| Near-term wash: five-minute grace still returns 100% wallet value | NOT RUN | |
+| After grace, at least two hours before window: 50% wallet once | NOT RUN | |
+| After grace, inside two hours: zero credit, exact amount disclosed | NOT RUN | |
+| Server-confirmed window and actual quoted credit deadline agree | NOT RUN | |
+| Service failure / human-upheld report: full wallet value, no fee | NOT RUN | |
 | Stale cancellation quote requires renewed confirmation | NOT RUN | |
 | Exact paise, mixed payment, full-wallet booking and reuse | NOT RUN | |
 | All supported UPI/debit/netbanking/provider-wallet groups | NOT RUN | |

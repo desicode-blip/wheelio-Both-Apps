@@ -36,6 +36,115 @@ async function paid(requestId='request-1') {
   await service.capturePayment(payment);return {...booking,payment};
 }
 
+const walletTimePolicy={kind:'walletByTime',creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,serviceFailure:'wallet'};
+async function walletTimeBooking(requestId,patch={},funding={method:'upi'}) {
+ const b=await service.createBooking(customer,{...input(requestId),acceptedCancellationPolicy:walletTimePolicy,...patch});
+ const c=await service.checkout(customer,b);
+ if(c.orderId) {
+  const p={id:'pay_'+requestId,order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured',...funding};provider.payments.set(p.id,p);await service.capturePayment(p);
+ }
+ return b;
+}
+
+test('new wallet policy requires disclosed terms; early cash cancellation credits once and releases assigned Captain/capacity',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});
+ await assert.rejects(service.createBooking(customer,input('stale-client')),{code:'failed-precondition'});
+ const b=await walletTimeBooking('wallet-time-early');await service.claim(auth('captain1'),{orderId:b.bookingId});
+ const o=(await db.doc(`orders/${b.bookingId}`).get()).data(),q=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(q.walletCreditPaise,14900);assert.equal(q.cashRefundPaise,0);assert.equal(q.phase,'fullCredit');
+ assert.equal(q.creditCutoffAt,o.slotStart.toMillis()-120*60000);
+ await assert.rejects(service.getCancellationQuote(auth('other'),{orderId:b.bookingId}),{code:'permission-denied'});
+ await assert.rejects(service.cancel(customer,{orderId:b.bookingId}),{code:'failed-precondition'});
+ await Promise.all([service.cancel(customer,{orderId:b.bookingId,confirmation:q.confirmation}),service.cancel(customer,{orderId:b.bookingId,confirmation:q.confirmation})]);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);
+ assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).exists,false);assert.equal(provider.refundCalls,0);
+ assert.equal((await db.doc(`captains/captain1`).get()).data().activeJobCount,0);
+ assert.equal((await db.doc(`slotCapacity/${o.slotKey}`).get()).data().reserved,0);
+ assert.equal((await db.collection('jobOffers').where('orderId','==',b.bookingId).get()).docs.every(d=>d.data().status==='withdrawn'),true);
+});
+
+test('both grace and two-hour quote boundaries require a fresh explicit confirmation',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});
+ const b=await walletTimeBooking('wallet-time-boundary',{startHour:12,endHour:14});
+ const early=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ clock+=300001;await assert.rejects(service.cancel(customer,{orderId:b.bookingId,confirmation:early.confirmation}),{code:'failed-precondition'});
+ const half=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(half.walletCreditPaise,7450);assert.equal(half.feePaise,7450);
+ clock=Date.parse('2026-11-01T10:00:00+05:30');assert.equal((await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote.confirmation,half.confirmation);
+ clock++;await assert.rejects(service.cancel(customer,{orderId:b.bookingId,confirmation:half.confirmation}),{code:'failed-precondition'});
+ const zero=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(zero.walletCreditPaise,0);assert.equal(zero.feePaise,14900);assert.equal(zero.phase,'noCredit');
+ await service.cancel(customer,{orderId:b.bookingId,confirmation:zero.confirmation});
+ const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.refundStatus,'none');assert.equal(o.cancellationFeePaise,14900);assert.equal(o.cancellationBenefit.creditPaise,0);
+ assert.equal((await db.collection('refunds').get()).size,0);
+});
+
+test('mixed and all-wallet payments use total value and returned credits pay for a real next booking without Razorpay',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy,vehicleTypes:config.vehicleTypes.map(t=>t.kind==='hatchback'?{...t,pricePaise:15000}:t)});
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:5000,freeWashes:0});
+ const b=await walletTimeBooking('wallet-time-mixed',{useCredit:true,expectedAmountPaise:10000,startHour:12,endHour:14});clock+=300001;
+ const q=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;assert.equal(q.walletCreditPaise,7500);
+ await service.cancel(customer,{orderId:b.bookingId,confirmation:q.confirmation});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,7500);
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({lastSeenAt:Timestamp.fromMillis(clock)});
+ const next=await walletTimeBooking('wallet-time-next',{useCredit:true,expectedAmountPaise:7500,startHour:12,endHour:14});
+ const full=(await service.getCancellationQuote(customer,{orderId:next.bookingId})).quote;assert.equal(full.walletCreditPaise,15000);
+ await service.cancel(customer,{orderId:next.bookingId,confirmation:full.confirmation});assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,15000);
+ const before=counter,covered=await walletTimeBooking('wallet-time-covered',{useCredit:true,expectedAmountPaise:0,startHour:12,endHour:14});assert.equal(counter,before);
+ const cq=(await service.getCancellationQuote(customer,{orderId:covered.bookingId})).quote;await service.cancel(customer,{orderId:covered.bookingId,confirmation:cq.confirmation});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,15000);assert.equal((await db.doc('wallets/customer_live').get()).exists,false);
+});
+
+test('service failure after the no-credit deadline returns full wallet value without a refund',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});
+ const b=await walletTimeBooking('wallet-time-service-failure');clock=Date.parse('2026-11-01T10:01:00+05:30');
+ await service.cancel({uid:'customer'},{orderId:b.bookingId},{expired:true});await service.cancel({uid:'customer'},{orderId:b.bookingId},{expired:true});
+ const o=(await db.doc(`orders/${b.bookingId}`).get()).data();assert.equal(o.cancellationBenefit.phase,'serviceFailure');assert.equal(o.cancellationFeePaise,0);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);assert.equal((await db.collection('refunds').get()).size,0);
+});
+
+test('late capture after unpaid cancellation credits cash once without restoring the same reserved credit twice',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:5000,freeWashes:0});
+ const b=await service.createBooking(customer,{...input('wallet-time-late-capture'),useCredit:true,acceptedCancellationPolicy:walletTimePolicy}),c=await service.checkout(customer,b);
+ await service.cancel(customer,{orderId:b.bookingId});assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,5000);
+ const p={id:'pay_time_late',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured',method:'upi'};
+ await service.capturePayment(p);await service.capturePayment(p);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);assert.equal((await db.collection('refunds').get()).size,0);
+});
+
+test('unavailable capacity credits full wallet value but prohibited card funding is refunded to source',async()=>{
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy,paymentPolicy:'no-credit-card-checkout'});
+ const b=await service.createBooking(customer,{...input('wallet-time-no-capacity'),acceptedCancellationPolicy:walletTimePolicy}),c=await service.checkout(customer,b);
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({approved:false});
+ await service.capturePayment({id:'pay_no_capacity',order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured',method:'upi'});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);assert.equal((await db.doc(`refunds/${b.bookingId}`).get()).exists,false);
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({approved:true});
+ const rejected=await walletTimeBooking('wallet-time-rejected',{}, {method:'card',card:{type:'credit'}});
+ assert.equal((await db.doc(`refunds/${rejected.bookingId}`).get()).data().amount,14900);assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);
+});
+
+test('a human-upheld wash problem returns full wallet value once and voids the earning',async()=>{
+ clock=Date.parse('2026-11-01T08:01:00+05:30');
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({lastSeenAt:Timestamp.fromMillis(clock)});
+ const b=await walletTimeBooking('wallet-time-upheld');const d={orderId:b.bookingId};await service.claim(auth('captain1'),d);await service.progress(auth('captain1'),{...d,action:'arrived'});
+ for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...d,stage:'before',side});await service.progress(auth('captain1'),{...d,action:'start'});
+ for(let side=0;side<4;side++)await service.evidenceUploaded(auth('captain1'),{...d,stage:'after',side});await service.progress(auth('captain1'),{...d,action:'finish'});
+ await service.reportProblem(customer,{...d,kind:'notClean',note:'Approved human review fixture'});
+ await service.resolveDispute({...d,outcome:'upheld',note:'Human review upheld the report'});await service.resolveDispute({...d,outcome:'upheld',note:'Human review upheld the report'});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,14900);assert.equal((await db.doc(`earnings/${b.bookingId}`).get()).data().status,'voided');assert.equal((await db.collection('refunds').get()).size,0);
+});
+
+test('wallet-by-time activation preserves previous cash-refund terms and uses the actual confirmed window after a server move',async()=>{
+ const old=await paid('wallet-time-old-policy');
+ await db.doc('config/operations').update({cancellationPolicy:walletTimePolicy});await service.cancel(customer,{orderId:old.bookingId});assert.equal((await db.doc(`refunds/${old.bookingId}`).get()).data().amount,14900);
+ const b=await walletTimeBooking('wallet-time-pinned',{startHour:12,endHour:14});const ref=db.doc(`orders/${b.bookingId}`),o=(await ref.get()).data();
+ await ref.update({slotStart:Timestamp.fromMillis(o.slotStart.toMillis()+4*3600000)});clock=o.slotStart.toMillis()-60000;
+ const moved=(await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote;
+ assert.equal(moved.phase,'partialCredit');assert.equal(moved.creditCutoffAt,o.slotStart.toMillis()+2*3600000);
+});
+
 test('a credit-funded capture never assigns a job and queues one full original-merchant refund',async()=>{
  await db.doc('config/operations').update({paymentPolicy:'no-credit-cards',checkoutConfigId:'config_no_credit'});
  for(const [index,funding] of [{method:'card',card:{type:'credit'}},{method:'upi',upi:{payer_account_type:'credit_card'}}].entries()){

@@ -1,5 +1,10 @@
 # Five-minute refunds, wallet credit and payment choice - 30 October 2026
 
+**Superseded for future cancellations:**
+[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) records the
+owner's new wallet-only rules. This report remains evidence for the prior policy,
+historical booking obligations and the still-current non-credit checkout options.
+
 ## Owner decisions and original finding
 
 The owner confirmed full original-method cash refund within five minutes, with

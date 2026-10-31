@@ -72,7 +72,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.photosReady => CheckWashView(order: o),
         OrderStatus.cancelled when o.creditGiven > 0 || (o.cancellationSummary != null && o.refund == null) => _state(WFullState(
             icon: WIcon.rupee,
-            tone: Tone.ok,
+            tone: o.cancellationOutcome?['phase'] == 'noCredit' ? Tone.wait : Tone.ok,
             title: 'Booking cancelled',
             message: o.cancellationSummary ?? '${Fmt.rupees(o.creditGiven)} (${BusinessRules.lateCancelCreditPercent}% of ${Fmt.rupees(o.value)}) is added as credit. It comes off your next booking, so you pay only the rest.',
             primary: 'Book again',
@@ -125,7 +125,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
   Widget _autoCancelled(Order o, WIcon icon, String title, String why) {
     final router = context.router;
     final r = o.refund;
-    final walletOnly = context.store.isLive && o.price == 0 && o.walletReleased && (o.creditUsed > 0 || o.usedFreeWash);
+    final walletOnly = context.store.isLive && (o.returnsWalletCredit || o.price == 0 && o.walletReleased && (o.creditUsed > 0 || o.usedFreeWash));
     final waiting = !context.store.isLive && (r?.awaitingUPI ?? true);
     return WScreen(
       scrolls: false,
@@ -139,13 +139,13 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         const SizedBox(height: 18),
         WText(title, WType.screen),
         const SizedBox(height: 8),
-        WText(why, WType.body),
+        WText(o.returnsWalletCredit ? 'The wash could not be provided. The full eligible value has been returned as wallet credit for a future booking.' : why, WType.body),
         const SizedBox(height: 20),
         WCard(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [WText(walletOnly ? o.usedFreeWash ? 'Free wash restored' : 'Wallet restored' : 'Full refund', WType.label), const Spacer(), WText(walletOnly && o.usedFreeWash ? '1 free wash' : Fmt.rupees(walletOnly ? o.returnedWalletCredit : r?.amount ?? o.price), WType.valueStrong, mono: true)]),
+            Row(children: [WText(walletOnly ? o.usedFreeWash ? 'Free wash restored' : o.returnsWalletCredit ? 'Wallet credit' : 'Wallet restored' : 'Full refund', WType.label), const Spacer(), WText(walletOnly && o.usedFreeWash ? '1 free wash' : Fmt.rupees(walletOnly ? o.returnedWalletCredit : r?.amount ?? o.price), WType.valueStrong, mono: true)]),
             const SizedBox(height: 8),
-            WText(context.store.isLive ? walletOnly ? o.usedFreeWash ? 'Your free wash has been restored.' : '${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : '${refundStatusText(o.refundStatus,null).detail}${o.returnedWalletCredit > 0 ? ' ${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : ''}' : waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
+            WText(context.store.isLive ? walletOnly ? o.usedFreeWash ? 'Your free wash has been restored.' : o.returnsWalletCredit ? o.cancellationSummary! : '${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : '${refundStatusText(o.refundStatus,null).detail}${o.returnedWalletCredit > 0 ? ' ${Fmt.rupees(o.returnedWalletCredit)} wallet credit restored.' : ''}' : waiting ? 'Tell us your UPI ID and we’ll send it there.' : 'Going to ${r?.upi ?? 'your UPI'}. Usually within 2 to 3 working days.', WType.caption),
           ]),
         ),
       ],
@@ -247,9 +247,9 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
           const SizedBox(height: 16),
           o.noShowChecking
               ? WBanner(tone: Tone.wait, icon: WIcon.search, title: 'We’re checking on your wash.',
-                  text: 'Your slot ended at ${Fmt.time(o.slot.end)} and $name hasn’t updated it. If the wash doesn’t happen, you get a full refund by 11:59 PM tonight.')
+                  text: o.liveCancelPolicy?['kind'] == 'walletByTime' ? 'Your slot ended at ${Fmt.time(o.slot.end)} and $name hasn’t updated it. If the wash is not provided, the full eligible value returns to your wallet.' : 'Your slot ended at ${Fmt.time(o.slot.end)} and $name hasn’t updated it. If the wash doesn’t happen, you get a full refund by 11:59 PM tonight.')
               : WBanner(tone: Tone.wait, icon: WIcon.clock,
-                  text: '$name is running about ${o.runningLateMinutes ?? 15} minutes late. If the wash doesn’t happen in your slot (till ${Fmt.time(o.slot.end)}), we’ll check with him. No wash means a full refund.'),
+                  text: o.liveCancelPolicy?['kind'] == 'walletByTime' ? '$name is running about ${o.runningLateMinutes ?? 15} minutes late. If the wash is not provided in your slot (till ${Fmt.time(o.slot.end)}), the full eligible value returns to your wallet.' : '$name is running about ${o.runningLateMinutes ?? 15} minutes late. If the wash doesn’t happen in your slot (till ${Fmt.time(o.slot.end)}), we’ll check with him. No wash means a full refund.'),
         ] else ...[
           CaptainCard(order: o, badge: const WBadge('Accepted', tone: Tone.info, icon: WIcon.check), timeText:hasEta?'Arrives by ${Fmt.time(arrives)}':'Arrival estimate unavailable'),
           const SizedBox(height: 16),
@@ -276,7 +276,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
     Widget answer(WIcon icon, String title, String code) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Pressable(
-            onTap: () => store.isLive && code == 'not_here' && o.liveCancelPolicy?['kind'] == 'refundThenCredit' ? openCancelSheet(context, o) : store.answerCantFind(code),
+            onTap: () => store.isLive && code == 'not_here' && usesCancellationQuote(o.liveCancelPolicy) ? openCancelSheet(context, o) : store.answerCantFind(code),
             child: Container(
               height: 48,
               decoration: outlinedDecoration(radius: 10),

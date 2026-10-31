@@ -1,5 +1,6 @@
 # WashKrew
-**Superseded:** use [the 30 October guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
+**Superseded:** read [the current financial rules](WALLET-CANCELLATION-2026-10-31.md)
+and use [the 30 October build guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
 and its current PDF. This older guide/PDF remains historical; its build baseline,
 test totals, old cancellation examples and visual-count claims are not current
 acceptance evidence.

@@ -3,6 +3,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
+import '../data/models.dart';
 
 // MARK: Change phone number
 
@@ -139,8 +140,13 @@ class _HelpScreenState extends State<HelpScreen> {
   @override
   Widget build(BuildContext context) {
     final router = context.router;
-    final currentCancellation = context.store.isLive && context.store.liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit';
-    final questions = [for (final (i, faq) in faqs.indexed) i == 2 && currentCancellation ? (faq.$1, 'Cancel within 5 minutes of booking confirmation for a full refund to your original payment method and restoration of used wallet credit. Later, 50% of the total booking value is a cancellation fee and 50% goes to your wallet for a future booking. Cancellation closes when washing starts.') : faq];
+    final policy = context.store.liveConfig['cancellationPolicy'];
+    final currentCancellation = context.store.isLive && policy is Map && usesCancellationQuote(Map<String,dynamic>.from(policy));
+    final walletByTime = context.store.isLive && policy?['kind'] == 'walletByTime';
+    final questions = [for (final (i, faq) in faqs.indexed)
+      if (i == 1 && walletByTime) (faq.$1, 'If we cannot provide your wash, the full eligible booking value is returned to your wallet for a future booking. No cancellation fee or bank refund.')
+      else if (i == 2 && currentCancellation) (faq.$1, '${cancellationPolicyText(Map<String,dynamic>.from(policy))}${walletByTime ? ' The first-five-minute grace applies even for a wash less than two hours away. Credit can be used on a future booking.' : ''} Cancellation closes when washing starts.')
+      else faq];
     return WScreen(
       header: Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: 'Help', trailing: null, onLeading: router.pop)),
       children: [

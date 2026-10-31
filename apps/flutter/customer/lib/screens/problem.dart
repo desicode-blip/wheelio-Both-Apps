@@ -125,10 +125,10 @@ class DisputeStatusScreen extends StatelessWidget {
           header: header('Report #${d?.ref ?? 'WH-20914'}'),
           footer: WFooterBar(
             onCall: callSupport,
-            child: WButton('Book free wash', onTap: () {
+            child: WButton(store.isLive && (d?.creditsAwarded ?? 0) == 0 ? 'Book again' : 'Book free wash', onTap: () {
               if (o != null) {
                 store.startRepeat(o.vehicle);
-                store.set(() => store.draft.useFreeWash = true);
+                store.set(() => store.draft.useFreeWash = !store.isLive || (d?.creditsAwarded ?? 0) > 0);
               }
               router.replace(const [R(N.photos)]);
             }),
@@ -144,7 +144,7 @@ class DisputeStatusScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ]),
             WKeyValueCard(rows: [
-              ('Refund', '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
+              (o?.returnsWalletCredit == true ? 'Wallet credit' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Free wash' : 'Refund', o?.returnsWalletCredit == true ? '${Fmt.rupees(o!.returnedWalletCredit)} available for a future booking' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Your reserved free wash has been restored' : '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
               ('Bonus', '${d?.creditsAwarded ?? (store.isLive?0:2)} free washes added'),
             ]),
           ],

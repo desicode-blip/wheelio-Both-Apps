@@ -181,8 +181,9 @@ class HeldSafelyBanner extends StatelessWidget {
 
 /// Status badge for an order (icon + word).
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.status, {super.key, this.slotAhead = false});
+  const StatusBadge(this.status, {super.key, this.slotAhead = false, this.walletCredit = false});
   final OrderStatus status;
+  final bool walletCredit;
 
   /// Booked for a later slot: shows "Booked" instead of "Searching".
   final bool slotAhead;
@@ -195,7 +196,7 @@ class StatusBadge extends StatelessWidget {
     OrderStatus.photosReady => const WBadge('Check photos', tone: Tone.ok, icon: WIcon.image),
     OrderStatus.approved || OrderStatus.autoApproved || OrderStatus.disputeRejected => const WBadge('Done', tone: Tone.ok, icon: WIcon.sparkle),
     OrderStatus.cancelled => const WBadge('Cancelled', tone: Tone.error, icon: WIcon.close),
-    OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => const WBadge('Refunded', tone: Tone.ok, icon: WIcon.rupee),
+    OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => WBadge(walletCredit ? 'Wallet credit' : 'Refunded', tone: Tone.ok, icon: WIcon.rupee),
     OrderStatus.disputed => const WBadge('Under review', tone: Tone.wait, icon: WIcon.eye),
     OrderStatus.paymentPending => const WBadge('Payment pending', tone: Tone.wait, icon: WIcon.clock),
     OrderStatus.pendingPayment => const WBadge('Not paid', tone: Tone.mute, icon: WIcon.clock),
@@ -350,7 +351,7 @@ class _CancelSheetState extends State<CancelSheet> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final store = context.store, order = store.currentOrder;
-    if (store.isLive && order?.liveCancelPolicy?['kind'] == 'refundThenCredit' && order?.paymentStatus == 'captured' && _quoteOrderId != order!.id) {
+    if (store.isLive && usesCancellationQuote(order?.liveCancelPolicy) && order?.paymentStatus == 'captured' && _quoteOrderId != order!.id) {
       _quoteOrderId = order.id;
       _loadQuote();
     }
@@ -381,6 +382,14 @@ class _CancelSheetState extends State<CancelSheet> {
     if (q == null) return 'Confirm the cancellation amounts before cancelling.';
     final cash = (q['cashRefundPaise'] as int) / 100, wallet = (q['walletCreditPaise'] as int) / 100, fee = (q['feePaise'] as int) / 100;
     if (q['freeWashesRestored'] > 0) return 'Your reserved free wash will be restored. No cash refund.';
+    if (context.store.currentOrder?.liveCancelPolicy?['kind'] == 'walletByTime') {
+      final full = q['phase'] == 'fullCredit';
+      final deadlineAt = q[full ? 'fullCreditDeadlineAt' : 'creditCutoffAt'];
+      final cutoff = deadlineAt is int ? DateTime.fromMillisecondsSinceEpoch(deadlineAt) : null;
+      final deadline = cutoff == null ? '' : ' ${full ? '100% wallet credit until' : '50% credit cutoff:'} ${Fmt.date(cutoff)} at ${Fmt.time(cutoff)}.';
+      if (q['phase'] == 'noCredit') return 'No wallet credit is returned inside 2 hours of the confirmed wash window, after the 5-minute grace period. Cancellation fee: ${Fmt.rupees(fee)}. No bank refund.$deadline';
+      return '${Fmt.rupees(wallet)} goes to your wallet for a future booking. ${fee > 0 ? 'Cancellation fee: ${Fmt.rupees(fee)} (50%).' : 'No cancellation fee.'} No bank refund.$deadline';
+    }
     if (q['kind'] == 'credit') return 'Cancellation fee: ${Fmt.rupees(fee)} (50%). ${Fmt.rupees(wallet)} (50%) goes to your wallet for a future booking. No cash refund.';
     return '${cash > 0 ? '${Fmt.rupees(cash)} returns to your original payment method. ' : ''}${wallet > 0 ? '${Fmt.rupees(wallet)} wallet credit is restored. ' : ''}No cancellation fee.';
   }
@@ -401,7 +410,7 @@ class _CancelSheetState extends State<CancelSheet> {
     }
     // Live bookings follow the server's saved policy; the screen is the same design.
     final policy = o!.liveCancelPolicy;
-    final quoted = store.isLive && policy?['kind'] == 'refundThenCredit' && o.paymentStatus == 'captured';
+    final quoted = store.isLive && usesCancellationQuote(policy) && o.paymentStatus == 'captured';
     final wallet = !store.isLive || (policy?['kind'] == 'wallet' && o.paymentStatus == 'captured' && o.price > 0);
     final early = store.isLive && wallet
         ? DateTime.now().difference(o.createdAt).inSeconds <= (policy!['freeWashMinutes'] as num).toInt() * 60
@@ -414,7 +423,7 @@ class _CancelSheetState extends State<CancelSheet> {
         const SizedBox(height: 14),
         // Say exactly what they get back before they confirm.
         if (quoted)
-          WBanner(tone: Tone.ok, icon: WIcon.rupee, text: _quoteText)
+          WBanner(tone: _quote?['phase'] == 'noCredit' ? Tone.wait : Tone.ok, icon: WIcon.rupee, text: _quoteText)
         else if (!wallet)
           WBanner(tone: Tone.ok, icon: WIcon.rupee, text: o.cancellationTerms)
         else if (early)

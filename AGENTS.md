@@ -40,15 +40,21 @@
   the older saved layout. Keep `config_TtDpJ7HJM4hHb2` for historical records.
   Credit-linked UPI stays allowed. Do not regenerate old shared keys. Historical
   payment/refund records keep their original merchant and mode; never relabel them.
-- Owner-confirmed Customer cancellation policy (30 October): new bookings snapshot
-  `refundThenCredit`, five minutes from server booking confirmation. Within five
-  minutes, refund cash to its original method and restore used wallet credit.
-  Later (before washing), retain 50% of total cash-plus-wallet booking value as
-  the fee and return 50% to the WashKrew wallet. Account in integer paise; never
-  restore the used credit again on top of that 50%. The existing review/cancel/
-  wallet controls display the amounts. Require a current server quote before
-  applying the cancellation. Preserve historical saved terms and full service-
-  failure refunds. Read `docs/REFUND-WALLET-CHECKOUT-2026-10-30.md`.
+- Owner-confirmed cancellation policy (31 October): new bookings snapshot
+  `walletByTime`. Within five minutes of the first server booking confirmation,
+  return 100% of paid cash-plus-wallet value as wallet credit, including bookings
+  less than two hours away. After five minutes, return 50% credit at least two
+  hours before the server-confirmed wash window starts; inside two hours return
+  no credit. Exactly five minutes is full credit; exactly two hours is 50%.
+  Washing still closes Customer self-cancellation. Service failures/no-show and
+  human-upheld wash problems return full wallet value without a fee. New normal
+  cancellations do not request bank refunds. Preserve historical saved cash-
+  refund obligations and source refunds for prohibited payment funding. Use
+  integer paise, a current authenticated server quote and atomic credit/booking/
+  capacity/Captain updates; never restore used credit on top of the awarded total.
+  Existing authored controls show all three outcomes and reuse credit. Read
+  `docs/WALLET-CANCELLATION-2026-10-31.md`; it supersedes the financial rules in
+  the older report and iPhone PDF. No new wallet-history screen is authorized.
 - Payment cutover does not establish live charge/refund or physical acceptance.
   Read `docs/LIVE-PAYMENTS-2026-10-28.md` and `docs/COMPLETION-2026-10-28.md`.
   Private photo services support test/live, with fresh five-minute selfie sessions;

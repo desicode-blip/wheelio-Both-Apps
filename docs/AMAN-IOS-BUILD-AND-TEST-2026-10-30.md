@@ -1,4 +1,12 @@
 # WashKrew
+**31 October financial update:** Read
+[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) first. New
+bookings use 100% wallet credit within five minutes, later 50% until two hours
+before the confirmed wash window and zero inside two hours. Five-minute grace
+wins. Service failures return full wallet credit. This supersedes the original-
+method examples in this older guide/PDF; preserve those only for old bookings.
+Use the current result template and rebuild the Customer iPhone app.
+
 ## Aman + Claude: current iPhone acceptance guide
 
 **30 October 2026 | staging | Customer + Captain + private admin**

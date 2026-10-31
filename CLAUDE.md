@@ -13,9 +13,9 @@ actual native results. `docs/FULL-WORKFLOW-2026-10-29.md` records the latest
 Windows/web evidence and simulated-payment limits. Older guides are detail/history;
 the current LIVE merchant, upload-only Aadhaar and hidden training policy win.
 Preserve Aman's UI/native changes through 79d17af. New bookings use the updated
-five-minute refund / later 50% total-value fee and 50% wallet rule; expose all
+five-minute full-wallet / later 50% or zero-credit rule; expose all
 supported non-credit checkout groups, keeping EMI/paylater hidden. Read
-`docs/REFUND-WALLET-CHECKOUT-2026-10-30.md` and
+`docs/WALLET-CANCELLATION-2026-10-31.md` (current financial rules) and
 `docs/REMAINING-CHECKS-2026-10-30.md` for the existing live refund shortfall and
 honest completion limits. Do not initiate a second manual refund alongside retries.
 

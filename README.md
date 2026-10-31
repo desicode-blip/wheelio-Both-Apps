@@ -32,6 +32,13 @@ approval is required before a Captain can work. Do not seed fake Captains,
 payments or fixed OTPs in production. `?demo=true` is a labelled, isolated design
 gallery using sample data; it is not functional acceptance.
 
+New cancellation rules use wallet credits: 100% within five minutes of confirmed
+booking, then 50% until two hours before the confirmed wash window, then zero.
+The five-minute grace takes priority. Service failures return full wallet credit.
+Historical bookings retain their saved terms. See
+[the current rules and checks](docs/WALLET-CANCELLATION-2026-10-31.md) before using
+an older iPhone guide/PDF; its original-method cancellation examples are historical.
+
 ## Install on an iPhone
 
 On a Mac with Xcode and CocoaPods, use `apps/flutter/tool/run-ios.sh` and follow

@@ -319,6 +319,21 @@ class Dispute {
   int creditsAwarded;
 }
 
+bool usesCancellationQuote(Map<String, dynamic>? policy) =>
+    const ['refundThenCredit', 'walletByTime'].contains(policy?['kind']);
+
+String cancellationPolicyText(Map<String, dynamic> policy) {
+  if (policy['kind'] == 'walletByTime') {
+    final minutes = (policy['creditMinutes'] as num).toInt();
+    final hours = (policy['cutoffMinutes'] as num) / 60;
+    final percent = (policy['lateCreditBps'] as num) / 100;
+    final h = hours == hours.roundToDouble() ? hours.toInt().toString() : hours.toString();
+    final p = percent == percent.roundToDouble() ? percent.toInt().toString() : percent.toString();
+    return 'Within $minutes min of confirmation: 100% wallet credit. Later: $p% at least $h hours before your wash window; 0% inside $h hours. No bank refund.';
+  }
+  return 'Full refund within ${policy['refundMinutes']} minutes of confirmation. Later: 50% fee, 50% to your wallet.';
+}
+
 class Order {
   Map<String, String> evidencePaths = {};
   Map<String, String> customerPhotoPaths = {};
@@ -336,9 +351,11 @@ class Order {
       ? (cancellationOutcome?['creditPaise'] as num? ?? 0) / 100
       : (walletReleased ? creditUsed : 0) + (cancellationOutcome?['creditPaise'] as num? ?? 0) / 100;
   Map<String, dynamic>? liveCancelPolicy;
+  bool get returnsWalletCredit => liveCancelPolicy?['kind'] == 'walletByTime' && cancellationOutcome?['kind'] == 'credit' && refund == null;
   String get cancellationTerms {
     final p = liveCancelPolicy;
     if (paymentStatus != 'captured') return 'No payment has been confirmed. Any reserved free wash or credit will be restored.';
+    if (p?['kind'] == 'walletByTime') return cancellationPolicyText(p!);
     if (p?['kind'] == 'refundThenCredit') return 'Within ${p?['refundMinutes']} minutes of confirmation, your payment returns to its original method and used wallet credit is restored. Later, 50% of the total booking value is a cancellation fee and 50% returns to your wallet.';
     if (price == 0) return 'Your reserved free wash or credit will be restored. No cash payment was taken.';
     if (p?['kind'] != 'wallet') return 'Eligible payment is refunded to the original payment method, less any configured cancellation fee. Reserved credit is restored.';
@@ -391,7 +408,7 @@ class Order {
 
   String? get cancellationSummary {
     final outcome = cancellationOutcome;
-    if (liveCancelPolicy?['kind'] != 'refundThenCredit') return null;
+    if (!usesCancellationQuote(liveCancelPolicy)) return null;
     if (outcome == null) {
       if (!walletReleased) return null;
       final cash = refund?.amount ?? 0;
@@ -401,6 +418,11 @@ class Order {
     final cash = (outcome['cashRefundPaise'] as num? ?? 0) / 100;
     final fee = (outcome['feePaise'] as num? ?? 0) / 100;
     if (outcome['kind'] == 'walletRestored') return 'Your free wash has been restored. No cash payment was taken.';
+    if (liveCancelPolicy?['kind'] == 'walletByTime') {
+      if (outcome['phase'] == 'noCredit') return 'No wallet credit is returned because cancellation was inside 2 hours of the confirmed wash window, after the 5-minute grace period. ${Fmt.rupees(fee)} retained as the cancellation fee. No bank refund.';
+      if (outcome['phase'] == 'serviceFailure') return '${Fmt.rupees(wallet)} added to your wallet because the wash could not be provided. No cancellation fee. Use the credit for a future booking. No bank refund.';
+      return '${Fmt.rupees(wallet)} added to your wallet for a future booking. ${fee > 0 ? '${Fmt.rupees(fee)} retained as the cancellation fee.' : 'No cancellation fee.'} No bank refund.';
+    }
     if (outcome['kind'] == 'credit') return '${Fmt.rupees(wallet)} added to your wallet for a future booking. ${Fmt.rupees(fee)} retained as the cancellation fee. No cash refund.';
     return '${cash > 0 ? '${Fmt.rupees(cash)} refund requested to your original payment method. ' : ''}${wallet > 0 ? '${Fmt.rupees(wallet)} wallet credit restored. ' : ''}No cancellation fee.';
   }

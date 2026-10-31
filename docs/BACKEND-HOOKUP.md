@@ -1,3 +1,18 @@
+# Wallet-only cancellation with a two-hour cutoff - 31 October 2026
+
+[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) supersedes
+the 30 October future-booking policy. Existing authenticated controllers snapshot
+`walletByTime`, validate acknowledged terms and quote 100%/50%/zero credits from
+server confirmation and the server-confirmed window start. Full service-failure
+credits, cancellation, wallet balance, capacity, offers and Captain state commit
+atomically. The existing mixed/all-wallet checkout reuses that balance. No new
+provider, timer, testing button, production fixture or client wallet write is added.
+Test clocks, provider adapters and screenshot stores stay isolated in emulator /
+widget tests. Screenshots use the actual authored widgets and shipped fonts/icons;
+they are not signed-iPhone or live-charge evidence. Historical refund workers and
+prohibited-funding source returns stay intact. New future policy is activated only
+after tested Functions and the updated Customer build are published.
+
 # Five-minute refund/wallet and all non-credit checkout - 30 October 2026
 
 [REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md) records

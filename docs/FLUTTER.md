@@ -1,3 +1,15 @@
+# Wallet-only cancellation update - 31 October 2026
+
+[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) is the current
+financial policy and verification record. Existing Review, cancellation sheet,
+result, Home credit, booking history, Help and dispute controls now distinguish
+100%, 50% and zero-credit outcomes. The server quotes actual amounts/deadlines;
+new-policy service failures return full wallet value. No new screen, control,
+palette, asset, font, native project or dependency is introduced. Captain designs
+and source stay unchanged; server cancellation releases offers/capacity/jobs.
+Older cash-refund examples apply only to historical snapshots. Rebuild the
+Customer binary before testing new bookings; a Hosting release is not an iOS update.
+
 # Current iPhone acceptance package - 30 October 2026
 
 Use [the refreshed guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md) and

@@ -411,7 +411,7 @@ class _PayingScreenState extends State<PayingScreen> {
                 icon: WIcon.clock,
                 tone: Tone.wait,
                 title: 'Waiting for your bank',
-                message: 'We haven’t heard back yet. If money left your account, it will be refunded automatically within 3 days.',
+                message: store.isLive && store.currentOrder?.liveCancelPolicy?['kind'] == 'walletByTime' ? 'We are verifying your payment. Check this booking again before paying again. If payment is captured but we cannot provide the wash, the eligible value returns to your wallet.' : 'We haven’t heard back yet. If money left your account, it will be refunded automatically within 3 days.',
                 primary: checking ? 'Checking…' : 'Check again',
                 secondary: 'Call support',
                 onPrimary: _check,
@@ -504,7 +504,7 @@ class BookedScreen extends StatelessWidget {
         if (store.isLive && o?.captain != null)
           WBanner(tone: Tone.info, icon: WIcon.search, text: '${o!.captain!.name} accepted your booking. Open tracking for the latest status.')
         else if (o != null && o.slotAhead)
-          WBanner(tone: Tone.info, icon: WIcon.calendar, text: store.isLive && o.liveCancelPolicy?['kind'] == 'refundThenCredit' ? 'We’ll assign a captain before your slot and notify you. Cancel within 5 minutes of confirmation for a full refund. Later: 50% cancellation fee and 50% wallet credit, until washing starts.' : 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
+          WBanner(tone: Tone.info, icon: WIcon.calendar, text: store.isLive && usesCancellationQuote(o.liveCancelPolicy) ? 'We’ll assign a captain before your slot and notify you. ${cancellationPolicyText(o.liveCancelPolicy!)}' : 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
         else
           const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),
       ],

@@ -45,6 +45,12 @@ async function main() {
     if(current.fields?.paymentMode?.stringValue!=='live'||current.fields?.paymentMerchant?.stringValue!=='washkrew')throw Error('Verify the separate WashKrew live merchant before changing new checkout presentation.');
     await api('/config/operations?updateMask.fieldPaths=checkoutPresentation&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({checkoutPresentation:'allNonCredit'})});
     console.log('New orders use explicit runtime UPI, debit-card, netbanking and provider-wallet groups instead of pinning the historical saved checkout layout. The saved configuration ID, merchant keys, funding ban and existing order snapshots are preserved. No payment was created.');
+  } else if(command==='configure-cancellation-wallet-time') {
+    const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/getCancellationQuote',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+    if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify the wallet-by-time backend and Customer build before activation.');
+    const current=await api('/config/operations');
+    await api('/config/operations?updateMask.fieldPaths=cancellationPolicy&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({cancellationPolicy:{kind:'walletByTime',creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,serviceFailure:'wallet'}})});
+    console.log('Future bookings: full wallet credit within five minutes; later 50% credit until two hours before the confirmed window, then zero. Grace takes priority. Service failures return full wallet value. Historical snapshots, refunds and balances are unchanged.');
   } else if(command==='configure-cancellation-refund-wallet') {
     const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/getCancellationQuote',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
     if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify getCancellationQuote before activating the new cancellation terms.');

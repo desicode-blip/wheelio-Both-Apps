@@ -1940,7 +1940,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         const SizedBox(height: 18),
         WKeyValueCard(
           boldLast: true,
-          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), if (store.isLive && store.liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit') ('Cancellation', 'Full refund within 5 minutes of confirmation. Later: 50% fee, 50% to your wallet.'), ('Total', Fmt.rupees(d.price))],
+          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), if (store.isLive && store.liveConfig['cancellationPolicy'] is Map && usesCancellationQuote(Map<String,dynamic>.from(store.liveConfig['cancellationPolicy']))) ('Cancellation', cancellationPolicyText(Map<String,dynamic>.from(store.liveConfig['cancellationPolicy']))), ('Total', Fmt.rupees(d.price))],
         ),
         // Only when they have one: a short note that a free wash can pay for this booking.
         if (free > 0) ...[

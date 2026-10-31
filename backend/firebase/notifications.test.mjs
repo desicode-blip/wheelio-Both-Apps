@@ -21,3 +21,11 @@ test('push respects persisted mute/category preferences and Hyderabad quiet hour
  assert.deepEqual(pushDelivery({role:'captain',kind:'offer'},{quietHours:true,mutedUntil:morning,soundOn:false},night,true),{send:true,sound:true});
  assert.deepEqual(pushDelivery({role:'captain',kind:'offer'},null,night,false),{send:false,sound:false});
 });
+
+test('wallet cancellations describe wallet outcome without a fictional bank refund',()=>{
+ const before={status:'searching'},after={status:'cancelled',customerId:'owner',captainId:'captain',cancellationPolicy:{kind:'walletByTime'},cancellationBenefit:{kind:'credit',phase:'noCredit'}};
+ const notices=orderNotices(before,after);
+ assert.match(notices.find(n=>n.role==='customer').body,/wallet credit/);
+ assert.doesNotMatch(notices.find(n=>n.role==='customer').body,/refund/);
+ assert.equal(notices.find(n=>n.role==='captain').title,'Booking cancelled');
+});

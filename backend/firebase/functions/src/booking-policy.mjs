@@ -12,6 +12,14 @@ export function walletPrice(basePrice, wallet, { useFreeWash = false, useCredit 
 
 export function cancellationPolicy(config) {
   const p = config?.cancellationPolicy;
+  if (p?.kind === 'walletByTime') {
+    if (!Number.isSafeInteger(p.creditMinutes) || p.creditMinutes < 0 || p.creditMinutes > 60 ||
+        !Number.isSafeInteger(p.cutoffMinutes) || p.cutoffMinutes < 0 || p.cutoffMinutes > 1440 ||
+        !Number.isSafeInteger(p.lateCreditBps) || p.lateCreditBps < 0 || p.lateCreditBps > 10000 || p.serviceFailure !== 'wallet') {
+      throw new Error('Cancellation policy is not configured.');
+    }
+    return {kind:'walletByTime',creditMinutes:p.creditMinutes,cutoffMinutes:p.cutoffMinutes,lateCreditBps:p.lateCreditBps,serviceFailure:'wallet'};
+  }
   if (p?.kind === 'refundThenCredit') {
     if (!Number.isSafeInteger(p.refundMinutes) || p.refundMinutes < 0 || p.refundMinutes > 60 ||
         !Number.isSafeInteger(p.lateCreditBps) || p.lateCreditBps < 0 || p.lateCreditBps > 10000) {
@@ -27,8 +35,39 @@ export function cancellationPolicy(config) {
   return { kind: 'wallet', freeWashMinutes: p.freeWashMinutes, lateCreditBps: p.lateCreditBps };
 }
 
+export function requiresCancellationQuote(policy) {
+  return ['refundThenCredit','walletByTime'].includes(policy?.kind);
+}
+
+function walletBenefit(order, returned, phase, total = order.pricePaise + (order.creditUsedPaise ?? 0)) {
+  return {kind:'credit',phase,freeWashes:0,creditPaise:returned,cashRefundPaise:0,feePaise:total-returned,restoreReserved:false};
+}
+
+// A service failure returns value regardless of the Customer cancellation clock.
+// Previously released credit (e.g. cancelled unpaid checkout, then late capture)
+// must not be returned a second time.
+export function serviceFailureBenefit(order) {
+  if (order.cancellationPolicy?.kind !== 'walletByTime' || order.paymentStatus !== 'captured') return null;
+  if (order.freeWashUsed) return {kind:'walletRestored',phase:'serviceFailure',freeWashes:0,creditPaise:0,cashRefundPaise:0,feePaise:0};
+  const total=order.pricePaise+(order.walletReleased?0:order.creditUsedPaise??0);
+  return walletBenefit(order,total,'serviceFailure',total);
+}
+
 export function cancellationBenefit(order, now) {
   const p = order.cancellationPolicy ?? { kind: 'refund' };
+  if (p.kind === 'walletByTime' && order.paymentStatus === 'captured') {
+    if (order.freeWashUsed) return {kind:'walletRestored',freeWashes:0,creditPaise:0,cashRefundPaise:0,feePaise:0};
+    const confirmed=order.bookedAt?.toMillis?.(),start=order.slotStart?.toMillis?.();
+    const total=order.pricePaise+(order.creditUsedPaise??0);
+    if (!Number.isFinite(confirmed) || !Number.isFinite(start) || !Number.isFinite(now) || !Number.isSafeInteger(total) || total<0) {
+      throw new Error('Cancellation timing could not be confirmed. Please retry.');
+    }
+    // Five-minute grace wins even for a booking starting in less than two hours.
+    if (now-confirmed <= p.creditMinutes*60000) return walletBenefit(order,total,'fullCredit');
+    // Exactly two hours before the confirmed window is still eligible for 50%.
+    if (now <= start-p.cutoffMinutes*60000) return walletBenefit(order,Math.floor(total*p.lateCreditBps/10000),'partialCredit');
+    return walletBenefit(order,0,'noCredit');
+  }
   if (p.kind === 'refundThenCredit' && order.paymentStatus === 'captured') {
     // Existing promotional free-wash entitlements are restored, never converted
     // into spendable money or multiplied by cancelling a free booking.

@@ -1,5 +1,10 @@
 # Current pull/build/test handoff - 30 October 2026
 
+**Current financial rules changed on 31 October:** read
+[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) before the
+older guide/PDF. New cancellations and service failures return wallet credit,
+with five-minute and two-hour rules; historical source-refund duties remain.
+
 Start with [Aman's current build and test guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
 and [its PDF](../output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf).
 Read [current policy and verification](REFUND-WALLET-CHECKOUT-2026-10-30.md) and

@@ -7,7 +7,8 @@ export async function receiptPdf(order){
   page.drawText('WashKrew',{x:42,y:785,size:25,font:bold,color:rgb(0,73/255,1)});
   page.drawText('Payment receipt',{x:42,y:752,size:18,font:bold});
   const money=n=>`INR ${(Number(n??0)/100).toFixed(2)}`;
-  const rows=[['Booking',order.ref],['Service','Doorstep exterior wash'],['Vehicle',order.plate],['Booked date',order.day],['Booked window',`${order.startHour}:00 - ${order.endHour}:00 (IST)`],['Payment status',order.paymentStatus],['Cash payment',money(order.pricePaise)],['Credit used',money(order.creditUsedPaise)],['Free wash used',order.freeWashUsed?'Yes':'No'],['Payment reference',order.razorpayPaymentId??(order.paymentSource==='wallet'?'Wallet / free wash':'Not available')],['Refund amount',money(order.refundAmountPaise)],['Refund status',order.refundStatus??'none']];
+  const walletReturn=order.cancellationPolicy?.kind==='walletByTime'&&order.cancellationBenefit;
+  const rows=[['Booking',order.ref],['Service','Doorstep exterior wash'],['Vehicle',order.plate],['Booked date',order.day],['Booked window',`${order.startHour}:00 - ${order.endHour}:00 (IST)`],['Payment status',order.paymentStatus],['Cash payment',money(order.pricePaise)],['Credit used',money(order.creditUsedPaise)],['Free wash used',order.freeWashUsed?'Yes':'No'],['Payment reference',order.razorpayPaymentId??(order.paymentSource==='wallet'?'Wallet / free wash':'Not available')],...(walletReturn?[['Wallet credit returned',money(order.cancellationBenefit.creditPaise)],['Cancellation fee',money(order.cancellationBenefit.feePaise)]]:[['Refund amount',money(order.refundAmountPaise)],['Refund status',order.refundStatus??'none']])];
   rows.forEach(([k,v],i)=>line(k,v,710-i*29));
   page.drawText(order.paymentMode==='live'?'Live payment record':'Test payment record - no real money charged',{x:42,y:294,size:10,font:bold});
   page.drawText('Generated from the stored booking and verified payment status.',{x:42,y:270,size:10,font:regular});

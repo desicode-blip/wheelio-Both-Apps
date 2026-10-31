@@ -615,7 +615,7 @@ class AppStore extends ChangeNotifier {
           ? '1 free wash is added to your account. Use it on your next booking.'
           : (o?.creditGiven ?? 0) > 0
           ? '${Fmt.rupees(o!.creditGiven)} credit is added. It comes off your next booking.'
-          : 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has started.')),
+          : d['body'] as String? ?? 'Open your booking to check the cancellation outcome.')),
       'disputed' => (NotificationKind.disputeDecision, 'We’ve got your report', o == null ? 'We’re checking the photos.' : 'We’re checking the photos for ${o.vehicle.plate}.'),
       'refund' => (NotificationKind.refundCredited, 'Refund update', 'Your refund of ${Fmt.rupees(o?.refund?.amount ?? o?.price ?? 0)} has an update.'),
       _ => (NotificationKind.bookingConfirmed, (d['title'] as String? ?? '').replaceFirst('Test · ', ''), d['body'] as String? ?? ''),
@@ -1161,7 +1161,7 @@ class AppStore extends ChangeNotifier {
         'useFreeWash': d.useFreeWash,
         'useCredit': d.creditApplied > 0,
         'expectedAmountPaise': d.pricePaise,
-        if (liveConfig['cancellationPolicy']?['kind'] == 'refundThenCredit') 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
+        if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
         'endHour': s.endHour,

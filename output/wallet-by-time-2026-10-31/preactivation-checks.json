@@ -1,0 +1,257 @@
+{
+  "checkedAt": "2026-10-31T12:52:43.787Z",
+  "sourceBase": "f786dfa",
+  "sourceSha256": {
+    "backend/firebase/functions/src/booking-policy.mjs": "7bd6a078c2da27b33e7e97942ff14ee7a24eeca30599c336ee6d8746598a2d1d",
+    "backend/firebase/functions/src/service.mjs": "dc11497a35369d04ab084dc97ad9fa8f7677f85a836e08fbc17bb0225a17dc61",
+    "backend/firebase/functions/src/documents.mjs": "0b98ab0b84af5351f697430ebfab6e4758f708cae3bd34541f51a39a6d3caaee",
+    "backend/firebase/functions/src/notifications.mjs": "d9a016b1be386ca098d7ec6ee0d56d5f0eb219deb77d5b036c9151b012b4f12a",
+    "apps/flutter/customer/lib/data/models.dart": "debda6321b2bdc72648edf17205b8032d574e99e237c05ee2dfcf09ffd78fc1f",
+    "apps/flutter/customer/lib/data/store.dart": "d0da041651010cf5e1a81febfdd8a336aab833644beaf7edb88143860c729f33",
+    "apps/flutter/customer/lib/screens/common.dart": "7b8062a0542c9c17a00c3a8dc0b68a3d34f370448bfbab8b35560f5fc9981b92",
+    "apps/flutter/customer/lib/screens/booking.dart": "d520ec2bb1cfae1a681755d2b28a957e99fad2b51f5885ec48eaea8d7c21b352",
+    "apps/flutter/customer/lib/screens/live.dart": "ee50e3c41bd071b62f3f30702b756eee3135ca9918acff9383566b1da033556a",
+    "apps/flutter/customer/lib/screens/auth_pay.dart": "428ec4be1ef3d923ec5f045b4aeaa96bfb202b4ab733d6ac0d55ccbd8e8e2527",
+    "apps/flutter/customer/lib/screens/home.dart": "2b3ba4a6ec36820655a28856b9ca250619d1e45e05df9b2b014e0b14c0624bdc",
+    "apps/flutter/customer/lib/screens/problem.dart": "c730c65806b9a82fef5ba9deb3c1bb70cd5a4304aea7f17f377c5787629f9e3c",
+    "apps/flutter/customer/lib/screens/support.dart": "f45f3f932157888cba60e8d7f8836e644ba80c20057f5ce707f85caa4a3fb70a"
+  },
+  "project": "wheelio-apps",
+  "database": {
+    "edition": "STANDARD",
+    "type": "FIRESTORE_NATIVE",
+    "location": "asia-south1"
+  },
+  "configuration": {
+    "paymentMode": "live",
+    "paymentMerchant": "washkrew",
+    "paymentPolicy": "no-credit-card-checkout",
+    "checkoutPresentation": "allNonCredit",
+    "cancellationPolicy": {
+      "refundMinutes": 5,
+      "lateCreditBps": 5000,
+      "kind": "refundThenCredit"
+    },
+    "trainingEnabled": false,
+    "trainingRequired": false
+  },
+  "functions": [
+    {
+      "name": "createBooking",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:33.455460406Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "createCheckout",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:36.263761493Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "verifyPayment",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:34.374576408Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "checkPayment",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:35.285496690Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "razorpayWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:34.772842037Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "razorpayLiveWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:35.125591726Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "washkrewRazorpayLiveWebhook",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:34.804560046Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "getCancellationQuote",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:33.786114703Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "cancelBooking",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:31.419660703Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "updateVehicleHelp",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:33.815698531Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "maintainBookings",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:35.203080029Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "downloadBookingDocument",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:33.864702368Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    },
+    {
+      "name": "notifyBookingUpdate",
+      "state": "ACTIVE",
+      "updatedAt": "2026-10-31T12:43:35.188656126Z",
+      "min": 0,
+      "max": 5,
+      "memory": "256Mi"
+    }
+  ],
+  "authGates": [
+    {
+      "name": "getCancellationQuote",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "cancelBooking",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "createBooking",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "createCheckout",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "claimJob",
+      "unsignedStatus": 401
+    },
+    {
+      "name": "reviewCaptainApplication",
+      "unsignedStatus": 401
+    }
+  ],
+  "availability": {
+    "status": 200,
+    "windows": [
+      {
+        "startHour": 4,
+        "endHour": 6
+      },
+      {
+        "startHour": 6,
+        "endHour": 8
+      },
+      {
+        "startHour": 8,
+        "endHour": 10
+      },
+      {
+        "startHour": 10,
+        "endHour": 12
+      },
+      {
+        "startHour": 12,
+        "endHour": 14
+      },
+      {
+        "startHour": 14,
+        "endHour": 16
+      },
+      {
+        "startHour": 16,
+        "endHour": 18
+      },
+      {
+        "startHour": 18,
+        "endHour": 20
+      },
+      {
+        "startHour": 20,
+        "endHour": 22
+      }
+    ]
+  },
+  "tests": {
+    "backendPassed": 152,
+    "backendFailed": 0,
+    "flutterPassed": 79,
+    "flutterFailed": 0,
+    "analysesPassed": 4,
+    "targetedUiPassed": 9
+  },
+  "hosting": {
+    "version": "sites/wheelio-apps/versions/c97cfe740dc17d24",
+    "releasedAt": "2026-10-31T12:52:09.770Z",
+    "allUserFilesMatchFinalBuild": true,
+    "files": 135,
+    "platformGeneratedFiles": [
+      "/__/firebase/init.js",
+      "/__/firebase/init.json"
+    ],
+    "artifacts": [
+      {
+        "file": "app/main.dart.js",
+        "status": 200,
+        "sha256": "57fe02941040a83b93a570719b96b46abacdd263093369d974ce52fd198688ce"
+      },
+      {
+        "file": "captain/main.dart.js",
+        "status": 200,
+        "sha256": "53575831aad77afe0d853f74c26176a745d96bd8095ffd123e8d186f1284d3eb"
+      },
+      {
+        "file": "admin/admin.mjs",
+        "status": 200,
+        "sha256": "77d66ac279000d560f5d1af596dea5dec32f2e8d2d9a28ba686216ae298f9b19"
+      }
+    ]
+  },
+  "design": {
+    "captainAndNativeSourceUnchanged": true,
+    "sharedLayoutsTokensFontsBrandUnchanged": true,
+    "existingControlsReused": true
+  },
+  "limits": [
+    "No real charge, refund, production fixture, Captain approval or wallet adjustment created for acceptance checks",
+    "Historical booking snapshots and source-refund workers retained",
+    "Physical iPhone/Xcode/APNs and human-authorized live acceptance remain separate checks",
+    "Older native Customer binaries must rebuild to acknowledge new terms"
+  ]
+}

@@ -16,7 +16,9 @@ export function orderNotices(before,after) {
   }
   if(before.dispute?.outcome!==after.dispute?.outcome&&['upheld','rejected'].includes(after.dispute?.outcome))notices.push({recipientId:after.customerId,role:'customer',kind:'disputeDecision',title:'Your report has an update'});
   const bodies={searching:'We’re finding a captain for your wash.',onTheWay:'Your captain is on the way.',washing:'Washing has started. Photos when it is done.',photosReady:'Photos are ready. Approve the wash or tell us if something is wrong.',approved:'Your wash has been approved.',autoApproved:'The review deadline passed and your wash was approved.',cancelled:'Open the booking to check your cancellation and refund.',disputed:'We’ve got your report and are checking the photos.',vehicleHelp:'Open your booking to reply to your captain.',vehicleHelpAnswered:'Open the job to see the owner’s reply.',refund:'Open your booking for the verified refund status.'};
-  return notices.filter(n=>n.recipientId).map(n=>({...n,body:bodies[n.kind]??'Open WashKrew for the latest booking details.'}));
+  return notices.filter(n=>n.recipientId).map(n=>({...n,body:n.role==='customer'&&n.kind==='cancelled'&&after.cancellationPolicy?.kind==='walletByTime'&&after.cancellationBenefit
+    ? 'Open your booking to check the cancellation outcome and wallet credit.'
+    : bodies[n.kind]??'Open WashKrew for the latest booking details.'}));
 }
 
 // Quiet hours are defined by the existing design in Hyderabad time, independent
