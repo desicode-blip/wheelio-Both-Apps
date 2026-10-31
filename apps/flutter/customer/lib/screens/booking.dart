@@ -354,13 +354,35 @@ class PhotosScreen extends StatelessWidget {
       ),
       children: [
         title,
-        GridView.count(
+        LayoutBuilder(builder: (context, constraints) {
+          final empty = d.photos.isEmpty;
+          final photoHeight = empty ? 126.0 : 98.0;
+          final tileWidth = (constraints.maxWidth - 14) / 2;
+          final authoredHeight = tileWidth * (empty ? 126 : 122) / 154;
+          var contentHeight = photoHeight;
+          if (!empty) {
+            for (final angle in PhotoAngle.values) {
+              final caption = TextPainter(
+                text: TextSpan(text: angle.label, style: wStyle(WType.label, weight: medium, scale: TextScale.of(context))),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+              )..layout(maxWidth: tileWidth);
+              final needed = photoHeight + 6 + caption.height.ceilToDouble();
+              if (needed > contentHeight) contentHeight = needed;
+              caption.dispose();
+            }
+          }
+          return GridView.count(
+          // WScreen already handles the phone's safe areas.
+          padding: EdgeInsets.zero,
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
-          childAspectRatio: 154 / ((d.photos.isEmpty ? 126 : 98) + (d.photos.isEmpty ? 0 : 24)),
+          // Keep the authored ratio wherever it fits, and allow the existing
+          // fixed-height photo/caption to fit narrower phones and larger text.
+          childAspectRatio: tileWidth / (authoredHeight > contentHeight ? authoredHeight : contentHeight),
           children: [
             for (final a in PhotoAngle.values)
               WPhotoSlot(
@@ -371,7 +393,8 @@ class PhotosScreen extends StatelessWidget {
                 onTap: () => d.photos[a] == UploadState.failed ? store.uploadPhoto(a) : router.push(R(N.camera, angle: a)),
               ),
           ],
-        ),
+          );
+        }),
         if (d.hasFailedPhoto)
           Padding(
             padding: const EdgeInsets.only(top: 20),
