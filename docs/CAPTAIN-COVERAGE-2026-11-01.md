@@ -1,5 +1,14 @@
 # Captain-defined coverage — 1 November 2026
 
+Current status: the coverage policy/backend/Hosting are live, both final Android
+USB APKs are installed, both apps have development/production APNs keys saved,
+and the two separate Play internal releases have the dedicated tester list and
+Firebase/Maps signing fingerprints configured. Play-delivered phone OTP and
+physical iPhone acceptance remain separate device checks. Later sections include
+chronological evidence; use [PLAY-INTERNAL-2026-11-01.md](PLAY-INTERNAL-2026-11-01.md)
+and [APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) for current
+platform setup instead of earlier pending-state entries.
+
 Owner explicitly authorized this feature's new map/slider UI on 1 November. All other Customer/Captain layouts remain under the af036f0 design lock. Existing demo work-area screens remain available unchanged in the design gallery.
 
 ## Operational rule

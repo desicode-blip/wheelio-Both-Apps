@@ -8,6 +8,13 @@ development/production Apple push keys for both apps and remaining device gates.
 Older entries calling the key missing are historical; configuration does not prove
 physical iPhone OTP or APNs delivery.
 
+[PLAY-INTERNAL-2026-11-01.md](PLAY-INTERNAL-2026-11-01.md) records the two separate
+WashKrew internal releases, dedicated tester list, public Play signing certificates
+and verified Firebase/Maps registration. TrustKeyper apps and their existing
+testing/signing configuration remain outside this task. Play installation/OTP is
+still a physical device gate; the current USB builds were updated with app data
+preserved.
+
 # GPS place suggestions and native OTP - 1 November 2026
 
 [GPS-SEARCH-NATIVE-OTP-2026-11-01.md](GPS-SEARCH-NATIVE-OTP-2026-11-01.md)
