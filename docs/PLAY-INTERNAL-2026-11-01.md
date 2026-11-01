@@ -63,9 +63,10 @@ the existing WashKrew Android Maps key. Existing debug entries and API restricti
 were preserved. Authenticated read-back verified all entries for both apps. No key
 was regenerated, no signing key changed, and no TrustKeyper key/project was used.
 
-Play-delivered installation and native OTP acceptance still require the device
-check below. Do not claim sideloaded APK installation establishes Play Integrity
-success or guarantees no Firebase challenge.
+Both Play-delivered installations and fixed-code test-number logins were later
+verified on the device, as recorded below. Real-number OTP acceptance remains
+separate. Neither a sideloaded install nor a test-number login establishes real
+SMS Play Integrity success or guarantees no Firebase challenge.
 
 ## Physical APK follow-up
 
@@ -122,3 +123,22 @@ Keyboard intentionally hides this entry from the mirror. OTP success/fallback is
 not yet established. Customer delivery still needs a later retry. Do not clear
 Google accounts, weaken Play Protect/Firebase verification, or modify unrelated
 apps to work around delivery errors.
+
+## Device follow-up — 2 November, 03:00 IST
+
+Customer's next installation attempt succeeded on 1 November at **22:30:30 IST**.
+Android read-back confirms both packages use installer `com.android.vending`,
+version code 1 / version 1.0.0, target SDK 36. Customer's installed base APK also
+passed `apksigner verify`; its SHA1/SHA256 match the registered Customer Play
+deployment certificate above. The earlier delivery errors no longer block either
+installation. No Google account/data reset, Play Protect change or unrelated-app
+mutation was used to obtain delivery.
+
+The owner then requested two dedicated fixed-code Firebase phone accounts and
+supplied their numbers. Both normal Play-installed app logins succeeded on
+2 November: Captain registered and reached Home, unapproved/Offline; Customer
+reached its existing name step, saved the test name and returned Home. The codes
+stay outside Git. These are **test-number** results, not real-SMS/Play Integrity
+acceptance. Customer's initial generic post-login error did not recur in the
+later normal attempt; its precise cause remains unproven. See
+[FIREBASE-TEST-ACCOUNTS-2026-11-02.md](FIREBASE-TEST-ACCOUNTS-2026-11-02.md).

@@ -4,12 +4,15 @@ Current status: the coverage policy/backend/Hosting are live, both final Android
 USB APKs passed the earlier installation checks, both apps have development/production
 APNs keys saved, and the two separate Play internal releases have the dedicated
 tester list and Firebase/Maps signing fingerprints configured. The owner authorized
-replacing the USB copies: Captain is now installed from Play with its certificate
-verified, while Customer's Play download initially failed. Play-delivered phone OTP and
-physical iPhone acceptance remain separate device checks. Later sections include
+replacing the USB copies: both are now installed from Play with their certificates
+verified, and the owner's two dedicated fixed-code Firebase logins passed on the
+phone. Real-number Play-delivered OTP and physical iPhone acceptance remain
+separate device checks. Later sections include
 chronological evidence; use [PLAY-INTERNAL-2026-11-01.md](PLAY-INTERNAL-2026-11-01.md)
 and [APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) for current
-platform setup instead of earlier pending-state entries.
+platform setup instead of earlier pending-state entries. The explicit test-account
+authorization/results are in
+[FIREBASE-TEST-ACCOUNTS-2026-11-02.md](FIREBASE-TEST-ACCOUNTS-2026-11-02.md).
 
 Owner explicitly authorized this feature's new map/slider UI on 1 November. All other Customer/Captain layouts remain under the af036f0 design lock. Existing demo work-area screens remain available unchanged in the design gallery.
 

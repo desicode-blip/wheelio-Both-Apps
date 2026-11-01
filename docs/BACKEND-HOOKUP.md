@@ -1,3 +1,17 @@
+# Owner-authorized Firebase test logins - 2 November 2026
+
+The owner explicitly requested two fixed-code Firebase test accounts and supplied
+their unused, dedicated numbers. Only those two Auth testing entries/users were
+configured; their private codes remain outside Git. Both normal Android app logins
+were manually verified. No app shortcut, real-number verification bypass, new SMS
+provider, fake KYC, approval, balance or booking was added. The accounts still use
+the live backend/payment gateway and normal human review. This narrow owner
+authorization supersedes the earlier no-production-test-number statements only
+for these two logins. See
+[FIREBASE-TEST-ACCOUNTS-2026-11-02.md](FIREBASE-TEST-ACCOUNTS-2026-11-02.md) for
+actual evidence, the first Customer attempt's unresolved transient error, and
+cleanup boundaries.
+
 # GPS suggestions in the existing search field - 1 November 2026
 
 `searchPlaceSuggestions` / `selectPlaceSuggestion` connect the existing Customer
