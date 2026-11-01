@@ -69,3 +69,6 @@ backend/photo-check/__pycache__/
 **/key.properties
 **/*upload.properties
 **/*.hprof
+
+# Apple push-notification private signing keys must never enter source control.
+**/*.p8

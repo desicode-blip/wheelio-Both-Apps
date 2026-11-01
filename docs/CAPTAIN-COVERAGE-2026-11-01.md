@@ -61,6 +61,18 @@ Both app registrations were created in Sumit's existing Play publisher after the
 
 Repeatable arm64 internal bundle build: set `FLUTTER_BIN`, the usual Java/Android SDK paths and `WASHKREW_ANDROID_KEY_PROPERTIES` to your private properties file, then run `pnpm android:internal` (optional role argument: `customer` or `captain`). Run `flutter pub get --enforce-lockfile` in each app first when dependencies have not been installed. Output is each app's ignored `build/app/outputs/bundle/release/app-release.aab`. Keep the private keystore/properties outside Git and back them up privately. App signing fingerprints issued by Play still need registration with Firebase and the restricted Maps key before Play-delivered phone checks are complete.
 
+## Final publication and phone follow-up
+
+The final guest-map availability controller was deployed successfully with the codebase-qualified filter `functions:wheelio:getAvailability`; documented API gateway configuration completed afterward. Final Customer/Captain web releases and private admin were republished to default Hosting. Read-back confirms `captainAreaV1`, live payment mode and enabled bookings. No production test booking or identity approval was created.
+
+Both private arm64 internal release bundles built successfully from source commit `f15f29f`. SHA256: Customer `0e9abf60b606c0458302a4e8bd68a0e69ade877049c5a6ffd24167dfe006da61`; Captain `998f5096e12a87f5db64c46cfad9223a415b2a0010a11127e809ca3479981b25`. These artifacts have not yet been uploaded to Play; Play delivery and its signing certificates remain separate acceptance gates.
+
+Physical OnePlus checks confirmed the saved 3 km circle persists, the radius reaches 10 km and restores to 3 km, and the existing work-hours editor changes from 4 AM–10 PM to 6 AM–10 PM and restores without saving a different schedule. The owner entered a public area name directly through OnePlus Secure Keyboard; both the owner and the laptop screenshot confirmed multiple live, selectable Google place suggestions. The secure keyboard itself is not mirrored; no security setting was disabled. The Captain remains unapproved and Offline.
+
+Final profile APKs from `f15f29f` both built and installed successfully while preserving app data. Device package read-back confirmed updates on 1 November at 16:52 (Customer) and 16:56 (Captain), IST. SHA256: Customer `50053a1cc31d59c1250ab92b67c81f3646c4247848b59920898dad2ebd93d36c`; Captain `4341380e8ee54a9463faca27d5b4cf2c0e1f0b25df429a72f6ba8b2a7bafade5`. These are USB acceptance builds using the existing debug certificate, not Play-delivered installs. Both private AAB signatures verify locally; Play upload/signing/OTP checks remain separate.
+
+Aman supplied the paid-team APNs key privately on 1 November. Its local file parses as an EC P-256 private key and the provided Team ID matches both apps. Firebase Console showed neither development nor production APNs keys for either iOS app. Upload is pending Chrome local-file access; receipt/format validation does not establish Firebase configuration or physical iPhone delivery. The key stays outside Git, and `.p8` files are ignored. See [APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md).
+
 After the initial APK checks, the new map/form controls were refined to Captain touch-target sizes, and the existing Home KYC card now distinguishes a missing serving area from submitted documents awaiting review. This changes live status text/handlers only, preserving the card layout and the demo reference. The final targeted Captain tests (9) and edited-screen analysis pass. New published web/native artifacts must include this refinement before recording final UI acceptance.
 
 ## Guest checkout preservation

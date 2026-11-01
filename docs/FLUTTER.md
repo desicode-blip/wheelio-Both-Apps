@@ -1,3 +1,12 @@
+# Captain coverage and Apple key follow-up - 1 November 2026
+
+[CAPTAIN-COVERAGE-2026-11-01.md](CAPTAIN-COVERAGE-2026-11-01.md) records the
+owner-authorized map/radius exception, live backend/Hosting publication, current
+Android bundles and actual phone checks. Other authored designs remain locked.
+[APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) records receipt of
+Aman's private Apple key and the remaining upload/device gates. Older entries
+calling the key missing are historical; receiving it does not prove APNs delivery.
+
 # GPS place suggestions and native OTP - 1 November 2026
 
 [GPS-SEARCH-NATIVE-OTP-2026-11-01.md](GPS-SEARCH-NATIVE-OTP-2026-11-01.md)
