@@ -127,3 +127,8 @@ work. Do not push unless asked. Never hard-reset or force-push to erase work.
 
 ## Owner decision — 1 November 2026
 Captain-defined map centre and radius 1–10 km cover every home/society inside it; no manual society approvals for new bookings. Explicit UI exception: map/radius setup after documents/payout and same editor from Captain Home. Human admin identity/payout approval stays mandatory. Fixed centre is independent of job GPS. See docs/CAPTAIN-COVERAGE-2026-11-01.md. All other designs remain locked.
+
+Play Console: WashKrew Customer and WashKrew Captain are two separate apps with
+their existing `.customer` and `.captain` package IDs. Never change the unrelated
+TrustKeyper or TrustKeyper Staging apps, releases, signing or tester setup. Use a
+dedicated WashKrew internal tester list. See docs/PLAY-INTERNAL-2026-11-01.md.
