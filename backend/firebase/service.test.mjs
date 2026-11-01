@@ -946,3 +946,12 @@ test('area policy submits and human-approves documents without manual society se
  await service.captainOnline(auth(uid),{online:true});
  assert.equal((await db.doc('captains/'+uid).get()).data().online,true);
 });
+test('guest map previews use the chosen pin without moving phone login ahead of checkout',async()=>{
+ const center=await areaSetup();
+ const preview=await service.availability(null,{societyId:'manual',day:'2026-11-01',position:center});
+ assert.equal(preview.slots.find(s=>s.startHour===8).available,true);
+ await assert.rejects(service.availability(null,{societyId:'manual',day:'2026-11-01',position:{latitude:999,longitude:78}}),{code:'invalid-argument'});
+ await assert.rejects(service.createBooking(null,input('guest-unpaid')),{code:'unauthenticated'});
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({approved:false});
+ assert.equal((await service.availability(null,{societyId:'manual',day:'2026-11-01',position:center})).slots.some(s=>s.available),false);
+});

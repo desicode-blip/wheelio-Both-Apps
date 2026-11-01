@@ -18,13 +18,11 @@ class ServiceAreaScreen extends StatefulWidget {
 class _ServiceAreaScreenState extends State<ServiceAreaScreen> {
   double? latitude, longitude;
   int radius = 3, generation = 0;
-  String label = '',
-      query = '',
-      token = List.generate(
-        32,
-        (_) =>
-            'abcdefghijklmnopqrstuvwxyz0123456789'[Random.secure().nextInt(36)],
-      ).join();
+  static String _newToken() {
+    final random=Random.secure();
+    return List.generate(32,(_)=>'abcdefghijklmnopqrstuvwxyz0123456789'[random.nextInt(36)]).join();
+  }
+  String label='',query='',token=_newToken();
   bool loaded = false, locating = false, searching = false, saving = false;
   String? error;
   Timer? debounce;
@@ -135,6 +133,7 @@ class _ServiceAreaScreenState extends State<ServiceAreaScreen> {
         label = place['name'] as String;
         query = label;
         suggestions = [];
+        token=_newToken();
       });
     } catch (e) {
       if (mounted && g == generation) setState(() => error = backendError(e));

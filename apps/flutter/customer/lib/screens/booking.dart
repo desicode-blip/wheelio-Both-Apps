@@ -960,7 +960,7 @@ class _LocationScreenState extends State<LocationScreen> {
           enabled:!confirming,
           onTap: () async {
             if(confirming)return;setState(()=>confirming=true);
-            try{final confirmed=store.isLive&&store.captainAreaEnabled?await store.confirmPlace(place!):place!.copy();if(!mounted)return;store.set(() => store.draft.place = confirmed);router.go(N.floorSlot);}
+            try{final local=place!.copy()..latitude=store.mapCenter(place).$1..longitude=store.mapCenter(place).$2;final confirmed=store.isLive&&store.captainAreaEnabled&&store.isLoggedIn?await store.confirmPlace(local):local;if(!mounted)return;store.set(() => store.draft.place = confirmed);router.go(N.floorSlot);}
             catch(e){store.set(()=>store.toast=backendError(e));}
             finally{if(mounted)setState(()=>confirming=false);}
           },
@@ -1257,8 +1257,8 @@ class _ManualAddressScreenState extends State<ManualAddressScreen> {
     if (!_ready || checking) return;
     final store = context.store;
     if (store.isLive) {
-      if (!store.isLoggedIn) { context.router.go(N.login); return; }
       if(store.captainAreaEnabled){final selected=store.searchedAddress;store.set(()=>store.draft.place=Place(Society('manual',name.trim(),area.trim(),city.trim(),pincode),latitude:(selected?['latitude'] as num?)?.toDouble(),longitude:(selected?['longitude'] as num?)?.toDouble()));context.router.go(N.location);return;}
+      if (!store.isLoggedIn) { context.router.go(N.login); return; }
       setState(() { checking = true; addressError = null; });
       try {
         final result = await store.live!.call('checkServiceAddress', {'name':name.trim(),'area':area.trim(),'city':city.trim(),'pincode':pincode});

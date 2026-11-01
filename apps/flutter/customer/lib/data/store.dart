@@ -130,9 +130,9 @@ class AppRouter extends WRouter<R> {
 
   /// After login: back to Check and pay with the pay sheet open, or home.
   void finishLogin() {
-    final address = path.indexWhere((e) => e.route.n == N.manualAddress);
-    if (address >= 0) { keep(address + 1); return; }
-    final i = path.indexWhere((e) => e.route.n == N.review);
+    final address = path.lastIndexWhere((e) => e.route.n == N.manualAddress);
+    final i = path.lastIndexWhere((e) => e.route.n == N.review);
+    if (address >= 0 && address > i) { keep(address + 1); return; }
     if (i >= 0) {
       keep(i + 1);
       Future.delayed(const Duration(milliseconds: 450), () => openPaySheet(true));
@@ -773,8 +773,10 @@ class AppStore extends ChangeNotifier {
   Future<Set<int>> availabilityFor(String societyId, DateTime day, {bool fresh = false}) {
     final d = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
     _availability.setContext(availabilityContext);
-    return _availability.load('$societyId:$d', () async {
-      final r = await live!.call('getAvailability', {'societyId': societyId, 'day': d});
+    final place=draft.place?.society.id==societyId?draft.place:savedPlaces.where((p)=>p.society.id==societyId).firstOrNull;
+    final position=place?.latitude!=null&&place?.longitude!=null?{'latitude':place!.latitude,'longitude':place.longitude}:null;
+    return _availability.load('$societyId:$d:${position?['latitude']}:${position?['longitude']}', () async {
+      final r = await live!.call('getAvailability', {'societyId': societyId, 'day': d,if(captainAreaEnabled&&position!=null)'position':position});
       return {for (final s in r['slots'] as List) if (s['available'] == true) (s['startHour'] as num).toInt()};
     }, fresh: fresh);
   }
@@ -1167,7 +1169,8 @@ class AppStore extends ChangeNotifier {
   /// BACKEND: rpc create_order, then Razorpay checkout.
   Future<PaymentOutcome> createOrderAndPay() async {
     if (isLive) {
-      final d = draft, p = d.place, s = d.slot;
+      final d=draft,s=d.slot;
+      var p=d.place;
       // Paying for a booking that already exists (opened from Bookings or a notification).
       final pending = currentOrder;
       if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
@@ -1177,6 +1180,7 @@ class AppStore extends ChangeNotifier {
         return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
+      if(captainAreaEnabled){p=await confirmPlace(p);draft.place=p;}
       final result = await live!.call('createBooking', {
         'requestId': draftRequestId,
         'plate': d.plate,

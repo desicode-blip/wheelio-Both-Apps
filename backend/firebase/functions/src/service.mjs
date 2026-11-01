@@ -120,7 +120,8 @@ export class WashKrewService {
     const societyId=id(data.societyId,'society');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(data.day??''))fail('invalid-argument','Choose a date.');
     const cfg=await this.config();
-    const location=await resolveLocation(this,cfg,societyId);
+    if(data.position!==undefined&&!validPosition(data.position))fail('invalid-argument','Check the parking location.');
+    const location=areaPolicy(cfg)&&validPosition(data.position)?{location:data.position}:await resolveLocation(this,cfg,societyId);
     if(!location)return {slots:[]};
     const day=Date.parse(`${data.day}T00:00:00+05:30`);
     if(!Number.isFinite(day)||day<this.now()-86400000||day>this.now()+60*86400000)fail('invalid-argument','Choose a date within 60 days.');
