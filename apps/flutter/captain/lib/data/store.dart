@@ -116,7 +116,7 @@ class Society {
 /// Which jobs the captain wants to be offered.
 enum WorkMode { all, radius, societies, place }
 
-enum KycStep { aadhaar, photo, bank, training, quiz }
+enum KycStep { aadhaar, photo, bank, area, training, quiz }
 
 enum KycState { todo, done, problem }
 
@@ -427,17 +427,22 @@ class CaptainStore extends ChangeNotifier {
   bool get canAccept => signedUp;
   Job get current => (isLive ? queue.where((j) => j.id == _workflowOrderId).firstOrNull : null) ?? queue.where((j) => j.status == JobStatus.now).firstOrNull ?? (isLive ? Job(id:'',plate:'',type:'',isBike:false,pay:0,tower:'',floor:'',slot:'',window:'',time:'',owner:'',society:'',area:'',distance:'',reachBy:'',finishBy:'') : sampleQueue()[0]);
   List<Job> get upNext => queue.where((j) => j.status != JobStatus.done).toList();
+  bool get captainAreaEnabled=>isLive&&liveConfig['coveragePolicy']=='captainAreaV1';
+  void refreshKycSteps()=>_applySteps();
+  bool get hasServiceArea=>liveCaptain['serviceArea']?['center']?['latitude'] is num;
   bool get trainingEnabled => liveConfig['training']?['enabled'] == true ||
       (liveConfig['training']?['enabled'] != false && liveConfig['training']?['required'] == true);
   List<KycStep> get onboardingSteps => [KycStep.aadhaar, KycStep.photo, KycStep.bank,
+      if(captainAreaEnabled) KycStep.area,
       if(trainingEnabled) ...[KycStep.training, KycStep.quiz]];
   KycStep? get nextStep => onboardingSteps.where((s) => steps[s] != KycState.done).firstOrNull;
   int get stepsDone => onboardingSteps.where((s) => steps[s] == KycState.done).length;
-  int get kycStageCount => trainingEnabled ? 4 : 3;
+  int get kycStageCount => 3+(trainingEnabled?1:0)+(captainAreaEnabled?1:0);
 
   /// Count only visible KYC stages; hidden training is never marked complete.
   int get kycStagesDone =>
       [steps[KycStep.aadhaar], steps[KycStep.photo], steps[KycStep.bank]].where((s) => s == KycState.done).length +
+      (captainAreaEnabled&&hasServiceArea?1:0)+
       (trainingEnabled && steps[KycStep.training] == KycState.done && steps[KycStep.quiz] == KycState.done ? 1 : 0);
   String get langName => switch (lang) { Lang.hi => 'हिन्दी', Lang.te => 'తెలుగు', Lang.en => 'English' };
 
@@ -592,6 +597,7 @@ class CaptainStore extends ChangeNotifier {
       };
 
   String get workSummary {
+    if(captainAreaEnabled){final a=liveCaptain['serviceArea'];return a is Map?'${a['label']} · ${a['radiusKm']} km':'Set serving area';}
     switch (workMode) {
       case WorkMode.all:
         return t('All jobs', 'सभी काम', 'అన్ని పనులు');
@@ -1184,6 +1190,7 @@ class CaptainStore extends ChangeNotifier {
     videosWatched=liveCaptain['trainingVersion']==liveConfig['training']?['version']?(liveCaptain['trainingVideos'] as List? ?? []).length:0;
     final submitted = kycStatus == 'underReview' || kycStatus == 'approved' || liveCaptain['approved'] == true;
     steps = {
+      if(hasServiceArea) KycStep.area: KycState.done,
       if (kycUploaded.contains('aadhaar') || submitted) KycStep.aadhaar: KycState.done,
       if (kycUploaded.contains('selfie') || submitted) KycStep.photo: KycState.done,
       if (liveCaptain['payout'] != null || (kycUploaded.contains('bank') && upi.isNotEmpty) || submitted) KycStep.bank: KycState.done,

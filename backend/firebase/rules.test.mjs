@@ -93,3 +93,14 @@ test('captain applications are private and cannot start with approved status', a
   await assertFails(getDoc(doc(user('bob'), 'captainApplications/alice')));
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'captainApplications/alice')));
 });
+
+test('coverage refresh is authenticated read-only; private geo and saved locations remain server-only',async()=>{
+ await env.withSecurityRulesDisabled(async ctx=>{
+  await setDoc(doc(ctx.firestore(),'availabilitySignals/current'),{revision:1,updatedAt:serverTimestamp()});
+  await setDoc(doc(ctx.firestore(),'coverageLocations/loc_private'),{name:'QA home',location:{latitude:17,longitude:78}});
+ });
+ await assertSucceeds(getDoc(doc(user(),'availabilitySignals/current')));
+ await assertFails(setDoc(doc(user(),'availabilitySignals/current'),{revision:999}));
+ await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(),'availabilitySignals/current')));
+ await assertFails(getDoc(doc(user(),'coverageLocations/loc_private')));
+});

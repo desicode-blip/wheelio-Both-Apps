@@ -497,3 +497,5 @@ These were built in the SwiftUI reference and then ported to Flutter, so both ap
 - Not connected yet: Neon / Better Auth API, payments, push and real photo upload. Screens call the store, and the store is where backend calls go (see `backend/API-CONTRACT.md`).
 - The React ports at `apps/web` `/app` and `/captain` came first and are now superseded by these Flutter apps as the launch target. They stay until the Flutter web build is deployed, then can be removed.
 - `legacy/` holds an older, unfinished Flutter customer app from before the iOS apps. The new code does not use it.
+
+1 Nov 2026: Owner-authorized map/radius Captain coverage onboarding/editor, private server matching and realtime Customer availability. See docs/CAPTAIN-COVERAGE-2026-11-01.md. Other af036f0 layouts preserved. Native OTP verification remains mandatory; Play/APNs distribution prerequisites recorded there.

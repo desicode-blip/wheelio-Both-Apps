@@ -440,3 +440,5 @@ name. Keep them in server config; see also the list at the end of `CONNECT-LATER
 - Captain interest saves privately to `captainApplications/{uid}`. Clients cannot approve KYC or access jobs/payouts.
 - Firestore security rules and owner/time index; emulator tests for account isolation and protected states.
 - Both complete designed demo apps remain accessible only with `?demo=true`; their persistent demo strip identifies sample data. Every item still unchecked above remains unfinished for the designed production wash flow.
+
+1 Nov 2026: Captain coverage replaces manual society approval for new bookings under captainAreaV1. Uses existing Google Maps/Firebase, no new provider. New map/editor is actual server state, no QA Captain/automatic identity approval/fake Online. Read docs/CAPTAIN-COVERAGE-2026-11-01.md for rollout, private data model and evidence.

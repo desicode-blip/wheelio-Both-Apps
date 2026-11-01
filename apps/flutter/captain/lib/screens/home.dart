@@ -124,6 +124,7 @@ class _CaptainHomeState extends State<CaptainHome> {
   void _setOnline(bool on) {
     final store = context.store;
     // Profile sent and not approved yet: explain, with the call option after 30 minutes.
+    if(on&&store.captainAreaEnabled&&store.registered&&!store.hasServiceArea){context.router.go(N.workArea);return;}
     if (on && store.underReview) {
       store.awaitingApproval = true;
       showReviewNotice(context);

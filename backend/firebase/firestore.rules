@@ -11,6 +11,8 @@ service cloud.firestore {
       let order = get(/databases/$(database)/documents/orders/$(orderId)).data;
       return request.auth != null && (order.customerId == request.auth.uid || order.captainId == request.auth.uid);
     }
+    // Refresh only: integer revision and timestamp; no Captain location or identity.
+    match /availabilitySignals/current { allow get: if request.auth != null; allow list, write: if false; }
     match /config/operations { allow read: if true; allow write: if false; }
     match /orders/{orderId} {
       allow read: if request.auth != null && (resource.data.customerId == request.auth.uid || resource.data.captainId == request.auth.uid);

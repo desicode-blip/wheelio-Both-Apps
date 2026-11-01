@@ -612,9 +612,7 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
               },
               onSecondary: () {
                 store.set(() {
-                  for (final a in PhotoAngle.values) {
-                    store.draft.photos[a] = UploadState.done;
-                  }
+                  if(!store.isLive){for (final a in PhotoAngle.values) {store.draft.photos[a] = UploadState.done;}}
                 });
                 router.pop();
               },
@@ -877,9 +875,9 @@ class LocationScreen extends StatefulWidget {
 }
 
 class _LocationScreenState extends State<LocationScreen> {
-  bool requesting=false;
-  late bool off = widget.forceOff || (context.store.isLive&&context.store.savedPlaces.isEmpty&&context.store.orders.isEmpty);
-  late Place? place = context.store.isLive ? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
+  bool requesting=false,confirming=false;
+  late bool off = widget.forceOff || (context.store.isLive&&context.store.draft.place==null&&context.store.savedPlaces.isEmpty&&context.store.orders.isEmpty);
+  late Place? place = context.store.isLive ? context.store.draft.place ?? context.store.savedPlaces.firstOrNull ?? context.store.orders.firstOrNull?.place : AppStore.homePlace();
   @override void initState(){
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_)async{
@@ -893,6 +891,7 @@ class _LocationScreenState extends State<LocationScreen> {
   Future<(double, double)?> _locateMe() async {
     final store = context.store;
     try {
+      if(store.captainAreaEnabled){final p=await store.live!.currentPosition();if(mounted&&place!=null)setState((){place!.latitude=p.latitude;place!.longitude=p.longitude;});return (p.latitude,p.longitude);}
       final found = await store.locatePlace();
       if (!mounted) return null;
       if (found == null || found.latitude == null || found.longitude == null) {
@@ -957,10 +956,13 @@ class _LocationScreenState extends State<LocationScreen> {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          'Yes, it’s here',
-          onTap: () {
-            store.set(() => store.draft.place = place!.copy());
-            router.go(N.floorSlot);
+          confirming?'Saving location…':'Yes, it’s here',
+          enabled:!confirming,
+          onTap: () async {
+            if(confirming)return;setState(()=>confirming=true);
+            try{final confirmed=store.isLive&&store.captainAreaEnabled?await store.confirmPlace(place!):place!.copy();if(!mounted)return;store.set(() => store.draft.place = confirmed);router.go(N.floorSlot);}
+            catch(e){store.set(()=>store.toast=backendError(e));}
+            finally{if(mounted)setState(()=>confirming=false);}
           },
         ),
       ),
@@ -1128,7 +1130,7 @@ class _AddressSearchScreenState extends State<AddressSearchScreen> {
       final society=store.liveSocieties.where((s)=>s.id==result['societyId']).firstOrNull;
       if(society!=null){
         store.set(()=>store.draft.place=Place(society,latitude:(p['latitude'] as num).toDouble(),longitude:(p['longitude'] as num).toDouble()));
-        router.go(N.floorSlot);
+        router.go(store.captainAreaEnabled?N.location:N.floorSlot);
       }else{
         store.searchedAddress=p;
         ManualAddressScreen.prefill=p['name'] as String? ?? suggestion.name;
@@ -1256,6 +1258,7 @@ class _ManualAddressScreenState extends State<ManualAddressScreen> {
     final store = context.store;
     if (store.isLive) {
       if (!store.isLoggedIn) { context.router.go(N.login); return; }
+      if(store.captainAreaEnabled){final selected=store.searchedAddress;store.set(()=>store.draft.place=Place(Society('manual',name.trim(),area.trim(),city.trim(),pincode),latitude:(selected?['latitude'] as num?)?.toDouble(),longitude:(selected?['longitude'] as num?)?.toDouble()));context.router.go(N.location);return;}
       setState(() { checking = true; addressError = null; });
       try {
         final result = await store.live!.call('checkServiceAddress', {'name':name.trim(),'area':area.trim(),'city':city.trim(),'pincode':pincode});

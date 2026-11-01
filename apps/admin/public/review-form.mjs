@@ -14,6 +14,6 @@ export function reviewRequirements(decision, application, form) {
   if(!form.identityReviewed)missing.push('Confirm that you reviewed the Aadhaar photo and selfie.');
   if(!form.payoutReviewed)missing.push('Confirm that you reviewed the payout details.');
   const active=new Set(application.societies.filter(s=>application.requestedSocietyIds.includes(s.id)).map(s=>s.id));
-  if(!form.societyIds.length||form.societyIds.length>10||form.societyIds.some(id=>!active.has(id)))missing.push('Select at least one active society requested by this Captain (maximum 10).');
+  if(application.coveragePolicy!=='captainAreaV1'&&(!form.societyIds.length||form.societyIds.length>10||form.societyIds.some(id=>!active.has(id))))missing.push('Select at least one active society requested by this Captain (maximum 10).');
   return missing;
 }

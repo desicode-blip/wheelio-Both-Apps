@@ -459,6 +459,7 @@ class AppStore extends ChangeNotifier {
               if (draft.type != null) draft.type = VehicleType.all.where((t) => t.kind == draft.type!.kind).firstOrNull;
             }
             liveSocieties = [
+              ...liveSocieties.where((s)=>s.id.startsWith('loc_')),
               for (final s in config['societies'] as List? ?? [])
                 if (s['active'] == true) Society(s['id'], s['name'], s['area'], s['city'] ?? 'Hyderabad', s['pincode'] ?? ''),
             ];
@@ -531,6 +532,7 @@ class AppStore extends ChangeNotifier {
       return;
     }
     live!.registerPush('customer').catchError((Object _) {});
+    _accountSubscriptions.add(live!.db.doc('availabilitySignals/current').snapshots().listen((_){_invalidateAvailability();changed();},onError:(Object _){}));
     _accountSubscriptions.add(live!.inbox(uid).listen((s){
       if(_liveUid!=uid)return;
       final oldIds=_inbox.map((e)=>e.$1).toSet();
@@ -822,7 +824,18 @@ class AppStore extends ChangeNotifier {
     final result=await live!.call('searchPlaceSuggestions',{'query':query,'sessionToken':token,if(origin!=null)'origin':{'latitude':origin.$1,'longitude':origin.$2}});
     return [for(final p in result['suggestions'] as List? ?? [])PlaceSuggestion.fromMap(Map<String,dynamic>.from(p as Map))];
   }
-  Future<Map<String,dynamic>> selectPlaceSuggestion(String id,String token)=>live!.call('selectPlaceSuggestion',{'placeId':id,'sessionToken':token});
+  Future<Map<String,dynamic>> selectPlaceSuggestion(String id,String token)async{
+    final r=await live!.call('selectPlaceSuggestion',{'placeId':id,'sessionToken':token});
+    if(r['society'] is Map){final m=r['society'] as Map;liveSocieties=[...liveSocieties.where((s)=>s.id!=m['id']),Society(m['id'],m['name'],m['area'],m['city'],m['pincode'])];}
+    return r;
+  }
+  bool get captainAreaEnabled=>liveConfig['coveragePolicy']=='captainAreaV1';
+  Future<Place> confirmPlace(Place p)async{
+    final r=await live!.call('checkServiceAddress',{'name':p.society.name,'area':p.society.area,'city':p.society.city,'pincode':p.society.pincode,'location':{'latitude':mapCenter(p).$1,'longitude':mapCenter(p).$2}});
+    final m=r['society'] as Map;
+    final society=Society(m['id'],m['addressName'],m['addressArea'],m['addressCity'],m['addressPincode']);
+    return Place(society,tower:p.tower,floor:p.floor,slot:p.slot,latitude:mapCenter(p).$1,longitude:mapCenter(p).$2);
+  }
   (double,double) mapCenter(Place place){
     final society=(liveConfig['societies'] as List? ?? []).where((s)=>s['id']==place.society.id).firstOrNull;
     return (place.latitude??(society?['location']?['latitude'] as num?)?.toDouble()??17.385,place.longitude??(society?['location']?['longitude'] as num?)?.toDouble()??78.4867);

@@ -40,7 +40,14 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-place-search') {
+  if(command==='configure-captain-coverage'){
+    for(const name of ['saveCaptainServiceArea','getAvailability','createBooking','claimJob','captainCoverageChanged']){const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy all coverage controllers and indexes first.');}
+    const indexResponse=await fetch('https://firestore.googleapis.com/v1/projects/wheelio-apps/databases/(default)/collectionGroups/captains/indexes',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+    const indexes=await indexResponse.json();if(!indexResponse.ok||!indexes.indexes?.some(i=>i.state==='READY'&&i.fields?.some(f=>f.fieldPath==='approved')&&i.fields?.some(f=>f.fieldPath==='serviceArea.geohash')))throw Error('Wait for the approved Captain/geohash index to become READY.');
+    const current=await api('/config/operations');
+    await api('/config/operations?updateMask.fieldPaths=coveragePolicy&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({coveragePolicy:'captainAreaV1'})});
+    console.log('Captain-defined 1–10 km coverage enabled. Human identity/payout review remains required. No Captain was approved.');
+  } else if(command==='configure-place-search') {
     for(const name of ['searchPlaceSuggestions','selectPlaceSuggestion']){
       const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
       if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify both place search controllers before activating the feature.');
@@ -168,7 +175,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
+    const names=['saveCaptainServiceArea','registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
     names.push('searchPlaceSuggestions','selectPlaceSuggestion');
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});

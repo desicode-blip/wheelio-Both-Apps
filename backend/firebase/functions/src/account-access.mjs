@@ -1,5 +1,5 @@
 const customerMethods = new Set(['checkAddress','createBooking','checkout','verifyPayment','checkPayment','customerPhoto','customerMedia','approve','rate','cancel','getCancellationQuote','reportProblem','savePlace','createDocument']);
-const captainMethods = new Set(['captainOnline','captainPreferences','captainPosition','submitCaptainApplication','startTraining','trainingHeartbeat','submitQuiz','beginIdentity','verifyIdentity','checkWashPhotos','captainPayout','claim','reject','progress','evidenceUploaded','location','captainDisputeResponse']);
+const captainMethods = new Set(['saveCaptainArea','captainOnline','captainPreferences','captainPosition','submitCaptainApplication','startTraining','trainingHeartbeat','submitQuiz','beginIdentity','verifyIdentity','checkWashPhotos','captainPayout','claim','reject','progress','evidenceUploaded','location','captainDisputeResponse']);
 
 // Cached tokens from a removed role cannot recreate app data. Registering that
 // role again requires fresh SMS authentication in the registration transaction.

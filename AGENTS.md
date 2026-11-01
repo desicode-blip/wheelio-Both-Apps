@@ -124,3 +124,6 @@ IDs `com.amanmaheshwari.wheelio.customer` / `.captain`, Apple team `28JNT7H8KA` 
 
 Commit every change before finishing. Use the current branch and preserve local
 work. Do not push unless asked. Never hard-reset or force-push to erase work.
+
+## Owner decision — 1 November 2026
+Captain-defined map centre and radius 1–10 km cover every home/society inside it; no manual society approvals for new bookings. Explicit UI exception: map/radius setup after documents/payout and same editor from Captain Home. Human admin identity/payout approval stays mandatory. Fixed centre is independent of job GPS. See docs/CAPTAIN-COVERAGE-2026-11-01.md. All other designs remain locked.

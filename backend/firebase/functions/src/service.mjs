@@ -10,6 +10,7 @@ import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
 import {searchPlaces,selectPlace} from './place-search.mjs';
+import {areaPolicy,hasArea,covers,resolveLocation,saveLocation,nearbyCaptains,saveCaptainArea,areaCapacity,areaLock,touchAreaLock,signal} from './captain-area.mjs';
 
 export class ServiceError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -47,6 +48,7 @@ export class WashKrewService {
     const s = await this.db.doc('config/operations').get();
     return s.exists ? s.data() : { bookingsEnabled: false, societies: [], vehicleTypes: [], slotWindows: [] };
   }
+  saveCaptainArea(auth,data){return saveCaptainArea(this,auth,data);}
   searchPlaces(auth,data,context){return searchPlaces(this,auth,data,context);}
   selectPlace(auth,data,context){return selectPlace(this,auth,data,context);}
   worksWindow(captain, window, day = window.day) {
@@ -94,10 +96,15 @@ export class WashKrewService {
   async checkAddress(auth, data) {
     const uid = this.actor(auth), cfg = await this.config();
     const address = {
-      name: text(data.name, 2, 120, 'building name'), area: text(data.area, 2, 120, 'area'),
-      city: text(data.city, 2, 80, 'city'), pincode: text(data.pincode, 6, 6, 'pincode'),
+      name: text(data.name, 2, 120, 'building name'), area: text(data.area, areaPolicy(cfg)?0:2, 120, 'area'),
+      city: text(data.city, areaPolicy(cfg)?0:2, 80, 'city'), pincode: text(data.pincode, areaPolicy(cfg)?0:6, 6, 'pincode'),
     };
-    if (!/^[1-9]\d{5}$/.test(address.pincode)) fail('invalid-argument', 'Check the pincode.');
+    if (!(areaPolicy(cfg)&&!address.pincode) && !/^[1-9]\d{5}$/.test(address.pincode)) fail('invalid-argument', 'Check the pincode.');
+    if(areaPolicy(cfg)){
+      if(!validPosition(data.location))fail('invalid-argument','Select this building on the map or from the search results.');
+      const society=await saveLocation(this,{...address,location:data.location});
+      return {served:true,society:{...society,addressName:address.name,addressArea:address.area,addressCity:address.city,addressPincode:address.pincode}};
+    }
     const key = hash(normalizedAddress(address));
     const canonical = cfg.societies?.find(s => s.active && s.name.trim().toLowerCase() === address.name.toLowerCase() &&
       s.pincode === address.pincode && (s.city ?? 'Hyderabad').toLowerCase() === address.city.toLowerCase());
@@ -113,9 +120,14 @@ export class WashKrewService {
     const societyId=id(data.societyId,'society');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(data.day??''))fail('invalid-argument','Choose a date.');
     const cfg=await this.config();
-    if(!cfg.societies?.some(s=>s.id===societyId&&s.active))return {slots:[]};
+    const location=await resolveLocation(this,cfg,societyId);
+    if(!location)return {slots:[]};
     const day=Date.parse(`${data.day}T00:00:00+05:30`);
     if(!Number.isFinite(day)||day<this.now()-86400000||day>this.now()+60*86400000)fail('invalid-argument','Choose a date within 60 days.');
+    if(areaPolicy(cfg)){
+      const windows=cfg.slotWindows??[],choices=await areaCapacity(this,{get:q=>q.get()},{day:data.day,customerId:_auth?.uid,paymentMode:cfg.paymentMode,coverageLocation:location.location},windows);
+      return {slots:windows.map((w,i)=>({...w,available:!!cfg.bookingsEnabled&&!!choices[i]&&windowTimes(data.day,w).end>this.now()})),multipleWindows:true};
+    }
     const captains=await this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',societyId).get();
     const slots=await Promise.all((cfg.slotWindows??[]).map(async w=>{
       const count=captains.docs.filter(c=>canTakeJobs(c.data())&&c.id!==_auth?.uid&&c.data().paymentMode===cfg.paymentMode&&this.worksWindow(c.data(),w,data.day)&&areaFits(c.data(),{societyId,area:cfg.societies.find(s=>s.id===societyId)?.area},cfg.societies)).length;
@@ -174,7 +186,8 @@ export class WashKrewService {
       if (!config?.bookingsEnabled) fail('failed-precondition', 'Bookings are not open yet. Please try again once service starts.');
       if (!profile.exists || !profile.data().name) fail('failed-precondition', 'Save your name first.');
       const type = config.vehicleTypes?.find(v => v.kind === vehicleKind && v.active !== false);
-      const society = config.societies?.find(s => s.id === societyId && s.active === true);
+      const society = await resolveLocation(this,config,societyId,tx);
+      if(areaPolicy(config)&&(!validPosition(society?.location)||!validPosition(data.vehiclePosition)||metresBetween(data.vehiclePosition,society.location)>250))fail('failed-precondition','Confirm the parking location on the map again.');
       if (!type || !society) fail('failed-precondition', 'This vehicle or society is not currently available.');
       if (!Number.isSafeInteger(type.pricePaise) || type.pricePaise < 100 || !Number.isSafeInteger(type.captainPayPaise)
         || type.captainPayPaise < 0 || type.captainPayPaise > type.pricePaise) fail('failed-precondition', 'Pricing is not configured.');
@@ -197,7 +210,9 @@ export class WashKrewService {
       }
       const captains = await tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',societyId));
       const slots = await Promise.all(windows.map(w => tx.get(this.db.doc(`slotCapacity/${capacityKey(societyId,data.day,w.startHour,config.paymentMode)}`))));
+      const areaChoices=areaPolicy(config)?await areaCapacity(this,tx,{id:bookingId,day:data.day,customerId:uid,paymentMode:config.paymentMode,coverageLocation:data.vehiclePosition},windows):null;
       const availableIndex = windows.findIndex((w,i) => {
+        if(areaChoices)return !!areaChoices[i];
         const available = captains.docs.filter(c => canTakeJobs(c.data())&&c.id !== uid && c.data().paymentMode === config.paymentMode && this.worksWindow(c.data(), w,data.day)&&areaFits(c.data(),{societyId,area:society.area},config.societies)).length;
         return (slots[i].data()?.reserved ?? 0) < Math.min(available, Number.isInteger(config.capacityPerSlot) ? config.capacityPerSlot : available);
       });
@@ -210,7 +225,7 @@ export class WashKrewService {
       const pricing = walletPrice(type.pricePaise, wallet, {useFreeWash:data.useFreeWash===true,useCredit:data.useCredit===true});
       if (data.expectedAmountPaise !== undefined && data.expectedAmountPaise !== pricing.pricePaise) fail('failed-precondition', 'Your price or balance changed. Review this booking again.');
       let address = null;
-      if (data.addressKey) {
+      if (data.addressKey && !areaPolicy(config)) {
         const request = (await tx.get(this.db.doc(`addressRequests/${hash(`${uid}:${id(data.addressKey)}`)}`))).data();
         if (request?.status !== 'approved' || request.societyId !== societyId) fail('failed-precondition', 'This address is awaiting service approval.');
         const mapping=(await tx.get(this.db.doc(`serviceAddresses/${data.addressKey}`))).data();
@@ -223,6 +238,7 @@ export class WashKrewService {
       tx.set(ref, {
         customerId: uid, customerFirstName: profile.data().name.split(' ')[0], captainId: null,
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
+        ...(areaPolicy(config)?{coveragePolicy:'captainAreaV1',coverageLocation:{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}}:{}),
         vehicleKind, vehicleName: type.name, plate, societyId, societyName: address?.name ?? society.name, area: address?.area ?? society.area, city: address?.city ?? society.city ?? 'Hyderabad',
         pincode: address?.pincode ?? society.pincode ?? '', manualAddress: !!address, addressKey: address ? data.addressKey : null,
         tower, floor, parking, note, washKind: data.washKind, day: data.day, startHour: window.startHour, endHour: window.endHour,
@@ -378,20 +394,24 @@ export class WashKrewService {
       tx.get(this.db.collection('captains').where('approved','==',true).where('societyIds','array-contains',o.societyId)),
       tx.get(this.walletRef(o.customerId,o.paymentMode)),
     ]);
+    const areaChoices=o.coveragePolicy==='captainAreaV1'?await areaCapacity(this,tx,{...o,id:ref.id},windows):null;
     const selected = windows.findIndex((w,i)=>{
+      if(areaChoices)return !!areaChoices[i]&&windowTimes(o.day,w).end>this.now();
       const count=captains.docs.filter(c=>canTakeJobs(c.data())&&c.id!==o.customerId&&c.data().paymentMode===o.paymentMode&&this.worksWindow(c.data(),w,o.day)&&areaFits(c.data(),o,cfg.societies)).length;
       return windowTimes(o.day,w).end>this.now() && (slots[i].data()?.reserved??0)<Math.min(count,Number.isInteger(cfg?.capacityPerSlot)?cfg.capacityPerSlot:count);
     });
     const canReserve=!rejectionReason&&o.status==='pendingPayment'&&dateMillis(o.paymentExpiresAt)>this.now()&&cfg?.bookingsEnabled===true&&selected>=0;
     const selection=canReserve?windows[selected]:null;
+    const lock=canReserve&&areaChoices?await areaLock(this,tx,areaChoices[selected],o,selection):null;
     // Rejected credit/borrowing funding is returned to its source, never used as
     // a route around the funding ban by depositing it into a spendable wallet.
     const benefit=!canReserve&&!rejectionReason?serviceFailureBenefit({...o,paymentStatus:'captured'}):null;
     const cashRefund=!canReserve&&!benefit&&o.pricePaise>0;
+    touchAreaLock(tx,lock);
     tx.update(ref,{paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
       ...(canReserve?{bookedAt:Timestamp.fromMillis(this.now())}:{}),
       status:canReserve?'searching':'cancelled',capacityReserved:canReserve,
-      ...(canReserve?{...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
+      ...(canReserve?{...(areaChoices?{capacityCaptainId:areaChoices[selected]}:{}),...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
         {cancellationReason:rejectionReason??'slotUnavailable',refundStatus:cashRefund?'queued':'none',refundAmountPaise:cashRefund?o.pricePaise:0,...(benefit?{cancellationBenefit:benefit,cancellationFeePaise:0}:{}),walletReleased:!!o.walletReserved}),updatedAt:stamp()});
     tx.set(this.db.doc(`payments/${ref.id}`),{customerId:o.customerId,paymentId:paymentId??null,source,amount:o.pricePaise,currency:'INR',status:'captured',updatedAt:stamp()});
     tx.set(this.db.doc(`customerState/${o.customerId}`),{pendingBookingId:null},{merge:true});
@@ -419,8 +439,8 @@ export class WashKrewService {
     if (!o || o.status !== 'searching' || o.paymentStatus !== 'captured' || dateMillis(o.slotEnd) <= this.now()) return;
     const cfg = await this.config();
     const seconds = Number.isInteger(cfg.offerTtlSeconds) && cfg.offerTtlSeconds >= 30 ? cfg.offerTtlSeconds : 60;
-    const captains = await this.db.collection('captains').where('approved', '==', true).where('online', '==', true).where('societyIds', 'array-contains', o.societyId).limit(50).get();
-    await Promise.all(captains.docs.filter(c=>c.id!==o.customerId && c.data().paymentMode === o.paymentMode && this.worksWindow(c.data(),o) && areaFits(c.data(),o,cfg.societies) && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
+    const captains = o.coveragePolicy==='captainAreaV1'?await nearbyCaptains(this,o.coverageLocation):await this.db.collection('captains').where('approved', '==', true).where('online', '==', true).where('societyIds', 'array-contains', o.societyId).limit(50).get();
+    await Promise.all(captains.docs.filter(c=>c.data().online&&c.id!==o.customerId && c.data().paymentMode === o.paymentMode && this.worksWindow(c.data(),o) && areaFits(c.data(),o,cfg.societies) && this.now()-dateMillis(c.data().lastSeenAt)<120000).map(c=>this.db.runTransaction(async tx=>{
       const offerRef = this.db.doc(`jobOffers/${hash(`${bookingId}:${c.id}`)}`);
       const [booking, captain, prior] = await Promise.all([tx.get(ref), tx.get(c.ref), tx.get(offerRef)]);
       if (booking.data()?.status !== 'searching' || booking.data().slotKey!==o.slotKey || !canTakeJobs(captain.data()) || !captain.data()?.online || !this.worksWindow(captain.data(),o) || !areaFits(captain.data(),o,cfg.societies)) return;
@@ -430,7 +450,7 @@ export class WashKrewService {
       // available exclusively to the captain who wins the claim transaction.
       tx.set(offerRef, { orderId: bookingId, captainId: c.id, societyId: o.societyId, societyName: o.societyName, area: o.area,
         vehicleKind: o.vehicleKind, vehicleName: o.vehicleName, washKind: o.washKind, captainPayPaise: o.captainPayPaise,
-        distanceMetres:metresBetween(captain.data().position,cfg.societies?.find(s=>s.id===o.societyId)?.location),
+        distanceMetres:metresBetween(captain.data().position,o.coverageLocation??cfg.societies?.find(s=>s.id===o.societyId)?.location),
         paymentMode:o.paymentMode, slotStart: o.slotStart, slotEnd: o.slotEnd, requestedWindows:o.requestedWindows??[], anyTime:o.anyTime===true, status: 'pending', expiresAt: Timestamp.fromMillis(this.now()+seconds*1000), createdAt: stamp() });
     })));
   }
@@ -447,13 +467,17 @@ export class WashKrewService {
         Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${capacityKey(o.societyId,o.day,w.startHour,o.paymentMode)}`)))),
         tx.get(this.db.collection('jobOffers').where('orderId','==',ref.id)),
       ]);
+      const areaChoices=o.coveragePolicy==='captainAreaV1'?await areaCapacity(this,tx,{...o,id:ref.id},windows):null;
       const i=windows.findIndex((w,i)=>{
+        if(areaChoices)return !!areaChoices[i];
         const count=captains.docs.filter(c=>canTakeJobs(c.data())&&c.id!==o.customerId&&c.data().paymentMode===o.paymentMode&&this.worksWindow(c.data(),w,o.day)&&areaFits(c.data(),o,cfg.data()?.societies)).length;
         return (slots[i].data()?.reserved??0)<Math.min(count,cfg.data()?.capacityPerSlot??count);
       });
       if(i<0)return;
       const w=windows[i],times=windowTimes(o.day,w);
-      tx.update(ref,{...w,slotKey:slots[i].id,slotStart:Timestamp.fromMillis(times.start),slotEnd:Timestamp.fromMillis(times.end),updatedAt:stamp()});
+      const lock=areaChoices?await areaLock(this,tx,areaChoices[i],o,w):null;
+      touchAreaLock(tx,lock);
+      tx.update(ref,{...(areaChoices?{capacityCaptainId:areaChoices[i]}:{}),...w,slotKey:slots[i].id,slotStart:Timestamp.fromMillis(times.start),slotEnd:Timestamp.fromMillis(times.end),updatedAt:stamp()});
       if(o.capacityReserved)tx.set(old.ref,{reserved:Math.max(0,(old.data()?.reserved??1)-1)},{merge:true});
       tx.set(slots[i].ref,{reserved:(slots[i].data()?.reserved??0)+1},{merge:true});
       for(const f of offers.docs)tx.delete(f.ref);
@@ -486,14 +510,19 @@ export class WashKrewService {
     if (typeof data.online !== 'boolean') fail('invalid-argument', 'Choose online or offline.');
     const ref = this.db.doc(`captains/${uid}`);
     await this.db.runTransaction(async tx=>{
-      const c = (await tx.get(ref)).data();
+      const [snapshot,config]=await Promise.all([tx.get(ref),tx.get(this.db.doc('config/operations'))]);
+      const c=snapshot.data();
+      if(data.online&&areaPolicy(config.data())&&!hasArea(c))fail('failed-precondition','Set your serving area and working hours before going online.');
       if (!c?.approved) fail('permission-denied', 'Your captain account must be approved before going online.');
       if(data.online&&!canTakeJobs(c))fail('failed-precondition','New jobs are paused pending the operations review. Open Help to ask for a review.');
-      if (data.online && !c.societyIds?.length) fail('failed-precondition', 'Choose at least one approved society.');
+      if (data.online && !areaPolicy(config.data()) && !c.societyIds?.length) fail('failed-precondition', 'Choose at least one approved society.');
       tx.update(ref, { online: data.online, lastSeenAt: stamp(), updatedAt: stamp() });
+      if(c.online!==data.online)signal(tx,this);
     });
     if (data.online) {
       const c = (await ref.get()).data();
+      const config=await this.config();
+      if(areaPolicy(config)){const jobs=await this.db.collection('orders').where('status','==','searching').limit(100).get();for(const j of jobs.docs)if(covers(c,j.data().coverageLocation))await this.dispatch(j.id);return {online:true};}
       for (const societyId of c.societyIds) {
         const jobs = await this.db.collection('orders').where('status','==','searching').where('societyId','==',societyId).limit(30).get();
         for (const j of jobs.docs) await this.dispatch(j.id);
@@ -540,8 +569,9 @@ export class WashKrewService {
   async submitCaptainApplication(auth, data) {
     const uid = this.actor(auth), cfg = await this.config();
     const societyIds = [...new Set(data.societyIds ?? [])];
-    if (!societyIds.length || societyIds.length > 10 || societyIds.some(s => !cfg.societies?.some(c => c.id === s && c.active))) fail('invalid-argument', 'Choose available societies.');
+    if (!areaPolicy(cfg) && (!societyIds.length || societyIds.length > 10 || societyIds.some(s => !cfg.societies?.some(c => c.id === s && c.active)))) fail('invalid-argument', 'Choose available societies.');
     const current=(await this.db.doc(`captains/${uid}`).get()).data();
+    if(areaPolicy(cfg)&&!hasArea(current))fail('failed-precondition','Choose your serving area and working hours first.');
     const payout=current?.payout??{method:'upi',upi:text(data.upi,3,100,'payout UPI'),status:'pendingVerification'};
     if(payout.method==='upi'&&!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(payout.upi))fail('invalid-argument','Check your UPI ID.');
     for (const kind of ['aadhaar', 'selfie']) {
@@ -562,7 +592,7 @@ export class WashKrewService {
       const [booking, captain, offer, offers] = await Promise.all([tx.get(ref),tx.get(this.db.doc(`captains/${uid}`)),
         tx.get(this.db.doc(`jobOffers/${hash(`${orderId}:${uid}`)}`)), tx.get(this.db.collection('jobOffers').where('orderId','==',orderId))]);
       const o = booking.data(), c = captain.data(), f = offer.data();
-      if (!canTakeJobs(c) || !c.online || this.now()-dateMillis(c.lastSeenAt)>=120000 || !c.societyIds.includes(o?.societyId) || c.paymentMode !== o?.paymentMode) fail('permission-denied', 'You are not available for this society.');
+      if (!canTakeJobs(c) || !c.online || this.now()-dateMillis(c.lastSeenAt)>=120000 || !(o?.coveragePolicy==='captainAreaV1'?covers(c,o.coverageLocation):c.societyIds?.includes(o?.societyId)) || c.paymentMode !== o?.paymentMode) fail('permission-denied', 'You are not available for this society.');
       if (!o || o.customerId === uid || o.status !== 'searching' || o.paymentStatus !== 'captured') fail('failed-precondition', 'This job is no longer available.');
       if (!f || f.status !== 'pending' || dateMillis(f.expiresAt) <= this.now()) fail('deadline-exceeded', 'This offer expired.');
       if (dateMillis(o.slotEnd)<=this.now() || !this.worksWindow(c,o) || dateMillis(f.slotStart)!==dateMillis(o.slotStart)) fail('failed-precondition','This time window is no longer available.');
@@ -572,7 +602,14 @@ export class WashKrewService {
       if(Number.isInteger(c.jobLimit)&&c.jobLimit>0){const today=await tx.get(this.db.collection('orders').where('captainId','==',uid).where('day','==',o.day));if(today.docs.filter(d=>d.data().status!=='cancelled').length>=c.jobLimit)fail('failed-precondition','Your configured daily job limit is reached.');}
       if (assigned.docs.some(d => dateMillis(d.data().slotStart)<dateMillis(o.slotEnd) && dateMillis(d.data().slotEnd)>dateMillis(o.slotStart)))
         fail('failed-precondition','You already have a job in this time window.');
-      tx.update(ref, { captainId: uid, captain: { id: uid, name: c.name.split(' ')[0], rating: c.rating ?? 0, washes: c.completedWashes ?? 0 }, status:'onTheWay', assignedAt:stamp(),updatedAt:stamp() });
+      let lock=null;
+      if(o.coveragePolicy==='captainAreaV1'){
+        lock=await areaLock(this,tx,uid,o,o);
+        const bookings=await tx.get(this.db.collection('orders').where('day','==',o.day));
+        if(bookings.docs.some(d=>d.id!==orderId&&d.data().capacityReserved&&!['cancelled','approved'].includes(d.data().status)&&d.data().paymentMode===o.paymentMode&&(d.data().captainId??d.data().capacityCaptainId)===uid&&dateMillis(d.data().slotStart)<dateMillis(o.slotEnd)&&dateMillis(d.data().slotEnd)>dateMillis(o.slotStart)))fail('failed-precondition','Your capacity in this time window is already reserved.');
+      }
+      touchAreaLock(tx,lock);
+      tx.update(ref, { ...(o.coveragePolicy==='captainAreaV1'?{capacityCaptainId:uid}:{}),captainId: uid, captain: { id: uid, name: c.name.split(' ')[0], rating: c.rating ?? 0, washes: c.completedWashes ?? 0 }, status:'onTheWay', assignedAt:stamp(),updatedAt:stamp() });
       tx.update(captain.ref,{activeJobCount:(c.activeJobCount??0)+1,updatedAt:stamp()});
       for (const f of offers.docs) tx.update(f.ref,{status:f.data().captainId===uid?'accepted':'withdrawn',updatedAt:stamp()});
       this.event(tx,ref,'captainAssigned',{captainId:uid,status:'onTheWay'});
@@ -1055,7 +1092,7 @@ export class WashKrewService {
     return {path:data.remove?null:path};
   }
   async savePlace(auth,data) {
-    const uid=this.actor(auth),cfg=await this.config(),society=cfg.societies?.find(s=>s.id===data.societyId&&s.active);
+    const uid=this.actor(auth),cfg=await this.config(),society=await resolveLocation(this,cfg,id(data.societyId));
     if(!society)fail('failed-precondition','Choose a served society.');
     const place={societyId:society.id,societyName:society.name,area:society.area??'',city:society.city??'',pincode:society.pincode??'',tower:text(data.tower??'',0,100,'tower'),floor:text(data.floor??'',0,50,'floor'),parking:text(data.parking??'',0,50,'parking'),vehiclePosition:validPosition(data.vehiclePosition)?{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}:null};
     place.id=hash(`${place.societyId}:${place.tower}:${place.floor}:${place.parking}`);

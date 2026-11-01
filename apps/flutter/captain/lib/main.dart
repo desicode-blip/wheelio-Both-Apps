@@ -9,6 +9,7 @@ import 'data/store.dart';
 import 'screens/account.dart';
 import 'screens/gallery.dart';
 import 'screens/help.dart';
+import 'screens/service_area.dart';
 import 'screens/home.dart';
 import 'screens/money.dart';
 import 'screens/onboarding.dart';
@@ -193,7 +194,7 @@ Widget _destination(R r) => Builder(builder:(context){
   N.quiz => const QuizScreen(),
   N.quizResult => QuizResultScreen(passed: r.flag),
   N.rules => const RulesScreen(),
-  N.workSetup => const WorkAreaScreen(setup: true),
+  N.workSetup => context.store.captainAreaEnabled?const ServiceAreaScreen(setup:true):const WorkAreaScreen(setup: true),
   N.jobAlert => JobAlertScreen(batched: r.flag),
   N.jobMissed => const JobMissedScreen(),
   N.goToVehicle => const GoToVehicleScreen(),
@@ -221,7 +222,7 @@ Widget _destination(R r) => Builder(builder:(context){
   N.changePhone => const WChangePhoneScreen(),
   N.editUPI => const WEditUPIScreen(),
   N.noShowCancelled => const WNoShowCancelledScreen(),
-  N.workArea => const WorkAreaScreen(),
+  N.workArea => context.store.captainAreaEnabled?const ServiceAreaScreen():const WorkAreaScreen(),
   N.ownerNote => const OwnerNoteScreen(),
   N.helpFlow => HelpFlowScreen(topic: r.topic!),
   N.gallery => const WGalleryScreen(),

@@ -6,9 +6,11 @@ export function metresBetween(a,b){
  return Math.round(6371000*2*Math.atan2(Math.sqrt(h),Math.sqrt(Math.max(0,1-h))));
 }
 export function areaFits(captain,order,societies){
+ if(order.coveragePolicy==='captainAreaV1'){const a=captain.serviceArea,d=metresBetween(a?.center,order.coverageLocation);return Number.isFinite(a?.radiusKm)&&a.radiusKm>=1&&a.radiusKm<=10&&d!==null&&d<=a.radiusKm*1000;}
  const p=captain.areaPreference;if(!p||p.mode==='all')return true;
  if(p.mode==='societies')return p.societyIds?.includes(order.societyId)===true;
  if(p.mode==='place')return String(p.place).toLowerCase()===String(order.area).toLowerCase();
+ if(p.mode==='serviceArea'){const a=captain.serviceArea,d=metresBetween(a?.center,societies?.find(s=>s.id===order.societyId)?.location);return d!==null&&d<=a.radiusKm*1000;}
  const society=societies?.find(s=>s.id===order.societyId),distance=metresBetween(captain.position,society?.location);
  return p.mode==='radius'&&distance!==null&&distance<=p.radiusKm*1000;
 }

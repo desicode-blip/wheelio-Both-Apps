@@ -1,3 +1,4 @@
+import {areaPolicy,signal,covers,CaptainAreaError} from './captain-area.mjs';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
@@ -63,7 +64,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -77,6 +78,7 @@ export const createCheckout = callable('checkout', true);
 export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
 export const setCaptainOnline = callable('captainOnline');
+export const saveCaptainServiceArea = callable('saveCaptainArea');
 export const setCaptainPreferences = callable('captainPreferences');
 export const setCaptainPosition = callable('captainPosition');
 export const matchServiceLocation = callable('serviceLocation');
@@ -184,7 +186,20 @@ export const razorpayWebhook=paymentWebhook('test',webhookSecret);
 export const razorpayLiveWebhook=paymentWebhook('live',liveWebhookSecret);
 export const washkrewRazorpayLiveWebhook=paymentWebhook('live',washkrewWebhookSecret,'washkrew');
 
+export const captainCoverageChanged = onDocumentUpdated('captains/{captainId}',async event=>{
+  const before=event.data.before.data(),after=event.data.after.data();
+  const keys=['approved','serviceArea','workingSlots','workingWindows','online','workStatus','paymentMode'];
+  if(keys.every(k=>JSON.stringify(before[k]??null)===JSON.stringify(after[k]??null)))return;
+  const backend=service(),cfg=await backend.config();if(!areaPolicy(cfg))return;
+  await db.runTransaction(async tx=>signal(tx,backend));
+  const offers=await db.collection('jobOffers').where('captainId','==',event.params.captainId).where('status','==','pending').get();
+  for(const offer of offers.docs)await offer.ref.delete();
+  const jobs=await db.collection('orders').where('status','==','searching').limit(100).get();
+  for(const job of jobs.docs)if(covers(after,job.data().coverageLocation))await backend.dispatch(job.id);
+});
 export const dispatchPaidBooking = onDocumentUpdated('orders/{orderId}', async event => {
+  const before=event.data.before.data(),after=event.data.after.data();
+  if(after.coveragePolicy==='captainAreaV1'&&['capacityReserved','capacityCaptainId','status','startHour'].some(k=>before[k]!==after[k]))await db.runTransaction(async tx=>signal(tx,service()));
   if (event.data.after.data().status === 'searching') await service().dispatch(event.params.orderId);
 });
 export const refundCancelledBooking = onDocumentCreated({ document: 'refunds/{orderId}', secrets: paymentSecrets, retry: true },

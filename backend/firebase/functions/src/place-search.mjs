@@ -1,3 +1,4 @@
+import {areaPolicy,saveLocation} from './captain-area.mjs';
 import {createHash} from 'node:crypto';
 import {Timestamp} from 'firebase-admin/firestore';
 import {validPosition} from './geography.mjs';
@@ -82,6 +83,7 @@ export async function selectPlace(service,_auth,data,context){
   await reserveLookup(service,context,cfg);
   let place;
   try{place=await service.places.details(data.placeId,data.sessionToken);}catch(e){if(e instanceof PlaceSearchError)throw e;fail('unavailable','This address could not be loaded. Try again.');}
+  if(areaPolicy(cfg)){const society=await saveLocation(service,place);return {place,societyId:society.id,society};}
   // Provider discovery never grants service coverage. Only an exact configured
   // place identity or canonical name/city/pincode can select a live society.
   const society=cfg.societies?.find(s=>s.active===true&&((s.googlePlaceId??s.mapPlaceId)===place.placeId||

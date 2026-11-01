@@ -871,3 +871,78 @@ test('revoked manual service mappings cannot be reused for a new booking',async(
  await db.doc(`serviceAddresses/${req.addressKey}`).update({approved:false});
  await assert.rejects(service.createBooking(customer,{...input(),addressKey:req.addressKey}),{code:'failed-precondition'});
 });
+async function areaSetup(){
+  await db.doc('config/operations').update({coveragePolicy:'captainAreaV1'});
+  const center={latitude:17.4,longitude:78.4};
+  for(const uid of ['captain1','captain2'])await service.saveCaptainArea(auth(uid),{center,radiusKm:3,label:'QA public work area',workingSlots:[{startMinute:4*60,endMinute:22*60}]});
+  return center;
+}
+async function areaInput(uid,requestId,location){
+  const r=await service.checkAddress(auth(uid),{name:'QA home '+requestId,area:'QA area',city:'Hyderabad',pincode:'500001',location});
+  return {...input(requestId),societyId:r.society.id,vehiclePosition:location};
+}
+async function payArea(uid,data){
+  const b=await service.createBooking(auth(uid),data),c=await service.checkout(auth(uid),b);
+  const payment={id:'pay_area_'+data.requestId,order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'};
+  provider.payments.set(payment.id,payment);await service.capturePayment(payment);return b;
+}
+test('Captain area validates radius, centre, hours; GPS heartbeat never moves the chosen area',async()=>{
+  const center=await areaSetup();
+  for(const radiusKm of [0,11,3.5])await assert.rejects(service.saveCaptainArea(auth('captain1'),{center,radiusKm,label:'Area',workingSlots:[]}),{code:'invalid-argument'});
+  await assert.rejects(service.saveCaptainArea(auth('captain1'),{center:{latitude:999,longitude:0},radiusKm:3,label:'Area',workingSlots:[]}),{code:'invalid-argument'});
+  await service.captainPosition(auth('captain1'),{latitude:18,longitude:79});
+  assert.deepEqual((await db.doc('captains/captain1').get()).data().serviceArea.center,center);
+  await service.register(auth('unapproved'),{role:'captain',name:'QA Unapproved'});
+  await service.saveCaptainArea(auth('unapproved'),{center,radiusKm:10,label:'Area',workingSlots:[]});
+  await assert.rejects(service.captainOnline(auth('unapproved'),{online:true}),{code:'permission-denied'});
+});
+test('any confirmed home uses approved Captain radius and hours without society approval',async()=>{
+  const center=await areaSetup(),inside=await areaInput('customer','inside',center),outside=await areaInput('customer','outside',{latitude:18,longitude:79});
+  assert.ok(inside.societyId.startsWith('loc_'));
+  assert.equal((await service.availability(customer,{societyId:inside.societyId,day:inside.day})).slots.find(w=>w.startHour===8).available,true);
+  assert.equal((await service.availability(customer,{societyId:outside.societyId,day:outside.day})).slots.some(w=>w.available),false);
+  for(const uid of ['captain1','captain2'])await service.saveCaptainArea(auth(uid),{center,radiusKm:3,label:'Area',workingSlots:[{startMinute:12*60,endMinute:14*60}]});
+  const slots=(await service.availability(customer,{societyId:inside.societyId,day:inside.day})).slots;
+  assert.equal(slots.find(w=>w.startHour===8).available,false);assert.equal(slots.find(w=>w.startHour===12).available,true);
+  assert.ok((await db.doc('availabilitySignals/current').get()).data().revision>=4);
+  await assert.rejects(service.createBooking(customer,{...inside,vehiclePosition:{latitude:19,longitude:79}}),{code:'failed-precondition'});
+});
+test('paid capacity is shared across different homes; another customer cannot oversell one Captain',async()=>{
+  const center=await areaSetup();await db.doc('captains/captain2').update({approved:false});
+  await service.register(auth('other'),{role:'customer',name:'QA Other'});
+  const a=await areaInput('customer','area-a',center),b=await areaInput('other','area-b',{latitude:17.401,longitude:78.4});
+  // Both checkouts precede capture. The payment transactions must serialize capacity.
+  const ba=await service.createBooking(customer,a),bb=await service.createBooking(auth('other'),b);
+  const ca=await service.checkout(customer,ba),cb=await service.checkout(auth('other'),bb);
+  for(const [c,id] of [[ca,'a'],[cb,'b']])provider.payments.set('pay_area_'+id,{id:'pay_area_'+id,order_id:c.orderId,amount:c.amount,currency:'INR',status:'captured'});
+  await Promise.all(['a','b'].map(id=>service.capturePayment(provider.payments.get('pay_area_'+id))));
+  const orders=await Promise.all([ba,bb].map(b=>db.doc('orders/'+b.bookingId).get()));
+  assert.equal(orders.filter(d=>d.data().capacityReserved).length,1);
+  assert.equal(orders.filter(d=>d.data().status==='cancelled').length,1);
+});
+test('area edit removes eligibility at claim; booked job remains finishable after later area changes',async()=>{
+  const center=await areaSetup(),data=await areaInput('customer','claim-area',center),b=await payArea('customer',data);
+  await service.saveCaptainArea(auth('captain1'),{center:{latitude:18,longitude:79},radiusKm:1,label:'Moved area',workingSlots:[]});
+  await assert.rejects(service.claim(auth('captain1'),{orderId:b.bookingId}),{code:'permission-denied'});
+  await service.claim(auth('captain2'),{orderId:b.bookingId});
+  assert.equal((await db.doc('orders/'+b.bookingId).get()).data().captainId,'captain2');
+  await service.saveCaptainArea(auth('captain2'),{center:{latitude:18,longitude:79},radiusKm:1,label:'New future area',workingSlots:[]});
+  clock=Date.parse('2026-11-01T08:01:00+05:30');await service.progress(auth('captain2'),{orderId:b.bookingId,action:'arrived'});
+  assert.ok((await db.doc('orders/'+b.bookingId).get()).data().arrivedAt);
+});
+test('area policy submits and human-approves documents without manual society selection',async()=>{
+ const center=await areaSetup(),uid='new-area-captain';
+ await service.register(auth(uid),{role:'captain',name:'QA New Captain'});
+ await service.saveCaptainArea(auth(uid),{center,radiusKm:3,label:'QA work area',workingSlots:[{startMinute:480,endMinute:1080}]});
+ await service.captainPayout(auth(uid),{method:'upi',upi:'qa@bank'});
+ await service.submitCaptainApplication(auth(uid),{societyIds:[]});
+ await db.doc('privateConfig/captainReviewers').set({emails:['reviewer@example.test']});
+ const reviewer={uid:'qa-reviewer',token:{email:'reviewer@example.test',email_verified:true,auth_time:clock/1000,firebase:{sign_in_provider:'google.com'}}};
+ const detail=await service.getCaptainApplication(reviewer,{captainId:uid});
+ assert.equal(detail.coveragePolicy,'captainAreaV1');assert.equal(detail.serviceArea.radiusKm,3);
+ await service.reviewCaptainApplication(reviewer,{captainId:uid,decision:'approve',expectedVersion:detail.version,reason:'QA identity and payout reviewed',identityReviewed:true,payoutReviewed:true,societyIds:[]});
+ assert.equal((await db.doc('captains/'+uid).get()).data().approved,true);
+ assert.equal((await db.doc('captains/'+uid).get()).data().online,false);
+ await service.captainOnline(auth(uid),{online:true});
+ assert.equal((await db.doc('captains/'+uid).get()).data().online,true);
+});

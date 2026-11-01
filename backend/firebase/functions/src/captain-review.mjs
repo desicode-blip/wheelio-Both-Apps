@@ -1,3 +1,4 @@
+import {areaPolicy,signal} from './captain-area.mjs';
 import {randomUUID} from 'node:crypto';
 import {FieldValue,FieldPath} from 'firebase-admin/firestore';
 
@@ -46,7 +47,7 @@ export async function getCaptainApplication(service,auth,data){
   const c=snapshot.data(),photos=await Promise.all(kinds.map(async kind=>({kind,available:validImage(await service.evidence.metadata(`kyc/${id}/${kind}.jpg`))})));
   const history=await snapshot.ref.collection('applicationReviews').orderBy('createdAt','desc').limit(10).get();
   return {...summary(snapshot),workStatus:c.workStatus??null,online:c.online===true,
-    requestedSocietyIds:c.requestedSocietyIds??[],societyIds:c.societyIds??[],societies:(cfg.societies??[]).filter(s=>s.active).map(s=>({id:s.id,name:s.name,area:s.area??''})),
+    coveragePolicy:cfg.coveragePolicy??null,serviceArea:c.serviceArea?{label:c.serviceArea.label,radiusKm:c.serviceArea.radiusKm}:null,requestedSocietyIds:c.requestedSocietyIds??[],societyIds:c.societyIds??[],societies:(cfg.societies??[]).filter(s=>s.active).map(s=>({id:s.id,name:s.name,area:s.area??''})),
     payout:c.payout??(c.upi?{method:'upi',upi:c.upi}:null),workingSlots:c.workingSlots??null,workingWindows:c.workingWindows??[],photos,
     training:{enabled:cfg.training?.enabled===true||(cfg.training?.enabled!==false&&cfg.training?.required===true),required:cfg.training?.required===true,configured:!!cfg.training?.version,version:cfg.training?.version??null,
       completed:!!cfg.training?.version&&!!c.trainingCompletedAt&&c.trainingVersion===cfg.training.version,quizPassed:!!cfg.training?.version&&!!c.quizPassedAt&&c.trainingVersion===cfg.training.version},
@@ -86,7 +87,7 @@ export async function reviewCaptainApplication(service,auth,data){
     if(decision==='approve'){
       if(metadata.some(m=>!validImage(m)))fail('failed-precondition','Both identity and selfie uploads are required.');
       if(!['test','live'].includes(cfg?.paymentMode)||c.paymentMode!==cfg.paymentMode)fail('failed-precondition','The application belongs to another payment mode. Review configuration first.');
-      if(!Array.isArray(societyIds)||!societyIds.length||societyIds.length>10||new Set(societyIds).size!==societyIds.length||societyIds.some(id=>!c.requestedSocietyIds?.includes(id)||!cfg.societies?.some(s=>s.active&&s.id===id)))fail('invalid-argument','Choose active societies requested by this Captain.');
+      if(!areaPolicy(cfg)&&(!Array.isArray(societyIds)||!societyIds.length||societyIds.length>10||new Set(societyIds).size!==societyIds.length||societyIds.some(id=>!c.requestedSocietyIds?.includes(id)||!cfg.societies?.some(s=>s.active&&s.id===id))))fail('invalid-argument','Choose active societies requested by this Captain.');
       const payout=c.payout??{method:'upi',upi:c.upi};
       if(payout.method==='upi'?!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(payout.upi??''):payout.method!=='bank'||!/^\d{9,18}$/.test(payout.accountNumber??''))fail('failed-precondition','Valid payout details are required before approval.');
       if(cfg.training?.required&&(!cfg.training.version||c.trainingVersion!==cfg.training.version||!c.trainingCompletedAt||!c.quizPassedAt))fail('failed-precondition','The current approved training and quiz must be completed first.');
@@ -94,6 +95,7 @@ export async function reviewCaptainApplication(service,auth,data){
     tx.update(ref,{approved:decision==='approve',kycStatus:decision==='approve'?'approved':'changesRequested',online:false,
       ...(decision==='approve'?{societyIds,approvedAt:stamp(),approvedBy:reviewer.email,payoutReviewedAt:stamp()}:{}),
       reviewReason:reason,reviewIssues:decision==='approve'?[]:[...new Set(issues)],reviewedAt:stamp(),reviewedBy:reviewer.email,updatedAt:stamp()});
+    signal(tx,service);
     tx.create(ref.collection('applicationReviews').doc(reviewId),{decision,reason,issues:decision==='approve'?[]:issues,societyIds:decision==='approve'?societyIds:[],reviewer,previousVersion:data.expectedVersion,identityReviewed:data.identityReviewed===true,payoutReviewed:data.payoutReviewed===true,createdAt:stamp()});
     tx.create(service.db.doc(`notifications/${reviewId}`),{recipientId:id,role:'captain',category:'account',kind:'applicationReview',title:decision==='approve'?'Your Captain profile is approved':'Your application needs corrections',body:reason,read:false,createdAt:stamp()});
   });

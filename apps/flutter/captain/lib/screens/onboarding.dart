@@ -67,7 +67,7 @@ class TestSkipButton extends StatelessWidget {
 
 // MARK: W04 4 steps (W15 one thing to fix)
 
-enum _Stage { aadhaar, photo, bank, onboarding }
+enum _Stage { aadhaar, photo, bank, area, onboarding }
 
 class StepsScreen extends StatelessWidget {
   const StepsScreen({super.key, this.problem = false});
@@ -80,6 +80,7 @@ class StepsScreen extends StatelessWidget {
           _Stage.aadhaar => (WIcon.idCard, store.t('Aadhaar', 'आधार', 'ఆధార్'), store.t('Photo of the front and back', 'आगे और पीछे की फ़ोटो', 'ముందు, వెనుక ఫోటో')),
           _Stage.photo => (WIcon.face, store.t('Your photo', 'आपकी फ़ोटो', 'మీ ఫోటో'), store.t('A quick selfie to match your Aadhaar', 'आधार से मिलाने के लिए एक सेल्फ़ी', 'ఆధార్‌తో సరిపోల్చడానికి ఒక సెల్ఫీ')),
           _Stage.bank => (WIcon.bank, store.t('Bank or UPI', 'बैंक या UPI', 'బ్యాంక్ లేదా UPI'), store.t('Where your money comes every night', 'जहाँ हर रात आपके पैसे आएंगे', 'ప్రతి రాత్రి మీ డబ్బు వచ్చే చోటు')),
+          _Stage.area => (WIcon.location,'Serving area','Choose your work area and travel radius'),
           _Stage.onboarding => (WIcon.play, store.t('Onboarding', 'ऑनबोर्डिंग', 'ఆన్‌బోర్డింగ్'), store.t('Short training videos and a quiz', 'छोटे ट्रेनिंग वीडियो और एक क्विज़', 'చిన్న శిక్షణ వీడియోలు, ఒక క్విజ్')),
         };
     KycState state(_Stage s) {
@@ -88,11 +89,13 @@ class StepsScreen extends StatelessWidget {
         _Stage.aadhaar => store.steps[KycStep.aadhaar] ?? KycState.todo,
         _Stage.photo => store.steps[KycStep.photo] ?? KycState.todo,
         _Stage.bank => store.steps[KycStep.bank] ?? KycState.todo,
+        _Stage.area => store.hasServiceArea?KycState.done:KycState.todo,
         _Stage.onboarding => store.steps[KycStep.training] == KycState.done && store.steps[KycStep.quiz] == KycState.done ? KycState.done : KycState.todo,
       };
     }
 
     final list = [_Stage.aadhaar, _Stage.photo, _Stage.bank,
+      if(store.captainAreaEnabled) _Stage.area,
       if(!problem && store.trainingEnabled) _Stage.onboarding];
     final current = list.indexWhere((s) => state(s) != KycState.done);
 
@@ -122,6 +125,8 @@ class StepsScreen extends StatelessWidget {
           router.go(N.selfie);
         case KycStep.bank:
           router.go(N.bank);
+        case KycStep.area:
+          router.go(N.workSetup);
         case KycStep.training:
           router.go(N.training);
         case KycStep.quiz:
@@ -963,7 +968,7 @@ class _RulesScreenState extends State<RulesScreen> {
         }
         store.startReview();
         // Documents sent and the review countdown runs: first set up the work profile.
-        router.go(N.workSetup);
+        if(store.captainAreaEnabled){router.home();}else{router.go(N.workSetup);}
         } finally {if(mounted)setState(()=>submitting=false);}
       })),
       children: [
