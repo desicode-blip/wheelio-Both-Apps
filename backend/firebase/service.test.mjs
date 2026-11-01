@@ -955,3 +955,97 @@ test('guest map previews use the chosen pin without moving phone login ahead of 
  for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({approved:false});
  assert.equal((await service.availability(null,{societyId:'manual',day:'2026-11-01',position:center})).slots.some(s=>s.available),false);
 });
+
+test('approved Captain goes Online with a saved map area and no approved societies',async()=>{
+ await areaSetup();
+ await db.doc('captains/captain1').update({societyIds:[],online:false});
+ assert.deepEqual(await service.captainOnline(auth('captain1'),{online:true}),{online:true});
+ const captain=(await db.doc('captains/captain1').get()).data();
+ assert.equal(captain.online,true);assert.deepEqual(captain.societyIds,[]);
+ await service.captainOnline(auth('captain1'),{online:false});
+ assert.equal((await db.doc('captains/captain1').get()).data().online,false);
+ await db.doc('captains/captain1').update({workingSlots:null});
+ await assert.rejects(service.captainOnline(auth('captain1'),{online:true}),{code:'failed-precondition'});
+});
+
+test('area slots follow each covering Captain working hours without society assignments',async()=>{
+ const center=await areaSetup(),home=await areaInput('customer','hour-union',center);
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({societyIds:[]});
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'Morning area',workingSlots:[{startMinute:480,endMinute:600}]});
+ await service.saveCaptainArea(auth('captain2'),{center,radiusKm:3,label:'Later area',workingSlots:[{startMinute:600,endMinute:720}]});
+ const available=async()=>new Set((await service.availability(customer,{societyId:home.societyId,day:home.day})).slots.filter(s=>s.available).map(s=>s.startHour));
+ assert.deepEqual(await available(),new Set([8,10]));
+ const before=(await db.doc('availabilitySignals/current').get()).data().revision;
+ await service.saveCaptainArea(auth('captain2'),{center,radiusKm:3,label:'Afternoon area',workingSlots:[{startMinute:720,endMinute:840}]});
+ assert.deepEqual(await available(),new Set([8,12]));
+ assert.ok((await db.doc('availabilitySignals/current').get()).data().revision>before);
+ await service.saveCaptainArea(auth('captain1'),{center:{latitude:18,longitude:79},radiusKm:1,label:'Different area',workingSlots:[{startMinute:480,endMinute:600}]});
+ assert.deepEqual(await available(),new Set([12]));
+});
+
+test('two covering Captains allow two paid bookings, then the slot closes and cancellation reopens it',async()=>{
+ const center=await areaSetup();
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({societyIds:[]});
+ for(const uid of ['other-area-user','third-area-user'])await service.register(auth(uid),{role:'customer',name:'QA Customer'});
+ const first=await areaInput('customer','two-cap-first',center);
+ const second=await areaInput('other-area-user','two-cap-second',{latitude:17.401,longitude:78.4});
+ const third=await areaInput('third-area-user','two-cap-third',{latitude:17.402,longitude:78.4});
+ const available=async()=>(await service.availability(auth('third-area-user'),{societyId:third.societyId,day:third.day})).slots.find(s=>s.startHour===8).available;
+ const a=await payArea('customer',first);assert.equal(await available(),true);
+ const b=await payArea('other-area-user',second);assert.equal(await available(),false);
+ const orders=await Promise.all([a,b].map(x=>db.doc('orders/'+x.bookingId).get()));
+ assert.equal(new Set(orders.map(d=>d.data().capacityCaptainId)).size,2);
+ await assert.rejects(service.createBooking(auth('third-area-user'),third),{code:'resource-exhausted'});
+ await service.cancel(customer,{orderId:a.bookingId});
+ assert.equal(await available(),true);
+ assert.ok((await service.createBooking(auth('third-area-user'),third)).bookingId);
+});
+
+test('simultaneous captures across three homes cannot sell two Captains to three Customers',async()=>{
+ const center=await areaSetup(),prepared=[];
+ for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({societyIds:[]});
+ for(const [i,uid] of ['customer','concurrent-area-a','concurrent-area-b'].entries()){
+  if(uid!=='customer')await service.register(auth(uid),{role:'customer',name:'QA Customer'});
+  const input=await areaInput(uid,'two-cap-concurrent-'+i,{latitude:center.latitude+i*0.001,longitude:center.longitude});
+  const booking=await service.createBooking(auth(uid),input),checkout=await service.checkout(auth(uid),booking);
+  const payment={id:'pay_two_cap_'+i,order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};
+  provider.payments.set(payment.id,payment);prepared.push({booking,payment});
+ }
+ await Promise.all(prepared.map(p=>service.capturePayment(p.payment)));
+ const orders=await Promise.all(prepared.map(p=>db.doc('orders/'+p.booking.bookingId).get()));
+ const reserved=orders.filter(d=>d.data().capacityReserved);
+ assert.equal(reserved.length,2);assert.equal(new Set(reserved.map(d=>d.data().capacityCaptainId)).size,2);
+ assert.equal(orders.filter(d=>d.data().status==='cancelled').length,1);
+ const home=await areaInput('new-capacity-viewer','two-cap-full',center);
+ assert.equal((await service.availability(auth('new-capacity-viewer'),{societyId:home.societyId,day:home.day})).slots.find(s=>s.startHour===8).available,false);
+});
+
+test('whole booking window must fit one continuous Captain work period, including after the window starts',async()=>{
+ const center=await areaSetup(),home=await areaInput('customer','whole-window',center);
+ await db.doc('captains/captain2').update({approved:false});
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'Nine to six',workingSlots:[{startMinute:540,endMinute:1080}]});
+ const available=async()=>new Set((await service.availability(customer,{societyId:home.societyId,day:home.day})).slots.filter(w=>w.available).map(w=>w.startHour));
+ assert.deepEqual(await available(),new Set([10,12,14,16]));
+ await assert.rejects(service.createBooking(customer,home),{code:'resource-exhausted'});
+ clock=Date.parse('2026-11-01T08:45:00+05:30');
+ assert.equal((await available()).has(8),false);
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'With a break',workingSlots:[{startMinute:480,endMinute:540},{startMinute:570,endMinute:690}]});
+ assert.equal((await available()).has(8),false);
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'Continuous hours',workingSlots:[{startMinute:480,endMinute:540},{startMinute:540,endMinute:600}]});
+ assert.equal((await available()).has(8),true);
+ await db.doc('captains/captain1').update({workingSlots:null,workingWindows:[{startHour:4,endHour:22}]});
+ assert.equal((await available()).size,0);
+ await assert.rejects(service.captainOnline(auth('captain1'),{online:true}),{code:'failed-precondition'});
+});
+
+test('whole booking window is rechecked at claim after a Captain edits working hours',async()=>{
+ const center=await areaSetup(),home=await areaInput('customer','whole-window-claim',center);
+ await db.doc('captains/captain2').update({approved:false});
+ const booking=await payArea('customer',home);
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'Later start',workingSlots:[{startMinute:540,endMinute:1080}]});
+ await assert.rejects(service.claim(auth('captain1'),{orderId:booking.bookingId}),{code:'failed-precondition'});
+ assert.equal((await db.doc('orders/'+booking.bookingId).get()).data().captainId,null);
+ await service.saveCaptainArea(auth('captain1'),{center,radiusKm:3,label:'Matching hours',workingSlots:[{startMinute:480,endMinute:600}]});
+ await service.claim(auth('captain1'),{orderId:booking.bookingId});
+ assert.equal((await db.doc('orders/'+booking.bookingId).get()).data().captainId,'captain1');
+});

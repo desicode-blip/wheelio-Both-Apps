@@ -51,9 +51,9 @@ export class WashKrewService {
   saveCaptainArea(auth,data){return saveCaptainArea(this,auth,data);}
   searchPlaces(auth,data,context){return searchPlaces(this,auth,data,context);}
   selectPlace(auth,data,context){return selectPlace(this,auth,data,context);}
-  worksWindow(captain, window, day = window.day) {
+  worksWindow(captain, window, day = window.day, wholeWindow = window.coveragePolicy === 'captainAreaV1') {
     const elapsed = (this.now() - Date.parse(`${day}T00:00:00+05:30`)) / 60000;
-    return worksWindow(captain, window, elapsed);
+    return worksWindow(captain, window, elapsed, {wholeWindow});
   }
   startTraining(auth,data){return startTraining(this,auth,data);}
   listCaptainApplications(auth,data){return listCaptainApplications(this,auth,data);}
@@ -513,7 +513,7 @@ export class WashKrewService {
     await this.db.runTransaction(async tx=>{
       const [snapshot,config]=await Promise.all([tx.get(ref),tx.get(this.db.doc('config/operations'))]);
       const c=snapshot.data();
-      if(data.online&&areaPolicy(config.data())&&!hasArea(c))fail('failed-precondition','Set your serving area and working hours before going online.');
+      if(data.online&&areaPolicy(config.data())&&(!hasArea(c)||normalizeWorkingSlots(c?.workingSlots)===null))fail('failed-precondition','Set your serving area and working hours before going online.');
       if (!c?.approved) fail('permission-denied', 'Your captain account must be approved before going online.');
       if(data.online&&!canTakeJobs(c))fail('failed-precondition','New jobs are paused pending the operations review. Open Help to ask for a review.');
       if (data.online && !areaPolicy(config.data()) && !c.societyIds?.length) fail('failed-precondition', 'Choose at least one approved society.');

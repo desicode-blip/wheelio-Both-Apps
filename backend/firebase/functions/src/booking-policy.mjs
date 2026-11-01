@@ -87,11 +87,16 @@ export function cancellationBenefit(order, now) {
   return { kind: 'credit', freeWashes: 0, creditPaise: Math.round(order.pricePaise * p.lateCreditBps / 10000 / 100) * 100 };
 }
 
-export function worksWindow(captain, window, notBeforeMinute = window.startHour * 60) {
+export function worksWindow(captain, window, notBeforeMinute = window.startHour * 60, {wholeWindow = false} = {}) {
   const start = Math.max(window.startHour * 60, notBeforeMinute);
   if (start >= window.endHour * 60) return false;
-  // Exact preferences are minutes from midnight. A window may ring when it
-  // overlaps a work period; the Captain still chooses whether to accept it.
+  // Captain-area bookings require one continuous work period covering the whole
+  // Customer window. Historical society bookings retain their overlap behavior.
+  if (wholeWindow) {
+    const slots=normalizeWorkingSlots(captain.workingSlots);
+    return slots!==null && window.startHour>=4 && window.endHour<=22 &&
+      (!slots.length || slots.some(s=>s.startMinute<=window.startHour*60&&s.endMinute>=window.endHour*60));
+  }
   if (Array.isArray(captain.workingSlots)) return !captain.workingSlots.length ||
     captain.workingSlots.some(s => s.startMinute < window.endHour * 60 && s.endMinute > start);
   return !captain.workingWindows?.length || captain.workingWindows.some(w => w.startHour <= window.startHour && w.endHour >= window.endHour);

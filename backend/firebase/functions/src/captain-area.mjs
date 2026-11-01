@@ -59,7 +59,7 @@ export async function areaCapacity(service,tx,order,windows){
     const times=windowTimes(order.day,w);
     return captains.docs.find(d=>{
       const c=d.data();
-      return d.id!==order.customerId&&c.paymentMode===order.paymentMode&&!['blocked','refresher'].includes(c.workStatus)&&service.worksWindow(c,w,order.day)&&
+      return d.id!==order.customerId&&c.paymentMode===order.paymentMode&&!['blocked','refresher'].includes(c.workStatus)&&service.worksWindow(c,w,order.day,true)&&
         !busy.some(o=>(o.captainId??o.capacityCaptainId)===d.id&&o.slotStart?.toMillis()<times.end&&o.slotEnd?.toMillis()>times.start);
     })?.id??null;
   });

@@ -1,3 +1,12 @@
+# Captain coverage backend correction - 2 November 2026
+
+[COVERAGE-ONLINE-FIX-2026-11-02.md](COVERAGE-ONLINE-FIX-2026-11-02.md) tracks the
+stale deployed society guard, matching backend publication and owner-confirmed
+whole-window work hours. This is a backend correction: the current installed
+Customer/Captain Flutter layouts and app artifacts are unchanged. Server-side
+availability, payment capacity and claim checks must agree; do not redesign the
+slot picker or restore manual society approval.
+
 # Captain coverage and Apple key follow-up - 1 November 2026
 
 [CAPTAIN-COVERAGE-2026-11-01.md](CAPTAIN-COVERAGE-2026-11-01.md) records the

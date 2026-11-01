@@ -1,3 +1,15 @@
+# Captain Online and whole-window capacity - 2 November 2026
+
+The deployed Go online source still required an approved society despite the
+active `captainAreaV1` configuration. The matching existing controllers must be
+published and their deployed source verified together. The owner confirmed that
+an entire Customer window must fit one continuous Captain work period; saved
+area/hours determine capacity, with human approval still mandatory. Six new
+regressions use only the isolated demo project and existing fake payment adapter:
+no live Captain approval, paid booking, balance or financial transaction is
+created. No new provider, app test button or authored UI is added. See
+[COVERAGE-ONLINE-FIX-2026-11-02.md](COVERAGE-ONLINE-FIX-2026-11-02.md).
+
 # Owner-authorized Firebase test logins - 2 November 2026
 
 The owner explicitly requested two fixed-code Firebase test accounts and supplied

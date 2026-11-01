@@ -132,3 +132,9 @@ Play Console: WashKrew Customer and WashKrew Captain are two separate apps with
 their existing `.customer` and `.captain` package IDs. Never change the unrelated
 TrustKeyper or TrustKeyper Staging apps, releases, signing or tester setup. Use a
 dedicated WashKrew internal tester list. See docs/PLAY-INTERNAL-2026-11-01.md.
+
+Owner decision — 2 November 2026: for Captain-area bookings, the **entire**
+Customer time window must fit within one continuous saved Captain work period.
+Partial overlap and a period spanning a break do not qualify. Availability,
+payment capacity, dispatch and claim must enforce the same rule. Preserve the
+historical society-booking interpretation and finishability of assigned jobs.
