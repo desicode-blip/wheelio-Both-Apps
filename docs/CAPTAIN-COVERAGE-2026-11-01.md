@@ -1,9 +1,11 @@
 # Captain-defined coverage — 1 November 2026
 
 Current status: the coverage policy/backend/Hosting are live, both final Android
-USB APKs are installed, both apps have development/production APNs keys saved,
-and the two separate Play internal releases have the dedicated tester list and
-Firebase/Maps signing fingerprints configured. Play-delivered phone OTP and
+USB APKs passed the earlier installation checks, both apps have development/production
+APNs keys saved, and the two separate Play internal releases have the dedicated
+tester list and Firebase/Maps signing fingerprints configured. The owner authorized
+replacing the USB copies: Captain is now installed from Play with its certificate
+verified, while Customer's Play download initially failed. Play-delivered phone OTP and
 physical iPhone acceptance remain separate device checks. Later sections include
 chronological evidence; use [PLAY-INTERNAL-2026-11-01.md](PLAY-INTERNAL-2026-11-01.md)
 and [APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) for current

@@ -80,3 +80,45 @@ builds. Do not uninstall the current apps or erase local data without the owner'
 specific approval. Before a Play-delivered device test, confirm all important
 uploads are saved and obtain approval for any required replacement. Server-side
 accounts and bookings must never be deleted as part of that installation.
+
+## Play-delivered device check — 1 November, 22:22 IST
+
+The owner explicitly authorized replacing **only the two WashKrew USB apps**
+with the Play versions, including loss of their local logins/drafts. No server
+account, document or booking is authorized for deletion.
+
+Device package inspection found Customer already absent before this replacement
+work; Captain was still installed with no Play installer recorded. No app had
+been uninstalled by the agent at that initial inspection. Play Store's selected account was
+verified as the owner's confirmed tester account. Chrome initially used another
+Google account for the invitations; selecting the confirmed tester account fixed
+the invitation's **App not available** message.
+
+The Customer invitation now says **You're a tester** and offers **Download test
+app**. Its Play listing opens, but the original install attempt and one retry
+both stop with **Something went wrong on our end. Please try again.** before any
+package is installed. Storage inspection reports about 120 GB free. No specific
+package-install failure was found in the filtered Play/Package Manager logs;
+the generic message does not establish a cause or an application-code defect.
+
+Captain's invitation subsequently showed **You're a tester**; the owner also
+explicitly confirmed its invitation opt-in. The first download link showed
+**Item not found**. One **Try again** subsequently opened its actual Play listing,
+which correctly warned that the installed copy did not come from Google Play.
+With replacement already authorized, only the Captain USB app was uninstalled
+and reinstalled from that listing. No unrelated app was changed.
+
+Captain installation completed at **22:18:36 IST**. Android package read-back
+confirms version code 1 / version 1.0.0, target SDK 36 and installer
+`com.android.vending`. Its installed base APK passed `apksigner verify`; SHA1
+and SHA256 match the Captain Play deployment certificate registered above.
+The SDK verifier reported unknown additional v3 attributes as warnings, with
+successful verification; no signing certificate was bypassed or changed.
+
+The Play Captain opens the authored language/welcome screens, then the existing
+Guest Home. **Go online** opens native phone authentication. The owner is entering
+the existing Captain number and SMS code directly on the phone; OnePlus Secure
+Keyboard intentionally hides this entry from the mirror. OTP success/fallback is
+not yet established. Customer delivery still needs a later retry. Do not clear
+Google accounts, weaken Play Protect/Firebase verification, or modify unrelated
+apps to work around delivery errors.
