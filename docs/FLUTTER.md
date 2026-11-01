@@ -3,9 +3,10 @@
 [CAPTAIN-COVERAGE-2026-11-01.md](CAPTAIN-COVERAGE-2026-11-01.md) records the
 owner-authorized map/radius exception, live backend/Hosting publication, current
 Android bundles and actual phone checks. Other authored designs remain locked.
-[APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) records receipt of
-Aman's private Apple key and the remaining upload/device gates. Older entries
-calling the key missing are historical; receiving it does not prove APNs delivery.
+[APPLE-PUSH-SETUP-2026-11-01.md](APPLE-PUSH-SETUP-2026-11-01.md) records the saved
+development/production Apple push keys for both apps and remaining device gates.
+Older entries calling the key missing are historical; configuration does not prove
+physical iPhone OTP or APNs delivery.
 
 # GPS place suggestions and native OTP - 1 November 2026
 

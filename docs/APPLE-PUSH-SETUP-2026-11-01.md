@@ -4,12 +4,14 @@ Aman supplied the APNs authentication key privately. Its supplied metadata ident
 
 ## Configuration status
 
-Firebase project `wheelio-apps` → Project settings → Cloud Messaging → Apple app configuration showed **no development or production APNs authentication key** for either maintained app at the initial check:
+Firebase project `wheelio-apps` → Project settings → Cloud Messaging → Apple app configuration now shows **saved development and production APNs authentication keys** for both maintained apps:
 
 - `com.amanmaheshwari.wheelio.customer`
 - `com.amanmaheshwari.wheelio.captain`
 
-The upload attempt stopped because Chrome's connected extension did not allow local file access. No successful upload is claimed. Finish using the supplied private `.p8` file in the Firebase Console, entering the provided Key ID and paid Team ID. Verify the saved key rows for both apps and both environments. Never put the private key in this repository, a report, chat, browser logs or build artifacts. The file remains in the owner's Downloads outside Git; `.p8` files are ignored as additional protection.
+All four saved rows were verified visually on 1 November, with Key ID `Y5432Q73U8` and paid Team ID `28JNT7H8KA`. The browser extension's automated chooser initially rejected local file access; the standard Windows file picker completed the uploads. No extension permission or real-SMS verification protection was changed. Local screenshots of the saved metadata are kept in the ignored cache and were shown to the owner; no private key contents are included.
+
+Never put the private key in this repository, a report, chat, browser logs or build artifacts. The file remains in the owner's Downloads outside Git; `.p8` files are ignored as additional protection. Keep a secure private backup because Apple does not offer another download of the original key.
 
 ## Native acceptance after upload
 
