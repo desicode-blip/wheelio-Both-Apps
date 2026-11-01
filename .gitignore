@@ -62,3 +62,10 @@ apps/flutter/**/env/firebase.json
 # Downloaded, checksum-verified private photo service models (built from models.json)
 backend/photo-check/models/
 backend/photo-check/__pycache__/
+
+# Private Android upload signing is local-only.
+**/*.jks
+**/*.keystore
+**/key.properties
+**/*upload.properties
+**/*.hprof

@@ -330,7 +330,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                       WCard(
                         onTap: () {
                           store.set(() => store.kycFromJob = false);
-                          router.push(const R(N.steps));
+                          if(store.captainAreaEnabled&&!store.hasServiceArea){router.go(N.workArea);}else if(store.isLive&&store.underReview){showReviewNotice(context);}else{router.push(const R(N.steps));}
                         },
                         child: Row(
                           children: [
@@ -340,9 +340,9 @@ class _CaptainHomeState extends State<CaptainHome> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  WText(store.t('Finish KYC to take jobs', 'काम लेने के लिए KYC पूरा करें', 'పనులకు KYC పూర్తి చేయండి'), WType.title, size: 17),
+                                  WText(store.captainAreaEnabled&&!store.hasServiceArea?'Set your serving area':store.isLive&&store.underReview?'Documents under review':store.t('Finish KYC to take jobs', 'काम लेने के लिए KYC पूरा करें', 'పనులకు KYC పూర్తి చేయండి'), WType.title, size: 17),
                                   const SizedBox(height: 3),
-                                  WText('${store.kycStagesDone}/${store.kycStageCount} · ${store.trainingEnabled ? store.t('Aadhaar, photo, bank, training', 'आधार, फ़ोटो, बैंक, ट्रेनिंग', 'ఆధార్, ఫోటో, బ్యాంక్, శిక్షణ') : store.t('Aadhaar, photo, bank', 'आधार, फ़ोटो, बैंक', 'ఆధార్, ఫోటో, బ్యాంక్')}', WType.caption),
+                                  WText(store.isLive&&store.underReview&&(!store.captainAreaEnabled||store.hasServiceArea)?'Admin approval is needed before you can work.':'${store.kycStagesDone}/${store.kycStageCount} · ${store.captainAreaEnabled?'Documents, payout, serving area':store.trainingEnabled ? store.t('Aadhaar, photo, bank, training', 'आधार, फ़ोटो, बैंक, ट्रेनिंग', 'ఆధార్, ఫోటో, బ్యాంక్, శిక్షణ') : store.t('Aadhaar, photo, bank', 'आधार, फ़ोटो, बैंक', 'ఆధార్, ఫోటో, బ్యాంక్')}', WType.caption),
                                 ],
                               ),
                             ),

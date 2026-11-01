@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,6 +8,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Private internal-test bundles can skip the slow native shrink pass. Dart remains release/AOT.
+val internalTestBuild = System.getenv("WASHKREW_ANDROID_INTERNAL_TEST") == "1"
+val uploadPropertiesPath = System.getenv("WASHKREW_ANDROID_KEY_PROPERTIES")
+val uploadProperties = Properties()
+if (!uploadPropertiesPath.isNullOrBlank()) {
+    file(uploadPropertiesPath).inputStream().use { uploadProperties.load(it) }
+}
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name == "bundleRelease" } && uploadPropertiesPath.isNullOrBlank()) {
+        throw GradleException("Play bundles require WASHKREW_ANDROID_KEY_PROPERTIES pointing to a private upload-key properties file outside Git.")
+    }
+}
 android {
     namespace = "com.amanmaheshwari.wheelio.customer"
     compileSdk = flutter.compileSdkVersion
@@ -30,11 +44,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (!uploadPropertiesPath.isNullOrBlank()) {
+            create("upload") {
+                keyAlias = uploadProperties.getProperty("keyAlias")
+                keyPassword = uploadProperties.getProperty("keyPassword")
+                storeFile = file(uploadProperties.getProperty("storeFile"))
+                storePassword = uploadProperties.getProperty("storePassword")
+            }
+        }
+    }
     buildTypes {
         release {
+            isMinifyEnabled = !internalTestBuild
+            isShrinkResources = !internalTestBuild
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // USB acceptance builds only. Store distribution needs a private upload key.
-            signingConfig = signingConfigs.getByName("debug")
+            // USB builds retain their existing certificate; Play bundles require the private upload key.
+            signingConfig = signingConfigs.getByName(if (uploadPropertiesPath.isNullOrBlank()) "debug" else "upload")
         }
     }
 }

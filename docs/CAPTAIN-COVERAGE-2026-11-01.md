@@ -38,3 +38,27 @@ Both native apps use native Firebase phone verification. No web CAPTCHA is embed
 Primary references: https://firebase.google.com/docs/firestore/solutions/geoqueries and https://firebase.google.com/docs/auth/android/phone-auth#enable-app-verification.
 
 Verification evidence will be appended after builds and device checks. Windows does not establish physical iPhone acceptance.
+
+## Verified build/test record (1 November)
+
+- Full isolated backend suite: **168 passed**. Final five focused coverage/reservation tests also passed after the shared Captain capacity-lock refinement. This includes new document submission → authorized human approval with no society selection → eligible Online, all in the demo project.
+- Flutter: Customer 63, Captain 16, shared UI 9, shared Firebase 25: **113 passed**. Four-package static analysis clean. New onboarding area step does not grant approval or training; 360 px layout test passes.
+- Customer and Captain release web builds and versioned private admin were published to default Hosting. Separate website site untouched.
+- Approved/geohash Firestore index and authenticated read-only signal rules deployed. Captain-area policy switch remains OFF until every backend controller is successfully refreshed.
+- Full Function deployment hit regional mutation-rate quota. Retry is prepared with a process-local two-task deployment queue; no Firebase policy/quotas/billing/minimum instances were weakened or increased. Owner login expired after the pause and needs a fresh Google verification before continuing.
+- Both new Android arm64 profile APKs built and installed successfully on the connected OnePlus. Captain SHA256 `1dc3feb303bcf31305ea3718c3785ef97753814ecb324b21764def71945086e0`; Customer `a6daadf283a9e5d9cfd54e43dab2f78d67ebd7264bb62880790bbbc831872b0f`. These are USB acceptance builds, not Play releases.
+- Owner confirmed Sumit's existing Play publisher account. Dashboard verified as `sumit@trustkeyper.com`, publisher TrustKeyper, with only TrustKeyper and TrustKeyper Staging currently registered. WashKrew Customer form prepared using existing package ID; availability confirmed. Policy/export declarations are unchecked. No new account was paid for or production release made.
+- Private Android upload key prepared in the owner's local profile outside this repository. Both Gradle files support `WASHKREW_ANDROID_KEY_PROPERTIES`; bundleRelease refuses a missing upload key, while USB profile builds retain the existing debug certificate. Back up the private key securely; never send it through Git/chat. Play App Signing's final SHA256 must be added to both Firebase Android registrations before real Play-delivered SMS acceptance can be claimed.
+- APNs key/Apple team access and physical iPhone acceptance remain with Aman. No real Captain approved, no live payment created, no fixed OTPs or QA accounts seeded in production.
+
+## Publication progress
+
+Firebase's remote OAuth page failed after Google verification. Using the official CLI's local callback completed owner authentication successfully; no password or OTP was copied into the repository. Full Functions deployment and documented API-gateway configuration completed, and `configure-captain-coverage` verified the geo index and activated the new policy. No identity approval was bypassed.
+
+On the physical Android phone, Captain Home received the live policy without reinstalling. The existing Change control opened the new explanation/search screen; granting the owner-authorized GPS permission showed real Google Maps tiles and the radius circle. A 3 km area was saved and persisted when reopened. The Captain remains under review and Offline. Exact device GPS and private map screenshots are not included here.
+
+Both app registrations were created in Sumit's existing Play publisher after the owner explicitly authorized accepting Google's policy/export declarations. They remain Draft, not public releases. Customer and Captain package names remain unchanged. Private internal-test bundles use `WASHKREW_ANDROID_INTERNAL_TEST=1` to skip the costly native R8 shrink pass; Flutter Dart remains release/AOT. Ordinary production release builds keep shrinking enabled. This build setting never selects test payments or bypasses Firebase phone verification.
+
+Repeatable arm64 internal bundle build: set `FLUTTER_BIN`, the usual Java/Android SDK paths and `WASHKREW_ANDROID_KEY_PROPERTIES` to your private properties file, then run `pnpm android:internal` (optional role argument: `customer` or `captain`). Run `flutter pub get --enforce-lockfile` in each app first when dependencies have not been installed. Output is each app's ignored `build/app/outputs/bundle/release/app-release.aab`. Keep the private keystore/properties outside Git and back them up privately. App signing fingerprints issued by Play still need registration with Firebase and the restricted Maps key before Play-delivered phone checks are complete.
+
+After the initial APK checks, the new map/form controls were refined to Captain touch-target sizes, and the existing Home KYC card now distinguishes a missing serving area from submitted documents awaiting review. This changes live status text/handlers only, preserving the card layout and the demo reference. The final targeted Captain tests (9) and edited-screen analysis pass. New published web/native artifacts must include this refinement before recording final UI acceptance.
