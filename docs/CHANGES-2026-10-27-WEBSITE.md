@@ -22,3 +22,11 @@ For Ajay. Everything here is in the new `apps/website/` folder. The Customer and
 | 5 | Before using washkrew.com for the new Razorpay merchant account | Add contact details and terms, privacy and cancellation/refund pages when Aman supplies the content. The privacy policy must mention the IP-based city lookup. |
 
 No backend connection is needed for the website itself.
+
+## Update 2 November 2026: full footer
+
+- Dark charcoal footer: logo, one-line description, social buttons (Instagram, Facebook, YouTube, LinkedIn, X), link columns for customers and captains, App Store / Google Play buttons (open the Get-the-app prompt until `STORE_LINKS` has URLs), and an "Our offices" row.
+- Offices (Aman's company addresses, as on the TrustKeyper site): Noida head office, Bengaluru and Hyderabad branch offices.
+- Social buttons show "<network> page coming soon" when clicked. To connect a profile, replace that `<button data-social>` with a link in `public/index.html`.
+- Bottom bar: copyright and the visitor-city line ("Now live in Hyderabad").
+- **To publish:** redeploy `hosting:website` as in `docs/WEBSITE-DEPLOYMENT-2026-10-27.md`.
