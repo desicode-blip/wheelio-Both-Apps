@@ -37,6 +37,7 @@ enum WIcon {
   clock(Icons.schedule_rounded),
   shield(Icons.verified_user_outlined),
   rupee(Icons.currency_rupee_rounded),
+  wallet(Icons.account_balance_wallet_outlined),
   gift(Icons.card_giftcard_rounded),
   star(Icons.star_border_rounded),
   starFill(Icons.star_rounded),

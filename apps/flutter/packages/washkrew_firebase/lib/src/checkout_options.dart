@@ -29,7 +29,7 @@ Map<String, dynamic> checkoutOptions(
     'amount': amount,
     'currency': 'INR',
     'name': Brand.name,
-    'description': 'Doorstep exterior wash',
+    'description': options['purpose']=='walletTopup'?'Wash credits top-up':'Doorstep exterior wash',
     // Open the full method chooser. A default Google Pay selection must not
     // land the customer inside a single app/payment block.
     'prefill': {'contact': phone},

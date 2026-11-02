@@ -63,6 +63,112 @@ test('combined wallet-only checkout settles without opening a provider order',as
  const order=(await db.doc('orders/'+result.bookingId).get()).data();assert.equal(order.paymentStatus,'captured');assert.equal(order.capacityReserved,true);
 });
 
+test('capture broadcasts atomically to all eligible captains without a follow-up dispatch; first claim alone wins',async()=>{
+ service.dispatch=async()=>{throw Error('Capture must not wait for another dispatcher');};
+ const b=await paid('atomic-broadcast');
+ const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+ assert.equal(offers.size,2);assert.ok(offers.docs.every(d=>d.data().status==='pending'));
+ const captured=(await db.doc('orders/'+b.bookingId).get()).data();
+ assert.ok(offers.docs.every(d=>d.data().createdAt.toMillis()===captured.bookedAt.toMillis()));
+ const claims=await Promise.allSettled(['captain1','captain2'].map(uid=>service.claim(auth(uid),{orderId:b.bookingId})));
+ assert.equal(claims.filter(c=>c.status==='fulfilled').length,1);
+ const order=(await db.doc('orders/'+b.bookingId).get()).data();assert.ok(['captain1','captain2'].includes(order.captainId));
+ await service.claim(auth(order.captainId),{orderId:b.bookingId});
+ assert.equal((await db.doc('captains/'+order.captainId).get()).data().activeJobCount,1);
+ const final=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+ assert.equal(final.docs.filter(d=>d.data().status==='accepted').length,1);
+ assert.ok(final.docs.every(d=>d.data().closedReason==='assigned'));
+});
+
+test('Captain area capture reaches both covering online Captains atomically without society assignments',async()=>{
+ const center=await areaSetup();for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({societyIds:[]});
+ service.dispatch=async()=>{throw Error('Atomic offers must already exist');};
+ const b=await payArea('customer',await areaInput('customer','atomic-area-offers',center));
+ const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();assert.equal(offers.size,2);
+ const results=await Promise.allSettled(['captain1','captain2'].map(uid=>service.claim(auth(uid),{orderId:b.bookingId})));
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+});
+
+test('explicit wallet payment cannot become a partial gateway charge or debit insufficient credit',async()=>{
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:5000,freeWashes:0});
+ await assert.rejects(service.createBooking(customer,{...input('wallet-choice-short'),paymentChoice:'wallet',useCredit:true}),{code:'failed-precondition'});
+ await assert.rejects(service.createBooking(customer,{...input('gateway-choice-mixed'),paymentChoice:'razorpay',useCredit:true}),{code:'failed-precondition'});
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,5000);assert.equal((await db.collection('orders').get()).size,0);
+ await db.doc('wallets/customer_test').update({creditPaise:14900});
+ const b=await service.createBooking(customer,{...input('wallet-choice-full'),paymentChoice:'wallet',useCredit:true,expectedAmountPaise:0});
+ assert.equal((await service.checkout(customer,b)).paid,true);assert.equal(counter,0);
+});
+
+test('an expired offer never assigns itself and online dispatch can renew it',async()=>{
+ const b=await paid('expired-not-assigned');clock+=61000;
+ await assert.rejects(service.claim(auth('captain1'),{orderId:b.bookingId}),{code:'deadline-exceeded'});
+ assert.equal((await db.doc('orders/'+b.bookingId).get()).data().captainId,null);
+ await service.dispatch(b.bookingId);
+ await service.claim(auth('captain1'),{orderId:b.bookingId});
+ assert.equal((await db.doc('orders/'+b.bookingId).get()).data().captainId,'captain1');
+});
+
+test('wallet top-up is owner-scoped, provider-verified and credited exactly once across callback/webhook races',async()=>{
+ const options=await service.createWalletTopup(customer,{requestId:'topup-one',amountPaise:10050});
+ const duplicate=await service.createWalletTopup(customer,{requestId:'topup-one',amountPaise:10050});
+ assert.equal(options.orderId,duplicate.orderId);assert.equal(counter,1);
+ assert.equal((await db.doc('wallets/customer_test').get()).exists,false);
+ await assert.rejects(service.createWalletTopup(customer,{requestId:'topup-one',amountPaise:20000}),{code:'failed-precondition'});
+ await assert.rejects(service.createWalletTopup(customer,{requestId:'topup-other',amountPaise:20000}),{code:'already-exists'});
+ await assert.rejects(service.checkWalletTopup(auth('other'),{topupId:options.topupId}),{code:'permission-denied'});
+ await assert.rejects(service.verifyWalletTopup(customer,{topupId:options.topupId,orderId:options.orderId,paymentId:'pay_topup',signature:'wrong'}),{code:'permission-denied'});
+ const payment={id:'pay_topup',order_id:options.orderId,amount:10050,currency:'INR',status:'captured',method:'upi'};provider.payments.set(payment.id,payment);
+ await Promise.all([service.verifyWalletTopup(customer,{topupId:options.topupId,orderId:options.orderId,paymentId:payment.id,signature:'valid'}),service.captureWebhookPayment(payment.id,'test',options.orderId)]);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,10050);
+ assert.equal((await service.checkWalletTopup(customer,{topupId:options.topupId})).status,'credited');
+ assert.equal((await db.collection('orders').get()).size,0);assert.equal((await db.collection('jobOffers').get()).size,0);
+ assert.equal((await service.createWalletTopup(customer,{requestId:'topup-one',amountPaise:10050})).paid,true);
+ const next=await service.createBooking(customer,{...input('use-topped-wallet'),useCredit:true,expectedAmountPaise:4850});
+ assert.equal(next.amount,4850);assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,0);
+});
+
+test('wallet top-up rejects forged amounts/mode, invalid input and prohibited card funding without issuing credit',async()=>{
+ for(const amount of [0,99,1.5,1000001,'10000'])await assert.rejects(service.createWalletTopup(customer,{requestId:'invalid-topup',amountPaise:amount}),{code:'invalid-argument'});
+ await assert.rejects(service.createWalletTopup(null,{requestId:'anon',amountPaise:10000}),{code:'unauthenticated'});
+ const o=await service.createWalletTopup(customer,{requestId:'topup-credit-card',amountPaise:10000});
+ const payment={id:'pay_card_topup',order_id:o.orderId,amount:10000,currency:'INR',status:'captured',method:'card',card:{type:'credit'}};
+ await assert.rejects(service.capturePayment({...payment,amount:1}),{code:'permission-denied'});
+ await assert.rejects(service.capturePayment(payment,'live'),{code:'permission-denied'});
+ await service.capturePayment(payment);await service.capturePayment(payment);
+ assert.equal((await db.doc('wallets/customer_test').get()).exists,false);
+ assert.equal((await service.checkWalletTopup(customer,{topupId:o.topupId})).status,'refundPending');
+ await service.processRefund(o.topupId);
+ assert.equal((await db.doc('walletTopups/'+o.topupId).get()).data().refundStatus,'processed');assert.equal(provider.refundCalls,1);
+});
+
+test('scheduled top-up reconciliation recovers a lost callback and keeps unpaid top-ups uncredited',async()=>{
+ const o=await service.createWalletTopup(customer,{requestId:'topup-lost',amountPaise:5000});
+ assert.equal((await service.reconcileWalletTopup(o.topupId)).paymentStatus,'unpaid');
+ provider.payments.set('pay_lost_topup',{id:'pay_lost_topup',order_id:o.orderId,amount:5000,currency:'INR',status:'captured',method:'netbanking'});
+ assert.equal((await service.reconcileWalletTopup(o.topupId)).status,'credited');await service.reconcileWalletTopup(o.topupId);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,5000);
+});
+
+test('wallet capture after the Customer role is removed returns to source without creating stranded credit',async()=>{
+ const o=await service.createWalletTopup(customer,{requestId:'topup-role-removed',amountPaise:5000});
+ await db.doc('users/customer').update({'deletedRoles.customer':Timestamp.fromMillis(clock)});
+ await service.capturePayment({id:'pay_removed_topup',order_id:o.orderId,amount:5000,currency:'INR',status:'captured',method:'upi'});
+ assert.equal((await db.doc('wallets/customer_test').get()).exists,false);
+ assert.equal((await db.doc('refunds/'+o.topupId).get()).data().amount,5000);
+ await service.processRefund(o.topupId);assert.equal(provider.refundCalls,1);
+});
+
+test('Customer deletion blocks an open top-up or funded live wallet rather than silently losing paid credit',async()=>{
+ service.accounts={deleteUser:async()=>{}};service.evidence.deletePrefix=async()=>{};
+ const verified={...customer,token:{...customer.token,auth_time:clock/1000}};
+ const o=await service.createWalletTopup(customer,{requestId:'topup-delete-guard',amountPaise:5000});
+ await assert.rejects(service.deleteAccount(verified,{role:'customer',confirm:true}),{code:'failed-precondition'});
+ await db.doc('walletTopups/'+o.topupId).update({status:'credited',paymentStatus:'captured'});
+ await db.doc('wallets/customer_live').set({customerId:'customer',paymentMode:'live',creditPaise:5000});
+ await assert.rejects(service.deleteAccount(verified,{role:'customer',confirm:true}),{code:'failed-precondition'});
+ assert.equal((await db.doc('users/customer').get()).data().deletingRole,undefined);
+});
+
 const walletTimePolicy={kind:'walletByTime',creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,serviceFailure:'wallet'};
 async function walletTimeBooking(requestId,patch={},funding={method:'upi'}) {
  const b=await service.createBooking(customer,{...input(requestId),acceptedCancellationPolicy:walletTimePolicy,...patch});

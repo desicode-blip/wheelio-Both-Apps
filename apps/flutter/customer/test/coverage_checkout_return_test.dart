@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:washkrew_customer/data/store.dart';
 void main(){
+ test('live login returns to Review so the customer explicitly chooses wallet or Razorpay',(){
+  final r=AppRouter();r.go(N.review);r.go(N.login);r.go(N.otp);r.finishLogin(reviewOnly:true);
+  expect(r.last?.n,N.review);expect(r.showPaySheet,false);r.dispose();
+ });
  testWidgets('live checkout login opens payment after Review refresh without a method-sheet timer',(tester)async{
   final r=AppRouter();r.go(N.manualAddress);r.go(N.review);r.go(N.login);r.go(N.otp);
-  await tester.pumpWidget(AnimatedBuilder(animation:r,builder:(_,__)=>const SizedBox()));
+  await tester.pumpWidget(AnimatedBuilder(animation:r,builder:(_,child)=>const SizedBox()));
   r.finishLogin(directCheckout:true);
   expect(r.last?.n,N.review);await tester.pump();
   expect(r.last?.n,N.paying);expect(r.showPaySheet,false);

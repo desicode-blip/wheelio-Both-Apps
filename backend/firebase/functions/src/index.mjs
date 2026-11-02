@@ -24,6 +24,7 @@ import {readObjectMetadata} from './storage-evidence.mjs';
 import {CaptainReviewError} from './captain-review.mjs';
 import {callableRuntime} from './runtime-policy.mjs';
 import {pushResultSummary} from './push-results.mjs';
+import {WalletTopupError} from './wallet-topup.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -64,7 +65,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -77,6 +78,9 @@ export const createBooking = callable('createBooking');
 export const createCheckout = callable('checkout', true);
 export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
+export const createWalletTopup = callable('createWalletTopup', true);
+export const verifyWalletTopup = callable('verifyWalletTopup', true);
+export const checkWalletTopup = callable('checkWalletTopup', true);
 export const setCaptainOnline = callable('captainOnline');
 export const saveCaptainServiceArea = callable('saveCaptainArea');
 export const setCaptainPreferences = callable('captainPreferences');
@@ -215,6 +219,8 @@ export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeou
     catch(error) { logger.error('Scheduled payment reconciliation failed',{bookingId:doc.id,code:error.code??'provider'}); }
   }
   const searching = await db.collection('orders').where('status', '==', 'searching').limit(200).get();
+  const topups=await db.collection('walletTopups').where('nextPaymentCheckAt','<=',new Date(now)).orderBy('nextPaymentCheckAt').limit(20).get();
+  for(const doc of topups.docs){try{await backend.reconcileWalletTopup(doc.id);}catch(error){logger.error('Wallet reconciliation needs retry',{code:error.code??'provider'});}}
   for (const doc of searching.docs) {
     try { await backend.dispatch(doc.id); }
     catch (error) { logger.error('Scheduled dispatch failed', { bookingId: doc.id, code: error.code ?? 'internal' }); }

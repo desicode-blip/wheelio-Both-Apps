@@ -91,9 +91,10 @@ class _CaptainHomeState extends State<CaptainHome> {
     // Live: the alert opens when the server sends this captain a job offer.
     if (context.store.isLive) {
       final store = context.store, router = context.router;
-      final fresh = store.liveOffers.where((j) => !_rung.contains(j.id)).toList();
+      String ringKey(Job j)=>'${j.id}:${store.offerExpiry[j.id]?.millisecondsSinceEpoch}';
+      final fresh = store.liveOffers.where((j) => !_rung.contains(ringKey(j))).toList();
       if (!want || fresh.isEmpty) return;
-      _rung.addAll(fresh.map((j) => j.id));
+      _rung.addAll(fresh.map(ringKey));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || router.path.isNotEmpty || router.tab != 0) return;
         router.push(const R(N.jobAlert));
@@ -1166,7 +1167,7 @@ const _missedLinger = 30;
 class _Offer {
   _Offer(this.job, this.arrived);
   final Job job;
-  final DateTime arrived;
+  DateTime arrived;
 }
 
 /// Every job that rings gets its own 60-second timer, shown inside its card. New jobs arriving
@@ -1187,13 +1188,14 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   double drag = 0;
   bool newPill = false;
   bool handled = false;
+  bool claiming = false;
   int acceptedHere = 0;
   Timer? _tick;
   final _timers = <Timer>[];
   final _missedSeen = <String>{};
 
   double _left(_Offer o) => (_offerSeconds - now.difference(o.arrived).inMilliseconds / 1000).clamp(0, _offerSeconds).toDouble();
-  bool _isMissed(_Offer o) => _left(o) <= 0;
+  bool _isMissed(_Offer o) => _left(o) <= 0 || (context.store.isLive && context.store.offerOutcomes[o.job.id] != 'pending');
   bool get _topMissed => offers.isNotEmpty && _isMissed(offers.first);
 
   void _nudge() {
@@ -1272,9 +1274,13 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     setState(() => offers.addAll(store.liveOffers.map(_liveOffer)));
     _nudge();
     _tick = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (handled || !mounted) return;
+      if (handled || claiming || !mounted) return;
       setState(() => now = DateTime.now());
       // New offers slide in behind the top card.
+      for(final offer in offers){
+        final expiry=store.offerExpiry[offer.job.id];
+        if(store.offerOutcomes[offer.job.id]=='pending'&&expiry!=null)offer.arrived=expiry.subtract(const Duration(seconds:_offerSeconds));
+      }
       final fresh = store.liveOffers.where((j) => !offers.any((o) => o.job.id == j.id)).toList();
       if (fresh.isNotEmpty) {
         setState(() {
@@ -1285,8 +1291,9 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         _timers.add(Timer(const Duration(milliseconds: 1600), () => mounted ? setState(() => newPill = false) : null));
       }
       if (offers.where((o) => _isMissed(o) && _missedSeen.add(o.job.id)).isNotEmpty) Device.buzz();
-      final gone = offers.where((o) => now.difference(o.arrived).inSeconds >= _offerSeconds + _missedLinger).toList();
+      final gone = offers.where((o) => store.offerOutcomes[o.job.id]!='pending'||now.difference(o.arrived).inSeconds >= _offerSeconds + _missedLinger).toList();
       if (gone.isEmpty) return;
+      store.lastOfferOutcome=gone.any((o)=>store.offerOutcomes[o.job.id]=='taken')?'taken':gone.any((o)=>store.offerOutcomes[o.job.id]=='cancelled')?'cancelled':'expired';
       setState(() => offers.removeWhere(gone.contains));
       if (offers.isEmpty) {
         handled = true;
@@ -1392,7 +1399,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   /// Accept: the job moves to Home (today's jobs) and the next offer shows.
   void _accept() {
     final store = context.store, router = context.router;
-    if (handled || offers.isEmpty || _topMissed) return;
+    if (handled || claiming || offers.isEmpty || _topMissed) return;
     final top = offers.first;
     if (!store.signedUp) {
       // First job: a quick KYC before accepting.
@@ -1402,9 +1409,11 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
       return;
     }
     if (store.isLive) {
+      setState(()=>claiming=true);
       // The server decides who gets it; the card leaves only once the claim succeeds.
       store.liveClaim(top.job.id).then((_) {
         if (!mounted) return;
+        claiming=false;
         Device.buzz();
         setState(() {
           offers.removeWhere((o) => o.job.id == top.job.id);
@@ -1416,7 +1425,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
           Future.delayed(const Duration(milliseconds: 400), router.home);
         }
       }).catchError((Object _) {
-        if (mounted) setState(() => offers.removeWhere((o) => o.job.id == top.job.id));
+        if (mounted) setState(() {claiming=false;});
       });
       return;
     }
@@ -1850,8 +1859,12 @@ class JobMissedScreen extends StatelessWidget {
             icon: WIcon.clock,
             tone: Tone.mute,
             captain: true,
-            title: store.t('Job went to someone else', 'काम किसी और को मिल गया', 'పని వేరొకరికి వెళ్ళింది'),
-            message: store.t(
+            title: store.isLive&&store.lastOfferOutcome!='taken'
+                ? store.lastOfferOutcome=='cancelled'?store.t('Booking cancelled','बुकिंग रद्द हुई','బుకింగ్ రద్దయింది'):store.t('Offer expired','ऑफ़र का समय ख़त्म','ఆఫర్ గడువు ముగిసింది')
+                : store.t('Job went to someone else', 'काम किसी और को मिल गया', 'పని వేరొకరికి వెళ్ళింది'),
+            message: store.isLive&&store.lastOfferOutcome=='cancelled'
+                ? store.t('This booking is no longer available. Stay Online for new offers.','यह बुकिंग अब उपलब्ध नहीं है। नए ऑफ़र के लिए ऑनलाइन रहें।','ఈ బుకింగ్ అందుబాటులో లేదు. కొత్త ఆఫర్ల కోసం ఆన్‌లైన్‌లో ఉండండి.')
+                : store.isLive&&store.lastOfferOutcome=='taken'?store.t('Another Captain accepted first. Stay Online for the next offer.','दूसरे कैप्टन ने पहले स्वीकार किया। अगले ऑफ़र के लिए ऑनलाइन रहें।','మరొక కెప్టెన్ ముందుగా అంగీకరించారు. తదుపరి ఆఫర్ కోసం ఆన్‌లైన్‌లో ఉండండి.'):store.t(
               'Time ran out. Keep the app open. Next job comes soon.',
               'समय ख़त्म हो गया। ऐप खुला रखें। अगला काम जल्दी आएगा।',
               'సమయం ముగిసింది. యాప్ తెరిచి ఉంచండి. త్వరలో పని వస్తుంది.',

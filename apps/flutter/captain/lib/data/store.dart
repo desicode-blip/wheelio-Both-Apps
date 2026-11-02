@@ -932,6 +932,9 @@ class CaptainStore extends ChangeNotifier {
   List<Job> liveOffers = [];
   bool _inboxLoaded=false;
   final Map<String, DateTime> offerExpiry = {};
+  final Map<String, String> offerOutcomes = {};
+  String lastOfferOutcome = 'expired';
+  void Function()? onOffersChanged;
   List<Map<String, dynamic>> liveEarnings = [];
   String? selectedPayoutId,selectedHeldOrderId;
   List<Map<String,dynamic>> get payouts=>[for(final p in liveCaptain['payouts'] as List? ?? [])if(p['paymentMode']==(liveCaptain['paymentMode']??'test'))Map<String,dynamic>.from(p)];
@@ -1150,6 +1153,7 @@ class CaptainStore extends ChangeNotifier {
       if (liveUid != uid) return;
       final now = DateTime.now();
       offerExpiry.clear();
+      offerOutcomes.clear();
       liveOffers = [
         for (final d in s.docs)
           if (d.data()['status'] == 'pending' && (d.data()['paymentMode'] ?? 'test') == (liveCaptain['paymentMode'] ?? 'test') && _date(d.data()['expiresAt'])?.isAfter(now) == true)
@@ -1158,8 +1162,13 @@ class CaptainStore extends ChangeNotifier {
       for (final d in s.docs) {
         final at = _date(d.data()['expiresAt']);
         if (at != null) offerExpiry[d.data()['orderId'] as String] = at;
+        final status=d.data()['status'];
+        offerOutcomes[d.data()['orderId'] as String] = status=='withdrawn'
+            ? (d.data()['closedReason']=='assigned'?'taken':d.data()['closedReason']=='cancelled'?'cancelled':'unavailable')
+            : status=='accepted'?'accepted':status=='rejected'?'rejected':'pending';
       }
       changed();
+      onOffersChanged?.call();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.earnings(uid).listen((s) {
       if (liveUid != uid) return;

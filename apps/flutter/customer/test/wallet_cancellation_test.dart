@@ -84,7 +84,7 @@ void main() {
     expect(o.cancellationSummary, contains('No cancellation fee'));
     s.dispose();
   });
-  testWidgets('existing review credit toggle displays and applies ₹74.50 correctly', (tester) async {
+  testWidgets('review shows ₹74.50 wallet balance and routes insufficient wallet to top-up', (tester) async {
     tester.view.physicalSize = const Size(430, 1100); tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize); addTearDown(tester.view.resetDevicePixelRatio);
     final s = WalletTestStore()..draftFull();
@@ -93,11 +93,10 @@ void main() {
     final r = AppRouter();
     await tester.pumpWidget(AppScope(store: s, router: r, child: const MaterialApp(home: ReviewScreen())));
     expect(find.text('₹74.50 credit'), findsOneWidget);
-    expect(find.text('₹74.50 off. You pay ₹74.50.'), findsOneWidget);
+    expect(find.text('Choose Pay by wallet below, or top up your balance.'), findsOneWidget);
     expect(find.text('Full refund within 5 minutes of confirmation. Later: 50% fee, 50% to your wallet.'), findsOneWidget);
-    expect(s.draft.pricePaise, 7450);
-    await tester.ensureVisible(find.byType(WToggle));
-    await tester.tap(find.byType(WToggle)); await tester.pump();
+    await tester.tap(find.text('Pay by wallet · ₹149'));await tester.pump();
+    expect(r.last?.n,N.wallet);expect(r.last?.walletShortfallPaise,7450);
     expect(s.draft.pricePaise, 14900);
     await tester.pumpWidget(const SizedBox()); s.dispose(); r.dispose();
   });

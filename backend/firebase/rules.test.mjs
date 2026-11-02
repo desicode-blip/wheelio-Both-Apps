@@ -13,6 +13,13 @@ before(async () => {
 after(async () => { if (env) await env.cleanup(); });
 beforeEach(async () => env.clearFirestore());
 const user = (uid = 'alice') => env.authenticatedContext(uid, { email: `${uid}@example.test` }).firestore();
+test('wallet top-ups are readable only by their owner and never client writable',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{await setDoc(doc(c.firestore(),'walletTopups/topup'),{customerId:'alice',amountPaise:10000,status:'credited'});});
+ await assertSucceeds(getDoc(doc(user(),'walletTopups/topup')));
+ await assertFails(getDoc(doc(user('bob'),'walletTopups/topup')));
+ await assertFails(setDoc(doc(user(),'walletTopups/forged'),{customerId:'alice',status:'credited',amountPaise:10000}));
+ await assertFails(updateDoc(doc(user(),'walletTopups/topup'),{status:'credited',amountPaise:100000}));
+});
 const profile = (uid = 'alice') => ({ name: '', email: `${uid}@example.test`, phone: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
 const request = (uid = 'alice') => ({ customerId: uid, vehicleType: 'hatchback', registration: 'TS09AB1234', society: 'Test society', parking: 'B1, 42',
   washType: 'wetOutside', preferredDate: '2026-10-25', timeWindow: '8–10 AM', notes: '', status: 'requested', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });

@@ -161,7 +161,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (r.isNew && (context.store.isLive || !context.store.returningCustomer)) {
         router.go(N.name);
       } else {
-        router.finishLogin(directCheckout: context.store.isLive);
+        router.finishLogin(reviewOnly: context.store.isLive);
       }
     } else if (r.kind == 'wrong') {
       setState(() {
@@ -288,7 +288,7 @@ class _NameScreenState extends State<NameScreen> {
             store.set(() => store.toast = backendError(e));
             return;
           }
-          router.finishLogin(directCheckout: store.isLive);
+          router.finishLogin(reviewOnly: store.isLive);
         },
       ),
     ),

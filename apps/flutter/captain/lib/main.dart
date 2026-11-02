@@ -33,6 +33,15 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.onJobCancelled=(id,reason){if(mounted)router.replace([R(reason=='slotExpired'?N.noShowCancelled:N.ownerCancelled)]);};
+    store.onOffersChanged=(){
+      if(!mounted||!Device.appIsActive||!store.online||store.liveOffers.isEmpty)return;
+      WidgetsBinding.instance.addPostFrameCallback((_){
+        if(mounted&&store.liveOffers.isNotEmpty){
+          if(router.isAt(N.jobMissed)){router.swapTop(const R(N.jobAlert));}
+          else if(router.path.isEmpty){router.push(const R(N.jobAlert));}
+        }
+      });
+    };
     store.refreshSystemPermission();
     store.live?.listenPush('captain',(id){
       if(!mounted)return;

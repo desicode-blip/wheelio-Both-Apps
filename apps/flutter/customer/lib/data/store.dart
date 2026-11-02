@@ -39,6 +39,7 @@ enum N {
   otp,
   name,
   paying,
+  wallet,
   booked,
   whatsApp,
   notifyAsk,
@@ -94,6 +95,7 @@ class R {
     this.kind,
     this.id,
     this.topic,
+    this.walletShortfallPaise = 0,
   });
   final N n;
   final bool large;
@@ -107,6 +109,7 @@ class R {
   final ProblemKind? kind;
   final String? id;
   final HelpTopic? topic;
+  final int walletShortfallPaise;
 }
 
 class AppRouter extends WRouter<R> {
@@ -129,12 +132,13 @@ class AppRouter extends WRouter<R> {
   }
 
   /// After login: resume checkout (or the legacy address form), or go home.
-  void finishLogin({bool directCheckout = false}) {
+  void finishLogin({bool directCheckout = false, bool reviewOnly = false}) {
     final address = path.lastIndexWhere((e) => e.route.n == N.manualAddress);
     final i = path.lastIndexWhere((e) => e.route.n == N.review);
     if (address >= 0 && address > i) { keep(address + 1); return; }
     if (i >= 0) {
       keep(i + 1);
+      if(reviewOnly){showPaySheet=false;return;}
       if (directCheckout) {
         showPaySheet = false;
         // Let Review apply the just-loaded wallet balance before preparing the
@@ -329,6 +333,7 @@ class BookingDraft {
   EntryNote note;
   TimeSlot? slot;
   bool useFreeWash;
+  bool walletOnly = false;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
@@ -1177,6 +1182,18 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
   CheckoutStage checkoutStage = CheckoutStage.preparing;
+  Future<Map<String,dynamic>>? _walletPayment;
+  Future<Map<String,dynamic>> addWalletCredit(String requestId,int amountPaise) => _walletPayment ??=
+      _addWalletCredit(requestId,amountPaise).whenComplete(()=>_walletPayment=null);
+  Future<Map<String,dynamic>> _addWalletCredit(String requestId,int amountPaise) async {
+    if(!isLive||!isLoggedIn)throw StateError('Log in to add wallet credit.');
+    final result=await live!.topUpWallet(requestId,amountPaise,onStage:_checkoutStage);
+    if(result['status']=='credited'){
+      final wallet=await live!.db.doc('wallets/${live!.uid}_${testPayments?'test':'live'}').get();
+      _walletCredit=(wallet.data()?['creditPaise'] as num? ?? 0)/100;customer?.credit=_walletCredit;changed();
+    }
+    return result;
+  }
   Future<PaymentOutcome>? _checkoutFuture;
 
   void prefetchPaymentResources() {
@@ -1225,6 +1242,7 @@ class AppStore extends ChangeNotifier {
         'anyTime': s.anyTime,
         'useFreeWash': d.useFreeWash,
         'useCredit': d.creditApplied > 0,
+        'paymentChoice':d.walletOnly?'wallet':'razorpay',
         'expectedAmountPaise': d.pricePaise,
         if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,

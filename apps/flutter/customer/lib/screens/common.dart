@@ -204,6 +204,18 @@ class StatusBadge extends StatelessWidget {
 }
 
 /// Bell with unread count, for the Home header.
+class WalletButton extends StatelessWidget {
+  const WalletButton({super.key});
+  @override
+  Widget build(BuildContext context)=>Pressable(
+    label:'Wallet, ${Fmt.rupees(context.store.customer?.credit??0)} available',
+    onTap:()=>context.router.go(context.store.isLoggedIn?N.wallet:N.login),
+    child:Container(constraints:const BoxConstraints(minWidth:48,minHeight:48),padding:const EdgeInsets.symmetric(horizontal:10),
+      decoration:BoxDecoration(color:WColor.primaryTint,borderRadius:BorderRadius.circular(14)),
+      child:Row(mainAxisSize:MainAxisSize.min,children:[const WIconView(WIcon.wallet,size:18,color:WColor.primary),const SizedBox(width:4),WText(Fmt.rupees(context.store.customer?.credit??0),WType.caption,color:WColor.primary)])),
+  );
+}
+
 class NotificationBell extends StatelessWidget {
   const NotificationBell({super.key});
   @override

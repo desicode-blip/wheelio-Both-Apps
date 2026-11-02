@@ -23,6 +23,7 @@ service cloud.firestore {
     // Wallets and service address approvals are server-owned; owners can observe
     // their own results, but cannot award credit or approve an address.
     match /wallets/{walletId} { allow read: if request.auth != null && walletId in [request.auth.uid + '_test', request.auth.uid + '_live']; allow write: if false; }
+    match /walletTopups/{topupId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
     match /addressRequests/{requestId} { allow read: if request.auth != null && resource.data.customerId == request.auth.uid; allow write: if false; }
     match /notifications/{notificationId} { allow read: if request.auth != null && resource.data.recipientId == request.auth.uid; allow write: if false; }
     match /captains/{uid} { allow read: if owner(uid); allow write: if false; }

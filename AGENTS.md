@@ -143,3 +143,11 @@ Owner decision — 2 November 2026: live Customer Pay opens Razorpay directly;
 remove the duplicate app payment-method sheet from the real checkout path.
 Demo/reference C17 remains available. Keep C18's authored layout, with text that
 describes actual upload/opening/confirmation stages. No other redesign is approved.
+
+Owner decision — 2 November 2026 (later): eligible online Captains in the covering
+area receive the paid offer together; first valid atomic claim wins. An offer
+timeout is not proof of assignment. Explicit UI additions: Home wallet balance
+entry, wallet screen/top-ups, and wallet versus Razorpay checkout actions. A short
+wallet balance opens a top-up through the separate WashKrew merchant. Only a
+server-verified captured payment credits the wallet; no client-issued credit.
+Keep all unrelated authored layouts and the no-credit-card / EMI / paylater rule.

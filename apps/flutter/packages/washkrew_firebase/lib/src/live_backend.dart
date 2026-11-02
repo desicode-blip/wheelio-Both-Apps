@@ -234,6 +234,24 @@ class LiveBackend {
     try { await checkout.preloadCheckout(); }
     catch (_) { /* Optional cache fill; the Pay action retries actual loading. */ }
   }
+  Future<Map<String,dynamic>> topUpWallet(String requestId,int amountPaise,{void Function(CheckoutStage)? onStage}) async {
+    onStage?.call(CheckoutStage.preparing);
+    final options=await call('createWalletTopup',{'requestId':requestId,'amountPaise':amountPaise});
+    final id=options['topupId'] as String;
+    if(options['paid']==true)return call('checkWalletTopup',{'topupId':id});
+    onStage?.call(CheckoutStage.opening);
+    Map<String,dynamic>? result;
+    try { result=await checkout.openCheckout(options,auth.currentUser?.phoneNumber??''); }
+    catch(_){
+      onStage?.call(CheckoutStage.confirming);
+      try { final checked=await call('checkWalletTopup',{'topupId':id});if(checked['paymentStatus']=='captured')return checked; } catch(_){ }
+      rethrow;
+    }
+    onStage?.call(CheckoutStage.confirming);
+    return result==null?call('checkWalletTopup',{'topupId':id}):call('verifyWalletTopup',{
+      'topupId':id,'orderId':result['razorpay_order_id'],'paymentId':result['razorpay_payment_id'],'signature':result['razorpay_signature'],
+    });
+  }
 
   Future<Map<String, dynamic>> pay(String bookingId, {void Function(CheckoutStage)? onStage}) =>
       startCheckout(bookingId: bookingId, onStage: onStage);

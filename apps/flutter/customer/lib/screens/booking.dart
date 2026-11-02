@@ -1983,6 +1983,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _freeDefaulted = true;
     final store = context.store;
     store.prefetchPaymentResources();
+    if(store.isLive)_useCredit=false;
     if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
@@ -2015,11 +2016,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
     // Credit from a late cancellation comes off automatically (not with a free wash).
     final credit = store.customer?.credit ?? 0;
     d.applyWalletCredit(credit, enabled: _useCredit);
+    Widget livePayOptions()=>Column(mainAxisSize:MainAxisSize.min,children:[
+      WButton('Pay by wallet · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.success,onTap:(){
+        if(!store.isLoggedIn){router.go(N.login);return;}
+        final missing=d.basePricePaise-(credit*100).round();
+        if(missing>0){router.push(R(N.wallet,walletShortfallPaise:missing));return;}
+        setState(()=>_useCredit=true);d.walletOnly=true;d.applyWalletCredit(credit);
+        if(!router.isAt(N.paying))router.push(const R(N.paying));
+      }),
+      const SizedBox(height:10),
+      WButton('Pay via Razorpay · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.outline,onTap:(){
+        if(!store.isLoggedIn){router.go(N.login);return;}
+        setState(()=>_useCredit=false);d.walletOnly=false;d.applyWalletCredit(credit,enabled:false);
+        if(!router.isAt(N.paying))router.push(const R(N.paying));
+      }),
+    ]);
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
         showCall: false,
-        child: d.price == 0
+        child: store.isLive&&!d.useFreeWash?livePayOptions():d.price == 0
             // Free wash: nothing to pay, so skip the payment sheet.
             ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
             : WButton('Continue to pay', onTap: () {
@@ -2099,17 +2115,22 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     children: [
                       WText('${Fmt.rupees(credit)} credit', WType.bodyStrong, color: WColor.onSuccess),
                       WText(
-                        _useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
+                        store.isLive?'Choose Pay by wallet below, or top up your balance.':_useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
                         WType.caption,
                         color: WColor.onSuccess,
                       ),
                     ],
                   ),
                 ),
-                WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
+                if(!store.isLive)WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
               ],
             ),
           ),
+        ],
+        if(store.isLive&&!d.useFreeWash)...[
+          const SizedBox(height:14),
+          WCard(child:Row(children:[const WIconView(WIcon.rupee,color:WColor.primary),const SizedBox(width:10),Expanded(child:WText('Wallet balance ${Fmt.rupees(credit)}',WType.bodyStrong)),
+            WLink('Top up',onTap:()=>router.push(R(N.wallet,walletShortfallPaise:(d.basePricePaise-(credit*100).round()).clamp(100,1000000))))])),
         ],
         const SizedBox(height: 18),
         if (d.price > 0) HeldSafelyBanner(amount: d.price),

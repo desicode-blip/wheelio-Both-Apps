@@ -71,7 +71,7 @@ void main(){
   testWidgets('existing Review card discloses grace, two-hour cutoff and wallet reuse on the authored phone width',(tester)async{
     final s=TimingStore()..draftFull(),r=AppRouter();s.customer=Customer(id:'fixture',phone:'')..credit=74.5;
     await phone(tester,s,r,const ReviewScreen());
-    expect(find.text(cancellationPolicyText(timingPolicy)),findsOneWidget);expect(find.text('₹74.50 off. You pay ₹74.50.'),findsOneWidget);expect(s.draft.pricePaise,7450);expect(tester.takeException(),isNull);
+    expect(find.text(cancellationPolicyText(timingPolicy)),findsOneWidget);expect(find.text('Choose Pay by wallet below, or top up your balance.'),findsOneWidget);expect(s.draft.pricePaise,14900);expect(tester.takeException(),isNull);
     await tester.ensureVisible(find.text(cancellationPolicyText(timingPolicy)));await tester.pumpAndSettle();await capture(tester,'review');
     await cleanup(tester,s,r);
   });

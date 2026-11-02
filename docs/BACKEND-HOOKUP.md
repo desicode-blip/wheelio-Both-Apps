@@ -1,3 +1,15 @@
+# Wallet top-ups and atomic offers - 2 November 2026
+
+The owner authorized the wallet/checkout UI additions and funded credit through
+the existing WashKrew Razorpay merchant. New server callables are
+`createWalletTopup`, `verifyWalletTopup`, `checkWalletTopup`; existing signed
+webhooks, refunds and scheduled reconciliation handle the new financial record
+kind. Only verified capture grants credit, once. No new provider or production
+test shortcut is connected. New controlled captures remain in demo emulator tests.
+Paid wash settlement publishes coarse Captain offers in the same transaction;
+truthful expiry/assignment states replace the misleading timeout claim. See
+[WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md).
+
 # Direct checkout preparation - 2 November 2026
 
 `createCheckout` now optionally accepts the existing validated booking payload,

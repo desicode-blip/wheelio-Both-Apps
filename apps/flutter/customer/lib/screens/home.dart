@@ -201,7 +201,7 @@ class _HomeTabState extends State<HomeTab> {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 14),
-          child: Row(children: [const BrandMark(), const Spacer(), const NotificationBell()]),
+          child: Row(children: [const BrandMark(), const Spacer(), if(store.isLive)...[const WalletButton(),const SizedBox(width:4)],const NotificationBell()]),
         ),
         if (loading)
           _skeleton()

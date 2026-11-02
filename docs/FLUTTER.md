@@ -1,3 +1,12 @@
+# Wallet and live offers - 2 November 2026
+
+[WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md) records the owner's
+explicit UI additions: live Home wallet balance, wallet/top-up screen, and separate
+wallet versus gateway checkout actions. Customer 1.0.2 (3) and Captain 1.0.1 (2)
+include these changes and truthful real-time offer expiry/assignment behavior.
+Other layouts/tokens/assets stay authored. See that report for the actual automated,
+deployment and native evidence; source integration alone does not prove acceptance.
+
 # Direct live payment and checkout preparation - 2 November 2026
 
 [CHECKOUT-SPEED-2026-11-02.md](CHECKOUT-SPEED-2026-11-02.md) records the owner's
