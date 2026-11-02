@@ -255,3 +255,39 @@ passed. The preceding full backend run remains **189 passed**; the additional
 status-recovery regression ran in the targeted suite afterward. The queued bytes
 are retained in app memory until upload; no durable, app-terminated offline resend
 is claimed. Existing already-uploaded evidence is restored from Firebase.
+
+### Final publication — 2 November, 19:13 IST
+
+The final Captain **1.0.2 (3)** bundle includes both follow-ups from source
+`294ac01` (including `7fb9967`). It built successfully at **19:09 IST** and passed
+JAR signature verification with the existing upload key. The merged manifest
+confirms the unchanged Captain package, minimum SDK 24 and target SDK 36.
+Bundle SHA256:
+`270055f08c96f0db002f8754e3890188deb787d0deb31d1f97bb48852443f4c6`.
+
+It was uploaded to the existing Captain internal track in Sumit's Chrome profile
+and published as **1.0.2 - photo flow 294ac01**. Play confirms **Available to
+internal testers**, **Released on 2 Nov 19:13**. Its only warning is the existing
+missing deobfuscation mapping for this non-shrunk internal bundle. Supported
+device counts did not change. No Customer release, unrelated app, signing key,
+tester list or production track was changed by this upload.
+
+All 65 ACTIVE Functions' exact source generations match the six shared release
+modules, including the background-offer/claim correction. The final photo-check
+Function's two additional photo-review modules also match the source. All **58**
+HTTP gateways are configured, seven triggers/scheduled functions retain IAM
+checks, and seven anonymous access probes, including photo review, return **401**.
+Scale-to-zero is preserved. The final Captain web build is also published; all
+four Customer/Captain JavaScript/bootstrap artifacts match the deployed files.
+The separate marketing site was not changed.
+
+The owner can update through the existing invitation:
+https://play.google.com/apps/internaltest/4700497850061297130
+
+This publication record does **not** claim that Captain 1.0.2 (3) has already been
+installed on the phone or that its final shutter speed, alert latency and complete
+native photo submission have passed. The earlier selfie, top-up and booking
+results remain actual owner/device evidence. After updating, the owner should
+check capture → Check photos → resolve/acknowledge actual photo advice → successful
+submission → Customer Check the wash. Do not stage a wash or approve evidence
+merely to obtain a passing result.

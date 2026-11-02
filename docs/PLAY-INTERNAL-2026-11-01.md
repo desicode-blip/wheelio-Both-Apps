@@ -2,6 +2,15 @@
 
 ## Latest accepted updates — 2 November 2026
 
+Captain **1.0.2 (3)** from `294ac01` supersedes the Captain update below. It was
+uploaded and published to the same internal track at **19:13 IST**, release name
+**1.0.2 - photo flow 294ac01**. Play confirms **Available to internal testers**.
+The final bundle contains the background-offer, single-tap Accept, selfie-scale
+and photo upload/review corrections. Package/signing and supported-device counts
+are unchanged. Its installed-phone acceptance is still separate; the owner asked
+to update and test this release himself. The existing invitation remains:
+https://play.google.com/apps/internaltest/4700497850061297130
+
 Customer **1.0.2 (3)** and Captain **1.0.1 (2)** from `844c77c` are available to
 internal testers in their existing separate tracks, published at **14:15** and
 **14:21 IST** respectively. The connected phone updated through Play at
