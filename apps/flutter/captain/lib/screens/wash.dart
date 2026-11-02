@@ -10,6 +10,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/store.dart';
+import '../data/evidence_uploads.dart';
 import 'parts.dart';
 
 /// Before · Wash · After progress for a job.
@@ -195,16 +196,21 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
 
 // MARK: W31 Before photos · W35 After photos
 
-class JobPhotosScreen extends StatelessWidget {
+class JobPhotosScreen extends StatefulWidget {
   const JobPhotosScreen({super.key, this.after = false});
   final bool after;
+  @override State<JobPhotosScreen> createState()=>_JobPhotosScreenState();
+}
+class _JobPhotosScreenState extends State<JobPhotosScreen> {
+  bool busy=false;
+  bool get after=>widget.after;
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final done = after ? store.afterDone : store.beforeDone;
     Widget slot(int i) => done.contains(i)
-        ? WPhotoSlot(label: sideName(store, i), state: PhotoState.done, tag: after ? store.t('After', 'बाद', 'తర్వాత') : store.t('Before', 'पहले', 'ముందు'), tagTone: after ? Tone.ok : Tone.mute, height: 112, image: store.shots['${after ? 'after' : 'before'}_$i'])
+        ? WPhotoSlot(label: sideName(store, i), state: switch(store.evidenceSendState(after,i)){EvidenceSendState.uploading=>PhotoState.uploading,EvidenceSendState.failed=>PhotoState.failed,_=>PhotoState.done}, onTap:store.evidenceSendState(after,i)==EvidenceSendState.failed?()async{try{await store.retryEvidence(after,i);}catch(_){}}:null, tag: after ? store.t('After', 'बाद', 'తర్వాత') : store.t('Before', 'पहले', 'ముందు'), tagTone: after ? Tone.ok : Tone.mute, height: 112, image: store.shots['${after ? 'after' : 'before'}_$i'])
         : Pressable(
             onTap: () => router.push(R(N.camera, flag: after, index: i)),
             child: DashedBorder(
@@ -224,22 +230,30 @@ class JobPhotosScreen extends StatelessWidget {
       header: WHeader(title: store.current.plate),
       footer: WFooter(
         child: after
-            ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () async {
+            ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, loading:busy, enabled: done.length == 4&&!busy, onTap: () async {
+                if(busy)return;
+                setState(()=>busy=true);
+                try{
                 // Real, advisory photo review; the owner still decides approval.
                 if (store.isLive) {
                   try {
                     final issues=await store.liveCheckPhotos();
+                    if(!mounted)return;
                     if(issues.isNotEmpty){router.go(N.aiCheck);return;}
                     await store.liveProgress('finish');
                   } catch (_) {
                     return;
                   }
-                  router.go(N.uploading);
+                  if(mounted)router.go(N.uploading);
                   return;
                 }
                 router.go(store.aiFlag ? N.aiCheck : N.uploading);
+                }finally{if(mounted)setState(()=>busy=false);}
               })
-            : WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, enabled: done.length == 4, onTap: () async {
+            : WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, loading:busy, enabled: done.length == 4&&!busy, onTap: () async {
+                if(busy)return;
+                setState(()=>busy=true);
+                try{
                 if (store.isLive && store.liveOrder(store.current.id)?['status'] != 'washing') {
                   try {
                     await store.liveProgress('start');
@@ -247,7 +261,8 @@ class JobPhotosScreen extends StatelessWidget {
                     return;
                   }
                 }
-                router.go(N.washing);
+                if(mounted)router.go(N.washing);
+                }finally{if(mounted)setState(()=>busy=false);}
               }),
       ),
       children: [
@@ -292,7 +307,8 @@ class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingOb
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){if(_visible&&isTopScreen(context)&&!_busy&&context.store.isLive)camera.start();}else if(state==AppLifecycleState.inactive||state==AppLifecycleState.paused){camera.stop();}}
   @override void dispose(){WidgetsBinding.instance.removeObserver(this);camera.removeListener(_cameraChanged);camera.dispose();super.dispose();}
   bool get after=>widget.after;
-  int get side=>widget.side;
+  late int _side=widget.side;
+  int get side=>_side;
 
   Future<void> _shoot(BuildContext context) async {
     if(_busy)return;
@@ -316,7 +332,6 @@ class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingOb
       if (bytes == null) return;
       if(!mounted)return;
       setState(()=>_captured=bytes);
-      await camera.stop();
       final issue=await checkPhotoQuality(bytes);
       if(issue!=null){
         if(!context.mounted)return;
@@ -324,12 +339,7 @@ class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingOb
         else{store.set(()=>store.toast=photoIssueMessage(issue));}
         return;
       }
-      try {
-        await store.liveEvidence(after: after, side: side, bytes: bytes);
-      } catch (_) {
-        return;
-      }
-      store.shots['${after ? 'after' : 'before'}_$side'] = bytes;
+      store.queueEvidence(after:after,side:side,bytes:bytes);
     }
     if (!context.mounted) return;
     if (!store.isLive && store.darkPhoto && side == 2 && !after) {
@@ -340,13 +350,13 @@ class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingOb
     store.set(() => (after ? store.afterDone : store.beforeDone).add(side));
     final done = after ? store.afterDone : store.beforeDone;
     final next = [0, 1, 2, 3].where((i) => !done.contains(i)).firstOrNull;
-    _visible=false;
     if (next != null) {
-      router.swapTop(R(N.camera, flag: after, index: next));
+      if(store.isLive){setState(()=>_side=next);}else{_visible=false;router.swapTop(R(N.camera, flag: after, index: next));}
     } else {
+      _visible=false;
       router.pop();
     }
-    }finally{if(mounted){setState((){_busy=false;_captured=null;});if(_visible&&isTopScreen(context)&&context.store.isLive&&!camera.ready)camera.start();}}
+    }catch(e){store.set(()=>store.toast=backendError(e));}finally{if(mounted){setState((){_busy=false;_captured=null;});if(_visible&&isTopScreen(context)&&context.store.isLive&&!camera.ready)camera.start();}}
   }
 
   @override
@@ -536,8 +546,12 @@ class _WashingScreenState extends State<WashingScreen> {
 
 // MARK: W36 AI photo check
 
-class AiCheckScreen extends StatelessWidget {
+class AiCheckScreen extends StatefulWidget {
   const AiCheckScreen({super.key});
+  @override State<AiCheckScreen> createState()=>_AiCheckScreenState();
+}
+class _AiCheckScreenState extends State<AiCheckScreen>{
+  bool sending=false;
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
@@ -548,7 +562,7 @@ class AiCheckScreen extends StatelessWidget {
         color: WColor.white,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           WFooter(
-            child: WButton(store.isLive?'Retake photo':store.t('Wipe and retake', 'पोंछें और फिर लें', 'తుడిచి మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, onTap: () {
+            child: WButton(store.isLive?'Retake photo':store.t('Wipe and retake', 'पोंछें और फिर लें', 'తుడిచి మళ్ళీ తీయండి'), icon: WIcon.camera, size: ButtonSize.captain, enabled:!sending, onTap: () {
               store.set(() {
                 store.aiFlag = false;
                 store.afterDone.remove(store.isLive?store.photoReviewSide:2);
@@ -558,7 +572,7 @@ class AiCheckScreen extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: WLink(store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap: () async {if(store.isLive){try{await store.liveProgress('finish',acknowledgePhotoIssues:true);}catch(_){return;}}router.swapTop(const R(N.uploading));}),
+            child: WLink(sending?'Sending photos…':store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap:sending?null:() async {setState(()=>sending=true);try{if(store.isLive){try{await store.liveProgress('finish',acknowledgePhotoIssues:true);}catch(_){return;}}if(mounted)router.swapTop(const R(N.uploading));}finally{if(mounted)setState(()=>sending=false);}}),
           ),
         ]),
       ),
@@ -577,7 +591,7 @@ class AiCheckScreen extends StatelessWidget {
             Positioned(top: 12, left: 12, child: WBadge(store.isLive?sideName(store,store.photoReviewSide):store.t('Left mirror', 'बायाँ शीशा', 'ఎడమ అద్దం'), tone: Tone.wait, icon: WIcon.eye)),
           ]),
         ),
-        WTitle(store.isLive?'Review this photo':store.t('Left mirror looks dusty', 'बायाँ शीशा धूल भरा लग रहा है', 'ఎడమ అద్దం దుమ్ముగా ఉంది'), top: 22),
+        WTitle(store.isLive?(store.liveOrder(store.current.id)?['photoReview']?['status']=='unavailable'?'Automatic check unavailable':'Review this photo'):store.t('Left mirror looks dusty', 'बायाँ शीशा धूल भरा लग रहा है', 'ఎడమ అద్దం దుమ్ముగా ఉంది'), top: 22),
         WBody(store.isLive?(store.photoReviewIssues.firstOrNull?['reason'] as String? ?? 'Review the photos before sending.'):store.t('Wipe it once more and take the left photo again.', 'एक बार और पोंछें और बाईं फ़ोटो फिर से लें।', 'మళ్ళీ ఒకసారి తుడిచి ఎడమ ఫోటో మళ్ళీ తీయండి.'), top: 6),
       ],
     );

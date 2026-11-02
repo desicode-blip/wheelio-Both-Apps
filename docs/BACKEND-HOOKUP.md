@@ -8,6 +8,13 @@ resolution and aligns on the original image; no new provider or verification
 bypass is introduced. Presence/Accept mocks and public model fixtures exist only
 in controlled tests. See the current wallet/offer report for native evidence.
 
+Photo follow-up uses the existing Firebase Storage/private photo service. Captures
+queue actual uploads; server-registered evidence remains required before workflow
+progression. A read-only status mode on the existing photo-check callable recovers
+lost responses and does not trigger another model call. Controlled camera bytes,
+upload gates and review results exist only in test fixtures, never app build flags
+or production account shortcuts. No new service or claimed offline persistence.
+
 The owner authorized the wallet/checkout UI additions and funded credit through
 the existing WashKrew Razorpay merchant. New server callables are
 `createWalletTopup`, `verifyWalletTopup`, `checkWalletTopup`; existing signed

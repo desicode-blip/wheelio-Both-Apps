@@ -386,6 +386,23 @@ test('photo-review outages are labelled honestly and can retry without retaking 
   clock+=31000;service.photoChecks={reviewWash:async()=>[]};
   assert.deepEqual(await service.checkWashPhotos(auth('captain1'),{orderId:ref.id}),{issues:[],status:'checked'});
 });
+
+test('photo-review status recovery is read-only, current-evidence-bound and still works after submission',async()=>{
+  const ref=db.doc('orders/review-response-lost'),captain=auth('captain1'),input={orderId:ref.id};
+  const evidence=Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/${ref.id}/captain1/after_${i}.jpg`,generation:'1',uploadedAt:Timestamp.fromMillis(clock)}]));
+  await ref.set({captainId:'captain1',status:'washing',paymentMode:'test',evidence});
+  let checks=0;service.evidence.read=async()=>Buffer.from('fixture');service.photoChecks={reviewWash:async()=>{checks++;return [];}};
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});
+  assert.equal((await service.checkWashPhotos(captain,{...input,statusOnly:true})).status,'notChecked');assert.equal(checks,0);
+  await assert.rejects(service.checkWashPhotos(customer,{...input,statusOnly:true}),{code:'permission-denied'});
+  await service.checkWashPhotos(captain,input);
+  assert.equal((await service.checkWashPhotos(captain,{...input,statusOnly:true})).status,'checked');assert.equal(checks,1);
+  await ref.update({'evidence.after_0.generation':'2'});
+  assert.equal((await service.checkWashPhotos(captain,{...input,statusOnly:true})).status,'notChecked');assert.equal(checks,1);
+  await service.checkWashPhotos(captain,input);
+  await ref.update({status:'photosReady'});
+  assert.equal((await service.checkWashPhotos(captain,input)).status,'checked');assert.equal(checks,2);
+});
 test('live checkout through Customer approval enforces private identity and photos while historical test photo checks stay usable',async()=>{
   const live={...provider,keyId:'rzp_live_fixture',payments:new Map()};
   service.paymentProviders={test:provider,'washkrew:live':live};

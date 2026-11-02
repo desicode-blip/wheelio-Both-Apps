@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'offer_feed.dart';
 import 'presence.dart';
+import 'evidence_uploads.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -1060,7 +1061,7 @@ class CaptainStore extends ChangeNotifier {
     liveUid = uid;
     liveLoaded = uid.isEmpty;
     liveCaptain = {};
-    _workflowOrderId=null; _shotJobId=null; _evidenceVersions.clear(); shots.clear();
+    _workflowOrderId=null; _shotJobId=null; _evidenceVersions.clear(); shots.clear();_evidenceUploads.clear();
     _sharingLocation=false;_locationTimer?.cancel();_locationTimer=null;
     profilePhoto=null;_profilePhotoPath=null;_preferenceSave?.cancel();
     _readNotifs.clear();_unreadNotifs.clear();_deletedNotifs.clear();
@@ -1288,12 +1289,14 @@ class CaptainStore extends ChangeNotifier {
     ownerNoteHeard=o?['noteHeard']==true;
     if(_shotJobId!=cur?.id){_shotJobId=cur?.id;shots.clear();_evidenceVersions.clear();}
     final evidence = o?['evidence'] as Map? ?? {};
-    beforeDone = {for (var i = 0; i < 4; i++) if (evidence['before_$i'] != null) i};
-    afterDone = {for (var i = 0; i < 4; i++) if (evidence['after_$i'] != null) i};
+    final prefix='${cur?.id??''}/';
+    for(final e in _evidenceUploads.entries.entries){if(e.key.startsWith(prefix))shots[e.key.substring(prefix.length)]=e.value.bytes;}
+    beforeDone = {for (var i = 0; i < 4; i++) if (evidence['before_$i'] != null||_evidenceUploads.entries.containsKey('${prefix}before_$i')) i};
+    afterDone = {for (var i = 0; i < 4; i++) if (evidence['after_$i'] != null||_evidenceUploads.entries.containsKey('${prefix}after_$i')) i};
     if(cur!=null){
       final jobId=cur.id,account=liveUid;
       for(final e in evidence.entries){final path=e.value['path'] as String?,version='${e.value['path']}:${e.value['uploadedAt']}';
-        if(path==null||_evidenceVersions[e.key]==version)continue;
+        if(path==null||_evidenceVersions[e.key]==version||_evidenceUploads.entries.containsKey('$jobId/${e.key}'))continue;
         _evidenceVersions[e.key]=version;
         live!.photo(path).then((bytes){if(liveUid==account&&_shotJobId==jobId&&bytes!=null){shots[e.key]=bytes;changed();}}).catchError((Object _){_evidenceVersions.remove(e.key);});
       }
@@ -1363,6 +1366,20 @@ class CaptainStore extends ChangeNotifier {
 
   /// Live: photos taken on this phone for the current job, shown in the designed photo boxes.
   final Map<String, Uint8List> shots = {};
+  late final _evidenceUploads=EvidenceUploads((){if(!_disposed)changed();});
+  EvidenceSendState? evidenceSendState(bool after,int side)=>_evidenceUploads.entries['${current.id}/${after?'after':'before'}_$side']?.state;
+  void queueEvidence({required bool after,required int side,required Uint8List bytes}){
+    final jobId=current.id,account=liveUid,key='${after?'after':'before'}_$side';
+    if(jobId.isEmpty)throw StateError('Open your assigned job first.');
+    shots[key]=bytes;
+    (after?afterDone:beforeDone).add(side);
+    _evidenceUploads.add('$jobId/$key',bytes,() async {
+      if(liveUid!=account||_disposed)throw StateError('This account changed. Reopen the job.');
+      await live!.uploadEvidence(orderId:jobId,after:after,side:side,bytes:bytes);
+    });
+  }
+  Future<void> retryEvidence(bool after,int side)=>_call(()=>_evidenceUploads.retry('${current.id}/${after?'after':'before'}_$side'));
+  Future<void> flushEvidence(bool after)=>_call(()=>_evidenceUploads.flush([for(var i=0;i<4;i++)'${current.id}/${after?'after':'before'}_$i']));
 
   /// Order data behind a job (evidence, arrival) or null in the sample app.
   Map<String, dynamic>? liveOrder(String id) => liveOrders[id];
@@ -1384,11 +1401,17 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
   List<Map<String,dynamic>> get photoReviewIssues=>[for(final i in liveOrder(current.id)?['photoReview']?['issues'] as List? ?? [])Map<String,dynamic>.from(i as Map)];
   int get photoReviewSide=>photoReviewIssues.firstOrNull?['side'] as int? ?? 0;
-  Future<List<dynamic>> liveCheckPhotos()=>_call(()async{final result=await live!.call('checkWashPhotos',{'orderId':current.id});return result['issues'] as List? ?? [];});
+  Future<List<dynamic>> liveCheckPhotos()=>_call(()async{
+    await flushEvidence(true);
+    final id=current.id,result=await live!.reviewWashPhotos(current.id);
+    if(liveOrders[id]!=null){liveOrders[id]!['photoReview']={...liveOrders[id]!['photoReview'] as Map? ?? {},'status':result['status'],'issues':result['issues']??[]};changed();}
+    return result['issues'] as List? ?? [];
+  });
   Future<void> liveProgress(String action,{bool acknowledgePhotoIssues=false}) async {
     final orderId=current.id;
     if(orderId.isEmpty)throw StateError('Open your assigned job first.');
     _workflowOrderId=orderId;
+    if(action=='start'||action=='finish')await flushEvidence(action=='finish');
     await _call(() => live!.call('updateWashProgress', {'orderId':orderId, 'action': action,if(action=='finish')'acknowledgePhotoIssues':acknowledgePhotoIssues}));
   }
   Future<void> liveVehicleHelp(String reason)=>_call(()=>live!.call('updateVehicleHelp',{'orderId':current.id,'action':'request','value':reason}));
@@ -1425,7 +1448,7 @@ class CaptainStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed=true;liveUid='';_presence.clear();
+    _disposed=true;liveUid='';_presence.clear();_evidenceUploads.clear();
     _heartbeat?.cancel();
     _locationTimer?.cancel();
     _preferenceSave?.cancel();

@@ -10,6 +10,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'phone_otp.dart';
 import 'checkout_flow.dart';
+import 'photo_review_flow.dart';
 import 'backend.dart' show kycUploadError;
 
 import 'checkout_stub.dart'
@@ -178,6 +179,10 @@ class LiveBackend {
     await storage.ref(attempt['path'] as String).putData(bytes,SettableMetadata(contentType:'image/jpeg'));
     return call('verifyCaptainIdentity',{'orderId':orderId,'session':attempt['session']});
   }
+  Future<Map<String,dynamic>> reviewWashPhotos(String orderId)=>runPhotoReview(
+    invoke:(statusOnly)=>call('checkWashPhotos',{'orderId':orderId,if(statusOnly)'statusOnly':true}),
+    canReconcile:(error)=>error is FirebaseFunctionsException&&['unavailable','deadline-exceeded','failed-precondition'].contains(error.code),
+  );
   Future<void> signOut() async {
     invalidateOtp();
     await _tokenRefresh?.cancel();

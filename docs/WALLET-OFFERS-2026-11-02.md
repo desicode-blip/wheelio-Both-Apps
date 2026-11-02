@@ -203,3 +203,55 @@ override; the current real selfie still requires a fresh server result.
 
 This follow-up targets Captain **1.0.2 (3)**; its final deployment, Play and device
 results will be appended after verification. Customer remains **1.0.2 (3)**.
+
+### Native selfie passed; photo capture / submission follow-up
+
+After the private photo-service correction, the owner took a fresh selfie and
+reported **Before photos opened**. Read-only server inspection confirmed
+`identityStatus: verified`. It was the fifth actual attempt; no rate-limit reset,
+human-review override, fake photo or manual verification write was used.
+All **189 backend tests**, **26 Captain tests**, five model tests and deployed
+private model/thumbnail checks passed for the preceding correction. Its 65-Function
+deployment succeeded, followed by the documented HTTP gateway configuration.
+
+The owner then completed four Before and four After captures himself. The stored
+photo review was `checked`, completing in about **27.5 seconds**, but the wash
+remained `washing`: server photo analysis alone is not submission to the Customer.
+The owner reported slow shutter/upload transitions and an unavailable message.
+That message's exact network cause is not established by the successful server
+review record. The previous Check photos control lacked a pending state and could
+send repeated requests while that review was still running.
+
+The additional correction keeps the authored screens and controls:
+
+- Guided capture keeps one camera open between the four sides. A real captured,
+  locally quality-checked frame advances the next side without waiting on upload.
+  Uploads run independently, scoped to account, job, stage and side. Existing
+  uploading/done/failed photo-slot states show their actual result; a failed upload
+  retains the capture and can retry without fabricating server evidence.
+- Next/Check photos wait for all relevant uploads and server registration. Failed
+  uploads cannot start or finish a wash. Server quality, assignment, stage,
+  generation and private-access validation remain authoritative.
+- Check photos and Send anyway show pending feedback and prevent duplicate taps.
+  Lost review callbacks reconcile the current server evidence fingerprint using
+  the same authenticated callable's read-only status mode, without running AI a
+  second time or interpreting `checking` as success. Submitted jobs can retry the
+  final response without being rejected solely because they are no longer washing.
+- Server reads and independent thumbnail requests run concurrently. AI findings
+  and provider outages still use the existing review/retake or explicit Send anyway
+  decision; neither automatically approves a wash. Only successful server finish
+  changes `washing` to `photosReady`, which updates the Customer's existing
+  **Check the wash** view through its Firestore listener.
+
+New isolated tests cover concurrent capture uploads, upload barriers/retries,
+one-camera side advancement, single pending photo-check/finish actions, lost
+responses and the Customer screen transition. No staged evidence, completion,
+approval, payout or extra charge was submitted by the agent.
+
+Final local checks for this photo follow-up: **30 Captain tests**, **35 shared
+Firebase tests**, **six targeted backend photo/lifecycle tests** and the new
+Customer live-screen transition test passed. Captain/shared static analysis
+passed. The preceding full backend run remains **189 passed**; the additional
+status-recovery regression ran in the targeted suite afterward. The queued bytes
+are retained in app memory until upload; no durable, app-terminated offline resend
+is claimed. Existing already-uploaded evidence is restored from Firebase.

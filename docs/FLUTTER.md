@@ -7,6 +7,13 @@ private photo service normalizes detection resolution without lowering match or
 quality safeguards. See the follow-up in the report below for actual acceptance.
 No screen layout, asset, typography or palette changed for this correction.
 
+The same pending Captain release now keeps the guided camera open between sides,
+uploads captured frames in parallel, and waits for server evidence before starting
+or finishing a wash. It reuses the authored photo-slot progress/retry states and
+button loading states. Photo review can recover a lost response without duplicate
+inference; the Customer's authored Washing → Check the wash transition has an
+explicit regression test. See the current report for native evidence and limits.
+
 [WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md) records the owner's
 explicit UI additions: live Home wallet balance, wallet/top-up screen, and separate
 wallet versus gateway checkout actions. Customer 1.0.2 (3) and Captain 1.0.1 (2)
