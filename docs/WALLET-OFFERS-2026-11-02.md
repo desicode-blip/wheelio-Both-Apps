@@ -317,3 +317,20 @@ fixtures, not manual writes to the owner's active job. No UI layout is changed.
 This restoration uses already-uploaded server evidence; unsent captures still
 do not have durable app-termination persistence. Native reopening and publication
 of version 1.0.3 (4) are pending until recorded below.
+
+Captain **1.0.3 (4)** subsequently built from `af756b8` at **19:54 IST**. Its
+28,130,879-byte AAB passed JAR verification with the existing upload certificate;
+the merged manifest retains the Captain package, minimum SDK 24 and target 36.
+SHA256: `bcc9090589f1ed7090a44689d46fcd9b05d8dc2ab30b7758811d8020d9d0748a`.
+Play accepted version code 4 and published **1.0.3 - resume job af756b8** to the
+existing Captain internal track at **23:17 IST on 2 November**. The track confirms
+**Available to internal testers**. Its single warning is the existing absent R8
+deobfuscation mapping for this non-shrunk internal build; supported-device counts
+are unchanged. Customer, TrustKeyper apps, production tracks, signing and tester
+configuration were not changed. The owner can use the same Captain invitation.
+
+The Captain web release build also succeeded. Its Hosting publication remains
+blocked by the expired `ajay@trustkeyper.com` CLI credentials; listing projects
+still returns the explicit reauthentication error. This client-only restoration
+does not require a new backend Function. Device installation/reopening results
+will be recorded after the Play update, not inferred from publication.
