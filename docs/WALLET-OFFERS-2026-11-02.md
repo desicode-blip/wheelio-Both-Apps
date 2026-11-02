@@ -28,6 +28,11 @@ after timeout, which incorrectly implied another Captain accepted.
   only on the Home view's logic. Existing live alerts update renewed expiry times.
   Expired, cancelled and actually taken offers have distinct truthful copy in the
   existing missed-state layout. No timeout invents an assignment.
+- Offer and Captain-profile snapshots may arrive in either order. The client now
+  caches offer records independently and re-evaluates them when the profile's
+  payment mode arrives. It no longer drops an initial live offer while temporarily
+  assuming test mode. Two focused delivery-order/renewal tests and all three
+  outcome widget cases passed; Captain static analysis remains clean.
 - No extra paid warm instance is enabled. Network, payment provider and Firebase
   startup still exist; no absolute zero-latency guarantee is made.
 

@@ -4,6 +4,7 @@
 // (backend/API-CONTRACT.md); screens don't change.
 
 import 'dart:async';
+import 'offer_feed.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -930,6 +931,7 @@ class CaptainStore extends ChangeNotifier {
   Map<String, dynamic> liveCaptain = {}, liveConfig = {};
   final Map<String, Map<String, dynamic>> liveOrders = {};
   List<Job> liveOffers = [];
+  final _offerFeed = CaptainOfferFeed();
   bool _inboxLoaded=false;
   final Map<String, DateTime> offerExpiry = {};
   final Map<String, String> offerOutcomes = {};
@@ -1055,7 +1057,7 @@ class CaptainStore extends ChangeNotifier {
     profilePhoto=null;_profilePhotoPath=null;_preferenceSave?.cancel();
     _readNotifs.clear();_unreadNotifs.clear();_deletedNotifs.clear();
     liveOrders.clear();
-    liveOffers = [];_inboxLoaded=false;
+    liveOffers = [];_offerFeed.clear();offerOutcomes.clear();offerExpiry.clear();_inboxLoaded=false;
     liveEarnings = [];
     kycUploaded = {};
     queue = [];
@@ -1132,6 +1134,8 @@ class CaptainStore extends ChangeNotifier {
       }
       _applySteps();
       _applyEarnings();
+      _offerFeed.mode=liveCaptain['paymentMode'] as String?;
+      _applyLiveOffers();
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.orders(uid, captain: true).listen((s) {
@@ -1151,24 +1155,8 @@ class CaptainStore extends ChangeNotifier {
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.offers(uid).listen((s) {
       if (liveUid != uid) return;
-      final now = DateTime.now();
-      offerExpiry.clear();
-      offerOutcomes.clear();
-      liveOffers = [
-        for (final d in s.docs)
-          if (d.data()['status'] == 'pending' && (d.data()['paymentMode'] ?? 'test') == (liveCaptain['paymentMode'] ?? 'test') && _date(d.data()['expiresAt'])?.isAfter(now) == true)
-            _offerJob(d.data()),
-      ];
-      for (final d in s.docs) {
-        final at = _date(d.data()['expiresAt']);
-        if (at != null) offerExpiry[d.data()['orderId'] as String] = at;
-        final status=d.data()['status'];
-        offerOutcomes[d.data()['orderId'] as String] = status=='withdrawn'
-            ? (d.data()['closedReason']=='assigned'?'taken':d.data()['closedReason']=='cancelled'?'cancelled':'unavailable')
-            : status=='accepted'?'accepted':status=='rejected'?'rejected':'pending';
-      }
-      changed();
-      onOffersChanged?.call();
+      _offerFeed.records=[for(final doc in s.docs)doc.data()];
+      _applyLiveOffers();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.earnings(uid).listen((s) {
       if (liveUid != uid) return;
@@ -1188,6 +1176,22 @@ class CaptainStore extends ChangeNotifier {
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     changed();
+  }
+
+  void _applyLiveOffers(){
+      offerExpiry.clear();
+      offerOutcomes.clear();
+      liveOffers=[for(final data in _offerFeed.pending(DateTime.now()))_offerJob(data)];
+      for (final data in _offerFeed.records) {
+        final at = _date(data['expiresAt']);
+        if (at != null) offerExpiry[data['orderId'] as String] = at;
+        final status=data['status'];
+        offerOutcomes[data['orderId'] as String] = status=='withdrawn'
+            ? (data['closedReason']=='assigned'?'taken':data['closedReason']=='cancelled'?'cancelled':'unavailable')
+            : status=='accepted'?'accepted':status=='rejected'?'rejected':'pending';
+      }
+      changed();
+      onOffersChanged?.call();
   }
 
   DateTime? _date(dynamic v) => v == null ? null : (v.toDate() as DateTime).toLocal();
