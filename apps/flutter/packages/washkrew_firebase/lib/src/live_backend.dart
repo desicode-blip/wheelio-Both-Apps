@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'phone_otp.dart';
+import 'checkout_flow.dart';
 import 'backend.dart' show kycUploadError;
 
 import 'checkout_stub.dart'
@@ -229,36 +230,24 @@ class LiveBackend {
     'updatedAt': FieldValue.serverTimestamp(),
   });
 
-  Future<Map<String, dynamic>> pay(String bookingId, {String? method}) async {
-    final options = await call('createCheckout', {'bookingId': bookingId});
-    if (method != null) options['selectedMethod'] = method;
-    if (options['paid'] == true)
-      return call('checkPayment', {'bookingId': bookingId});
-    Map<String, dynamic>? result;
-    try {
-      result = await checkout.openCheckout(
-        options,
-        auth.currentUser?.phoneNumber ?? '',
-      );
-    } catch (_) {
-      // A native app switch can lose the SDK callback after capture. Reconcile
-      // with the provider before presenting an error or permitting another try.
-      try {
-        final checked = await call('checkPayment', {'bookingId': bookingId});
-        if (checked['paymentStatus'] == 'captured') return checked;
-      } catch (_) {
-        /* The existing booking remains available for recovery. */
-      }
-      rethrow;
-    }
-    if (result == null) return call('checkPayment', {'bookingId': bookingId});
-    return call('verifyPayment', {
-      'bookingId': bookingId,
-      'orderId': result['razorpay_order_id'],
-      'paymentId': result['razorpay_payment_id'],
-      'signature': result['razorpay_signature'],
-    });
+  Future<void> preloadCheckout() async {
+    try { await checkout.preloadCheckout(); }
+    catch (_) { /* Optional cache fill; the Pay action retries actual loading. */ }
   }
+
+  Future<Map<String, dynamic>> pay(String bookingId, {void Function(CheckoutStage)? onStage}) =>
+      startCheckout(bookingId: bookingId, onStage: onStage);
+
+  Future<Map<String, dynamic>> startCheckout({
+    String? bookingId,
+    Map<String, dynamic>? booking,
+    List<CheckoutUpload> uploads = const [],
+    void Function(String)? onBookingReady,
+    void Function(CheckoutStage)? onStage,
+  }) => CheckoutFlow(call: (name, data) => call(name, data), open: checkout.openCheckout,
+      phone: auth.currentUser?.phoneNumber ?? '').run(
+        bookingId: bookingId, booking: booking, uploads: uploads,
+        onBookingReady: onBookingReady, onStage: onStage);
 
   Future<void> saveProfilePhoto(String role, Uint8List? bytes) async {
     final account = uid;

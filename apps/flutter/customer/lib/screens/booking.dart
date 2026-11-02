@@ -1982,6 +1982,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     if (_freeDefaulted) return;
     _freeDefaulted = true;
     final store = context.store;
+    store.prefetchPaymentResources();
     if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
@@ -2021,7 +2022,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
         child: d.price == 0
             // Free wash: nothing to pay, so skip the payment sheet.
             ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
-            : WButton('Continue to pay', onTap: () => store.isLoggedIn ? router.openPaySheet(true) : router.go(N.login)),
+            : WButton('Continue to pay', onTap: () {
+                if (!store.isLoggedIn) { router.go(N.login); return; }
+                if (store.isLive) {
+                  if (!router.isAt(N.paying)) router.push(const R(N.paying));
+                } else { router.openPaySheet(true); }
+              }),
       ),
       children: [
         const WTitleBlock('Check and pay'),

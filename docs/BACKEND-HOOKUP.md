@@ -1,3 +1,15 @@
+# Direct checkout preparation - 2 November 2026
+
+`createCheckout` now optionally accepts the existing validated booking payload,
+combining booking creation and provider preparation in one invocation. Old
+booking-ID requests continue to work. Existing Firebase Storage uploads overlap
+each other and provider preparation but must finish before the SDK opens. The
+existing Razorpay SDK/script preloads resources on Review; this creates no order
+and does not enable any minimum instances. No new external provider, fake app
+button, payment capture shortcut or evidence-lock exception is introduced.
+Controlled SDK/call/upload futures are confined to unit tests. See
+[CHECKOUT-SPEED-2026-11-02.md](CHECKOUT-SPEED-2026-11-02.md).
+
 # Captain Online and whole-window capacity - 2 November 2026
 
 The deployed Go online source required an approved society despite the active

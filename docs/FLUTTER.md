@@ -1,3 +1,14 @@
+# Direct live payment and checkout preparation - 2 November 2026
+
+[CHECKOUT-SPEED-2026-11-02.md](CHECKOUT-SPEED-2026-11-02.md) records the owner's
+request to skip live C17 and choose the payment method once in Razorpay. Existing
+Review/C18 layouts stay; status text reflects actual phases. Customer 1.0.1 (2)
+preloads payment resources, reuses confirmed locations and runs selected attachment
+uploads in parallel with provider preparation. Every attachment must finish before
+opening checkout; server financial/evidence checks remain. No-attachment bookings
+use one callable. Demo/reference C17 remains available. See the report for actual
+test/publication/device evidence and the remaining network limits.
+
 # Captain coverage backend correction - 2 November 2026
 
 [COVERAGE-ONLINE-FIX-2026-11-02.md](COVERAGE-ONLINE-FIX-2026-11-02.md) tracks the

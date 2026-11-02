@@ -161,7 +161,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (r.isNew && (context.store.isLive || !context.store.returningCustomer)) {
         router.go(N.name);
       } else {
-        router.finishLogin();
+        router.finishLogin(directCheckout: context.store.isLive);
       }
     } else if (r.kind == 'wrong') {
       setState(() {
@@ -288,7 +288,7 @@ class _NameScreenState extends State<NameScreen> {
             store.set(() => store.toast = backendError(e));
             return;
           }
-          router.finishLogin();
+          router.finishLogin(directCheckout: store.isLive);
         },
       ),
     ),
@@ -318,6 +318,7 @@ class PayingScreen extends StatefulWidget {
 class _PayingScreenState extends State<PayingScreen> {
   late PayView view = widget.initial;
   bool checking = false;
+  bool running = false;
 
   @override
   void initState() {
@@ -326,6 +327,8 @@ class _PayingScreenState extends State<PayingScreen> {
   }
 
   Future<void> _run() async {
+    if (running) return;
+    running = true;
     final store = context.store, router = context.router;
     _failureMessage = null;
     PaymentOutcome outcome;
@@ -336,6 +339,7 @@ class _PayingScreenState extends State<PayingScreen> {
       store.set(() => store.toast = _failureMessage);
       outcome = PaymentOutcome.failed;
     }
+    running = false;
     if (!mounted) return;
     if (!_openResolvedBooking(store, router, outcome)) {
       setState(() => view = outcome == PaymentOutcome.failed ? PayView.failed : PayView.pending);
@@ -382,10 +386,14 @@ class _PayingScreenState extends State<PayingScreen> {
         children: [
           Expanded(
             child: switch (view) {
-              PayView.processing => const WFullState(
+              PayView.processing => WFullState(
                 icon: WIcon.clock,
-                title: 'Confirming payment',
-                message: 'Don’t close the app. This takes a few seconds.',
+                title: !store.isLive || store.checkoutStage == CheckoutStage.confirming
+                    ? 'Confirming payment'
+                    : store.checkoutStage == CheckoutStage.savingAttachments ? 'Saving your photos and notes' : 'Opening secure payment',
+                message: !store.isLive || store.checkoutStage == CheckoutStage.confirming
+                    ? 'Don’t close the app. This takes a few seconds.'
+                    : store.checkoutStage == CheckoutStage.savingAttachments ? 'Uploading your booking attachments securely.' : 'Connecting to Razorpay…',
                 spinning: true,
               ),
               PayView.failed => WFullState(
@@ -403,6 +411,11 @@ class _PayingScreenState extends State<PayingScreen> {
                   _run();
                 },
                 onSecondary: () {
+                  if (store.isLive) {
+                    setState(() => view = PayView.processing);
+                    _run();
+                    return;
+                  }
                   router.pop();
                   Future.delayed(const Duration(milliseconds: 450), () => router.openPaySheet(true));
                 },

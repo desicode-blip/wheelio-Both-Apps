@@ -128,14 +128,23 @@ class AppRouter extends WRouter<R> {
     notifyListeners();
   }
 
-  /// After login: back to Check and pay with the pay sheet open, or home.
-  void finishLogin() {
+  /// After login: resume checkout (or the legacy address form), or go home.
+  void finishLogin({bool directCheckout = false}) {
     final address = path.lastIndexWhere((e) => e.route.n == N.manualAddress);
     final i = path.lastIndexWhere((e) => e.route.n == N.review);
     if (address >= 0 && address > i) { keep(address + 1); return; }
     if (i >= 0) {
       keep(i + 1);
-      Future.delayed(const Duration(milliseconds: 450), () => openPaySheet(true));
+      if (directCheckout) {
+        showPaySheet = false;
+        // Let Review apply the just-loaded wallet balance before preparing the
+        // server amount. One frame, with no artificial sheet/navigation timer.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (isAt(N.review)) push(const R(N.paying));
+        });
+      } else {
+        Future.delayed(const Duration(milliseconds: 450), () => openPaySheet(true));
+      }
     } else {
       path = [];
       tab = 0;
@@ -1167,21 +1176,40 @@ class AppStore extends ChangeNotifier {
   }
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
-  Future<PaymentOutcome> createOrderAndPay() async {
+  CheckoutStage checkoutStage = CheckoutStage.preparing;
+  Future<PaymentOutcome>? _checkoutFuture;
+
+  void prefetchPaymentResources() {
+    if (live != null) unawaited(live!.preloadCheckout());
+  }
+
+  void _checkoutStage(CheckoutStage stage) {
+    if (_disposed) return;
+    checkoutStage = stage;
+    changed();
+  }
+
+  Future<PaymentOutcome> createOrderAndPay() => _checkoutFuture ??=
+      _createOrderAndPay().whenComplete(() => _checkoutFuture = null);
+
+  Future<PaymentOutcome> _createOrderAndPay() async {
     if (isLive) {
+      _checkoutStage(CheckoutStage.preparing);
       final d=draft,s=d.slot;
       var p=d.place;
       // Paying for a booking that already exists (opened from Bookings or a notification).
       final pending = currentOrder;
       if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
         draftBookingId = pending.id;
-        final paid = await live!.pay(pending.id, method: payMethodId);
+        final paid = await live!.pay(pending.id, onStage: _checkoutStage);
         await _refreshLiveOrder(pending.id);
         return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
-      if(captainAreaEnabled){p=await confirmPlace(p);draft.place=p;}
-      final result = await live!.call('createBooking', {
+      // The confirmed server location is already saved by the map flow. The
+      // booking transaction still resolves it and validates the parking pin.
+      if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
+      final booking = <String,dynamic>{
         'requestId': draftRequestId,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
@@ -1202,17 +1230,19 @@ class AppStore extends ChangeNotifier {
         if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
         'endHour': s.endHour,
-      });
-      final bookingId = result['bookingId'] as String;
-      draftBookingId = bookingId;
-      currentOrderId = bookingId;
-      if (result['status'] == 'pendingPayment') {
-      for (final entry in draftMedia.entries) { await live!.uploadCustomerMedia(bookingId, entry.key, entry.value.bytes,entry.value.contentType,entry.value.seconds); }
-      for (final entry in draftPhotoBytes.entries) {
-        await live!.uploadCustomerPhoto(bookingId, entry.key.name, entry.value);
-      }
-      }
-      final paid = await live!.pay(bookingId, method: payMethodId);
+      };
+      final paid = await live!.startCheckout(
+        booking: booking,
+        uploads: [
+          for (final entry in draftMedia.entries.toList())
+            (id) => live!.uploadCustomerMedia(id, entry.key, entry.value.bytes, entry.value.contentType, entry.value.seconds),
+          for (final entry in draftPhotoBytes.entries.toList())
+            (id) => live!.uploadCustomerPhoto(id, entry.key.name, entry.value),
+        ],
+        onBookingReady: (id) { draftBookingId = id; currentOrderId = id; },
+        onStage: _checkoutStage,
+      );
+      final bookingId = draftBookingId!;
       await _refreshLiveOrder(bookingId);
       return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }

@@ -138,3 +138,8 @@ Customer time window must fit within one continuous saved Captain work period.
 Partial overlap and a period spanning a break do not qualify. Availability,
 payment capacity, dispatch and claim must enforce the same rule. Preserve the
 historical society-booking interpretation and finishability of assigned jobs.
+
+Owner decision — 2 November 2026: live Customer Pay opens Razorpay directly;
+remove the duplicate app payment-method sheet from the real checkout path.
+Demo/reference C17 remains available. Keep C18's authored layout, with text that
+describes actual upload/opening/confirmation stages. No other redesign is approved.

@@ -27,8 +27,16 @@ Future<void> _load() => _loading ??= () async {
     );
   }).toJS;
   web.document.head!.append(script);
-  await complete.future.timeout(const Duration(seconds: 30));
+  try {
+    await complete.future.timeout(const Duration(seconds: 30));
+  } catch (_) {
+    _loading = null;
+    script.remove();
+    rethrow;
+  }
 }();
+
+Future<void> preloadCheckout() => _load();
 
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,

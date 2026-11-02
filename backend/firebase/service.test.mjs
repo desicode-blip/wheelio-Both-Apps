@@ -36,6 +36,33 @@ async function paid(requestId='request-1') {
   await service.capturePayment(payment);return {...booking,payment};
 }
 
+test('combined checkout validates booking and reuses the same booking, wallet reservation and provider order',async()=>{
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:5000,freeWashes:0});
+ const booking={...input('combined-checkout'),useCredit:true,expectedAmountPaise:9900};
+ const first=await service.checkout(customer,{booking}),again=await service.checkout(customer,{booking});
+ assert.equal(first.bookingId,again.bookingId);assert.equal(first.orderId,again.orderId);assert.equal(first.amount,9900);assert.equal(counter,1);
+ assert.equal((await db.collection('orders').get()).size,1);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,0);
+ await service.capturePayment({id:'pay_combined',order_id:first.orderId,amount:first.amount,currency:'INR',status:'captured',method:'upi'});
+ assert.equal((await service.checkout(customer,{booking})).paid,true);assert.equal(counter,1);
+ await assert.rejects(service.checkout(auth('other'),{bookingId:first.bookingId}),{code:'permission-denied'});
+});
+
+test('combined checkout rejects anonymous, conflicting, malformed and stale-price requests before provider creation',async()=>{
+ await assert.rejects(service.checkout(null,{booking:input('combined-anon')}),{code:'unauthenticated'});
+ for(const booking of [null,[],false])await assert.rejects(service.checkout(customer,{booking}),{code:'invalid-argument'});
+ await assert.rejects(service.checkout(customer,{bookingId:'existing',booking:input('combined-conflict')}),{code:'invalid-argument'});
+ await assert.rejects(service.checkout(customer,{booking:{...input('combined-stale'),expectedAmountPaise:100}}),{code:'failed-precondition'});
+ assert.equal(counter,0);assert.equal((await db.collection('orders').get()).size,0);
+});
+
+test('combined wallet-only checkout settles without opening a provider order',async()=>{
+ await db.doc('wallets/customer_test').set({customerId:'customer',paymentMode:'test',creditPaise:14900,freeWashes:0});
+ const result=await service.checkout(customer,{booking:{...input('combined-wallet'),useCredit:true,expectedAmountPaise:0}});
+ assert.equal(result.paid,true);assert.equal(counter,0);
+ const order=(await db.doc('orders/'+result.bookingId).get()).data();assert.equal(order.paymentStatus,'captured');assert.equal(order.capacityReserved,true);
+});
+
 const walletTimePolicy={kind:'walletByTime',creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,serviceFailure:'wallet'};
 async function walletTimeBooking(requestId,patch={},funding={method:'upi'}) {
  const b=await service.createBooking(customer,{...input(requestId),acceptedCancellationPolicy:walletTimePolicy,...patch});

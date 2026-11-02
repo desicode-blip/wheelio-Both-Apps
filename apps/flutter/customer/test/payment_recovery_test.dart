@@ -4,6 +4,19 @@ import 'package:washkrew_customer/data/models.dart';
 import 'package:washkrew_customer/data/store.dart';
 import 'package:washkrew_customer/screens/auth_pay.dart';
 import 'package:washkrew_customer/screens/live.dart';
+import 'package:washkrew_customer/screens/booking.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart' show CheckoutStage;
+import 'dart:async';
+
+class DirectCheckoutStore extends AppStore {
+  @override
+  bool get isLive => true;
+  @override
+  void prefetchPaymentResources() {}
+  final payment = Completer<PaymentOutcome>();
+  @override
+  Future<PaymentOutcome> createOrderAndPay() => payment.future;
+}
 
 class UnavailableCheckoutStore extends AppStore {
   @override
@@ -35,6 +48,36 @@ class ResolvedPaymentStore extends AppStore {
 }
 
 void main() {
+  testWidgets('live Review opens payment once without the repeated method sheet', (tester) async {
+    final sample = AppStore()..signInAsSample()..draftFull();
+    final store = DirectCheckoutStore()..customer = sample.customer..draft = sample.draft;
+    final router = AppRouter();
+    sample.dispose();
+    store.customer!.freeWashes = 0;
+    store.customer!.credit = 0;
+    await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: ReviewScreen())));
+    await tester.tap(find.text('Continue to pay'));
+    await tester.tap(find.text('Continue to pay'));
+    expect(router.last?.n, N.paying); expect(router.showPaySheet, false);
+    expect(router.path.where((e) => e.route.n == N.paying).length, 1);
+    expect(find.byType(PayMethodSheet), findsNothing);
+    await tester.pumpWidget(const SizedBox()); store.dispose(); router.dispose();
+  });
+
+  testWidgets('payment state describes opening and uploads before actual confirmation', (tester) async {
+    final store = DirectCheckoutStore(), router = AppRouter();
+    await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: PayingScreen())));
+    await tester.pump();
+    expect(find.text('Opening secure payment'), findsOneWidget);
+    expect(find.text('Confirming payment'), findsNothing);
+    store.set(() => store.checkoutStage = CheckoutStage.savingAttachments); await tester.pump();
+    expect(find.text('Saving your photos and notes'), findsOneWidget);
+    store.set(() => store.checkoutStage = CheckoutStage.confirming); await tester.pump();
+    expect(find.text('Confirming payment'), findsOneWidget);
+    store.payment.complete(PaymentOutcome.pending); await tester.pump();
+    await tester.pumpWidget(const SizedBox()); store.dispose(); router.dispose();
+  });
+
   testWidgets('checkout errors stay visible without inventing a bank decline or no-charge result', (tester) async {
     final store = UnavailableCheckoutStore(), router = AppRouter();
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: PayingScreen())));

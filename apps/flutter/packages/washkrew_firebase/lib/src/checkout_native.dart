@@ -1,12 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:washkrew_ui/washkrew_ui.dart' show Brand;
 
 import 'checkout_options.dart';
 
 bool _open = false;
+
+Future<void> preloadCheckout() async {
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    await const MethodChannel('washkrew/checkout').invokeMethod<void>('preload');
+  }
+}
 
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,

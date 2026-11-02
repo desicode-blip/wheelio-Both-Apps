@@ -265,6 +265,13 @@ export class WashKrewService {
     return result;
   }
   async checkout(auth, data) {
+    this.actor(auth);
+    // New clients without attachments create the validated booking and provider
+    // order in one callable invocation. Existing booking-ID clients stay valid.
+    if(data.booking!==undefined){
+      if(data.bookingId!==undefined||!data.booking||typeof data.booking!=='object'||Array.isArray(data.booking))fail('invalid-argument','Provide one booking to prepare.');
+      data=await this.createBooking(auth,data.booking);
+    }
     const uid = this.actor(auth), bookingId = id(data.bookingId), ref = this.db.doc(`orders/${bookingId}`);
     const lease = randomUUID();
     const order = await this.db.runTransaction(async tx => {

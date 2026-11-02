@@ -1,3 +1,5 @@
+Future<void> preloadCheckout() async {}
+
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,
   String phone,
