@@ -1,5 +1,14 @@
 # Wallet top-ups and atomic offers - 2 November 2026
 
+Current iPhone handoff: existing Apple/Firebase services are retained. APNs token
+readiness now retries for a bounded interval, deduplicates registration for each
+account/role, invalidates pending work on sign-out and retries on app resume.
+Notification permission/opt-in and authenticated server registration stay required.
+Controlled delays, tokens and account switches exist only in the new unit tests.
+Both Podfiles apply the existing foreground-only location flag. No new service,
+secret, fake native verification, paid warm instance or UI is introduced. See
+[AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md).
+
 Captain 1.0.3 resumes from the existing authenticated order record rather than
 restarting arrival and identity verification. A server-only SDK order read after
 arrival and Captain stream metadata transitions keep routing tied to confirmed

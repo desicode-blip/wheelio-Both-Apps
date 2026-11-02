@@ -345,3 +345,12 @@ photos**. It did not reopen arrival or selfie. The existing uploaded material
 was not a genuine wash verification fixture; the agent did not press Check
 photos, submit it, approve it or release a payout. Return to Home also worked.
 Further Home/Jobs selection and repeated cold-reopen checks remain unrecorded.
+
+The owner subsequently confirmed that his Android checks are working well and
+requested the two iPhone apps as the next deliverable. Firebase CLI authentication
+succeeded using the local callback after the remote handoff returned an OAuth
+error. The already-built Captain web update was published before that scope
+clarification; all four staged Customer/Captain main/bootstrap artifacts match
+Hosting. No further Customer/Captain web delivery is an acceptance requirement.
+The latest iPhone build/role instructions are in
+[AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md).

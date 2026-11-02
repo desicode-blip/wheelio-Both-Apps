@@ -129,6 +129,59 @@ List<String> missingPods(Map<String, dynamic> manifest, String lock) {
       .toList();
 }
 
+void checkCapabilities({
+  required String app,
+  required String info,
+  required String project,
+  required String entitlements,
+  required String podfile,
+  required String scheme,
+}) {
+  final teams = RegExp(
+    r'DEVELOPMENT_TEAM\s*=\s*([^;]+);',
+  ).allMatches(project).map((m) => m.group(1)!.trim()).toList();
+  if (teams.isEmpty || teams.any((team) => team != '28JNT7H8KA')) {
+    throw StateError(
+      '$app: retain the paid Apple team 28JNT7H8KA in every configuration.',
+    );
+  }
+  if (RegExp(
+            r'CODE_SIGN_ENTITLEMENTS\s*=\s*Runner/Runner.entitlements;',
+          ).allMatches(project).length <
+          3 ||
+      !RegExp(
+        r'<key>aps-environment</key>\s*<string>(development|production)</string>',
+      ).hasMatch(entitlements) ||
+      !info.contains('<string>fetch</string>') ||
+      !info.contains('<string>remote-notification</string>')) {
+    throw StateError(
+      '$app: all Runner configurations need Apple push entitlements and silent-notification background modes.',
+    );
+  }
+  if (!podfile.contains("platform :ios, '15.0'") ||
+      !podfile.contains('BYPASS_PERMISSION_LOCATION_ALWAYS=1')) {
+    throw StateError(
+      '$app: preserve iOS 15 and foreground-only location in Podfile.',
+    );
+  }
+  if (!RegExp(
+    r'<LaunchAction\s+buildConfiguration\s*=\s*"Release"',
+  ).hasMatch(scheme)) {
+    throw StateError(
+      '$app: Xcode Run must use Release for disconnected cold-launch acceptance.',
+    );
+  }
+  if (app == 'customer') {
+    for (final upi in ['tez', 'phonepe', 'paytmmp']) {
+      if (!info.contains('<string>$upi</string>')) {
+        throw StateError(
+          '$app: missing existing $upi payment-app query scheme.',
+        );
+      }
+    }
+  }
+}
+
 void checkSource(Directory root, List<String> apps) {
   final options = File(
     '${root.path}/apps/flutter/packages/washkrew_firebase/lib/src/ios_options.dart',
@@ -142,6 +195,16 @@ void checkSource(Directory root, List<String> apps) {
     final project = File(
       '$ios/Runner.xcodeproj/project.pbxproj',
     ).readAsStringSync();
+    checkCapabilities(
+      app: app,
+      info: info,
+      project: project,
+      entitlements: File('$ios/Runner/Runner.entitlements').readAsStringSync(),
+      podfile: File('$ios/Podfile').readAsStringSync(),
+      scheme: File(
+        '$ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme',
+      ).readAsStringSync(),
+    );
     final bundle = 'com.amanmaheshwari.wheelio.$app';
     final id = app == 'customer'
         ? 'e608aa639acba895ef9686'

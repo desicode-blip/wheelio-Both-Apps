@@ -110,6 +110,62 @@ void main() {
     'customer',
     'captain',
   ]);
+  final root = Directory.fromUri(Platform.script.resolve('../../../'));
+  final native = '${root.path}/apps/flutter/customer/ios';
+  final info = File('$native/Runner/Info.plist').readAsStringSync();
+  final project = File(
+    '$native/Runner.xcodeproj/project.pbxproj',
+  ).readAsStringSync();
+  final entitlements = File(
+    '$native/Runner/Runner.entitlements',
+  ).readAsStringSync();
+  final podfile = File('$native/Podfile').readAsStringSync();
+  final scheme = File(
+    '$native/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme',
+  ).readAsStringSync();
+  void capabilities({
+    String? p,
+    String? e,
+    String? pod,
+    String? s,
+    String? i,
+  }) => ios.checkCapabilities(
+    app: 'customer',
+    info: i ?? info,
+    project: p ?? project,
+    entitlements: e ?? entitlements,
+    podfile: pod ?? podfile,
+    scheme: s ?? scheme,
+  );
+  rejects(
+    () => capabilities(p: project.replaceFirst('28JNT7H8KA', '8CCQQM7TP3')),
+    'One stale signing configuration must fail before building.',
+  );
+  rejects(
+    () => capabilities(
+      e: entitlements.replaceFirst('aps-environment', 'missing-entitlement'),
+    ),
+    'A signing entitlement cannot be replaced by a background mode.',
+  );
+  rejects(
+    () => capabilities(
+      pod: podfile.replaceFirst('BYPASS_PERMISSION_LOCATION_ALWAYS=1', ''),
+    ),
+    'Foreground-only location must not depend on manual Mac changes.',
+  );
+  rejects(
+    () => capabilities(
+      s: scheme.replaceFirst(
+        'buildConfiguration = "Release"',
+        'buildConfiguration = "Debug"',
+      ),
+    ),
+    'Disconnected-device acceptance must not accidentally install a Debug app.',
+  );
+  rejects(
+    () => capabilities(i: info.replaceFirst('<string>phonepe</string>', '')),
+    'The native payment-app query schemes must be preserved.',
+  );
   stdout.writeln(
     'iOS tooling checks passed: arguments, device selection, native dependency completeness and both app configurations.',
   );

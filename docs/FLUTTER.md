@@ -1,3 +1,20 @@
+# Current iPhone handoff - 2 November 2026
+
+Read [AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md) first on
+Aman's Mac. Both current Flutter apps carry the shared Android-tested booking,
+wallet, coverage, offers and photo/resume functionality. Their layouts are retained.
+The private admin remains the approval step; Customer/Captain web acceptance is
+not required. Paid team 28JNT7H8KA and existing bundle IDs are unchanged; APNs keys
+were saved for both environments/apps on 1 November.
+
+The iPhone follow-up handles asynchronous APNs token readiness with bounded
+account-scoped registration and app-resume recovery. Tests cover delayed readiness,
+timeout and account changes; no permission or real-SMS verification is bypassed.
+Both Podfiles now apply foreground-only geolocation. The standalone Mac tool checks
+team/entitlements, background modes, Release launch, UPI schemes and that location
+setting before its existing dependency/build/install flow. Windows source checks
+cannot prove Xcode compilation/signing or physical iPhone acceptance.
+
 # Captain job restoration - 2 November 2026
 
 Captain **1.0.3 (4)** restores the confirmed assigned-job phase after a cold

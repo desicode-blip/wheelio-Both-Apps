@@ -5,6 +5,16 @@ for every coding agent and supersedes older historical handoff instructions.
 
 Start with:
 
+**Current native handoff — 2 November:** read
+`docs/AMAN-IOS-HANDOFF-2026-11-02.md` first. It supersedes the historical setup and
+test order below. Both Flutter apps use paid team 28JNT7H8KA, and both APNs key
+environments were saved in Firebase on 1 November. Keep current map-radius
+coverage, whole-window capacity, simultaneous first-valid-claim offers, wallet
+top-ups/checkout/cancellation and saved job-stage restoration. The owner confirms
+the updated Android apps work; physical iPhone acceptance remains to be recorded.
+Build with `bash apps/flutter/tool/run-ios.sh`; Customer/Captain web acceptance is
+not required. The private human-review admin remains part of the workflow.
+
 **Android/native OTP follow-up (31 October):** the owner requested installing
 both maintained apps on the connected Android phone. Read
 `docs/ANDROID-DEVICE-CHECK-2026-10-31.md`. Keep Flutter screen designs intact.

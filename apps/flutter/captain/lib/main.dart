@@ -64,7 +64,10 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
     store.foreground(s==AppLifecycleState.resumed);
-    if (s == AppLifecycleState.resumed) store.refreshSystemPermission();
+    if (s == AppLifecycleState.resumed) {
+      store.refreshSystemPermission();
+      store.live?.registerPush('captain').catchError((Object _) {});
+    }
   }
 
   @override

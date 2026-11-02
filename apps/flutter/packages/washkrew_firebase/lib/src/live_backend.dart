@@ -11,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'phone_otp.dart';
 import 'checkout_flow.dart';
 import 'photo_review_flow.dart';
+import 'apns_readiness.dart';
 import 'backend.dart' show kycUploadError;
 
 import 'checkout_stub.dart'
@@ -91,6 +92,8 @@ class LiveBackend {
 
   StreamSubscription<String>? _tokenRefresh;
   StreamSubscription<RemoteMessage>? _pushOpened;
+  final Map<String, Future<void>> _pushRegistrations = {};
+  int _pushGeneration = 0;
   bool get supportsPush =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
   Future<Permission> pushPermission()async{
@@ -114,26 +117,41 @@ class LiveBackend {
     await registerPush(role);
   }
 
-  Future<void> registerPush(String role) async {
-    if (!supportsPush || !phoneVerified) return;
-    final account = uid;
+  Future<void> registerPush(String role) {
+    if (!supportsPush || !phoneVerified) return Future.value();
+    final account = uid!, generation = _pushGeneration, key = '$uid/$role';
+    final pending = _pushRegistrations[key];
+    if (pending != null) return pending;
+    late final Future<void> task;
+    task = _registerPush(role, account, generation).whenComplete(() {
+      if (identical(_pushRegistrations[key], task)) _pushRegistrations.remove(key);
+    });
+    _pushRegistrations[key] = task;
+    return task;
+  }
+
+  Future<void> _registerPush(String role, String account, int generation) async {
+    bool current() => generation == _pushGeneration && account == uid && phoneVerified;
     final prefs = (await db.doc('users/$account').get()).data();
+    if (!current()) return;
     if (prefs?[role == 'captain'
             ? 'captainPushEnabled'
             : 'customerPushEnabled'] !=
         true)
       return;
     final settings = await FirebaseMessaging.instance.getNotificationSettings();
+    if (!current()) return;
     if (settings.authorizationStatus != AuthorizationStatus.authorized &&
         settings.authorizationStatus != AuthorizationStatus.provisional)
       return;
-    if (await FirebaseMessaging.instance.getAPNSToken() == null)
-      throw StateError(
-        'iPhone push setup is not ready yet. Your booking updates remain in the inbox.',
-      );
+    if (!await waitForApns(
+      readToken: FirebaseMessaging.instance.getAPNSToken,
+      stillCurrent: current,
+    )) return;
     final token = await FirebaseMessaging.instance.getToken();
-    if (account != uid || token == null) return;
+    if (!current() || token == null) return;
     await call('registerPushToken', {'token': token, 'role': role});
+    if (!current()) return;
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(
           alert: false,
@@ -142,7 +160,7 @@ class LiveBackend {
         );
     await _tokenRefresh?.cancel();
     _tokenRefresh = FirebaseMessaging.instance.onTokenRefresh.listen((token) {
-      if (uid == account)
+      if (current())
         call('registerPushToken', {
           'token': token,
           'role': role,
@@ -184,6 +202,8 @@ class LiveBackend {
     canReconcile:(error)=>error is FirebaseFunctionsException&&['unavailable','deadline-exceeded','failed-precondition'].contains(error.code),
   );
   Future<void> signOut() async {
+    _pushGeneration++;
+    _pushRegistrations.clear();
     invalidateOtp();
     await _tokenRefresh?.cancel();
     if (supportsPush) {

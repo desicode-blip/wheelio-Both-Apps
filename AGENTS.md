@@ -29,6 +29,13 @@
   `docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md` and its PDF in `output/pdf/`;
   use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for the native result record.
 
+- Current Mac starting point (2 November): read
+  `docs/AMAN-IOS-HANDOFF-2026-11-02.md` first. It supersedes historical build,
+  society-approval, payment and APNs instructions in older reports/PDFs. The owner
+  confirmed the updated Android flow works and requested parity in both native
+  iPhone apps. Customer/Captain web acceptance is not required; the private human
+  admin portal remains necessary. Do not change the authored app designs.
+
 ## Latest owner decisions
 
 - Phone OTP uses Firebase's native verification API on Android/iOS and the web

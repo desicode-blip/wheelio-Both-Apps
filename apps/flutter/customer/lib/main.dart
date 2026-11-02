@@ -45,7 +45,10 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState s) {
-    if (s == AppLifecycleState.resumed) store.refreshSystemPermission();
+    if (s == AppLifecycleState.resumed) {
+      store.refreshSystemPermission();
+      store.live?.registerPush('customer').catchError((Object _) {});
+    }
   }
 
   @override

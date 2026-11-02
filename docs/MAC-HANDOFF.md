@@ -1,4 +1,16 @@
-# Current pull/build/test handoff - 30 October 2026
+# Current pull/build/test handoff - 2 November 2026
+
+Start with **[AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md)**.
+It is the authoritative current build/role sequence. The same two Flutter apps
+include the Android-tested wallet, area/hours, offers, photos and resume fixes.
+The paid team and both Firebase APNs environments are already configured. Both
+Podfiles now apply foreground-only location, and the portable preflight checks
+critical native settings before the Mac builds. Native Xcode/device results are
+still required. Customer/Captain web acceptance is not part of this deliverable.
+
+Everything below is historical detail; use the new guide when it conflicts.
+
+# Earlier pull/build/test handoff - 30 October 2026
 
 **Current financial rules changed on 31 October:** read
 [WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) before the

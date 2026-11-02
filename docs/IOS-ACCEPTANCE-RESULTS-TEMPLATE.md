@@ -1,8 +1,8 @@
 # WashKrew - physical iPhone acceptance record
 
 Copy this to a local dated result file before testing. No native case below is
-pre-approved or pre-marked PASS. Read WALLET-CANCELLATION-2026-10-31.md, then
-AMAN-IOS-BUILD-AND-TEST-2026-10-30.md for build/role order. New financial rules
+pre-approved or pre-marked PASS. Read AMAN-IOS-HANDOFF-2026-11-02.md and
+WALLET-CANCELLATION-2026-10-31.md for current build/role order. New financial rules
 override the older PDF's cash-refund examples; old bookings retain saved terms.
 Keep personal/financial/identity data and private evidence outside Git/shared reports.
 
@@ -12,7 +12,7 @@ Keep personal/financial/identity data and private evidence outside Git/shared re
 - Captain version / build:
 - iPhone model / iOS:
 - macOS / Xcode / Flutter / CocoaPods:
-- Customer helper web version, if used:
+- Second device / role, if used:
 - Observed gateway mode and merchant (no keys):
 - One-phone/two-phone limitations:
 
@@ -30,17 +30,22 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Selfie + payout + application submission | NOT RUN | |
 | Training hidden; unapproved work blocked | NOT RUN | |
 | Authorized admin receives/reviews/decides | NOT RUN | |
-| Approval, society/hours and Online persist | NOT RUN | |
+| Approval, map centre/radius, hours and Online persist | NOT RUN | |
+| Nearby building search and saved parking pin | NOT RUN | |
+| Whole-window Captain hours and full-capacity slots | NOT RUN | |
 | Customer capacity/all-day/time summary | NOT RUN | |
 | Vehicle/place/note/media persistence | NOT RUN | |
 | Checkout methods, cancellation and retry | NOT RUN | |
 | Authorized actual LIVE capture + app switch | NOT RUN | |
 | Lost payment callback / same-order recovery | NOT RUN | |
 | Real offer accepted / both roles agree | NOT RUN | |
+| Area offer broadcast, one-tap first claim, truthful expiry | NOT RUN | |
 | Arrival / fresh identity / failure recovery | NOT RUN | |
 | Four before uploads + required gate | NOT RUN | |
 | Realtime Washing + foreground GPS/stale state | NOT RUN | |
 | Four after uploads + advisory/retry handling | NOT RUN | |
+| Reopen at partial/full After photos without another selfie | NOT RUN | |
+| Submitted/completed wash never restarts arrival/washing | NOT RUN | |
 | Customer all-angle approval/rating/history | NOT RUN | |
 | Correct single Captain earning / unpaid vs paid | NOT RUN | |
 | Actual receipt download on iPhone | NOT RUN | |
@@ -55,6 +60,7 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Service failure / human-upheld report: full wallet value, no fee | NOT RUN | |
 | Stale cancellation quote requires renewed confirmation | NOT RUN | |
 | Exact paise, mixed payment, full-wallet booking and reuse | NOT RUN | |
+| Home wallet, captured top-up once, shortfall top-up and wallet checkout | NOT RUN | |
 | All supported UPI/debit/netbanking/provider-wallet groups | NOT RUN | |
 | Direct credit-card / EMI / pay-later checkout hidden | NOT RUN | |
 | Existing delayed live refund: provider processed + bank credit | NOT RUN | |
