@@ -334,3 +334,14 @@ blocked by the expired `ajay@trustkeyper.com` CLI credentials; listing projects
 still returns the explicit reauthentication error. This client-only restoration
 does not require a new backend Function. Device installation/reopening results
 will be recorded after the Play update, not inferred from publication.
+
+**Physical Android result, 23:20 IST:** the owner reconnected/unlocked the phone.
+The existing tester invitation opened through the already signed-in, confirmed
+tester account. Play updated Captain in place. Android package read-back confirms
+**version code 4 / 1.0.3**, installer `com.android.vending`, last update
+**23:19:43 IST**. Opening from Play immediately restored the existing assigned
+job's **After photos** screen, with all four registered thumbnails and **Check
+photos**. It did not reopen arrival or selfie. The existing uploaded material
+was not a genuine wash verification fixture; the agent did not press Check
+photos, submit it, approve it or release a payout. Return to Home also worked.
+Further Home/Jobs selection and repeated cold-reopen checks remain unrecorded.
