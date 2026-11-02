@@ -1,5 +1,23 @@
 # Direct Razorpay checkout and payment preparation — 2 November 2026
 
+## Later publication / device evidence
+
+The Play/browser upload block recorded below was resolved: Customer **1.0.1 (2)**
+published at **12:48 IST** and updated on the phone at **13:02:27 IST**. The owner
+then completed a booking/payment himself. No reliable post-fix wash-checkout
+timing was measured while the owner was also operating the phone.
+
+The later owner-authorized wallet/offer release is now Customer **1.0.2 (3)** and
+Captain **1.0.1 (2)**, both published and installed through Play. It preserves the
+single payment-method choice in Razorpay while adding wallet versus gateway
+funding choices on Review. A minimum ₹1 top-up reached Razorpay within a manually
+observed **5.6-second upper bound**, and its owner-completed capture credited the
+wallet correctly. This is not a timing guarantee or proof that every media-heavy
+wash checkout takes the same time. See
+[WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md) for current evidence.
+The older BLOCKED state and statement that Captain needs no release apply only
+to the original Customer-only change, not the later offer update.
+
 The owner requested one payment-method choice in Razorpay and a faster transition
 from Pay. This explicitly permits skipping the live C17 payment-method sheet.
 The authored Review and C18 layouts, typography, palette and controls remain.

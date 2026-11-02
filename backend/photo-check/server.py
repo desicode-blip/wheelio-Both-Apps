@@ -43,11 +43,20 @@ def quality(photo):
 def feature(photo):
     if quality(photo):
         return None
-    detector.setInputSize((photo.shape[1], photo.shape[0]))
-    _, faces = detector.detect(photo)
-    if faces is None or len(faces) != 1 or min(faces[0][2:4]) < 80:
+    # Camera-sized close-up faces can exceed YuNet's useful detection scale.
+    # Detect at a bounded resolution, then map landmarks back to the original
+    # for SFace alignment. Do not lower confidence or the original face-size gate.
+    scale = min(1.0, 640 / max(photo.shape[:2]))
+    sample = photo if scale == 1 else cv2.resize(photo, None, fx=scale, fy=scale)
+    detector.setInputSize((sample.shape[1], sample.shape[0]))
+    _, faces = detector.detect(sample)
+    if faces is None or len(faces) != 1:
         return None
-    return recognizer.feature(recognizer.alignCrop(photo, faces[0]))
+    face = faces[0].copy()
+    face[:14] /= scale  # bbox and five landmark pairs; keep confidence untouched
+    if min(face[2:4]) < 80:
+        return None
+    return recognizer.feature(recognizer.alignCrop(photo, face))
 
 def compare(reference, capture):
     with lock:

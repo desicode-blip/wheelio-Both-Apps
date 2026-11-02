@@ -1,5 +1,12 @@
 # Wallet and live offers - 2 November 2026
 
+The continued native check exposed a background-presence delay and camera-scale
+selfie rejection. Captain **1.0.2 (3)** adds immediate startup/resume presence and
+uses the existing loading state to make Accept a single pending action. The
+private photo service normalizes detection resolution without lowering match or
+quality safeguards. See the follow-up in the report below for actual acceptance.
+No screen layout, asset, typography or palette changed for this correction.
+
 [WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md) records the owner's
 explicit UI additions: live Home wallet balance, wallet/top-up screen, and separate
 wallet versus gateway checkout actions. Customer 1.0.2 (3) and Captain 1.0.1 (2)

@@ -17,7 +17,7 @@ after timeout, which incorrectly implied another Captain accepted.
   in the **same transaction** as the captured booking and capacity reservation.
   It does not wait for another cold dispatch trigger, a five-minute scheduler,
   or a 60-second heartbeat. Existing Firestore listeners receive the new offers.
-- All eligible online, approved Captains whose area, mode, fresh heartbeat and
+- All eligible online, approved Captains whose area, mode and
   entire saved work period match can receive the offer. Captains already holding
   overlapping capacity cannot be promised another job. Exact parking, plate,
   Customer identity and media remain private until a Captain wins assignment.
@@ -96,7 +96,7 @@ This later wallet/offer update targets Customer **1.0.2 (3)** and Captain **1.0.
   renewal, full-wallet/insufficient-wallet choices, verified top-ups, duplicated
   callback/webhook races, lost-callback reconciliation, blocked funding, source
   refunds and Customer deletion safeguards.
-- Customer: **72 tests passed**. Captain: **20 passed**, including truthful
+- Customer: **72 tests passed**. Captain: **22 passed**, including truthful
   expired/cancelled/taken screens. Shared Firebase: **33 passed**. Customer,
   Captain and shared Firebase static analysis passed.
 - Final wallet screen and checkout controls were rendered at phone widths using
@@ -108,5 +108,98 @@ This later wallet/offer update targets Customer **1.0.2 (3)** and Captain **1.0.
   recorded hashes of all six affected shared backend modules for deployed-source
   comparison. No application identifiers, signing key or minimum instances changed.
 
-Publication and device acceptance for this later release are pending at this
-source commit. Do not infer their completion from the earlier 1.0.1 (2) install.
+### Published backend and web
+
+All **65 Functions** are ACTIVE. Their exact deployed source generations match
+all six release modules. The documented gateway configuration verified all **58
+HTTP controllers**; the seven non-HTTP Functions retain IAM checks. Anonymous
+booking, Online, admin and all three wallet calls reject access with **401**.
+The first CLI deployment reported invoker-IAM errors for the three new callables;
+their source deployment succeeded, and the documented gateway configuration then
+completed successfully. Organization policy was preserved. Minimum instances
+remain **0**, maximum **5**.
+
+Firestore rules and the Customer/recent-top-up index are deployed; the index is
+READY. Both release web builds are published on default Hosting and all four
+Customer/Captain JavaScript/bootstrap artifacts match their local builds. The
+separate washkrew.com marketing Hosting site was not changed.
+
+### Play and connected Android — 2 November
+
+The upload-signed bundles from `844c77c` were published only to the existing
+WashKrew internal tracks:
+
+| App | Version | Play release time (IST) | Device update time (IST) |
+| --- | --- | --- | --- |
+| Customer | **1.0.2 (3)** | **14:15** | **14:27:13** |
+| Captain | **1.0.1 (2)** | **14:21** | **18:17:50** |
+
+Both Play pages report **Available to internal testers**. Android package
+read-back confirms `com.android.vending`, target SDK 36 and those exact versions.
+Both installed base APK signatures passed verification and match the respective
+Play deployment certificate recorded in `PLAY-INTERNAL-2026-11-01.md`. App data,
+login and Captain approval/coverage were preserved. Captain reopened Online with
+the existing 10 km work area and no society selection. No TrustKeyper app,
+release, signing or tester setup changed.
+
+Native Customer checks observed the top-right Home wallet button, current balance,
+wallet amount field and recent-top-up state. A **₹1** top-up opened live Razorpay
+within a **5.6-second observation window** after the tap; this is an upper bound
+from manual observations, not a general timing guarantee. Checkout showed UPI,
+debit cards, netbanking and wallets, with no credit-card, EMI or pay-later group.
+Its UPI subpage showed multiple installed apps and an Others choice.
+
+The owner completed that **₹1 payment himself on the phone**. Read-only backend
+inspection verified a captured 100-paise payment, 100 paise credited, its matching
+single top-up payment record, and a 100-paise wallet balance. Home updated to ₹1;
+the wallet screen also showed ₹1 and **Added to wallet**. The agent did not enter
+a UPI PIN, submit the financial confirmation or fabricate credit.
+
+The existing booking flow reached Check and pay with separate **Pay by wallet**
+and **Pay via Razorpay** actions. Further shortfall/retry and live offer checks
+are being recorded; a new paid wash and a physical first-acceptance race have not
+yet been established by this native session. Two-Captain fan-out, first-winner
+atomicity and timeout/cancellation messages are covered by the isolated tests
+above. Windows checks do not establish Xcode or physical iPhone acceptance.
+
+### Owner's continued native check and additional corrections
+
+The owner continued operating the phone during the shortfall check. He completed
+the **₹148** shortfall top-up and then booked the **₹149** wash using the wallet.
+Read-only inspection verified both captured top-ups, exactly **14,900 paise**
+credited in total, and then the actual captured wash assigned to his approved
+Captain. These financial actions and acceptance were performed by the owner.
+
+The new booking exposed a remaining background case: the online Captain's stale
+foreground heartbeat excluded him at settlement, and the next heartbeat produced
+the offer about **71.6 seconds** after confirmation. He accepted it about five
+seconds after that offer was created. This is a measured remaining defect, not
+evidence that the first release removed every source of delay.
+
+The follow-up preserves the designs and corrects three behavior paths:
+
+- An explicitly Online, approved Captain still receives coarse offers while the
+  OS pauses background Dart timers. Authenticated Accept rechecks approval,
+  Online, area, mode, work hours, offer expiry and capacity, and records presence
+  atomically instead of requiring another heartbeat first. First-winner atomicity
+  and privacy remain unchanged.
+- Captain startup/resume refreshes presence immediately. Repeated profile echoes
+  do not cause request loops; concurrent resume/timer refreshes share a request;
+  failed refreshes retry on the next signal and account switches clear state.
+- Accept shows the existing loading state on the first tap and blocks duplicate
+  Accept/Reject actions until the result. Successful live acceptance goes Home
+  without the artificial 400 ms wait. It never displays success before the server.
+
+The owner's selfie attempts were actually reaching the private comparison service
+and returning `retake`; the approved reference existed and passed basic quality.
+A private in-memory diagnostic found no face at 960–1600 px detection resolution,
+but one usable face at 320/640 px. No raw selfie or embedding was saved in Git or
+written to diagnostic logs. YuNet now detects at at most **640 px** and maps its
+landmarks back to the original image for SFace alignment. Confidence, the original
+80 px minimum face size, single-face requirement and match threshold are unchanged.
+Five local model tests, including real public matching/different-person fixtures
+and a high-resolution capture, passed. This is not a KYC or job verification
+override; the current real selfie still requires a fresh server result.
+
+This follow-up targets Captain **1.0.2 (3)**; its final deployment, Play and device
+results will be appended after verification. Customer remains **1.0.2 (3)**.

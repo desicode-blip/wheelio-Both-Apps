@@ -5,6 +5,7 @@
 
 import 'dart:async';
 import 'offer_feed.dart';
+import 'presence.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -955,7 +956,13 @@ class CaptainStore extends ChangeNotifier {
   Timer? _heartbeat;
   Timer? _locationTimer;
   bool _sharingLocation=false,_locationBusy=false,_foreground=true;
-  void foreground(bool value){_foreground=value;}
+  late final _presence=CaptainPresence((uid) async {
+    if(isLive&&!_disposed&&liveUid==uid)await live!.call('setCaptainOnline',{'online':true});
+  });
+  void foreground(bool value){
+    _foreground=value;
+    if(isLive){_presence.foreground(value);if(value)_applyLiveOffers();}
+  }
   Future<void> openDirections()async{
     final job=current;
     if(!isLive){await Device.openMapsSearch(job.fullAddress);return;}
@@ -1040,7 +1047,7 @@ class CaptainStore extends ChangeNotifier {
     }));
     _heartbeat = Timer.periodic(const Duration(seconds: 60), (_) {
       if(liveUid.isNotEmpty) { _rebuildQueue(); _applyEarnings(); changed(); }
-      if (isLive && online && liveUid.isNotEmpty) live!.call('setCaptainOnline', {'online': true}).catchError((Object _) => <String, dynamic>{});
+      if (isLive && online && liveUid.isNotEmpty) unawaited(_presence.refresh());
     });
   }
 
@@ -1049,6 +1056,7 @@ class CaptainStore extends ChangeNotifier {
       s.cancel();
     }
     _accountSubs.clear();
+    _presence.clear();
     liveUid = uid;
     liveLoaded = uid.isEmpty;
     liveCaptain = {};
@@ -1136,6 +1144,7 @@ class CaptainStore extends ChangeNotifier {
       _applyEarnings();
       _offerFeed.mode=liveCaptain['paymentMode'] as String?;
       _applyLiveOffers();
+      _presence.profile(uid,online:online);
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.orders(uid, captain: true).listen((s) {
@@ -1416,7 +1425,7 @@ class CaptainStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed=true;liveUid='';
+    _disposed=true;liveUid='';_presence.clear();
     _heartbeat?.cancel();
     _locationTimer?.cancel();
     _preferenceSave?.cancel();

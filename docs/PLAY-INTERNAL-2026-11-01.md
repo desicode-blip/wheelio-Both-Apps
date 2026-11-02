@@ -1,5 +1,20 @@
 # Separate WashKrew Android internal apps — 1 November 2026
 
+## Latest accepted updates — 2 November 2026
+
+Customer **1.0.2 (3)** and Captain **1.0.1 (2)** from `844c77c` are available to
+internal testers in their existing separate tracks, published at **14:15** and
+**14:21 IST** respectively. The connected phone updated through Play at
+**14:27:13** and **18:17:50 IST**. Package metadata and installed APK signature
+verification confirm both versions, Play delivery and the registered deployment
+certificates. Data/logins were preserved; no unrelated app was changed.
+
+Customer Home/wallet balance and an owner-completed **₹1 live wallet top-up**
+were checked on the phone and against authenticated server records. See
+[WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md) for the scoped UI
+authorization, full release/test evidence and remaining native acceptance gates.
+Earlier delivery errors and old version numbers below are historical.
+
 The owner explicitly requires two distinct WashKrew apps and no changes to the
 existing TrustKeyper app setup. Both WashKrew registrations were created in the
 existing publisher after the owner authorized their policy/export declarations.

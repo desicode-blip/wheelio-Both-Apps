@@ -1,5 +1,13 @@
 # Wallet top-ups and atomic offers - 2 November 2026
 
+Follow-up: explicit Online remains eligible for coarse offers while the mobile
+OS suspends foreground heartbeat timers; authenticated claim rechecks eligibility
+and records presence in the same assignment transaction. Captain resumes refresh
+immediately. The existing private YuNet/SFace service detects at bounded camera
+resolution and aligns on the original image; no new provider or verification
+bypass is introduced. Presence/Accept mocks and public model fixtures exist only
+in controlled tests. See the current wallet/offer report for native evidence.
+
 The owner authorized the wallet/checkout UI additions and funded credit through
 the existing WashKrew Razorpay merchant. New server callables are
 `createWalletTopup`, `verifyWalletTopup`, `checkWalletTopup`; existing signed

@@ -463,7 +463,10 @@ export class WashKrewService {
     const seconds=Number.isInteger(cfg.offerTtlSeconds)&&cfg.offerTtlSeconds>=30?cfg.offerTtlSeconds:60;
     return captains.docs.filter(d=>{
       const c=d.data(),old=priorByCaptain.get(d.id);
-      return canTakeJobs(c)&&c.online&&d.id!==o.customerId&&c.paymentMode===o.paymentMode&&this.now()-dateMillis(c.lastSeenAt)<120000&&this.worksWindow(c,o)&&areaFits(c,o,cfg.societies)&&
+      // Online is the Captain's availability choice. A paused mobile app cannot
+      // maintain a 60-second Dart timer; it must still receive a coarse push.
+      // Claim independently rechecks authenticated eligibility and capacity.
+      return canTakeJobs(c)&&c.online&&d.id!==o.customerId&&c.paymentMode===o.paymentMode&&this.worksWindow(c,o)&&areaFits(c,o,cfg.societies)&&
         !(old&&(['rejected','accepted','withdrawn'].includes(old.status)||dateMillis(old.expiresAt)>this.now()))&&
         !bookings.docs.some(b=>b.id!==bookingId&&b.data().capacityReserved&&!['cancelled','approved'].includes(b.data().status)&&(b.data().captainId??b.data().capacityCaptainId)===d.id&&b.data().paymentMode===o.paymentMode&&dateMillis(b.data().slotStart)<dateMillis(o.slotEnd)&&dateMillis(b.data().slotEnd)>dateMillis(o.slotStart));
     }).map(d=>[this.db.doc(`jobOffers/${hash(`${bookingId}:${d.id}`)}`),{
@@ -622,7 +625,7 @@ export class WashKrewService {
         tx.get(this.db.doc(`jobOffers/${hash(`${orderId}:${uid}`)}`)), tx.get(this.db.collection('jobOffers').where('orderId','==',orderId))]);
       const o = booking.data(), c = captain.data(), f = offer.data();
       if(o?.captainId===uid&&['onTheWay','washing','photosReady'].includes(o.status))return;
-      if (!canTakeJobs(c) || !c.online || this.now()-dateMillis(c.lastSeenAt)>=120000 || !(o?.coveragePolicy==='captainAreaV1'?covers(c,o.coverageLocation):c.societyIds?.includes(o?.societyId)) || c.paymentMode !== o?.paymentMode) fail('permission-denied', 'You are not available for this society.');
+      if (!canTakeJobs(c) || !c.online || !(o?.coveragePolicy==='captainAreaV1'?covers(c,o.coverageLocation):c.societyIds?.includes(o?.societyId)) || c.paymentMode !== o?.paymentMode) fail('permission-denied', 'You are not available for this booking.');
       if (!o || o.customerId === uid || o.status !== 'searching' || o.paymentStatus !== 'captured') fail('failed-precondition', 'This job is no longer available.');
       if (dateMillis(o.slotEnd)<=this.now() || !this.worksWindow(c,o) || dateMillis(f?.slotStart)!==dateMillis(o.slotStart)) fail('failed-precondition','This time window is no longer available.');
       const assigned = await tx.get(this.db.collection('orders').where('captainId','==',uid).where('status','in',['onTheWay','washing','photosReady']));
@@ -640,7 +643,9 @@ export class WashKrewService {
       }
       touchAreaLock(tx,lock);
       tx.update(ref, { ...(o.coveragePolicy==='captainAreaV1'?{capacityCaptainId:uid}:{}),captainId: uid, captain: { id: uid, name: c.name.split(' ')[0], rating: c.rating ?? 0, washes: c.completedWashes ?? 0 }, status:'onTheWay', assignedAt:stamp(),updatedAt:stamp() });
-      tx.update(captain.ref,{activeJobCount:(c.activeJobCount??0)+1,updatedAt:stamp()});
+      // This authenticated Accept proves presence; never make a returning phone
+      // wait for a separate heartbeat before its valid first acceptance.
+      tx.update(captain.ref,{activeJobCount:(c.activeJobCount??0)+1,lastSeenAt:stamp(),updatedAt:stamp()});
       for (const f of offers.docs) tx.update(f.ref,{status:f.data().captainId===uid?'accepted':'withdrawn',closedReason:'assigned',updatedAt:stamp()});
       this.event(tx,ref,'captainAssigned',{captainId:uid,status:'onTheWay'});
     });

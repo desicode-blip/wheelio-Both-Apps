@@ -1053,6 +1053,17 @@ test('paid capacity is shared across different homes; another customer cannot ov
   assert.equal(orders.filter(d=>d.data().capacityReserved).length,1);
   assert.equal(orders.filter(d=>d.data().status==='cancelled').length,1);
 });
+test('online background Captains receive offers and authenticated Accept refreshes presence atomically',async()=>{
+  const center=await areaSetup();
+  for(const uid of ['captain1','captain2'])await db.doc('captains/'+uid).update({lastSeenAt:Timestamp.fromMillis(clock-5*60000)});
+  const b=await payArea('customer',await areaInput('customer','background-presence',center));
+  const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+  assert.deepEqual(new Set(offers.docs.map(d=>d.data().captainId)),new Set(['captain1','captain2']));
+  await service.claim(auth('captain1'),{orderId:b.bookingId});
+  assert.equal((await db.doc('orders/'+b.bookingId).get()).data().captainId,'captain1');
+  assert.ok((await db.doc('captains/captain1').get()).data().lastSeenAt.toMillis()>=clock);
+});
+
 test('area edit removes eligibility at claim; booked job remains finishable after later area changes',async()=>{
   const center=await areaSetup(),data=await areaInput('customer','claim-area',center),b=await payArea('customer',data);
   await service.saveCaptainArea(auth('captain1'),{center:{latitude:18,longitude:79},radiusKm:1,label:'Moved area',workingSlots:[]});

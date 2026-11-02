@@ -1324,7 +1324,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
   /// Reject: the top card goes to the back of the stack (its timer keeps running).
   /// With only one card left, Reject closes the alert.
   void _reject() {
-    if (handled || offers.isEmpty) return;
+    if (handled || claiming || offers.isEmpty) return;
     if (offers.length == 1) {
       if (context.store.isLive) context.store.liveReject(offers.first.job.id).catchError((Object _) {});
       _leave();
@@ -1422,7 +1422,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         if (offers.isEmpty) {
           handled = true;
           store.set(() => store.toast = store.t('Added to your jobs', 'आपके कामों में जोड़ा गया', 'మీ పనుల్లో చేర్చబడింది'));
-          Future.delayed(const Duration(milliseconds: 400), router.home);
+            router.home();
         }
       }).catchError((Object _) {
         if (mounted) setState(() {claiming=false;});
@@ -1780,7 +1780,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                 SizedBox(
                   width: 150,
                   child: Pressable(
-                    enabled: offers.isNotEmpty,
+                    enabled: offers.isNotEmpty && !claiming,
                     onTap: _reject,
                     child: Container(
                       height: 72,
@@ -1800,7 +1800,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, enabled: offers.isNotEmpty && !_topMissed, onTap: _accept),
+                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, loading: claiming, enabled: offers.isNotEmpty && !_topMissed && !claiming, onTap: _accept),
                 ),
               ],
             ),

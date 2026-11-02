@@ -23,6 +23,9 @@ fixtures=["https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/s
 reference,other=[base64.b64encode(urllib.request.urlopen(u,timeout=30).read()).decode() for u in fixtures]
 assert request(url+"/compare",{"reference":reference,"capture":reference},authorization)["status"]=="candidateMatch"
 assert request(url+"/compare",{"reference":reference,"capture":other},authorization)["status"]=="review"
+full=cv2.imdecode(np.frombuffer(base64.b64decode(reference),np.uint8),cv2.IMREAD_COLOR)
+_,large=cv2.imencode(".jpg",cv2.resize(full,None,fx=3,fy=3))
+assert request(url+"/compare",{"reference":reference,"capture":base64.b64encode(large).decode()},authorization)["status"]=="candidateMatch"
 _,blank=cv2.imencode(".jpg",np.ones((480,640,3),np.uint8)*150)
 image=base64.b64encode(blank).decode()
 assert request(url+"/thumbnail",{"capture":image},authorization)["issue"]=="obscured"
