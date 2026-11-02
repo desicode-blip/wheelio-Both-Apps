@@ -1,5 +1,12 @@
 # Wallet top-ups and atomic offers - 2 November 2026
 
+Captain 1.0.3 resumes from the existing authenticated order record rather than
+restarting arrival and identity verification. A server-only SDK order read after
+arrival and Captain stream metadata transitions keep routing tied to confirmed
+progress. No new service, callable, production test button, seeded account or
+verification bypass is introduced. The injected store and timestamp/order
+fixtures used to reproduce cold reopening exist only in Flutter tests.
+
 Follow-up: explicit Online remains eligible for coarse offers while the mobile
 OS suspends foreground heartbeat timers; authenticated claim rechecks eligibility
 and records presence in the same assignment transaction. Captain resumes refresh

@@ -291,3 +291,29 @@ results remain actual owner/device evidence. After updating, the owner should
 check capture → Check photos → resolve/acknowledge actual photo advice → successful
 submission → Customer Check the wash. Do not stage a wash or approve evidence
 merely to obtain a passing result.
+
+### Reopening an active job — Captain 1.0.3 (4)
+
+The owner reported reopening at the selfie sequence despite having uploaded
+Before and After evidence, then receiving arrival/location validation errors
+when attempting identity verification again. Home/Jobs and plan notifications
+previously opened Go to vehicle unconditionally. The arrival control then sent
+the Captain toward the identity screen even for an already washing job.
+
+The corrected client selects the existing screen from confirmed server state:
+arrival → actual unheard owner recording → identity → Before photos → washing →
+After photos when any After evidence is registered → submitted job. Startup
+waits for both the account profile and server-confirmed orders; a cache-only
+empty result cannot consume the one-time restoration. Home, Jobs and assigned-job
+notifications use the same resolver. An obsolete selfie route redirects to the
+current saved phase before opening the camera. Existing backend location,
+assignment, private-photo, identity and evidence checks remain authoritative.
+
+All **36 Captain tests** and **35 shared Firebase tests** pass, with clean static
+analysis for both packages. Six new regressions exercise the phase matrix,
+partial/full photo restoration, account isolation, repeated cold reopen,
+profile-first/orders-first startup and stale selfie routing. These are isolated
+fixtures, not manual writes to the owner's active job. No UI layout is changed.
+This restoration uses already-uploaded server evidence; unsent captures still
+do not have durable app-termination persistence. Native reopening and publication
+of version 1.0.3 (4) are pending until recorded below.

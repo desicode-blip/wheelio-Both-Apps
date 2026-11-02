@@ -19,13 +19,14 @@ import 'screens/welcome.dart';
 Future<void> main() => launchWashKrew(captain: true, demo: const CaptainApp());
 
 class CaptainApp extends StatefulWidget {
-  const CaptainApp({super.key});
+  const CaptainApp({super.key,this.store});
+  final CaptainStore? store;
   @override
   State<CaptainApp> createState() => _CaptainAppState();
 }
 
 class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
-  final store = CaptainStore(live: WashKrewRuntime.backend);
+  late final store = widget.store??CaptainStore(live: WashKrewRuntime.backend);
   final router = WRouterC();
 
   @override
@@ -98,12 +99,24 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
   );
 }
 
-class _Root extends StatelessWidget {
+class _Root extends StatefulWidget {
   const _Root();
+  @override State<_Root> createState()=>_RootState();
+}
+class _RootState extends State<_Root>{
+  String? restoredAccount;
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    if(store.liveUid.isEmpty)restoredAccount=null;
+    if(store.isLive&&store.liveUid.isNotEmpty&&store.liveLoaded&&store.liveOrdersLoaded&&store.signedUp&&restoredAccount!=store.liveUid){
+      restoredAccount=store.liveUid;
+      final account=store.liveUid;
+      WidgetsBinding.instance.addPostFrameCallback((_){
+        if(mounted&&store.liveUid==account&&router.path.isEmpty)store.resumeWork(router);
+      });
+    }
     return Material(
       color: WColor.white,
       child: Stack(

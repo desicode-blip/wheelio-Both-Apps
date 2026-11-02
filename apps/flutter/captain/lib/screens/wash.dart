@@ -154,12 +154,22 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    final destination=store.isLive?store.workDestination(store.current.id):null;
+    if(store.isLive&&!checking&&destination!=null&&destination!=N.faceCheck&&router.isAt(N.faceCheck)){
+      WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&!checking&&router.isAt(N.faceCheck))store.resumeWork(router,orderId:store.current.id);});
+    }
     return WScreen(
       gutter: WSpace.gutterCaptain,
       scrolls: false,
       header: WHeader(title: store.t('Quick check', 'जल्दी जाँच', 'త్వరిత తనిఖీ')),
       footer: WFooter(
         child: WButton(store.t('Open camera', 'कैमरा खोलें', 'కెమెరా తెరవండి'), icon: WIcon.camera, size: ButtonSize.captain, loading: checking, onTap: () async {
+          if(checking)return;
+          if(store.isLive&&store.workDestination(store.current.id)!=N.faceCheck){
+            if(!store.resumeWork(router,orderId:store.current.id))store.set(()=>store.toast='Your saved job is still loading. Try again in a moment.');
+            return;
+          }
+          final jobId=store.current.id;
           setState(() => checking = true);
           // Compare the private capture to the approved Captain photo on the server.
           if (store.isLive) {
@@ -168,13 +178,14 @@ class _FaceCheckScreenState extends State<FaceCheckScreen> {
               if(image==null){if(mounted)setState(()=>checking=false);return;}
               final issue=await checkPhotoQuality(image);
               if(issue!=null)throw MediaAccessException(photoIssueMessage(issue));
-              final result=await store.live!.verifyCaptainIdentity(store.current.id,image);
+              final result=await store.live!.verifyCaptainIdentity(jobId,image);
               if(result['verified']!=true){store.set(()=>store.toast=result['message'] as String? ?? 'This check needs an operations review.');if(mounted)setState(()=>checking=false);return;}
             }catch(e){store.set(()=>store.toast=backendError(e));if(mounted)setState(()=>checking=false);return;}
           } else {
             await sleepMs(1200);
           }
           if (!mounted) return;
+          if(store.isLive&&store.current.id!=jobId){setState(()=>checking=false);return;}
           setState(() => checking = false);
           router.replace(const [R(N.goToVehicle), R(N.beforePhotos)]);
         }),

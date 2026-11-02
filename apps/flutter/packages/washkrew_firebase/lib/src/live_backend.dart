@@ -223,7 +223,9 @@ class LiveBackend {
       .collection('orders')
       .where(captain ? 'captainId' : 'customerId', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
-      .snapshots();
+        .snapshots(includeMetadataChanges:captain);
+  Future<Map<String,dynamic>?> readAssignedOrder(String orderId) async =>
+      (await db.doc('orders/$orderId').get(const GetOptions(source:Source.server))).data();
   Stream<QuerySnapshot<Map<String, dynamic>>> offers(String uid) =>
       db.collection('jobOffers').where('captainId', isEqualTo: uid).snapshots();
   Stream<QuerySnapshot<Map<String, dynamic>>> earnings(String uid) =>

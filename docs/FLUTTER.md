@@ -1,3 +1,21 @@
+# Captain job restoration - 2 November 2026
+
+Captain **1.0.3 (4)** restores the confirmed assigned-job phase after a cold
+reopen and from Home, Jobs or job notifications. Arrival, listened owner note,
+verified identity, wash status and registered Before/After evidence determine the
+existing destination. A washing job with uploaded After photos reopens After
+photos, not the arrival/selfie sequence. Startup waits for the authenticated
+profile and a server orders snapshot, including the metadata-only transition
+from an empty cache. A stale selfie route redirects before launching a camera.
+No layout, typography, asset, palette or server verification guard changes.
+
+Six new regressions cover phase selection, job/account isolation, two cold
+reopens with uploaded evidence, both profile/orders arrival sequences and the
+stale selfie route. All **36 Captain** and **35 shared Firebase** tests pass;
+both packages pass static analysis. Publication and device evidence belong in
+[WALLET-OFFERS-2026-11-02.md](WALLET-OFFERS-2026-11-02.md). This does not add
+durable storage for captures that had not finished uploading before termination.
+
 # Wallet and live offers - 2 November 2026
 
 The continued native check exposed a background-presence delay and camera-scale

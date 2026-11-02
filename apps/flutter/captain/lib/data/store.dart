@@ -7,6 +7,7 @@ import 'dart:async';
 import 'offer_feed.dart';
 import 'presence.dart';
 import 'evidence_uploads.dart';
+import 'job_resume.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -651,7 +652,44 @@ class CaptainStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The captain picked a different job to do first: it becomes the current one.
+  /// Keep every entry point on the last confirmed phase of this assigned job.
+  N? workDestination(String id)=>switch(captainJobPhase(liveOrders[id])){
+    CaptainJobPhase.arrival=>N.goToVehicle,
+    CaptainJobPhase.ownerNote=>N.ownerNote,
+    CaptainJobPhase.identity=>N.faceCheck,
+    CaptainJobPhase.beforePhotos=>N.beforePhotos,
+    CaptainJobPhase.washing=>N.washing,
+    CaptainJobPhase.afterPhotos=>N.afterPhotos,
+    CaptainJobPhase.submitted=>N.jobDone,
+    CaptainJobPhase.cancelled=>liveOrders[id]?['cancellationReason']=='slotExpired'?N.noShowCancelled:N.ownerCancelled,
+    null=>null,
+  };
+  String? get resumableWorkId {
+    final jobs=liveOrders.values.where((o)=>['onTheWay','washing','photosReady'].contains(o['status'])&&!(_date(o['slotStart'])?.isAfter(DateTime.now())??true)).toList();
+    jobs.sort((a,b){
+      int priority(Map<String,dynamic> o)=>o['status']=='washing'?0:o['status']=='onTheWay'?1:2;
+      final stage=priority(a).compareTo(priority(b));
+      return stage!=0?stage:(_date(b['slotStart'])??DateTime(2000)).compareTo(_date(a['slotStart'])??DateTime(2000));
+    });
+    return jobs.firstOrNull?['id'] as String?;
+  }
+  bool resumeWork(WRouterC router,{String? orderId}){
+    if(!isLive){router.go(N.goToVehicle);return true;}
+    final id=orderId??resumableWorkId;
+    if(id==null)return false;
+    final destination=workDestination(id);
+    if(destination==null)return false;
+    startJob(id);
+    router.replace([R(destination)]);
+    return true;
+  }
+  Future<void> refreshJob(String id) async {
+    await _call(()async{
+      final account=liveUid,order=await live!.readAssignedOrder(id);
+      if(_disposed||liveUid!=account||order==null||order['captainId']!=account)return;
+      liveOrders[id]={...order,'id':id};_rebuildQueue();changed();
+    });
+  }
   void startJob(String id) {
     if (isLive) {
       final j=queue.where((j)=>j.id==id&&!j.cancelled).firstOrNull;
@@ -930,6 +968,7 @@ class CaptainStore extends ChangeNotifier {
   bool get isLive => live != null;
   String liveUid = '';
   bool liveLoaded = false;
+  bool liveOrdersLoaded = false;
   Map<String, dynamic> liveCaptain = {}, liveConfig = {};
   final Map<String, Map<String, dynamic>> liveOrders = {};
   List<Job> liveOffers = [];
@@ -1060,6 +1099,7 @@ class CaptainStore extends ChangeNotifier {
     _presence.clear();
     liveUid = uid;
     liveLoaded = uid.isEmpty;
+    liveOrdersLoaded = uid.isEmpty;
     liveCaptain = {};
     _workflowOrderId=null; _shotJobId=null; _evidenceVersions.clear(); shots.clear();_evidenceUploads.clear();
     _sharingLocation=false;_locationTimer?.cancel();_locationTimer=null;
@@ -1149,19 +1189,7 @@ class CaptainStore extends ChangeNotifier {
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.orders(uid, captain: true).listen((s) {
-      if (liveUid != uid) return;
-      final previousId=current.id,previousStatus=liveOrders[current.id]?['status'];
-      liveOrders
-        ..clear()
-        ..addAll({for (final d in s.docs) d.id: {...d.data(), 'id': d.id}});
-      _rebuildQueue();
-      _applyEarnings();
-      if(['onTheWay','washing'].contains(previousStatus)&&liveOrders[previousId]?['status']=='cancelled'){
-        _workflowOrderId=previousId;
-        noShowCancelled=liveOrders[previousId]?['cancellationReason']=='slotExpired';noShowPlate=liveOrders[previousId]?['plate']??'';
-        scheduleMicrotask((){if(liveUid==uid)onJobCancelled?.call(previousId,liveOrders[previousId]?['cancellationReason']??'customerCancelled');});
-      }
-      changed();
+      receiveLiveOrders(uid,[for(final d in s.docs){...d.data(),'id':d.id}],fromCache:s.metadata.isFromCache);
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.offers(uid).listen((s) {
       if (liveUid != uid) return;
@@ -1188,6 +1216,19 @@ class CaptainStore extends ChangeNotifier {
     changed();
   }
 
+  void receiveLiveOrders(String account,Iterable<Map<String,dynamic>> orders,{bool fromCache=false}){
+    if(_disposed||liveUid!=account)return;
+    if(!fromCache)liveOrdersLoaded=true;
+    final previousId=current.id,previousStatus=liveOrders[current.id]?['status'];
+    liveOrders..clear()..addAll({for(final order in orders)order['id'] as String:order});
+    _rebuildQueue();_applyEarnings();
+    if(['onTheWay','washing'].contains(previousStatus)&&liveOrders[previousId]?['status']=='cancelled'){
+      _workflowOrderId=previousId;
+      noShowCancelled=liveOrders[previousId]?['cancellationReason']=='slotExpired';noShowPlate=liveOrders[previousId]?['plate']??'';
+      scheduleMicrotask((){if(liveUid==account)onJobCancelled?.call(previousId,liveOrders[previousId]?['cancellationReason']??'customerCancelled');});
+    }
+    changed();
+  }
   void _applyLiveOffers(){
       offerExpiry.clear();
       offerOutcomes.clear();
@@ -1473,7 +1514,7 @@ String? _openPlanJob(WNotif n, CaptainStore store, WRouterC router) {
   final j = store.queue.where((x) => x.id == n.jobId).firstOrNull;
   if (j == null || j.status == JobStatus.done) return store.t('This job has moved on.', 'यह काम आगे बढ़ चुका है।', 'ఈ పని ముందుకు వెళ్ళింది.');
   if (j.status == JobStatus.next) store.startJob(j.id);
-  router.go(N.goToVehicle);
+  if(store.isLive){store.resumeWork(router,orderId:j.id);}else{router.go(N.goToVehicle);}
   return null;
 }
 
@@ -1484,6 +1525,14 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
   final isCurrent = n.jobId != null && store.queue.any((j) => j.id == n.jobId && j.status == JobStatus.now);
   switch (n.kind) {
     case WNotifKind.newJob:
+      if(store.isLive&&n.jobId!=null){
+        if(store.liveOrders.containsKey(n.jobId)){
+          if(store.resumeWork(router,orderId:n.jobId))return null;
+        }else if(store.online&&store.liveOffers.any((j)=>j.id==n.jobId)){
+          router.push(const R(N.jobAlert));return null;
+        }
+        return store.t('This job is no longer available.', 'यह काम अब उपलब्ध नहीं है।', 'ఈ పని ఇప్పుడు అందుబాటులో లేదు.');
+      }
       if (!store.online || !store.queue.any((j) => j.id == n.jobId && j.status != JobStatus.done)) {
         return store.t('This job is no longer available.', 'यह काम अब उपलब्ध नहीं है।', 'ఈ పని ఇప్పుడు అందుబాటులో లేదు.');
       }
@@ -1501,7 +1550,7 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
       if (!isCurrent || (store.noShowCancelled && n.kind != WNotifKind.gatePassReady)) {
         return store.t('This job has moved on.', 'यह काम आगे बढ़ चुका है।', 'ఈ పని ముందుకు వెళ్ళింది.');
       }
-      router.go(N.goToVehicle);
+      if(store.isLive){store.resumeWork(router,orderId:n.jobId);}else{router.go(N.goToVehicle);}
     case WNotifKind.noShowPenalty:
       router.go(N.noShowCancelled);
     case WNotifKind.washApproved:

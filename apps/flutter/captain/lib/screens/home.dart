@@ -669,11 +669,11 @@ class _DayPlanState extends State<DayPlan> {
       case JobStatus.done:
         showWSheet<void>(context, height: 330, gutter: 20, builder: (_) => _DoneJobSheet(job: j));
       case JobStatus.now:
-        router.go(N.goToVehicle);
+        if(store.isLive){store.resumeWork(router,orderId:j.id);}else{router.go(N.goToVehicle);}
       case JobStatus.next:
         // Captain chose to do this one first: it becomes the current job.
         store.startJob(j.id);
-        router.go(N.goToVehicle);
+        if(store.isLive){store.resumeWork(router,orderId:j.id);}else{router.go(N.goToVehicle);}
     }
   }
 
@@ -1909,7 +1909,7 @@ class JobsTab extends StatelessWidget {
           for (final j in store.todayJobs..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)))) ...[
             WCard(
               onTap: () {
-                if (j.status == JobStatus.now && !j.cancelled && store.signedUp) router.go(N.goToVehicle);
+                if (j.status == JobStatus.now && !j.cancelled && store.signedUp) {if(store.isLive){store.resumeWork(router,orderId:j.id);}else{router.go(N.goToVehicle);}}
               },
               child: Row(
                 children: [
@@ -2046,8 +2046,8 @@ class _GoToVehicleScreenState extends State<GoToVehicleScreen> {
                     }
                   }
                   store.captainArrived();
-                  final media=store.liveOrder(store.current.id)?['customerMedia'] as Map? ?? {};
-                  router.go((media['note_audio']!=null||media['note_video']!=null)&&!store.ownerNoteHeard?N.ownerNote:N.faceCheck);
+                  try{await store.refreshJob(store.current.id);}catch(_){return;}
+                  if(context.mounted)store.resumeWork(router,orderId:store.current.id);
                   return;
                 }
                 store.captainArrived();
