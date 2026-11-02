@@ -7,6 +7,15 @@ Customer/Captain Flutter layouts and app artifacts are unchanged. Server-side
 availability, payment capacity and claim checks must agree; do not redesign the
 slot picker or restore manual society approval.
 
+Published and verified on 2 November: all 62 deployed Functions contain the
+matching release source (`8d4f4b7`), and API gateway configuration is complete.
+The installed Play Captain successfully went Online without society assignments;
+temporary 9 AM–6 PM hours restricted live availability to full windows within that
+period. Original 4 AM–10 PM hours and Offline were restored. No Flutter source,
+design or installed app version changed for this fix. Full backend suite: 175
+passed; final focused coverage suite: 12 passed. See the linked evidence record
+for the distinction between live checks and isolated capacity tests.
+
 # Captain coverage and Apple key follow-up - 1 November 2026
 
 [CAPTAIN-COVERAGE-2026-11-01.md](CAPTAIN-COVERAGE-2026-11-01.md) records the

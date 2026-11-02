@@ -64,10 +64,17 @@ recurs; do not weaken authentication as a workaround.
 These accounts connect to the **live backend and real-payment gateway**. No
 payment, order, wallet credit, uploaded KYC, completed training or human approval
 was fabricated. App profiles were created through normal registration, not seeded
-as approved records. Captain still needs its documents/payout/area and an actual
-human review before eligible work. The private admin portal remains
+as approved records. At account creation, Captain still needed its documents,
+payout, area and actual human review before eligible work. The private admin portal remains
 https://wheelio-apps.web.app/admin/ and requires an authorized reviewer Google
 account; a test phone login does not grant reviewer access.
+
+Later on 2 November, the owner completed the Captain's actual human approval and
+saved its work area/hours. The agent did not grant approval. The coverage correction
+was then verified using this already-approved Captain: native Go online succeeded,
+temporary hours edits changed live availability, and the original hours / Offline
+state were restored. See
+[COVERAGE-ONLINE-FIX-2026-11-02.md](COVERAGE-ONLINE-FIX-2026-11-02.md).
 
 This verifies convenient test-number login, not real-SMS Play Integrity, APNs,
 physical iPhone acceptance or a completed live paid wash. Real-number/native OTP

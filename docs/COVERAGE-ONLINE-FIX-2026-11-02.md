@@ -1,8 +1,9 @@
 # Captain Online and dynamic area capacity — 2 November 2026
 
-Status at this commit: local verification complete; production publication and
-physical follow-up still pending. Append actual deployment/device results below
-before claiming the live error is resolved.
+Status: the backend correction is published and verified in `wheelio-apps`.
+The owner-approved Captain successfully went Online in the installed Play app
+without a society assignment. Live availability followed temporary work-hours
+edits; the original hours and Offline state were restored. Source: `8d4f4b7`.
 
 ## Cause and owner rule
 
@@ -58,16 +59,48 @@ All simulated payment captures and test approvals above are confined to
 `demo-wheelio` and the existing fake provider, not the live merchant/project.
 The target remains the existing Standard `(default)` database in `asia-south1`.
 
-## Production verification requirements
+## Production and physical Android evidence — 2 November
 
-1. Publish the matching function code with bounded deployment concurrency; keep
-   existing organization policy, runtime limits and zero minimum instances.
-2. Apply the documented `configure-api-access` operation after publication.
-3. Inspect current function metadata/source generations and compare deployed
-   `service.mjs`, `captain-area.mjs`, `booking-policy.mjs` and `index.mjs` with the
-   local release. Do not infer publication from source present only on disk.
-4. Check the owner's already-approved Captain can go Online through its installed
-   app without the society error; restore its prior Offline state after testing.
-   Do not approve someone or accept a real job as a test.
-5. Read actual availability at the saved area without creating a paid booking;
-   distinguish this live read/Online check from the emulator's saturation cases.
+1. All **62 existing Functions** updated successfully using the official Firebase
+   CLI with process-local deployment concurrency of two. No function was added or
+   deleted. Every function is ACTIVE, with minimum instances **0** and maximum
+   instances **5**. No paid warm instance or organization-policy change was made.
+2. The exact GCS source generation of each of the 62 functions was downloaded.
+   SHA256 comparison of normalized `service.mjs`, `captain-area.mjs`,
+   `booking-policy.mjs` and `index.mjs` matched the release for every function.
+   This checks the actual deployed archives, including the previously stale
+   `setCaptainOnline`, rather than assuming a deployment summary proves parity.
+3. `configure-api-access` completed on retry after one request timed out. Read-back
+   confirmed all **55 documented HTTP gateways** enabled and all **7 scheduled /
+   triggered functions** retaining their IAM checks. Anonymous calls to
+   `setCaptainOnline`, `createBooking` and `listCaptainApplications` each returned
+   HTTP 401 / `UNAUTHENTICATED`; application/reviewer checks remain enforced.
+4. On the connected OnePlus, the already-installed Play Captain app's existing
+   **Go online** action succeeded with the owner's previously approved account,
+   a saved 10 km work area and **zero legacy society assignments**. The native
+   green Online state and authenticated backend read agreed. The agent did not
+   approve this Captain. The original Offline state was restored afterward.
+5. The existing native work-area editor was used to temporarily change hours.
+   A read-only live `getAvailability` request at the saved work-area centre for
+   **3 November** returned the following results:
+
+   | Saved hours | Available Customer windows | Unavailable windows |
+   | --- | --- | --- |
+   | 9 AM–6 PM | 10 AM–noon, noon–2 PM, 2–4 PM, 4–6 PM | 4–6 AM, 6–8 AM, 8–10 AM, 6–8 PM, 8–10 PM |
+   | Restored 4 AM–10 PM | All nine existing two-hour windows | None |
+
+   The saved hours and availability revision were read back after each change.
+   The final state is **4 AM–10 PM, 10 km radius, Offline**. No map-centre or
+   approval change was intended or needed.
+
+Private raw source archives, live-read records and the native Online screenshot
+are retained in ignored local `.cache/` files, outside Git; they are not public
+customer/Captain records. No app rebuild is required for this backend-only fix.
+Customer and Captain Flutter source, authored designs and installed app versions
+were unchanged by this correction.
+
+The two-Captain saturation, concurrent capture, cancellation and claim assertions
+are **emulator evidence**, not a real paid wash. The live checks above used normal
+Online/hours controls and read-only availability; no live booking, payment, wallet
+credit, job acceptance/completion or approval was fabricated. Full paid-job and
+physical iPhone acceptance remain distinct checks.

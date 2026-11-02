@@ -14,6 +14,16 @@ platform setup instead of earlier pending-state entries. The explicit test-accou
 authorization/results are in
 [FIREBASE-TEST-ACCOUNTS-2026-11-02.md](FIREBASE-TEST-ACCOUNTS-2026-11-02.md).
 
+**2 November correction:** the old deployed Go online society guard was found
+inconsistent with this policy. All 62 Functions have now been redeployed and
+their exact source archives verified. The owner's approved Captain went Online
+without society assignments in the installed Play app. Live availability followed
+native working-hours edits, including the owner's new rule that an entire Customer
+window must fit one continuous work period. Original hours and Offline were
+restored. This supersedes earlier publication assumptions and pending Online
+checks below; see [COVERAGE-ONLINE-FIX-2026-11-02.md](COVERAGE-ONLINE-FIX-2026-11-02.md)
+for the actual source, security, emulator and device evidence. Designs are unchanged.
+
 Owner explicitly authorized this feature's new map/slider UI on 1 November. All other Customer/Captain layouts remain under the af036f0 design lock. Existing demo work-area screens remain available unchanged in the design gallery.
 
 ## Operational rule
@@ -23,6 +33,12 @@ Owner explicitly authorized this feature's new map/slider UI on 1 November. All 
 Human admins still verify identity/payout details at https://wheelio-apps.web.app/admin/. They do not select societies under this policy. A legacy submitted application may be reviewed without a work area, but cannot go Online until one is saved. Never approve a real applicant as a test. Training stays hidden and unrequired.
 
 All confirmed homes/societies inside an approved eligible Captain's radius use that Captain's hours and payment mode. Future slot availability uses scheduled coverage, not an assumption that every Captain must stay Online all day. Dispatch/claim additionally require Online and a fresh heartbeat. Self-booking is excluded. If nobody covers a slot it is unavailable; no payment is authorized by a place-search result alone.
+
+Owner clarification on 2 November: the full Customer window must fit **one
+continuous saved work period**. A partial overlap or a window spanning a break
+does not qualify. Availability, payment capacity, dispatch and claim apply this
+same rule to new Captain-area bookings; historical society bookings retain their
+saved interpretation.
 
 The area centre stays fixed; foreground job/availability GPS never moves it. A saved area/hours/approval change invalidates open offers, refreshes Customer availability and triggers dispatch for matching searching bookings. Existing assigned jobs remain finishable after area edits. Payment/cancellation snapshots stay historical.
 
