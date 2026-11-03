@@ -77,7 +77,35 @@ separately retained as disclosed in the existing delete confirmation.
   hit the existing transaction-closed timeout in a historical cancellation test;
   the standalone full rerun passed 202/202 without changing that financial policy.
 
-Runtime recovery/deployment verification is recorded after publication below.
 No real Captain is approved or fake payment/wash evidence submitted as a test.
 Windows cannot establish Xcode signing, compilation or physical iPhone behavior.
 Use the updated Mac guide/results template for Aman's actual re-registration check.
+
+## Live deployment and requested account recovery
+
+Implementation commit **bafd72c** deployed nine affected Functions and Firestore
+rules successfully to **wheelio-apps / asia-south1**. Post-deployment verification
+confirmed all nine ACTIVE at minimum instances 0, exact source matches for
+`service.mjs`, `account-access.mjs` and `index.mjs`, and matching published rules.
+Anonymous register/delete/create-booking requests return **401 / UNAUTHENTICATED**.
+The documented gateway setup was reapplied without weakening organization policy.
+
+A temporary isolated probe under the actual deletion runtime identity verified
+that allowed private cleanup objects can be deleted, while a different order path
+returns **403**. It used the existing private Python image after function-image
+ad-hoc launch attempts failed before running the test. No probe approved an
+identity, made a booking or charged money. Temporary jobs/marker objects were removed.
+
+The existing enabled maintenance schedule was run once to complete a previously
+server-marked request, not to initiate a new account deletion or manufacture a
+user login. Owner-side checks at **3 November 2026 09:08:15 UTC** establish that
+the reported account's old Auth identity and Captain document are removed,
+the completion record contains no old name/phone or pending-role flag, and its
+KYC/identity/profile Storage prefixes each contain **zero objects**.
+No private identifiers are copied here. Re-registration uses a genuine new phone
+verification and does not resurrect the deleted role/approval.
+
+Installed older apps do not receive the client reset/cache/registration changes
+from a backend deployment. Rebuild Customer **1.0.4 (5)** and Captain **1.0.5 (6)**
+from the current staging handoff before physical acceptance. Test deletion and
+same-phone fresh signup on both roles, including preserving the other app role.
