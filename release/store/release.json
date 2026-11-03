@@ -11,12 +11,21 @@
     "termsUrl": "https://washkrew.com/terms",
     "supportUrl": "https://washkrew.com/support",
     "deletionUrl": "https://washkrew.com/delete-account",
-    "policiesUrl": "https://washkrew.com/policies"
+    "policiesUrl": "https://washkrew.com/policies",
+    "registeredOffice": "Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301",
+    "supportHours": "Phone 24/7, 365 days; email replies within 6 hours",
+    "grievanceOfficer": "Aman Maheshwari",
+    "retention": {
+      "paymentAndInvoiceRecords": "8 years",
+      "washPhotos": "90 days after the wash",
+      "captainIdDocumentsAndSelfies": "90 days after the application decision",
+      "webDeletionRequestCompletion": "within 90 days"
+    }
   },
   "approvals": {
-    "policyTextApproved": false,
-    "supportMailboxAndPhoneVerified": false,
-    "retentionAndPhotoProcessingReviewed": false,
+    "policyTextApproved": true,
+    "supportMailboxAndPhoneVerified": true,
+    "retentionAndPhotoProcessingReviewed": true,
     "storePrivacyAnswersReviewed": false,
     "reviewerAccessConfirmedPrivately": false,
     "currentStoreScreenshotsReady": false,
@@ -43,5 +52,8 @@
       "subtitle": "Manage your wash jobs",
       "description": "WashKrew Captain helps approved Captains manage doorstep exterior vehicle washes. Submit your documents, selfie and payout details for human review. Set your service location, coverage radius and working hours. Once approved, go online to receive eligible nearby offers; the first valid acceptance receives the job. Follow the job steps, record before-and-after vehicle photos and keep the Customer updated. View job and earnings records in the app. Captain approval and available demand are required; this app does not guarantee jobs or income."
     }
+  },
+  "approvalNotes": {
+    "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open."
   }
 }

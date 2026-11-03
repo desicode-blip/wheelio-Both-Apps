@@ -37,3 +37,7 @@ replace it with default Hosting or change GoDaddy/email records during a source
 cleanup. The dated [original deployment record](../../docs/WEBSITE-DEPLOYMENT-2026-10-27.md)
 is historical DNS/certificate evidence, not a current domain-health check.
 This cleanup does not publish or change any deployed website.
+
+## Policy pages (3 November 2026)
+
+`/privacy`, `/terms`, `/support`, `/delete-account` and `/policies` are generated from the Markdown in `release/store/policies/` by `node release/store/prepare-website.mjs --stage-approved`. Edit the Markdown, not the generated HTML. The delete-account form POSTs to `/api/account-deletion-request` (backend still to be built; see `docs/CHANGES-2026-11-03-POLICY-PAGES.md`) and opens a pre-filled email to info@washkrew.com.

@@ -1,0 +1,45 @@
+# Changes 3 November 2026: policy pages and account deletion requests
+
+For the developer (Ajay). Website and policy text only. The Customer and Captain apps, backend, rules and payments are **not changed**. Several items below need backend work before these pages go live, because the policies now promise them.
+
+## Owner decisions (Aman, 3 November 2026)
+
+- Legal name **Washkrew**. Registered office (legal address): Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301.
+- Support: **info@washkrew.com**, **+91 80885 16875**. Phone answered 24/7, 365 days; emails answered within 6 hours.
+- Grievance Officer and Apple review contact: Aman (Aman Maheshwari), same email and phone.
+- Retention: payment and invoice records **8 years**; wash photos **90 days**; Captain ID documents and selfies **90 days**.
+- Account deletion requested from the website: completed **within 90 days**. Each request (1) opens a pre-filled email to info@washkrew.com and (2) raises a request in the admin portal.
+
+## What changed
+
+1. **Final policy text** in `release/store/policies/`: `privacy.md`, `terms.md` (cancellation and refunds is section 5, anchor `#cancellation-and-refunds`), `support.md`, `delete-account.md`. Written for DPDP Act 2023, IT Act/Rules, Consumer Protection (E-Commerce) Rules 2020, Apple 5.1.1/5.1.2 and Google Play User Data and account-deletion rules. The cancellation rules match `docs/WALLET-CANCELLATION-2026-10-31.md`.
+2. **`release/store/prepare-website.mjs` rewritten.** It builds the pages in the website's own design (homepage header, footer and sprite are reused). `--preview` writes a whole-site preview to `build/store/policy-preview`; `--stage-approved` writes into `apps/website/public`. The approval and draft-wording gates are kept.
+3. **Pages staged** in `apps/website/public`: `/privacy`, `/terms`, `/support`, `/delete-account`, `/policies` (all with `cleanUrls`). Added to `sitemap.xml`.
+4. **Homepage footer:** new "Help and policies" column (Help and support, Privacy policy, Terms of use, Cancellation and refunds, Delete your account) and the support phone (24/7) and email. Links to `/#get-app` and `/#get-captain-app` now open the matching app prompt.
+5. **`release/store/release.json`:** registered office, support hours, Grievance Officer, retention, and three owner approvals recorded with a dated note. Age rating, store privacy answers, reviewer access and screenshots stay `false`.
+
+To change policy text later: edit the Markdown, run `node release/store/prepare-website.mjs --stage-approved`, commit, deploy.
+
+## Backend work needed before go-live
+
+| # | Task | Details |
+|---|---|---|
+| 1 | **Deletion request endpoint** | HTTP function, e.g. `accountDeletionRequest` in `asia-south1`, plus a Hosting rewrite in `apps/website/firebase.json`: `{"source": "/api/account-deletion-request", "function": {"functionId": "accountDeletionRequest", "region": "asia-south1"}}`. The page already POSTs there. |
+| 2 | Request contract | Body JSON: `{role: "customer"\|"captain"\|"both", name, phone: "+91XXXXXXXXXX", email (optional), reason (optional), source: "washkrew.com/delete-account"}`. Reply `200 {"reference": "DEL-…"}`. Any non-200 makes the page fall back to "send the email". Validate server-side, ignore the honeypot field, rate-limit per IP and per phone, and never trust the phone as proof of ownership. |
+| 3 | Admin portal list | Store in e.g. `accountDeletionRequests` (status `new` → `acknowledged` → `verified` → `completed` / `declined`, with timestamps and reviewer). Show in `/admin/` with the 90-day due date. Promised to users: acknowledge within **48 hours**, verify by contacting the registered number (never ask for OTP), complete within **90 days**, tell them when done. Reuse the existing role-scoped deletion routine. |
+| 4 | Email to info@washkrew.com | Optional server copy on each new request (the page also opens the user's own email). If the user gave an email, send them a confirmation with the reference. |
+| 5 | **Retention jobs** (scheduled) | Delete wash photos, videos and voice notes **90 days after the wash** (skip bookings with an open complaint until resolved). Delete Captain ID documents and selfies **90 days after the approve/decline decision** (keep only a "verified on, by" record). Delete Captain job location points 90 days after the wash. Support messages: 1 year after closed. Deletion-request records: 3 years. Payment, invoice, wallet, earnings and payout records: 8 years. |
+| 6 | Logs and backups | Set Cloud Logging retention to 90 days or less. If Firestore/Storage backups exist, make sure they roll off within 90 days. |
+| 7 | Complaint reference numbers | The support page promises a reference number for every complaint (E-Commerce Rules). Make sure in-app Help/Report a problem and email replies include one. |
+| 8 | Publish in-app support/legal config | `backend/firebase/operator.cjs publish-content` with support phone/email, hours "Phone 24/7. Email replies within 6 hours.", legal entity "Washkrew", `termsPrivacyUrl: https://washkrew.com/policies`. Preview first, then `--confirm`. |
+| 9 | Deploy the website | `cd apps/website` then `npx -y firebase-tools@latest deploy --only hosting:website --project wheelio-apps` (add the rewrite from #1 in the same deploy once the function exists). |
+| 10 | Store consoles | Privacy URL `https://washkrew.com/privacy`, Support URL `/support`, Play account-deletion URL `/delete-account`. Data safety and App Privacy answers must match the retention table in the privacy policy. |
+
+Until #1–#3 exist, the form still works through the pre-filled email only, and the page says so after submitting.
+
+## Not decided in this change (raised with Aman)
+
+- Grievance Officer full name on the pages is "Aman Maheshwari"; confirm.
+- E-Commerce Rules 2020 allow a cancellation fee only if the platform bears a similar charge when it cancels. Current rule: WashKrew-side failure returns 100% as wallet credit with no extra compensation.
+- Captain Aadhaar photos: storing full Aadhaar images is restricted; consider asking Captains to upload masked Aadhaar.
+- Unused wallet top-up money when an account is closed: no refund rule is stated yet.

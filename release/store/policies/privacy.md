@@ -1,35 +1,153 @@
-# WashKrew privacy policy — draft for owner review
+# Privacy policy
 
-This draft covers the WashKrew Customer and WashKrew Captain mobile apps operated by Washkrew. Contact: info@washkrew.com, +91 80885 16875. These contacts were supplied by the owner on 3 November 2026. The owner must confirm that they are monitored before publication.
+Last updated: 3 November 2026
 
-## Information used to provide the service
+This policy explains how Washkrew ("WashKrew", "we", "us") collects, uses, shares and protects personal data when you use washkrew.com, the **WashKrew** app for customers and the **WashKrew Captain** app for captains. It is written to meet India's Digital Personal Data Protection Act, 2023 and the Information Technology Act, 2000, and the privacy rules of the Apple App Store and Google Play.
 
-We collect a phone number and Firebase account identifier for sign-in, along with the name and profile information you provide. Customer bookings can include vehicle details and registration plate, selected address, map coordinates, parking instructions, photos, short videos, voice notes, booking history and support requests. Optional media is supplied by you; avoid including unrelated people, documents or private information in vehicle photos.
+## The short version
 
-Captains additionally provide Aadhaar/document photographs, a selfie and payout details for private human review. Captain work settings include a fixed service-area centre, coverage radius, working hours, online status and job records. When a Captain uses location-dependent job actions, the app sends the location needed to verify and update that job. The apps request foreground location, not continuous background location permission. You can decline optional permissions, although functions that need them may then be unavailable.
+- We collect only what we need to arrange washes, verify captains and handle payments.
+- We do not sell your data, show ads, or track you across other apps and websites.
+- Wash photos are deleted 90 days after the wash. Captain ID documents and selfies are deleted within 90 days of our decision on the application.
+- Payment and invoice records are kept for 8 years because Indian tax law requires it.
+- You can delete your account at any time in the app, or request it at [washkrew.com/delete-account](/delete-account).
 
-Payment, top-up, wallet, cancellation, earnings and payout records are used to operate the service and resolve problems. Razorpay processes checkout credentials on its payment interface. WashKrew does not request your UPI PIN or store a full card number or card security code. Captain bank/UPI payout details and payment references are stored where required for operations. Device notification tokens are used for app notifications. Technical service logs may record error identifiers and request information needed for reliability and security.
+## Who we are
 
-## Photographs and automated assistance
+Washkrew, Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301, India.
 
-Private photo checking uses face detection/similarity and image-quality processing to help identify capture problems. Captain identity and payout approval remain human decisions. Vehicle after-wash images can be sent to Google Vertex AI/Gemini for automated wash-photo suggestions. These suggestions do not prove identity or independently decide refunds or disputes. Human reviewers handle those decisions. The owner must review the actual photo-processing notices/consent and retention arrangements before submitting the apps; this policy alone is not a substitute for any required in-app consent.
+Email info@washkrew.com or call +91 80885 16875 (24 hours a day, every day). Our Grievance Officer's details are at the end of this policy.
 
-## Who receives information
+## What we collect from customers
 
-WashKrew uses Google Firebase/Google Cloud for account verification, database, private file storage, server processing and notifications; Google Maps/Places for location search and maps; Razorpay for payments; and its private photo-checking service and Google Vertex AI for the checks described above. Each provider’s relevant privacy terms also apply to its processing. Service providers process data needed for their services; the store disclosures must include their actual practices.
+- **Account:** your name and mobile number. We use your mobile number to sign you in with a one-time code.
+- **Vehicles:** vehicle type, model and registration number.
+- **Location:** your society, saved address, parking details and the spot you pin on the map. The app asks before using your device location, and only while you are using it.
+- **Bookings:** wash type, time window, price, status, your ratings and feedback.
+- **Photos, videos and voice notes** you choose to add, for example to show where your vehicle is parked.
+- **Payments:** payment status and reference numbers from Razorpay, your WashKrew wallet balance and history. We never see or store your card number, CVV, UPI PIN or net banking password.
+- **Support:** messages and details you send us when you ask for help.
 
-An assigned Captain receives the Customer details needed to find and wash the vehicle. The Customer receives relevant Captain and job updates and wash evidence. Authorized WashKrew administrators review Captain applications and support/dispute records. Identity and payout documents are not public. Information may also be disclosed when required by law or to investigate fraud or protect users. This draft does not authorize selling personal information or using it for advertising/tracking.
+## What we collect from captains
 
-## Retention and account deletion
+- **Account:** your name, mobile number and preferred language.
+- **Identity verification:** a photo of your Aadhaar card or other ID and a selfie, so our team can confirm who you are.
+- **Payout details:** your bank account or UPI ID, so we can pay your earnings.
+- **Work details:** your service area, working hours, online status, job history, ratings and earnings.
+- **Location during jobs:** when you use a job step such as "arrived", the app sends your current location to confirm you are at the vehicle. The app does not track you in the background.
+- **Photos:** the before and after photos you take of each wash.
 
-Use Delete my account in the current app’s account/settings controls, or request help through the public account-deletion page. Deletion applies to the selected Customer or Captain account; it does not silently delete the other app’s account when both use the same phone number. Open jobs, unresolved cases, pending payments or funded wallet issues may need to be resolved first; support can help initiate the request.
+## What we collect automatically
 
-On successful deletion, the service removes the selected role’s profile, saved settings and private account uploads, removes its access, and removes or disconnects personal ownership/details from retained operational records. Captain document/selfie/application records are removed for Captain deletion. Some accounting, payment, payout, booking evidence, fraud-prevention and dispute records may be retained where needed for the other party, legal obligations or unresolved transactions. Infrastructure backups/provider logs may have separate retention. The owner must confirm the applicable record-retention schedule and provider settings before publishing this draft; do not promise that every transaction record or backup disappears immediately.
+- Device model, operating system, app version and a notification token, so we can send you job and booking updates.
+- Error reports and server logs, which can include your IP address, so we can keep the service secure and working.
 
-## Your choices and contact
+We do not use advertising identifiers, advertising networks or third-party analytics tools.
 
-You can change device permissions in system settings, edit supported profile/work settings, request account deletion and contact info@washkrew.com or +91 80885 16875 about access, correction or privacy concerns. Do not email passwords, OTPs, UPI PINs or full identity documents. Support may verify account ownership through an appropriate private process before acting on an email request.
+## Our website
 
-## Changes
+washkrew.com does not use tracking or advertising cookies. To show whether WashKrew is live in your city, the site sends your IP address to ipapi.co, which returns an approximate city. We do not store your IP address; the city is remembered in your own browser for one day. If you use the account deletion form, we receive the details you enter.
 
-The published policy must state its actual effective date and describe material changes as appropriate. Audience/children’s use, the operating address and any legally required grievance/retention details still need owner review. This document is a review draft, not a claim that legal review or store approval is complete.
+## How we use your data
+
+- **To provide the service:** match your booking with a captain, show each side the details needed for the job, share wash photos and handle your confirmation and rating.
+- **To verify captains:** our team reviews ID documents, selfies and payout details. Automated checks help them spot unclear photos and compare the selfie with the ID photo, but a person always makes the approval decision.
+- **For payments:** to take payments, manage wallet credit, pay captains, issue invoices and meet tax and accounting laws.
+- **For support and safety:** to answer questions, resolve complaints and disputes, and prevent fraud and misuse.
+- **For notifications:** to send booking and job updates. We will not send promotional messages unless you agree to receive them, and you can stop them at any time.
+- **To keep the service working:** to find and fix errors and protect our systems.
+- **To meet the law:** where a law, court or government authority requires it.
+
+We process your data on the basis of the consent you give when you create an account and when you turn on optional features, and for the legitimate uses the law allows, such as meeting legal obligations.
+
+## Optional AI wash-photo check
+
+This check is **off** by default. For each booking, you can turn on "AI wash photo check" after you pay. If you do, the captain can send that booking's four after-wash photos to Google Vertex AI (Gemini) for a quality suggestion. The photos may show your number plate and the surroundings. ID documents, selfies and bank details are never sent.
+
+The suggestion only helps. A person still decides any complaint or refund. You can turn the check off at any time before the photos are sent. Captains can always send photos without the AI check.
+
+## Face checks on captain selfies
+
+When a captain submits a selfie, our photo-checking service, which runs on Google Cloud, detects the face and compares it with the ID photo. It also checks for blurry or dark images. These results only help our reviewers. They are not used for any other purpose, and they are deleted with the ID documents.
+
+## Who we share data with
+
+- **Between customers and captains:** your assigned captain sees your name, vehicle, location and parking details, and the photos for that job. You see your captain's name, job updates and the wash photos. Neither side sees the other's ID documents, payment details or bank details.
+- **Service providers who work for us:**
+  - Google: Firebase and Google Cloud for sign-in, databases, file storage, servers and notifications; Google Maps and Places for maps and address search; Vertex AI, only for the optional check above.
+  - Razorpay: payments.
+  - ipapi.co: city estimate on our website.
+- **When the law requires it:** with courts, police or government authorities, or when needed to protect someone's safety or prevent fraud.
+- **If our business changes:** if WashKrew is merged or acquired, your data would move only under protections at least as strong as this policy, and we would tell you first.
+
+These providers may use your data only to provide their service to us, and must protect it at least as well as this policy does. We do not sell, rent or trade your personal data, and we do not share it for advertising.
+
+## Where your data is stored
+
+Your data is stored mainly on Google Cloud servers in Mumbai, India. Some providers, such as Google and Razorpay, may process data in other countries where their systems run, in line with Indian law.
+
+## How long we keep your data
+
+| Data | How long we keep it |
+| --- | --- |
+| Account profile, saved addresses and vehicles | While your account is open. Deleted when you delete your account. |
+| Wash photos, videos and voice notes | 90 days after the wash. If a complaint is open, until it is resolved. |
+| Captain ID documents and selfies | Up to 90 days after we approve or decline the application. Deleted straight away if you delete your account. We keep a record that verification was done. |
+| Captain payout details | While the captain account is open. |
+| Captain job locations | 90 days after the wash. |
+| Payment, invoice, wallet, earnings and payout records | 8 years, as Indian tax and accounting laws require. |
+| Support messages and complaints | 1 year after the issue is closed. |
+| Account deletion requests | 3 years, as a record that we completed your request. |
+| Server logs and error reports | Up to 90 days. |
+
+When the period ends, we delete the data or remove anything that identifies you.
+
+## Your rights and choices
+
+You have the right to:
+
+- see a summary of the personal data we hold about you and how we use it;
+- correct or update your data;
+- delete your account and personal data;
+- withdraw your consent;
+- nominate someone to exercise your rights if you die or are unable to;
+- have your complaints heard.
+
+Most of these you can do in the app. You can edit your profile, turn the AI wash-photo check on or off, change app permissions in your phone settings, or delete your account. For anything else, email info@washkrew.com. We may need to confirm it is really you before we act, and we respond within 30 days.
+
+Withdrawing consent does not affect anything we did before, and we may still keep records the law requires. If you are not satisfied with our response, you can complain to the Data Protection Board of India.
+
+## App permissions
+
+- **Location:** to find your society and pin your vehicle. For captains, to show nearby jobs and confirm arrival. Only while the app is in use.
+- **Camera and photos:** to add vehicle photos, wash photos and captain documents.
+- **Microphone:** to record a voice note or video for the captain or for help.
+- **Notifications:** for booking and job updates.
+
+You can turn any permission off in your phone settings. Features that need it will stop working until you turn it back on.
+
+## How we protect your data
+
+Data is encrypted in transit and stored in private, access-controlled systems. Only authorised team members can see ID documents and payout details, and only for review and payouts. Razorpay handles card and UPI details on its own secure systems.
+
+No system is completely secure. If a breach affects your personal data, we will tell you and the authorities as the law requires.
+
+## Children
+
+WashKrew is only for people aged 18 and over. We do not knowingly collect data from anyone under 18. If we learn that we have, we will delete it.
+
+## Changes to this policy
+
+When we update this policy, we change the date at the top. If a change is significant, we will tell you in the app before it takes effect.
+
+## Contact and Grievance Officer
+
+For any privacy question, request or complaint, contact our Grievance Officer:
+
+- **Name:** Aman Maheshwari
+- **Designation:** Grievance Officer
+- **Email:** info@washkrew.com
+- **Phone:** +91 80885 16875
+- **Address:** Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301
+
+We acknowledge every complaint within 48 hours and resolve it within one month.

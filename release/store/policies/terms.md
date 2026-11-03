@@ -1,32 +1,103 @@
-# WashKrew terms and cancellation policy — draft for owner review
+# Terms of use
 
-Washkrew operates the WashKrew Customer and WashKrew Captain apps. Support: info@washkrew.com, +91 80885 16875. These terms describe the implemented flow; the owner must approve the commercial/legal terms and effective date before publication.
+Last updated: 3 November 2026
 
-## Bookings and service
+These terms are an agreement between you and Washkrew ("WashKrew", "we", "us"), Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301. They cover washkrew.com, the **WashKrew** app for customers and the **WashKrew Captain** app for captains. By creating an account or using the service, you agree to these terms and to our privacy policy.
 
-WashKrew offers doorstep exterior vehicle washes where an approved Captain’s saved service area, work hours and capacity cover the requested booking. Search results alone do not promise service. The app shows the price and available window before payment. Keep your vehicle and parking instructions accurate and provide safe, authorized access. Captain document/selfie/payout review is conducted by a human administrator; automated image checks assist operations and do not constitute an independent identity guarantee.
+## 1. Who can use WashKrew
 
-## Payment and wallet credit
+- You must be 18 or older and able to enter a contract under Indian law.
+- You need an Indian mobile number to sign in. Keep your phone secure and never share your one-time code with anyone, including people who say they are from WashKrew.
+- Give accurate information and keep it up to date. You can hold one customer account and one captain account per mobile number.
 
-Payments use the separate WashKrew Razorpay merchant and the supported methods shown at checkout, or available WashKrew wallet credit. Direct credit-card checkout, EMI and pay-later are excluded; credit-linked UPI remains permitted. A verified captured top-up credits the wallet. Wallet credit is used for future WashKrew bookings and is not advertised as a transferable bank account or general-purpose payment instrument. Payment is captured for a booking; do not describe Razorpay checkout as a regulated escrow account. Captain payout is handled through WashKrew’s approved operations process.
+## 2. The service
 
-## Customer cancellations for new bookings
+WashKrew arranges doorstep exterior washes for cars and bikes. An approved WashKrew captain washes your vehicle where it is parked, in the societies and areas we serve. The wash types and prices for your vehicle are shown in the app.
 
-- Within five minutes of the first server booking confirmation, including exactly five minutes: 100% of the paid cash-plus-wallet booking value returns as WashKrew wallet credit. This grace period applies even if the wash is less than two hours away.
-- After that grace period, at least two hours before the confirmed wash window starts, including exactly two hours: 50% of the total paid booking value returns as wallet credit and 50% is the cancellation fee.
-- Inside two hours of the wash window start, after the grace period: no cancellation credit.
-- Customer self-cancellation closes when washing starts.
+Availability depends on captains covering your area at the time you choose. A booking is for a time window, not an exact minute. Interior cleaning is not offered unless the app shows it for your society.
 
-The authenticated server quote shown for the booking determines the applicable amount. The used wallet balance is included in the total; it is not restored again on top of the awarded credit. New normal cancellations issue wallet credit, not a bank refund. Historical bookings retain their saved policy and any existing original-method refund obligations.
+## 3. Bookings and prices
 
-## Service failures and wash problems
+- The app shows the full price, including applicable taxes, before you pay.
+- Your booking is confirmed when your payment succeeds and the app shows it as booked.
+- If we cannot find a captain for your booking, we cancel it and return the full amount as described in section 5.
 
-For a service failure such as no Captain/no-show, or a wash problem upheld through human review, the applicable new booking flow returns the full paid value as wallet credit without a cancellation fee. Report concerns through the app’s help/problem controls. Automated photo suggestions do not decide a dispute. No response-time, income or guaranteed-result promise is added by these draft terms.
+## 4. Payments and wallet credit
 
-## Accounts and privacy
+- Payments are processed by Razorpay using the methods shown at checkout. Direct credit card payments, EMI and pay later are not offered.
+- WashKrew wallet credit can only be used for WashKrew bookings. It cannot be transferred, withdrawn as cash or used anywhere else, and it does not earn interest.
+- Free washes and offers have the conditions shown with them in the app. They cannot be exchanged for money.
 
-Protect your phone access, supply accurate information and do not share OTPs or payment PINs. Account deletion removes only the selected role and is subject to resolving open jobs, pending transactions and applicable wallet issues; support can help. See the privacy policy for data use and retained records.
+## 5. Cancellation and refunds
 
-## Owner decisions still required
+**If you cancel**
 
-Before publication, confirm the business address, eligible audience, service scope/exclusions, applicable tax/invoice details, payout/commercial arrangements and any legally required consumer/grievance provisions. Do not fill these with invented guarantees, jurisdiction clauses or waivers. Applicable legal rights are not replaced by this software-flow draft.
+| When you cancel | What you get back |
+| --- | --- |
+| Within 5 minutes of your booking being confirmed | 100% of what you paid, as wallet credit. This applies even if the wash is less than 2 hours away. |
+| After 5 minutes, and at least 2 hours before your wash window starts | 50% of what you paid, as wallet credit. The other 50% is the cancellation fee. |
+| After 5 minutes, and less than 2 hours before your wash window starts | Nothing is returned. |
+| After the captain has started washing | You can no longer cancel. |
+
+"What you paid" includes both the money you paid and any wallet credit you used. The amount is worked out from the time your booking was confirmed and the start of your wash window, as shown in the app. The app shows what you will get back before you confirm a cancellation.
+
+**If we cannot complete your wash**
+
+If we cancel, no captain is available, or the captain does not arrive, you get 100% of what you paid back as wallet credit, with no fee.
+
+**If you are not happy with the wash**
+
+See section 6. If our team agrees there was a problem with the wash, you get 100% of what you paid back as wallet credit.
+
+**Older bookings** keep the cancellation and refund terms saved with them when they were booked, including any refund to the original payment method.
+
+## 6. Wash quality, damage and complaints
+
+- After the wash, check the before and after photos in the app and confirm the job. If something is wrong, report it in the app instead of confirming, or contact support within 24 hours of the wash.
+- Our team reviews every complaint using the photos and job details. Automated photo checks only assist; a person makes the decision.
+- **Damage:** if you believe your vehicle was damaged during a wash, tell us within 48 hours with photos. We will investigate using the before and after photos. If the wash caused the damage, we will arrange the repair or pay the reasonable cost of repairing it.
+- We are not responsible for damage that existed before the wash, normal wear, loose or already-damaged parts, or items left in or on the vehicle. Please remove valuables before your wash.
+
+## 7. Your responsibilities as a customer
+
+- Give an accurate address, parking spot and vehicle details, and make sure the vehicle can be reached at the booked time.
+- Make sure you are allowed to have the vehicle washed where it is parked, including any permission your society needs.
+- Treat captains with respect. Abuse, harassment or unsafe behaviour towards a captain can lead to your account being closed.
+
+## 8. Captains
+
+- To work as a captain, you must be 18 or older, submit genuine identity documents, a selfie and your own payout details, and be approved by our team. Approval is at our discretion.
+- Follow the job steps in the app, take real before and after photos of the vehicle you washed, and treat customers and their property with care.
+- Your earnings for each job are shown in the Captain app. Earnings are paid to your verified payout account on the schedule shown in the app, after any deductions the law requires. Any charge for late arrival or cancellation applies only as shown in the Captain app.
+- We do not guarantee a number of jobs or a level of income. Earnings depend on the washes you complete and on demand in your area.
+- Do not ask customers to pay you or book you outside the app.
+- We may suspend a captain account for fake photos, fraud, safety concerns or repeated missed jobs. We will tell you why, and you can ask us to review the decision by contacting support.
+
+## 9. Fair use
+
+You must not misuse WashKrew. This includes making fake bookings, giving false information, harassing anyone, interfering with the apps or our systems, copying or reverse-engineering the apps, or using WashKrew for anything illegal.
+
+## 10. Photos and content
+
+You keep ownership of the photos, videos and notes you add. You allow us to use them to provide the service, handle support and resolve complaints. We will not use them in marketing without your permission.
+
+## 11. Closing or suspending accounts
+
+- You can delete your account at any time in the app, or request it at [washkrew.com/delete-account](/delete-account). Open jobs, pending payments and wallet issues need to be settled first, and we will help you with this.
+- We may suspend or close an account that breaks these terms, puts others at risk, or where the law requires it. Where we can, we will tell you first and explain why.
+
+## 12. Our responsibility
+
+We take reasonable care in arranging every wash. To the extent the law allows, our total responsibility for any claim about a booking is limited to the amount you paid for that booking, apart from damage handled under section 6. Nothing in these terms limits responsibility that cannot be limited under Indian law, or your rights as a consumer.
+
+## 13. Changes
+
+We may update the service and these terms. When we do, we change the date at the top. If a change is significant, we will tell you in the app before it takes effect. If you keep using WashKrew after that, the updated terms apply.
+
+## 14. Law and disputes
+
+Please contact us first so we can try to resolve any problem quickly. Our Grievance Officer acknowledges complaints within 48 hours and resolves them within one month. These terms are governed by the laws of India. Subject to your right to approach a consumer commission where you live, the courts at Gautam Buddh Nagar (Noida), Uttar Pradesh have jurisdiction.
+
+## 15. Contact
+
+Email info@washkrew.com or call +91 80885 16875, 24 hours a day, every day. Grievance Officer: Aman Maheshwari, at the same email, phone and address.
