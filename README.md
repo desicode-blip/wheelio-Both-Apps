@@ -1,97 +1,96 @@
 # WashKrew
 
-The current Customer and Captain apps live in **apps/flutter/customer** and
-**apps/flutter/captain**. Both use the shared Flutter design and Firebase packages.
-These are the only mobile app implementations in this checkout.
+The maintained products are the **Customer** and **Captain** Flutter apps for
+Android/iOS and the current **washkrew.com** website. Firebase backend, private
+Captain-review admin, shared packages, tests and build tools support those products.
+Keep the approved app designs pinned to **af036f0** plus the owner-approved
+exceptions in [AGENTS.md](AGENTS.md). Do not recreate or redesign either app.
 
-The owner locked the design to commit **af036f0**. Preserve its layouts,
-components, fonts, palette and assets while connecting real functionality.
-The owner separately approved hiding training/quiz and excluding direct credit
-card checkout. See [the design audit](docs/DESIGN-AUDIT-2026-10-28.md).
+## Build both iPhone apps
 
-## Run the current apps
-
-Use Flutter **3.38.6**, Node.js 24 and pnpm 11. If Flutter is not on PATH, set
-`FLUTTER_BIN` to its executable. Copy `firebase.example.json` to
-`firebase.local.json` and configure the public Firebase app identifiers; never
-put merchant secrets into a client configuration.
+Start with [the current Mac handoff](docs/AMAN-IOS-HANDOFF-2026-11-02.md).
+Aman can give Claude [this build/retest prompt](docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md).
+Use Flutter **3.38.6 / Dart 3.10.7**, Xcode and CocoaPods on the Mac:
 
 ```sh
-pnpm dev             # Customer Flutter web app, localhost:8081
-pnpm dev:captain     # Captain Flutter web app, localhost:8082
-pnpm typecheck       # Both apps and shared packages
-pnpm test            # App and shared Firebase tests
-pnpm build           # Both release web apps plus admin and landing page
-pnpm preview         # Preview that build at localhost:8083
+git status --short
+git fetch origin staging
+git switch staging
+git pull --ff-only origin staging
+bash apps/flutter/tool/run-ios.sh --prepare
+bash apps/flutter/tool/run-ios.sh
 ```
 
-Normal builds connect to Firebase **wheelio-apps**. The server selects payment
-mode: the deployed configuration currently uses the separate WashKrew **LIVE**
-merchant. A real checkout charges money. Training/quiz are hidden; human admin
-approval is required before a Captain can work. Do not seed fake Captains,
-payments or fixed OTPs in production. `?demo=true` is a labelled, isolated design
-gallery using sample data; it is not functional acceptance.
+Preserve local changes; inspect a failed fast-forward rather than resetting.
+Open each app's `ios/Runner.xcworkspace`, sign with paid Apple team **28JNT7H8KA**,
+and keep `com.amanmaheshwari.wheelio.customer` / `.captain`.
+Source versions: Customer **1.0.3 (4)**, Captain **1.0.4 (5)**.
+Private APNs keys are already configured in Firebase and are not needed to build.
+Record actual results in [the iPhone results template](docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md).
+Windows checks do not establish Xcode compilation, signing or physical acceptance.
 
-New cancellation rules use wallet credits: 100% within five minutes of confirmed
-booking, then 50% until two hours before the confirmed wash window, then zero.
-The five-minute grace takes priority. Service failures return full wallet credit.
-Historical bookings retain their saved terms. See
-[the current rules and checks](docs/WALLET-CANCELLATION-2026-10-31.md) before using
-an older iPhone guide/PDF; its original-method cancellation examples are historical.
-
-## Install on an iPhone
-
-On a Mac with Xcode and CocoaPods, use `apps/flutter/tool/run-ios.sh` and follow
-[the current Aman/Claude guide](docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
-and [its testing PDF](output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf).
-It covers the exact Captain, admin, Customer, payment, wash, cancellation and
-wallet order, with current policies and remaining physical acceptance gates.
-The Xcode workspaces are **apps/flutter/customer/ios/Runner.xcworkspace** and
-**apps/flutter/captain/ios/Runner.xcworkspace**. Keep bundle IDs
-`com.amanmaheshwari.wheelio.customer` and `.captain` and Apple team `28JNT7H8KA` (paid "Sumit Mandal" team since 29 Oct 2026; previously free personal team `8CCQQM7TP3`).
-See [Mac setup](docs/MAC-HANDOFF.md). Windows tests do not prove native signing,
-compilation, camera/GPS/APNs or real payment-app switching.
-
-## Repository layout
+## Current source
 
 | Path | Purpose |
 | --- | --- |
-| apps/flutter/customer | Current Customer app: web and iOS |
-| apps/flutter/captain | Current Captain app: web and iOS |
-| apps/flutter/packages/washkrew_ui | Authoritative shared design system/assets |
-| apps/flutter/packages/washkrew_firebase | Shared Firebase and native integrations |
-| apps/admin | Private Google-authorized Captain review webpage |
-| apps/website | Current washkrew.com marketing website; separate Hosting site |
+| apps/flutter/customer | Customer app; Android and iOS platform projects |
+| apps/flutter/captain | Captain app; Android and iOS platform projects |
+| apps/flutter/packages/washkrew_ui | Shared authored components, tokens, fonts and assets |
+| apps/flutter/packages/washkrew_firebase | Shared Firebase, payments and native integrations |
+| apps/flutter/tool | Current build, device, QA and preview tooling |
+| apps/website | Latest washkrew.com website and separate Hosting configuration |
+| apps/admin | Private Captain-review portal |
 | apps/hosting | Default Firebase site's landing page |
-| backend/firebase | Current Functions, rules, operations and tests |
-| backend/photo-check | Private photo/identity service |
-| brand, designs, Wheelio-designs | Approved brand and design exports |
-| docs, output/pdf | Reports, build and acceptance guides |
+| backend/firebase | Current Functions, rules, indexes, operations and emulator tests |
+| backend/photo-check | Private identity/photo advisory service and its tests |
+| brand, designs | Brand masters and one canonical set of approved design exports |
+| docs, output | Current policies/build guides and retained QA references |
 
-The retired SwiftUI, Next.js/React and legacy Flutter apps and empty Android
-placeholder were removed at the owner's request on 28 October. Their history
-remains in Git; do not recreate them or follow older build instructions. Historical
-database files are archives, not an instruction to migrate or delete any database.
-The owner authorized Android installation on 31 October. Both current Flutter
-apps now have Android platform directories; the retired placeholder remains
-removed. See [the native device report](docs/ANDROID-DEVICE-CHECK-2026-10-31.md)
-for APK commands, USB signing scope, UI checks and native OTP limitations.
+Flutter's browser targets remain QA/preview paths for the same source, not a
+separate implementation or a prerequisite for native acceptance. Keep the
+private admin available at **https://wheelio-apps.web.app/admin/**.
 
-## Hosting and operations
+## Checks and development
 
-- Customer: https://wheelio-apps.web.app/app/
-- Captain: https://wheelio-apps.web.app/captain/
-- Private admin: https://wheelio-apps.web.app/admin/
-- Website: https://washkrew.com/
+Use Node **24** and pnpm **11**. `FLUTTER_BIN` overrides the Flutter executable.
+App lockfiles are committed. Public Firebase configuration is in the native
+projects; copy `firebase.example.json` to ignored `firebase.local.json` only for
+browser builds/local admin preview. Never put merchant or signing secrets there.
 
-After a verified build, `pnpm deploy` publishes default Firebase Hosting.
-Functions/rules/photo service changes have separate documented deployment steps;
-see [Firebase bookings](docs/FIREBASE-BOOKINGS.md). Keep the organization's policy
-and documented HTTP gateway authorization intact. Do not deploy to Cloudflare or
-use the retired Neon frontend. Run backend/rules checks with `pnpm firebase:test`
-after installing the backend npm dependencies; Java 21+ is needed.
+```sh
+pnpm typecheck          # Both apps and shared packages
+pnpm test               # Flutter app/shared tests
+pnpm firebase:test      # Isolated Auth/Firestore/Storage tests; Java 21+
+pnpm android:internal   # Two signed internal bundles; private local signing required
+pnpm dev                # Customer QA browser preview
+pnpm dev:captain        # Captain QA browser preview
+pnpm build              # Optional default Hosting build, including private admin
+```
 
-Read [AGENTS.md](AGENTS.md) before editing. Current operational limits and human
-inputs are in [completion notes](docs/COMPLETION-2026-10-28.md). Physical iPhone
-acceptance, approved support/legal/commercial inputs and real Captain reviews
-remain required; do not call an automated or sample-gallery check a device pass.
+Install npm dependencies in `backend/firebase` and `backend/firebase/functions`
+before backend tests. See [Flutter](docs/FLUTTER.md),
+[Firebase operations](docs/FIREBASE-BOOKINGS.md),
+[Play internal testing](docs/PLAY-INTERNAL-2026-11-01.md) and
+[Mac troubleshooting](docs/MAC-HANDOFF.md).
+
+## Current behavior and limits
+
+Normal builds use Firebase **wheelio-apps**. New payments use the separate
+WashKrew **LIVE** Razorpay merchant. Actual checkout/top-ups charge money; the
+account holder authorizes payment/PIN. Direct credit cards, EMI and pay-later
+are hidden; supported UPI, debit, netbanking and provider wallets remain available.
+Training/DigiLocker are hidden; human admin approval, saved coverage/hours and
+Online status govern Captain work. No manual society approval is needed for new
+Captain-area bookings.
+
+Cancellation benefits use wallet credits: 100% within five minutes of server
+confirmation, then 50% at least two hours before the wash starts, otherwise zero.
+The first-five-minute grace takes priority. Service failures return full wallet
+value; historical payment/refund obligations keep their saved terms.
+Deletion uses two confirmations without an extra deletion OTP and removes only
+the current app role, subject to existing open-job/payment/balance safeguards.
+
+See [current status](docs/STATUS.md) and [backend hookup rules](docs/BACKEND-HOOKUP.md).
+Old implementations, duplicated exports and superseded handoffs are recoverable
+in Git history; see [the cleanup record](docs/REPOSITORY-CLEANUP-2026-11-03.md).
+No cloud database, merchant setup, deployed website or app UI was removed by cleanup.

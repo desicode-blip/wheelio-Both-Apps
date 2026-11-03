@@ -195,8 +195,8 @@ class StepsScreen extends StatelessWidget {
 //
 // "Upload Aadhaar photo" asks camera or gallery, shows the photo while it is checked,
 // then either "Photo is clear" or W05b "Photo is not clear" with the reason.
-// The check is the on-phone quality check (light, size, covered). Reading the card and
-// matching it to the captain is P0 for Ajay (docs/CHANGES-2026-10-27-UI.md).
+// The on-phone quality check covers light, size and obstruction. Identity and
+// payout approval remain private human review (docs/KYC-UPLOAD-2026-10-28.md).
 
 enum _AadhaarView { start, checking, clear, unclear }
 

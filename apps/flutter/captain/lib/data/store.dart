@@ -1,7 +1,5 @@
-// Captain app state with sample data from the designs (Raju, TS 09 EA 4521).
-// Ported from apps/ios/Captain/Data/CaptainStore.swift and WNotifications.swift.
-// BACKEND: when the real services are connected these methods call the captain API
-// (backend/API-CONTRACT.md); screens don't change.
+// Captain state uses live Firebase controllers in normal builds and isolated
+// authored sample state in explicit demo builds. See docs/BACKEND-HOOKUP.md.
 
 import 'dart:async';
 import 'offer_feed.dart';
@@ -961,8 +959,8 @@ class CaptainStore extends ChangeNotifier {
 
   // MARK: Live data (Firebase)
   // The designed screens read the same fields as the sample app. With [live] set they are filled
-  // from Firebase, and actions call the backend. Designed parts without a backend are listed as
-  // P0 in docs/P0-BACKEND-FOR-DESIGN.md and show [notYet] instead of pretending.
+  // from Firebase, and actions call the backend. Deferred integrations are listed
+  // in docs/STATUS.md and show [notYet] instead of pretending.
 
   final LiveBackend? live;
   bool get isLive => live != null;

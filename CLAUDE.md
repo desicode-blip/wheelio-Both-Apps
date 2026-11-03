@@ -1,66 +1,48 @@
-# WashKrew - Claude continuation
+# WashKrew - current Claude instructions
 
-Read and follow **AGENTS.md** in this directory. It is the current common policy
-for every coding agent and supersedes older historical handoff instructions.
+Read **AGENTS.md** first. Preserve the approved Flutter app layouts, assets,
+typography and palette. Use only `apps/flutter/customer` and
+`apps/flutter/captain`, with their shared Flutter packages. Retired SwiftUI,
+React/Next.js, legacy Flutter and Supabase implementations are not build targets.
 
-Start with:
+For Aman's Mac/iPhone, start with:
 
-**Current native handoff — 2 November:** read
-`docs/AMAN-IOS-HANDOFF-2026-11-02.md` first. It supersedes the historical setup and
-test order below. Both Flutter apps use paid team 28JNT7H8KA, and both APNs key
-environments were saved in Firebase on 1 November. Keep current map-radius
-coverage, whole-window capacity, simultaneous first-valid-claim offers, wallet
-top-ups/checkout/cancellation and saved job-stage restoration. The owner confirms
-the updated Android apps work; physical iPhone acceptance remains to be recorded.
-Build with `bash apps/flutter/tool/run-ios.sh`; Customer/Captain web acceptance is
-not required. The private human-review admin remains part of the workflow.
+1. `docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md` - current task prompt.
+2. `docs/AMAN-IOS-HANDOFF-2026-11-02.md` - safe pull, prepare, sign/build/install,
+   exact role order, current financial rules and native acceptance limits.
+3. `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` - record actual results.
+4. `docs/MAC-HANDOFF.md` - setup/signing troubleshooting.
 
-**Android/native OTP follow-up (31 October):** the owner requested installing
-both maintained apps on the connected Android phone. Read
-`docs/ANDROID-DEVICE-CHECK-2026-10-31.md`. Keep Flutter screen designs intact.
-Android certificates are for this laptop's USB acceptance signing; store signing
-is separate. Both iOS apps include Background fetch/Remote notifications, but
-Aman's private APNs key is still pending. Native Firebase verification can still
-require its own fallback; never disable verification for real SMS to hide it.
+Run `bash apps/flutter/tool/run-ios.sh --prepare`, then the helper without
+`--prepare` to build/install both Release apps on a trusted physical iPhone.
+Use paid team **28JNT7H8KA** and existing `.customer` / `.captain` bundle IDs.
+Customer source version is **1.0.3 (4)**; Captain is **1.0.4 (5)**. The owner
+confirmed the previous Android flow works; no physical iPhone result is pre-passed.
 
-**Current iPhone build/test handoff (30 October):** read
-`docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md` and its PDF
-`output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf` first. Guide Aman
-one role/action at a time and use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for
-actual native results. `docs/FULL-WORKFLOW-2026-10-29.md` records the latest
-Windows/web evidence and simulated-payment limits. Older guides are detail/history;
-the current LIVE merchant, upload-only Aadhaar and hidden training policy win.
-Preserve Aman's UI/native changes through 79d17af. New bookings use the updated
-five-minute full-wallet / later 50% or zero-credit rule; expose all
-supported non-credit checkout groups, keeping EMI/paylater hidden. Read
-`docs/WALLET-CANCELLATION-2026-10-31.md` (current financial rules) and
-`docs/REMAINING-CHECKS-2026-10-30.md` for the existing live refund shortfall and
-honest completion limits. Do not initiate a second manual refund alongside retries.
+APNs key **Y5432Q73U8** is already configured for both apps/environments in Firebase.
+Do not request, generate, revoke or commit a private key just to build the clients.
+Check signed APNs entitlements, background modes and Background App Refresh if
+native phone login needs Firebase fallback. Never disable real SMS verification.
 
-For the exact order of Captain -> Admin -> Captain -> Customer and the live wash,
-first read `docs/AMAN-CLAUDE-TEST-FLOW-2026-10-28.md` (short PDF in `output/pdf/`).
-Guide Aman one action at a time, then use the detailed acceptance guide below.
+Deletion now requires **two explicit confirmations, no new deletion OTP**.
+Deleting one app role must preserve the other role. Open jobs, pending payments
+and funded-wallet safeguards still apply. Use consenting spare test accounts.
 
-1. `docs/DESIGN-AUDIT-2026-10-28.md` - owner design lock **af036f0**, visual
-   comparison, removed alternate apps and known testing limits.
-2. `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/` - guide
-   Aman through both apps on his iPhone, record actual results, reproduce failures.
-3. `docs/MAC-HANDOFF.md` - Flutter/Xcode/CocoaPods setup and current workspaces.
-4. `docs/COMPLETION-2026-10-28.md` and `docs/LIVE-PAYMENTS-2026-10-28.md` - current
-   LIVE merchant, hidden training, human approvals and operational limits.
-5. `docs/BACKEND-HOOKUP.md` before connecting a new backend service.
+Guide Aman one action at a time: Captain registration/documents/area/hours ->
+private admin human approval -> Captain Online -> Customer booking/payment ->
+Captain accept/arrival/wash/photos/reopen -> Customer review -> wallet/cancellation
+and account-deletion checks. Admin: https://wheelio-apps.web.app/admin/.
+New bookings use the separate WashKrew LIVE merchant; supported non-credit
+methods remain, EMI/paylater stay hidden. Historical obligations keep their terms.
+Training/videos/quiz are hidden and cannot block an admin-approved eligible Captain.
+Coverage uses the Captain's saved map centre/radius, not manual society assignment.
 
-Only build `apps/flutter/customer` and `apps/flutter/captain`. The old independent
-SwiftUI, Next.js/React and legacy Flutter apps were removed at the owner's request;
-do not recover them as the build target. Open the current Flutter apps' respective
-`ios/Runner.xcworkspace` files. Keep bundle IDs and Apple team. Fix functionality
-inside the designed screens; do not redesign. Root pnpm commands now target Flutter.
+Aman handles account security checks, genuine document approval, real wash evidence
+and payment authorization. Keep secrets, KYC, phone numbers, tokens and exact GPS
+out of Git/shared reports. Reproduce failures, make narrow functional fixes without
+redesign, and record observed PASS/FAIL/BLOCKED/NOT RUN. Do not invent native passes.
 
-Training/quiz/refresher are hidden, not required and grant no fake completion.
-Human `/admin/` approval is mandatory for working. Payments are LIVE on the separate
-WashKrew merchant; no direct credit-card checkout, UPI-linked credit remains allowed.
-Never assume that an older report's test-mode/training-required statement is current.
-
-Do not claim a source, emulator or design-gallery check proves physical iPhone
-camera, GPS, APNs, payment app switching, KYC or real charge/refund acceptance. Keep
-private information out of reports. Commit changes; push only when Aman asks.
+Customer/Captain web acceptance is not required. Keep the private admin, website,
+backend, tests, canonical design exports and current build tools. Superseded guides
+and duplicate source were removed; do not recover them as competing instructions.
+Commit work and push only when the owner requests it.

@@ -1,157 +1,51 @@
-# Current pull/build/test handoff - 2 November 2026
+# Mac setup for the current native apps - 3 November 2026
 
-Start with **[AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md)**.
-It is the authoritative current build/role sequence. The same two Flutter apps
-include the Android-tested wallet, area/hours, offers, photos and resume fixes.
-The paid team and both Firebase APNs environments are already configured. Both
-Podfiles now apply foreground-only location, and the portable preflight checks
-critical native settings before the Mac builds. Native Xcode/device results are
-still required. Customer/Captain web acceptance is not part of this deliverable.
+Start with [the current build/test handoff](AMAN-IOS-HANDOFF-2026-11-02.md) and
+[the Claude prompt](AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md). Those give the role
+order and current policies. Superseded PDFs and duplicate guides were removed.
 
-Everything below is historical detail; use the new guide when it conflicts.
+## Required on Aman's Mac
 
-# Earlier pull/build/test handoff - 30 October 2026
+- Flutter **3.38.6 / Dart 3.10.7**, full Xcode with a compatible iPhone SDK,
+  CocoaPods, and a physical iPhone that trusts the Mac and enables Developer Mode.
+- Apple Developer access to paid **Sumit Mandal / 28JNT7H8KA**. Aman completes
+  Apple/Xcode authentication, licenses, device trust and security prompts.
+- Preserve bundle IDs `com.amanmaheshwari.wheelio.customer` and `.captain`.
+  Use both `ios/Runner.xcworkspace` files, not the bare project without Pods.
 
-**Current financial rules changed on 31 October:** read
-[WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md) before the
-older guide/PDF. New cancellations and service failures return wallet credit,
-with five-minute and two-hour rules; historical source-refund duties remain.
-
-Start with [Aman's current build and test guide](AMAN-IOS-BUILD-AND-TEST-2026-10-30.md)
-and [its PDF](../output/pdf/WashKrew-Aman-iPhone-Acceptance-2026-10-30.pdf).
-Read [current policy and verification](REFUND-WALLET-CHECKOUT-2026-10-30.md) and
-[remaining live checks](REMAINING-CHECKS-2026-10-30.md). Earlier full-flow browser
-evidence remains in [FULL-WORKFLOW-2026-10-29.md](FULL-WORKFLOW-2026-10-29.md).
-Use the existing `run-ios.sh --prepare`, then `run-ios.sh` commands for the two
-current Flutter workspaces. Preserve local Mac changes, bundle IDs, team and locks.
-No native project/dependency or screen was changed for this documentation handoff.
-Both native source checks and standalone iOS tooling checks were rerun on Windows;
-Xcode compilation/signing, provisioning/APNs and physical acceptance require the Mac.
-
-Payments are **LIVE on the separate WashKrew merchant**. The older web walkthrough's
-capture was simulated locally. Read-only matching now verifies two existing live
-UPI captures and one provider-processed refund, with another refund delayed.
-This does not establish the new five-minute/wallet policy or native acceptance.
-Training stays hidden. Aadhaar uses camera/gallery upload followed by authorized
-human review at https://wheelio-apps.web.app/admin/. Use two different phone numbers
-for Customer and Captain; self-assignment is excluded. The new guide covers native
-receipt delivery, which remains unverified, and records one-phone testing limits.
-Use [the result template](IOS-ACCEPTANCE-RESULTS-TEMPLATE.md) without premarking PASS.
-
-Everything below records earlier handoffs. Older test-payment/training statements
-do not override the current guide or AGENTS.md. One-time Apple capability and
-foreground-location pod-flag setup still need checking with the actual Mac build.
-
-# Prior handoff — 28 October 2026
-
-**Aman and Claude's full walkthrough:**
-[iPhone acceptance guide](AMAN-IPHONE-ACCEPTANCE-2026-10-28.md), also supplied as
-[a 14-page PDF](../output/pdf/WashKrew-Aman-Claude-iPhone-Test-Guide-2026-10-28.pdf).
-Read it first for current account creation, admin approval, live payment and
-two-role iPhone testing. It provides the result record and failure checklist.
-
-Read [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md) first. Separate WashKrew
-live payments and test/live private photo processing are now active, and the
-private Captain admin is deployed. This supersedes older test-only/merchant-
-pending instructions below. Do not change global payment mode for a device test
-or fabricate a production Captain. Training/quiz are now hidden and not required
-by the owner's decision; human admin approval permits working. Human approvals,
-approved support/legal/commercial inputs and physical iPhone/APNs acceptance
-remain open. The preparation/signing commands below still apply.
-
-# Historical handoff — 27 October 2026
-
-**Latest owner update:** use [CLAUDE-MAC-CONTINUATION-2026-10-27.md](CLAUDE-MAC-CONTINUATION-2026-10-27.md) and its PDF in `output/pdf/` as the continuation brief. Aman will supply training design placeholders; these do not count as completed training. He is handling a separate WashKrew Razorpay merchant application/access. Do not activate the previous shared Trustkeyper live setup; new-merchant integration and acceptance remain pending. Native compilation can proceed independently of merchant onboarding.
-
-Read [READINESS-2026-10-27.md](READINESS-2026-10-27.md) with this guide. Software and provider checks are distinct from an Xcode/device pass. Aman's content and other live business/provider gates remain separately pending; do not switch payments to live for the Mac test.
-
-# Build and check WashKrew on the Mac
-
-Customer and Captain are the **Flutter apps**. Their Firebase setup, phone login, camera/library, voice/video, booking, test payment/refund, assignment, photo evidence, tracking, approval and earnings code is included. The Windows checks do not prove an iOS compilation or physical-device pass. Apple signing/APNs and the checks below are the remaining Mac work.
-
-## 1. Get this source
-
-Use the `staging` branch containing this handoff. If transferring the folder directly, include the repository sources and both committed `pubspec.lock` files. Generated Windows `.dart_tool`, `build`, `Pods` and `Generated.xcconfig` files are not portable; a fresh Git checkout is preferable. The preparation command regenerates local Flutter configuration. Never transfer the private credential PDFs, merchant secrets or Apple signing keys with source.
-
-A `WashKrew-Mac-source-COMMIT.zip` created with `git archive` contains the committed source, public Firebase app configuration and this guide; it excludes untracked local credentials and caches. Extract it on the Mac, open Terminal in its root folder and follow the commands below. The archive has no Git history; use a checkout of the same commit if you want to commit Mac-resolved dependency/signing changes.
-
-## 2. Prepare the Mac once
-
-- Install Flutter **3.38.6 stable**, the version used for these checks. Its Dart SDK is 3.10.7. The scripts also look in `~/development/flutter/bin`; alternatively put Flutter on PATH or set `FLUTTER_BIN` to the Flutter executable. Node, Firebase CLI, a Firebase login and Razorpay credentials are **not required** to compile the iPhone apps.
-- Install Xcode, open it and complete its first-launch setup/license prompts. Select it as the command-line developer directory and install iOS platform support. Run `flutter doctor -v` and resolve its Xcode/iOS findings. See [Flutter's iOS setup](https://docs.flutter.dev/platform-integration/ios/setup).
-- Install CocoaPods (for example, `brew install cocoapods` if Homebrew is installed). The scripts check for it without silently installing global software.
-- For installation, connect an unlocked iPhone, trust the Mac and enable Developer Mode. The app deployment target is iOS 15 or later; Xcode must support the phone's actual iOS version.
-
-From the repository root:
+## Prepare and install
 
 ```sh
+flutter doctor -v
+dart apps/flutter/tool/ios.dart check
+dart apps/flutter/tool/ios_test.dart
 bash apps/flutter/tool/run-ios.sh --prepare
-```
-
-This checks both native configurations, downloads Flutter iOS artifacts, restores the **locked Dart dependencies**, updates CocoaPods specs and installs every required native plugin. Existing compatible pod versions are retained. Staging already includes Mac-resolved pod locks and project changes (`283e39b`). This follow-up adds `google_maps_flutter_ios` to both apps and `speech_to_text` to Captain; it preserves the Mac-resolved project and pod files. The preparation command must add these plugins to the native installation. Preparation checks native plugins and generates machine-local Release settings. It does not compile, sign or install an app. Commit the resulting `Podfile.lock` changes after successful compilation. Do not use `pod install --deployment` with the old locks.
-
-If enforcing the Dart lock fails on a different Flutter version, use the tested SDK first. Do not resolve the problem by running a broad package upgrade. If CocoaPods reports an incompatible locked pod, retain the failure output and update only the named incompatible pod in that app's `ios` directory; do not delete all project/dependency files.
-
-## 3. Signing and Apple notifications
-
-Open each **workspace**, one at a time:
-
-```sh
-open apps/flutter/customer/ios/Runner.xcworkspace
-open apps/flutter/captain/ios/Runner.xcworkspace
-```
-
-Select **Runner → Signing & Capabilities**, enable automatic signing and select the Apple team that owns these bundle IDs:
-
-| App | Bundle ID |
-| --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` |
-| Captain | `com.amanmaheshwari.wheelio.captain` |
-
-The saved team is `28JNT7H8KA` (paid "Sumit Mandal" Apple Developer Program team, from 29 Oct 2026; the free personal team `8CCQQM7TP3` limited a phone to 3 apps and 7-day profiles); verify access in Xcode rather than changing the bundle IDs to work around a signing error. The old SwiftUI app and other alternate app implementations were removed at the owner's request. Do not restore or build them. Use only the two Flutter workspaces above; the design reference is Git af036f0.
-Push (29 Oct 2026): both Runner targets now sign with `Runner/Runner.entitlements` (`aps-environment`), and Info.plist already has the `remote-notification` background mode. Delivery still needs an APNs key from team 28JNT7H8KA uploaded to Firebase `wheelio-apps` → Project settings → Cloud Messaging (owner action).
-
-Enable **Push Notifications** for both Runner targets and verify Background Modes → Remote notifications. Upload the owning team's APNs authentication key in Firebase `wheelio-apps` → Project settings → Cloud Messaging for the iOS apps. Keep Apple private keys outside Git. Native phone Auth also uses APNs and its configured reCAPTCHA return scheme; test both login and notifications. See [Firebase phone-auth setup](https://firebase.google.com/docs/auth/flutter/phone-auth).
-
-The apps use location only while open. Before App Store submission, set `BYPASS_PERMISSION_LOCATION_ALWAYS=1` in the `geolocator_apple` pod target's Preprocessor Macros for each configuration, as described in the [plugin's iOS instructions](https://pub.dev/packages/geolocator#ios), so the app does not advertise unused Always-location authorization. Do not add background location or a promise of continuous tracking. Make persistent project changes with the native Mac tooling and commit them after checking the build.
-
-## 4. Compile and install
-
-With the phone connected, from the repository root:
-
-```sh
 bash apps/flutter/tool/run-ios.sh
 ```
 
-This builds **Release** and installs the exact newly built artifact for Customer, then Captain. Normal builds connect to Firebase; server payments are currently **test mode**. No web Firebase JSON or payment secret is needed on the Mac. If several iPhones are connected the command asks for an explicit `--device ID`, using the IDs in its output.
+Use `--device IPHONE_ID` when several devices are attached; `--no-codesign`
+compiles only and does not establish signing/install success. Use a higher
+positive `--build-number NUMBER` if the existing installed/TestFlight version
+requires it. Do not rename apps, identifiers or teams to bypass signing problems.
+Run Release apps from the iPhone Home screen after disconnecting Xcode.
 
-Useful alternatives:
+The helper regenerates ignored machine-local Flutter configuration and installs
+Pods. Keep compatible committed dependency locks. Captain's older native pod lock
+may need the already-declared camera plugin resolved by `pod install`; do not
+remove all locks or upgrade every package as a first step. Commit Mac-resolved
+lockfile changes only after successful builds.
 
-```sh
-bash apps/flutter/tool/run-ios.sh customer
-bash apps/flutter/tool/run-ios.sh captain
-bash apps/flutter/tool/run-ios.sh --no-codesign
-bash apps/flutter/tool/run-ios.sh --build-number 2
-bash apps/flutter/tool/live.sh customer
-```
+## APNs and errors
 
-`--no-codesign` compiles for a physical iPhone without installing or requiring a signing identity; it does not prove a signed-device pass. Hot reload runs one Debug app while the terminal remains connected. Use Release for the final check. `--demo` is only for the visibly labelled sample app and must not be used for acceptance.
+Key **Y5432Q73U8** is already saved in Firebase for both apps/environments.
+No `.p8`, Firebase CLI login, service-account key or Razorpay secret is needed to
+compile the clients. See [Apple setup](APPLE-PUSH-SETUP-2026-11-01.md).
+If phone login falls back to Firebase verification, check the actual signed
+`application-identifier`/`aps-environment` entitlements, Push Notifications,
+Background fetch/Remote notifications and iPhone Background App Refresh.
+Record safe error codes and token presence only; never token/key values.
+Do not disable verification for real SMS.
 
-## 5. Final check on real iPhones
-
-Use actual consenting test users and an operator-approved **test-mode** captain. Do not seed fake captains or fixed OTPs into production. Prefer two phones, or use the Customer web app with the Captain phone.
-
-- Open both Release apps after disconnecting Xcode. Verify WashKrew branding (there is no test-payment banner; it was removed on 25 Oct at the owner's request), then real SMS login, resend/edit number, profile and sign-out/reopen.
-- Allow/deny/re-enable camera, photos, microphone and speech recognition; use the existing quiz microphone in English/Hindi/Telugu and test unavailable/denied recognition without losing tap answers. Test the native map and movement of its existing pin, including a failed map load and retry.
-- Allow/deny/re-enable camera, photos and microphone; cancel capture; replace all four vehicle photos, Captain selfie/KYC and before/after wash photos. Record, preview, delete and retry voice/video uploads. Verify private media from the assigned Captain account.
-- Make a test-payment booking. Check payment cancellation/retry, app switching and lost-callback status recovery. Verify a refundable cancellation reaches its real test-provider refund result. No live funds are required.
-- Claim the offer, confirm the same assignment for both users, share optional foreground GPS, arrive, start/finish with four evidence photos, approve and rate from Customer, then check Captain earnings. The face check must use the consenting Captain’s approved reference photo; check a clear match, a bad/different capture and the human-review path. Inspect real advisory photo warnings, retake the correct side, and check that send-anyway still leaves Customer approval in control. Check future-slot restrictions and Customer cancellation while Captain is viewing a job.
-- Test denied notifications, inbox persistence, foreground/background push and notification taps. Lock/background the Captain app and confirm the Customer sees stale location instead of a claim of continuous tracking.
-
-Record the device/iOS/Xcode versions and outcomes in `docs/WEB-ACCEPTANCE.md` or a separate iOS acceptance record. Failed signing, APNs delivery, camera and UPI checks remain open until tested on hardware. Razorpay website approval, reviewed commercial settings and real live-mode captains are separate launch gates in [LIVE-LAUNCH.md](LIVE-LAUNCH.md); do not switch the server to live payments as part of compiling.
-
-## Checks completed before transfer
-
-On Windows, 27 October: all **89 backend/rules tests**, **24 Flutter tests** (8 Customer, 14 shared Firebase, 1 Captain speech parser, 1 shared image-quality check) and **3 actual local model tests** passed. Analyses of both apps, both shared packages and the iOS preparation tool are clean. Both release web builds passed and were published in test mode. Standalone tooling tests validate both native configurations and device/plugin safety checks; native compilation is intentionally guarded to macOS.
-
-Authenticated local HTTP acceptance exercised booking, assignment, a real private local face comparison, eight image uploads, wash tracking, Customer approval/rating/earnings and a single-use receipt. Its payment capture was simulated; the previous actual merchant test captures/refunds remain a separate acceptance record. Actual deployed private-model/Gemini checks and Google Routes requests passed without a production QA user or booking. Fresh local browser checks verified both restored accounts, the Captain's completed order and the real draggable map with its persisted parking coordinates. Deployed API access/signature checks and hosted bundle hashes passed. Exact boundaries are recorded in [WEB-ACCEPTANCE.md](WEB-ACCEPTANCE.md); these checks do not substitute for Xcode and device acceptance.
+Copy [the results template](IOS-ACCEPTANCE-RESULTS-TEMPLATE.md) and record the
+commit, versions, Mac/Xcode/iOS and actual PASS/FAIL/BLOCKED/NOT RUN per case.
+Windows preflight/source tests do not establish Mac signing or device success.

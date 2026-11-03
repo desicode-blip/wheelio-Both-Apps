@@ -3,7 +3,7 @@
 Copy this to a local dated result file before testing. No native case below is
 pre-approved or pre-marked PASS. Read AMAN-IOS-HANDOFF-2026-11-02.md and
 WALLET-CANCELLATION-2026-10-31.md for current build/role order. New financial rules
-override the older PDF's cash-refund examples; old bookings retain saved terms.
+supersede historical cash-refund examples; old bookings retain saved terms.
 Keep personal/financial/identity data and private evidence outside Git/shared reports.
 
 - Date / tester:
