@@ -18,6 +18,8 @@
     "firebase:build": "node apps/flutter/tool/build-firebase.mjs",
     "firebase:preview": "firebase emulators:start --only hosting",
     "firebase:test": "firebase emulators:exec --project demo-wheelio --only firestore,auth,storage \"npm --prefix backend/firebase test\"",
-    "android:internal": "node apps/flutter/tool/build-android-internal.mjs"
+    "android:internal": "node apps/flutter/tool/build-android-internal.mjs",
+    "android:store": "node apps/flutter/tool/build-android-store.mjs",
+    "ios:store": "bash apps/flutter/tool/archive-ios.sh"
   }
 }

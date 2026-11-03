@@ -6,6 +6,15 @@ Captain-review admin, shared packages, tests and build tools support those produ
 Keep the approved app designs pinned to **af036f0** plus the owner-approved
 exceptions in [AGENTS.md](AGENTS.md). Do not recreate or redesign either app.
 
+## Prepare the initial store release
+
+Start with [the store publishing guide](docs/STORE-RELEASE-2026-11-03.md) and
+[Aman's Claude publishing prompt](docs/AMAN-CLAUDE-STORE-PUBLISH-2026-11-03.md).
+`pnpm android:store` builds production AABs with private upload signing;
+`bash apps/flutter/tool/archive-ios.sh` exports both App Store IPAs on a Mac.
+Policy drafts, metadata and explicit owner/store gates are in `release/store/`.
+These commands build locally; they do not submit or publish either app.
+
 ## Build both iPhone apps
 
 Start with [the current Mac handoff](docs/AMAN-IOS-HANDOFF-2026-11-02.md).
@@ -24,7 +33,7 @@ bash apps/flutter/tool/run-ios.sh
 Preserve local changes; inspect a failed fast-forward rather than resetting.
 Open each app's `ios/Runner.xcworkspace`, sign with paid Apple team **28JNT7H8KA**,
 and keep `com.amanmaheshwari.wheelio.customer` / `.captain`.
-Source versions: Customer **1.0.4 (5)**, Captain **1.0.5 (6)**.
+Source versions: Customer **1.0.4 (6)**, Captain **1.0.5 (7)**.
 Private APNs keys are already configured in Firebase and are not needed to build.
 Record actual results in [the iPhone results template](docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md).
 Windows checks do not establish Xcode compilation, signing or physical acceptance.

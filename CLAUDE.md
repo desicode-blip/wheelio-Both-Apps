@@ -7,6 +7,13 @@ React/Next.js, legacy Flutter and Supabase implementations are not build targets
 
 For Aman's Mac/iPhone, start with:
 
+For the initial STORE release, first read
+`docs/STORE-RELEASE-2026-11-03.md` and
+`docs/AMAN-CLAUDE-STORE-PUBLISH-2026-11-03.md`. Aman has approved the tested version
+according to the owner; preserve that functional baseline and the UI. Export
+local App Store IPAs using `archive-ios.sh`; `run-ios.sh` is for device installs.
+Policy/contact/reviewer/screenshot gates must be completed before submission.
+
 1. `docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md` - current task prompt.
 2. `docs/AMAN-IOS-HANDOFF-2026-11-02.md` - safe pull, prepare, sign/build/install,
    exact role order, current financial rules and native acceptance limits.
@@ -16,7 +23,7 @@ For Aman's Mac/iPhone, start with:
 Run `bash apps/flutter/tool/run-ios.sh --prepare`, then the helper without
 `--prepare` to build/install both Release apps on a trusted physical iPhone.
 Use paid team **28JNT7H8KA** and existing `.customer` / `.captain` bundle IDs.
-Customer source version is **1.0.4 (5)**; Captain is **1.0.5 (6)**. The owner
+Customer source version is **1.0.4 (6)**; Captain is **1.0.5 (7)**. The owner
 confirmed the previous Android flow works; no physical iPhone result is pre-passed.
 
 APNs key **Y5432Q73U8** is already configured for both apps/environments in Firebase.

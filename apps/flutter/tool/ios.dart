@@ -1,6 +1,7 @@
 // Standalone Dart: uses the SDK bundled with Flutter, with no Node dependency.
 import 'dart:convert';
 import 'dart:io';
+import 'ios_store.dart' as store;
 
 const usage = '''WashKrew iPhone build tools (run from any directory)
   bash apps/flutter/tool/run-ios.sh                     Build + install both apps
@@ -12,6 +13,8 @@ const usage = '''WashKrew iPhone build tools (run from any directory)
   bash apps/flutter/tool/run-ios.sh --build-number 2    Set an iOS build number
   bash apps/flutter/tool/live.sh customer              Hot reload (captain also works)
   dart apps/flutter/tool/ios.dart check                Read-only source checks
+  bash apps/flutter/tool/archive-ios.sh                Export both App Store IPAs
+  bash apps/flutter/tool/archive-ios.sh customer       Export Customer only
 Add --demo only for the labelled sample app. Firebase is the default.
 Mac prerequisites: Flutter 3.38.6 (tested), Xcode with iOS SDK, CocoaPods.
 See docs/MAC-HANDOFF.md for signing, Apple push setup and device acceptance.''';
@@ -21,7 +24,7 @@ class IosArguments {
     if (arguments.isEmpty)
       throw const FormatException('Choose build, run or check.');
     action = arguments.first;
-    if (!['build', 'run', 'check'].contains(action))
+    if (!['build', 'run', 'check', 'archive'].contains(action))
       throw FormatException('Unknown action: $action');
     for (var i = 1; i < arguments.length; i++) {
       final arg = arguments[i];
@@ -56,7 +59,8 @@ class IosArguments {
           throw FormatException('Unknown argument: $arg');
       }
     }
-    if (action != 'build' && (prepare || noCodesign || buildNumber != null))
+    if (!['build', 'archive'].contains(action) &&
+        (prepare || noCodesign || buildNumber != null))
       throw const FormatException('Build options require run-ios.sh.');
     if ((prepare || noCodesign) && device != null)
       throw const FormatException(
@@ -70,6 +74,11 @@ class IosArguments {
       );
     if (action == 'run' && ['all', 'customer captain'].contains(selection))
       throw const FormatException('Hot reload runs one app at a time.');
+    if (action == 'archive' &&
+        (demo || prepare || noCodesign || device != null))
+      throw const FormatException(
+        'Store archives require signed live Release apps; no demo/device/prepare/no-codesign options.',
+      );
   }
   late final String action;
   String? selection, device, buildNumber;
@@ -317,6 +326,7 @@ Future<void> main(List<String> arguments) async {
     final args = IosArguments(arguments);
     final root = Directory.fromUri(Platform.script.resolve('../../../'));
     checkSource(root, args.apps);
+    store.checkSource(root, args.apps);
     if (args.action == 'check') return;
     if (!Platform.isMacOS)
       throw StateError(
@@ -337,6 +347,10 @@ Future<void> main(List<String> arguments) async {
     stdout.writeln(
       'Flutter ${version['frameworkVersion']}; tested with 3.38.6. Locked Dart dependencies will be enforced.',
     );
+    if (args.action == 'archive' && version['frameworkVersion'] != '3.38.6')
+      throw StateError(
+        'Use the pinned Flutter 3.38.6 SDK for the store release.',
+      );
     await commands.run('xcodebuild', ['-version'], root.path);
     await commands.run('xcrun', [
       '--sdk',
@@ -344,8 +358,17 @@ Future<void> main(List<String> arguments) async {
       '--show-sdk-path',
     ], root.path);
     await commands.run('pod', ['--version'], root.path);
+    if (args.action == 'archive') {
+      final sdk = await commands.run(
+        'xcrun',
+        ['--sdk', 'iphoneos', '--show-sdk-version'],
+        root.path,
+        capture: true,
+      );
+      store.checkSdk(sdk);
+    }
     String? device;
-    if (!args.prepare && !args.noCodesign)
+    if (args.action != 'archive' && !args.prepare && !args.noCodesign)
       device = selectDevice(
         jsonDecode(
           await commands.run(
@@ -370,6 +393,7 @@ Future<void> main(List<String> arguments) async {
         '-lint',
         'ios/Runner/Info.plist',
         'ios/Runner/GoogleService-Info.plist',
+        'ios/Runner/PrivacyInfo.xcprivacy',
       ], cwd);
       // A copied Windows checkout can contain generated absolute paths. Let
       // Flutter remove and regenerate its own files, retaining source/pod locks.
@@ -395,7 +419,19 @@ Future<void> main(List<String> arguments) async {
         ...args.defines,
         if (args.buildNumber != null) '--build-number=${args.buildNumber}',
       ];
-      if (args.prepare) {
+      if (args.action == 'archive') {
+        await commands.run(flutter, [
+          'build',
+          'ipa',
+          '--release',
+          '--no-pub',
+          '--export-options-plist=${root.path}/apps/flutter/tool/AppStoreExportOptions.plist',
+          '--dart-define=WHEELIO_DEMO=false',
+          '--dart-define=FIREBASE_USE_EMULATORS=false',
+          ...buildFlags,
+        ], cwd);
+        await store.verifyAndCollect(root, app);
+      } else if (args.prepare) {
         await commands.run(flutter, [
           'build',
           'ios',
@@ -433,7 +469,9 @@ Future<void> main(List<String> arguments) async {
       }
     }
     stdout.writeln(
-      '\n${args.prepare
+      '\n${args.action == 'archive'
+          ? 'Local App Store export (not uploaded)'
+          : args.prepare
           ? 'Xcode preparation'
           : args.noCodesign
           ? 'Unsigned compilation'

@@ -1,6 +1,9 @@
 # WashKrew Customer and Captain: current Mac handoff
 
 **Updated 3 November 2026. This is the current starting point for Aman and Claude.**
+For store archives/submission, the newer
+[store release guide](STORE-RELEASE-2026-11-03.md) is the starting point.
+This document continues to describe device build/install and functional checks.
 It supersedes older build, society-approval, payment and APNs instructions.
 The requested deliverables are the two native mobile apps and the private admin
 portal. Customer/Captain web apps are not a prerequisite for this acceptance.
@@ -55,8 +58,8 @@ In each Runner target, verify automatic signing with paid **Sumit Mandal** team
 
 | App | Bundle ID | Source version/build |
 | --- | --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (5) |
-| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (6) |
+| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (6) |
+| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (7) |
 
 Use the workspace, including Pods. Keep Push Notifications, Background fetch and
 Remote notifications enabled. iOS minimum is 15.0. The tool checks signing-team

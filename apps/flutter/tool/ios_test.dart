@@ -1,6 +1,7 @@
 // Run with: dart apps/flutter/tool/ios_test.dart (no Mac or package install needed).
 import 'dart:io';
 import 'ios.dart' as ios;
+import 'ios_store.dart' as store;
 
 void expect(bool result, String message) {
   if (!result) throw StateError(message);
@@ -37,10 +38,50 @@ void main() {
     ['run', 'all'],
     ['run', '--no-codesign'],
     ['build', '--build-number', '1.5'],
+    ['archive', '--demo'],
+    ['archive', '--no-codesign'],
+    ['archive', '--device', 'phone'],
+    ['archive', '--prepare'],
   ]) {
     rejects(
       () => ios.IosArguments(args),
       'Unsafe/unknown arguments accepted: $args',
+    );
+  }
+  expect(
+    ios.IosArguments(['archive']).apps.length == 2,
+    'Store export must build both apps by default without selecting a device.',
+  );
+  store.checkSdk('26.1\n');
+  rejects(
+    () => store.checkSdk('18.5'),
+    'Old SDK must fail before store archive.',
+  );
+  final storeInfo = <String, dynamic>{
+    'CFBundleIdentifier': 'com.amanmaheshwari.wheelio.customer',
+    'CFBundleShortVersionString': '1.0.4',
+    'CFBundleVersion': '6',
+    'DTSDKName': 'iphoneos26.0',
+  };
+  final distribution = <String, dynamic>{
+    'application-identifier': '28JNT7H8KA.com.amanmaheshwari.wheelio.customer',
+    'com.apple.developer.team-identifier': '28JNT7H8KA',
+    'aps-environment': 'production',
+    'get-task-allow': false,
+  };
+  store.checkDistribution(storeInfo, distribution, 'customer');
+  for (final invalid in [
+    {...distribution, 'aps-environment': 'development'},
+    {...distribution, 'get-task-allow': true},
+    {...distribution, 'com.apple.developer.team-identifier': '8CCQQM7TP3'},
+    {
+      ...distribution,
+      'application-identifier': '28JNT7H8KA.com.amanmaheshwari.wheelio.captain',
+    },
+  ]) {
+    rejects(
+      () => store.checkDistribution(storeInfo, invalid, 'customer'),
+      'Development/wrong-team/wrong-role IPA must not pass as a store export.',
     );
   }
   final phone = {

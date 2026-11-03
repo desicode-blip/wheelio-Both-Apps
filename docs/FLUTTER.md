@@ -1,6 +1,16 @@
 # Current Flutter apps - 3 November 2026
 
-Latest lifecycle fix: Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clear private
+Store preparation: Customer **1.0.4 (6)** / Captain **1.0.5 (7)** preserve the
+accepted app UI and functionality. Production Android builds use all three ABIs,
+R8/resource shrinking and the private existing upload key. App backup is disabled
+to avoid restoring private role state on reinstall. iOS Runner resources include
+source-based privacy manifests; `archive-ios.sh` exports local App Store IPAs and
+checks the signed distribution/APNs/team/package/SDK, preserving archives/dSYMs.
+See [the store guide](STORE-RELEASE-2026-11-03.md). Metadata/policy drafts and
+explicit publication gates live in `release/store/`; no store submission is
+performed by the build tools. Policies still need owner review and deployment.
+
+The lifecycle fix introduced in Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clears private
 state and navigation on removal, wait for fresh active-role server snapshots and
 support same-phone signup without restoring old KYC, approval or saved settings.
 See [the lifecycle recovery report](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md).

@@ -1,8 +1,11 @@
 # Prompt for Claude on Aman's Mac - 3 November 2026
 
 Copy the prompt below into Claude with the existing repository open. The latest
-staging includes Customer **1.0.4 (5)** and Captain **1.0.5 (6)**. These source
+staging includes Customer **1.0.4 (6)** and Captain **1.0.5 (7)**. These source
 versions include the deletion fix; an older installed app is not a test of it.
+For the owner-approved initial store release, use the newer
+`AMAN-CLAUDE-STORE-PUBLISH-2026-11-03.md` prompt instead. This page remains the
+device build/retest sequence.
 
 ---
 

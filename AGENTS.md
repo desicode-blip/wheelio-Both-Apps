@@ -1,5 +1,21 @@
 # WashKrew - instructions for all coding agents
 
+## Initial store release preparation — 3 November 2026
+
+The owner reports that Aman approved the tested version for the initial release.
+Preserve that functional/UI baseline. For App Store/Play preparation read
+`docs/STORE-RELEASE-2026-11-03.md` and `release/store/PRIVACY-AND-REVIEW.md`.
+Customer is 1.0.4 (6), Captain 1.0.5 (7). Production Android uses `android:store`
+(all three ABIs, R8/resource shrinking, existing private upload key); internal
+bundles are a different profile. Mac App Store export uses `archive-ios.sh`,
+which exports locally and checks signed production entitlements; `run-ios.sh`
+still installs on a device. No store submission is performed by these tools.
+The owner supplied legal name Washkrew, info@washkrew.com and +918088516875.
+Policy drafts and explicit owner/store gates are in `release/store/`; do not
+publish unapproved draft legal text or claim review credentials/screenshots are
+ready without actual evidence. The website/admin remain current; app web
+acceptance is unnecessary. Never touch unrelated TrustKeyper Play apps.
+
 ## Current source and design lock - 28 October 2026
 
 - The owner chose commit **af036f070aa624310b97b8277bfb6aabf9d8c4cc**
