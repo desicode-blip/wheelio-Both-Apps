@@ -1,5 +1,22 @@
 # Separate WashKrew Android internal apps — 1 November 2026
 
+## Bundle preparation — 3 November 2026
+
+Customer **1.0.4 (5)** and Captain **1.0.5 (6)** include the latest deletion,
+same-phone registration and stale-cache fixes. The internal builder targets arm64.
+Artifact inspection found that plugin libraries retained Flutter 3.38's three
+default build-type ABI filters while the Flutter engine/AOT existed only for
+arm64. Both Gradle release blocks now clear/restrict those filters to arm64 only
+when `WASHKREW_ANDROID_INTERNAL_TEST=1`. Other build modes keep their defaults.
+No UI, payment policy, signing key, package ID or unrelated Play app changes.
+
+The rebuilt artifacts must pass official Google bundletool structure validation,
+package/version/release checks, complete per-ABI engine/AOT checks, ZIP integrity
+and upload signature verification before delivery. Local preparation is not a
+Play upload or device acceptance. Payment mode remains server-owned and live.
+See [Flutter's ABI-filter guidance](https://docs.flutter.dev/release/breaking-changes/default-abi-filters-android)
+and [Android bundle validation/testing](https://developer.android.com/tools/bundletool).
+
 ## Latest accepted updates — 2 November 2026
 
 Captain **1.0.2 (3)** from `294ac01` supersedes the Captain update below. It was

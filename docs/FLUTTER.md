@@ -13,6 +13,11 @@ The private Captain admin and marketing website remain separate current products
 
 ## Build and checks
 
+Android internal builds select arm64 for both Flutter AOT/engine and the release
+build-type NDK filter. This also filters plugin libraries; leaving Flutter 3.38's
+three default build-type filters would advertise unsupported architectures with
+no matching engine. Normal production release/debug/profile filters are unchanged.
+
 Use Flutter **3.38.6 / Dart 3.10.7**. Keep both app lockfiles. Root `pnpm typecheck`
 and `pnpm test` run the two apps and both shared packages. Native iPhone builds
 need a Mac with Xcode/CocoaPods; read

@@ -56,6 +56,12 @@ android {
     }
     buildTypes {
         release {
+            // Flutter 3.38 prepopulates build-type ABI filters. Match the
+            // arm64-only internal Dart/engine build, including plugin libraries.
+            if (internalTestBuild) {
+                ndk.abiFilters.clear()
+                ndk.abiFilters.add("arm64-v8a")
+            }
             isMinifyEnabled = !internalTestBuild
             isShrinkResources = !internalTestBuild
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
