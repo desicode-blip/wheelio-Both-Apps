@@ -117,6 +117,7 @@ class AppRouter extends WRouter<R> {
 
   bool isAt(N n) => last?.n == n;
   void go(N n) => push(R(n));
+  void resetAccountNavigation(){showPaySheet=false;path=[];tab=0;}
 
   void setSplash(bool v) {
     showSplash = v;
@@ -380,6 +381,9 @@ class AppStore extends ChangeNotifier {
   final List<StreamSubscription<dynamic>> _liveSubscriptions = [];
   final List<StreamSubscription<dynamic>> _accountSubscriptions = [];
   String _liveUid = '';
+  bool _accountActive = false;
+  int _accountGeneration = 0;
+  int accountResetRevision = 0;
   String draftRequestId = newId('draft');
   String? draftBookingId;
   StreamSubscription<dynamic>? _walletSubscription;
@@ -501,15 +505,16 @@ class AppStore extends ChangeNotifier {
   }
 
   void _bindWallet() {
-    final identity = _liveUid.isEmpty ? '' : '${_liveUid}_${testPayments ? 'test' : 'live'}';
+    final identity = _liveUid.isEmpty || !_accountActive ? '' : '${_liveUid}_${testPayments ? 'test' : 'live'}';
     if (_walletIdentity == identity) return;
     _walletIdentity = identity;
     _walletSubscription?.cancel();
     _walletFree = 0; _walletCredit = 0;
     customer?.freeWashes = 0; customer?.credit = 0;
     if (identity.isEmpty) return;
+    final generation = _accountGeneration;
     _walletSubscription = live!.wallet(_liveUid, testPayments ? 'test' : 'live').listen((s) {
-      if (identity != _walletIdentity) return;
+      if (generation != _accountGeneration || !_accountActive || identity != _walletIdentity || s.metadata.isFromCache) return;
       final d = s.data() ?? {};
       _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
       _walletCredit = (d['creditPaise'] as num? ?? 0) / 100;
@@ -518,8 +523,29 @@ class AppStore extends ChangeNotifier {
     }, onError: (Object e) { backendMessage = backendError(e); changed(); });
   }
 
+  /// Clear private role state before another screen/account can observe it.
+  void resetDeletedAccountData() {
+    _accountActive=false;
+    customer=null;profilePhoto=null;_profilePhotoPath=null;savedPlaces=[];
+    vehicles=[];orders=[];notifications=[];_inbox=[];_inboxLoaded=false;
+    notificationPrefs=NotificationPrefs();liveBanner=null;toast=null;
+    currentOrderId=null;viewingOrderId=null;draft=BookingDraft();
+    draftBookingId=null;draftRequestId=newId('draft');draftPhotoBytes.clear();draftMedia.clear();
+    _walletFree=0;_walletCredit=0;_walletIdentity='';_walletSubscription?.cancel();
+    _preferenceSave?.cancel();_readIds.clear();_unreadIds.clear();_deletedIds.clear();
+    _invalidateAvailability();backendMessage=null;returningCustomer=false;
+    pendingPhone='';pendingNewPhone='';hasSeenWelcome=false;payMethodId='gpay';
+    for(final task in _tasks.values){task.cancel();}_tasks.clear();
+    accountResetRevision++;changed();
+  }
+
   void _bindLiveAccount(String uid) {
+    final old = _liveUid;
+    _accountGeneration++;
+    _accountActive = false;
+    if(uid.isEmpty && old.isNotEmpty) resetDeletedAccountData();
     _liveUid = uid;
+    final generation = _accountGeneration;
     _invalidateAvailability();
     for (final s in _accountSubscriptions) {
       s.cancel();
@@ -542,26 +568,31 @@ class AppStore extends ChangeNotifier {
       changed();
       return;
     }
-    live!.registerPush('customer').catchError((Object _) {});
-    _accountSubscriptions.add(live!.db.doc('availabilitySignals/current').snapshots().listen((_){_invalidateAvailability();changed();},onError:(Object _){}));
-    _accountSubscriptions.add(live!.inbox(uid).listen((s){
-      if(_liveUid!=uid)return;
-      final oldIds=_inbox.map((e)=>e.$1).toSet();
-      _inbox=[for(final doc in s.docs) if(doc.data()['role']=='customer') (doc.id, doc.data())];
-      _mapInbox();
-      if(_inboxLoaded){for(final n in notifications.where((n)=>!oldIds.contains(n.id))) { _present(n); }}
-      _inboxLoaded=true;
-      changed();
-    },onError:(Object e){backendMessage=backendError(e);changed();}));
     _accountSubscriptions.add(
       live!
           .profile(uid)
           .listen(
             (snapshot) {
-              if (_liveUid != uid) return;
+              if (_liveUid != uid || generation != _accountGeneration || snapshot.metadata.isFromCache) return;
               final data = snapshot.data();
-              if (data == null) return;
-              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: data['name'] as String? ?? '', freeWashes: _walletFree, notificationsOn: data['customerPushEnabled'] == true)..credit = _walletCredit;
+              if(data == null || appAccountRoleState(data,'customer') != AppAccountRoleState.active) {
+                final wasActive = _accountActive;
+                _accountActive = false;
+                if(wasActive || (!live!.registrationInProgress && appAccountRoleState(data,'customer') != AppAccountRoleState.absent)){resetDeletedAccountData();}
+                else {customer=null;}
+                _bindWallet();
+                if(data != null && appAccountRoleState(data,'customer') != AppAccountRoleState.absent && !live!.registrationInProgress) {
+                  live!.signOut().catchError((Object _){});
+                }
+                if(wasActive) changed();
+                return;
+              }
+              if(!_accountActive) {
+                _accountActive=true;
+                _bindCustomerData(uid,generation);
+                _bindWallet();
+              }
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: appAccountName(data,'customer'), freeWashes: _walletFree, notificationsOn: data['customerPushEnabled'] == true)..credit = _walletCredit;
               _restorePreferences(data);
               final photoPath = data['customerPhotoPath'] as String?;
               if (photoPath != _profilePhotoPath) {
@@ -569,7 +600,7 @@ class AppStore extends ChangeNotifier {
                 if (photoPath == null) {
                   profilePhoto = null;
                 } else {
-                  live!.photo(photoPath).then((bytes) { if (_liveUid == uid && photoPath == _profilePhotoPath) { profilePhoto = bytes; changed(); } }).catchError((Object e) { if (_liveUid == uid) set(() => toast = backendError(e)); });
+                  live!.photo(photoPath).then((bytes) { if (_accountActive && generation == _accountGeneration && _liveUid == uid && photoPath == _profilePhotoPath) { profilePhoto = bytes; changed(); } }).catchError((Object e) { if (_liveUid == uid) set(() => toast = backendError(e)); });
                 }
               }
               savedPlaces = [for (final p in data['savedPlaces'] as List? ?? []) Place(Society(p['societyId'],p['societyName'],p['area']??'',p['city']??'',p['pincode']??''),tower:p['tower']??'',floor:p['floor'],slot:p['parking']??'',latitude:(p['vehiclePosition']?['latitude'] as num?)?.toDouble(),longitude:(p['vehiclePosition']?['longitude'] as num?)?.toDouble())];
@@ -582,12 +613,28 @@ class AppStore extends ChangeNotifier {
             },
           ),
     );
+
+    changed();
+  }
+
+  void _bindCustomerData(String uid,int generation) {
+    live!.registerPush('customer').catchError((Object _) {});
+    _accountSubscriptions.add(live!.availabilityChanges.listen((_){_invalidateAvailability();changed();},onError:(Object _){}));
+    _accountSubscriptions.add(live!.inbox(uid).listen((s){
+      if(_liveUid!=uid || generation!=_accountGeneration || !_accountActive || s.metadata.isFromCache)return;
+      final oldIds=_inbox.map((e)=>e.$1).toSet();
+      _inbox=[for(final doc in s.docs) if(doc.data()['role']=='customer') (doc.id, doc.data())];
+      _mapInbox();
+      if(_inboxLoaded){for(final n in notifications.where((n)=>!oldIds.contains(n.id))) { _present(n); }}
+      _inboxLoaded=true;
+      changed();
+    },onError:(Object e){backendMessage=backendError(e);changed();}));
     _accountSubscriptions.add(
       live!
           .orders(uid)
           .listen(
             (snapshot) {
-              if (_liveUid != uid) return;
+              if (_liveUid != uid || generation != _accountGeneration || !_accountActive || snapshot.metadata.isFromCache) return;
               orders = [for (final doc in snapshot.docs) _liveOrder(doc.id, doc.data())];
               vehicles = [];
               for (final o in orders) {
@@ -603,7 +650,6 @@ class AppStore extends ChangeNotifier {
             },
           ),
     );
-    changed();
   }
 
   List<(String, Map<String, dynamic>)> _inbox = [];
@@ -754,10 +800,10 @@ class AppStore extends ChangeNotifier {
   }
   void _savePreferences() {
     if (!isLive || _liveUid.isEmpty) return;
-    final account=_liveUid, value=_preferences();
+    final account=_liveUid, generation=_accountGeneration, value=_preferences();
     _preferenceSave?.cancel();
     _preferenceSave=Timer(const Duration(milliseconds:300),(){
-      _preferenceQueue=_preferenceQueue.then((_) async { if(_liveUid==account) await live!.call('saveNotificationPreferences',value); }).catchError((Object e){if(_liveUid==account) {toast=backendError(e);changed();}});
+      _preferenceQueue=_preferenceQueue.then((_) async { if(_accountActive && generation==_accountGeneration && _liveUid==account) await live!.call('saveNotificationPreferences',value); }).catchError((Object e){if(_accountActive && generation==_accountGeneration && _liveUid==account) {toast=backendError(e);changed();}});
     });
   }
   Future<void> setProfilePhoto(Uint8List? bytes) async {
@@ -971,9 +1017,10 @@ class AppStore extends ChangeNotifier {
     if (isLive) {
       await live!.verifyOtp(code, role: 'customer');
       final uid = live!.uid!;
-      if (_liveUid != uid) _bindLiveAccount(uid);
-      final data = (await live!.db.doc('users/$uid').get()).data()!;
-      customer = Customer(id: uid, phone: pendingPhone, name: data['name'] ?? '');
+      final data = await live!.freshProfile();
+      if(appAccountRoleState(data,'customer') != AppAccountRoleState.active) throw StateError('Account setup has not finished. Try again.');
+      _bindLiveAccount(uid);
+      customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91',''), name: appAccountName(data,'customer'));
       changed();
       return OtpResult('ok', isNew: customer!.name.isEmpty);
     }
@@ -1071,7 +1118,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      await live!.deleteAppAccount('customer');return true;
+      await live!.deleteAppAccount('customer');resetDeletedAccountData();return true;
     }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;

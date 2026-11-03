@@ -966,6 +966,9 @@ class CaptainStore extends ChangeNotifier {
   bool get isLive => live != null;
   String liveUid = '';
   bool liveLoaded = false;
+  bool _accountActive = false;
+  int _accountGeneration = 0;
+  int accountResetRevision = 0;
   bool liveOrdersLoaded = false;
   Map<String, dynamic> liveCaptain = {}, liveConfig = {};
   final Map<String, Map<String, dynamic>> liveOrders = {};
@@ -1029,9 +1032,9 @@ class CaptainStore extends ChangeNotifier {
   Map<String,dynamic> _preferences()=>{'role':'captain','enabled':notificationsOn,'soundOn':notifPrefs.soundOn,'quietHours':notifPrefs.quietHours,'mutedUntil':notifPrefs.mutedUntil?.millisecondsSinceEpoch,'offCategories':[for(final c in notifPrefs.off) if(c!=WNotifCategory.account)c.name]};
   void _savePreferences(){
     if(!isLive||liveUid.isEmpty)return;
-    final account=liveUid,value=_preferences();
+    final account=liveUid,generation=_accountGeneration,value=_preferences();
     _preferenceSave?.cancel();
-    _preferenceSave=Timer(const Duration(milliseconds:300),(){_preferenceQueue=_preferenceQueue.then((_)async{if(liveUid==account)await live!.call('saveNotificationPreferences',value);}).catchError((Object e){if(liveUid==account){toast=backendError(e);changed();}});});
+    _preferenceSave=Timer(const Duration(milliseconds:300),(){_preferenceQueue=_preferenceQueue.then((_)async{if(_accountActive&&generation==_accountGeneration&&liveUid==account)await live!.call('saveNotificationPreferences',value);}).catchError((Object e){if(_accountActive&&generation==_accountGeneration&&liveUid==account){toast=backendError(e);changed();}});});
   }
   Future<void> setProfilePhoto(Uint8List? bytes) async {
     if(!isLive){set(()=>profilePhoto=bytes);return;}
@@ -1054,7 +1057,7 @@ class CaptainStore extends ChangeNotifier {
     if (isLive) {
       try {
         await live!.deleteAppAccount('captain');
-        return null;
+        resetDeletedAccountData();return null;
       } catch(e) { return backendError(e); }
     }
     await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -1087,7 +1090,33 @@ class CaptainStore extends ChangeNotifier {
     });
   }
 
+  void _clearPrivateAccountData() {
+    name='';phone='';upi='';pendingPhone='';pendingUPI='';rating=0;
+    registered=false;signedUp=false;exploring=false;online=false;onlineAfterSignUp=false;
+    profilePhoto=null;_profilePhotoPath=null;liveCaptain={};kycUploaded={};kycStatus='notSubmitted';
+    steps={};testSkipped.clear();videosWatched=0;notifications=[];liveBanner=null;notifPrefs=WNotifPrefs();notificationsOn=false;
+    _readNotifs.clear();_unreadNotifs.clear();_deletedNotifs.clear();_inboxLoaded=false;
+    liveOrders.clear();liveOffers=[];liveEarnings=[];queue=[];_offerFeed.clear();offerOutcomes.clear();offerExpiry.clear();
+    shots.clear();_evidenceVersions.clear();_evidenceUploads.clear();beforeDone={};afterDone={};
+    _workflowOrderId=null;_shotJobId=null;ownerNoteHeard=false;kycFromJob=false;
+    workMode=WorkMode.all;radiusKm=3;chosenSocieties={};workPlace='';workSlots=[];
+    _reviewStartedLocal=null;awaitingApproval=false;reviewNoticePending=false;workSetupLanding=false;chipGlow=false;
+    levelDay=1;jobLimit=0;jobsToday=0;earnedToday=0;approvedToday=0;waitingToday=0;
+    _preferenceSave?.cancel();_locationTimer?.cancel();_locationTimer=null;_sharingLocation=false;_presence.clear();
+    noShowPlate='';noShowCancelled=false;noShowDemo=false;jobLate=false;slotEnded=false;
+  }
+
+  void resetDeletedAccountData() {
+    _accountActive=false;_clearPrivateAccountData();accountResetRevision++;changed();
+  }
+
   void _bindLive(String uid) {
+    final old=liveUid;
+    _accountGeneration++;
+    _accountActive=false;
+    final generation=_accountGeneration;
+    _clearPrivateAccountData();
+    if(uid.isEmpty && old.isNotEmpty)accountResetRevision++;
     for (final s in _accountSubs) {
       s.cancel();
     }
@@ -1114,9 +1143,18 @@ class CaptainStore extends ChangeNotifier {
       changed();
       return;
     }
-    live!.registerPush('captain').catchError((Object _) {});
     _accountSubs.add(live!.profile(uid).listen((s){
-      if(liveUid!=uid)return;
+      if(liveUid!=uid || generation!=_accountGeneration || s.metadata.isFromCache)return;
+      final state=appAccountRoleState(s.data(),'captain');
+      if(state!=AppAccountRoleState.active){
+        final hadData=registered||name.isNotEmpty||liveCaptain.isNotEmpty;
+        _accountActive=false;
+        _clearPrivateAccountData();
+        if(hadData)accountResetRevision++;
+        if(state!=AppAccountRoleState.absent && !live!.registrationInProgress)live!.signOut().catchError((Object _){});
+        changed();return;
+      }
+      if(!_accountActive){_accountActive=true;live!.registerPush('captain').catchError((Object _) {});_bindCaptainData(uid,generation);}
       final d=s.data()??{},p=d['notificationPreferences']?['captain'];
       notificationsOn=d['captainPushEnabled']==true;
       if(p is Map){notifPrefs.soundOn=p['soundOn']!=false;notifPrefs.quietHours=p['quietHours']==true;notifPrefs.mutedUntil=p['mutedUntil'] is num?DateTime.fromMillisecondsSinceEpoch((p['mutedUntil'] as num).toInt()):null;notifPrefs.off={for(final c in WNotifCategory.values)if(c!=WNotifCategory.account&&(p['offCategories'] as List? ?? []).contains(c.name))c};}
@@ -1124,17 +1162,22 @@ class CaptainStore extends ChangeNotifier {
       if(path!=_profilePhotoPath){_profilePhotoPath=path;if(path==null) {
         profilePhoto=null;
       } else {
-        live!.photo(path).then((bytes){if(liveUid==uid&&path==_profilePhotoPath){profilePhoto=bytes;changed();}}).catchError((Object e){if(liveUid==uid)set(()=>toast=backendError(e));});
+        live!.photo(path).then((bytes){if(_accountActive&&generation==_accountGeneration&&liveUid==uid&&path==_profilePhotoPath){profilePhoto=bytes;changed();}}).catchError((Object e){if(liveUid==uid)set(()=>toast=backendError(e));});
       }}
       changed();
     },onError:(Object e)=>set(()=>toast=backendError(e))));
+
+    changed();
+  }
+
+  void _bindCaptainData(String uid,int generation) {
     _accountSubs.add(live!.captain(uid).listen((s) {
-      if (liveUid != uid) return;
+      if (liveUid != uid || generation != _accountGeneration || !_accountActive || s.metadata.isFromCache) return;
       final d = s.data() ?? {};
       final status = d['kycStatus'] as String? ?? 'notSubmitted';
       if (status != kycStatus || liveCaptain.isEmpty) {
         live!.uploadedKyc().then((files) {
-          if (liveUid != uid) return;
+          if (liveUid != uid || generation != _accountGeneration || !_accountActive || s.metadata.isFromCache) return;
           kycUploaded = files;
           _applySteps();
           changed();
@@ -1185,21 +1228,22 @@ class CaptainStore extends ChangeNotifier {
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.orders(uid, captain: true).listen((s) {
+      if(liveUid!=uid || generation!=_accountGeneration || !_accountActive || s.metadata.isFromCache)return;
       receiveLiveOrders(uid,[for(final d in s.docs){...d.data(),'id':d.id}],fromCache:s.metadata.isFromCache);
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.offers(uid).listen((s) {
-      if (liveUid != uid) return;
+      if (liveUid != uid || generation != _accountGeneration || !_accountActive || s.metadata.isFromCache) return;
       _offerFeed.records=[for(final doc in s.docs)doc.data()];
       _applyLiveOffers();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.earnings(uid).listen((s) {
-      if (liveUid != uid) return;
+      if (liveUid != uid || generation != _accountGeneration || !_accountActive || s.metadata.isFromCache) return;
       liveEarnings = [for (final d in s.docs) {...d.data(), 'id': d.id}];
       _applyEarnings();
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
     _accountSubs.add(live!.inbox(uid).listen((s) {
-      if (liveUid != uid) return;
+      if (liveUid != uid || generation != _accountGeneration || !_accountActive || s.metadata.isFromCache) return;
       final previous=notifications.map((n)=>n.id).toSet();
       notifications = [
         for (final d in s.docs)
@@ -1209,7 +1253,6 @@ class CaptainStore extends ChangeNotifier {
       _inboxLoaded=true;
       changed();
     }, onError: (Object e) => set(() => toast = backendError(e))));
-    changed();
   }
 
   void receiveLiveOrders(String account,Iterable<Map<String,dynamic>> orders,{bool fromCache=false}){
@@ -1432,7 +1475,19 @@ class CaptainStore extends ChangeNotifier {
   }
 
   Future<void> liveRequestOtp(String number) => _call(() => live!.requestOtp(number));
-  Future<void> liveVerifyOtp(String code) => _call(() => live!.verifyOtp(code, role: 'captain', name: name.trim()));
+  Future<bool> liveVerifyOtp(String code) async {
+    final enteredName=name.trim();
+    final result=await _call(()=>live!.verifyOtp(code,role:'captain',name:enteredName));
+    _bindLive(live!.uid!);
+    phone=live!.verifiedPhone!.replaceFirst('+91','');
+    name=result['name'] as String? ?? enteredName;
+    changed();return result['needsName']==true;
+  }
+
+  Future<void> completeLiveRegistration(String value) async {
+    await _call(()=>live!.completeRegistration('captain',value));
+    name=value;registered=true;exploring=true;changed();
+  }
   Future<void> liveSetOnline(bool on) => _call(() => live!.call('setCaptainOnline', {'online': on}));
   Future<void> liveClaim(String orderId) => _call(() => live!.call('claimJob', {'orderId': orderId}));
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
@@ -1455,7 +1510,9 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveEvidence({required bool after, required int side, required Uint8List bytes}) =>
       _call(() => live!.uploadEvidence(orderId: current.id, after: after, side: side, bytes: bytes));
   Future<void> liveUploadKyc(String kind, Uint8List bytes) async {
+    final generation=_accountGeneration;
     await _call(() => live!.uploadKyc(kind, bytes));
+    if(!_accountActive || generation!=_accountGeneration)return;
     set(() {
       kycUploaded = {...kycUploaded, kind};
       _applySteps();

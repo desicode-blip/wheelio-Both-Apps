@@ -9,6 +9,14 @@ current authorization to make sample screens appear to work.
 
 ## Current real integrations
 
+Deletion/login recovery now includes least-privilege conditional private-object
+deletion, leased/retryable cleanup, scheduler recovery of existing server-marked
+requests and fresh-auth re-registration. Public coarse discovery stays available
+to guest/deleted-token sessions without allowing private writes. Role names and
+state remain separate. Controlled SDK stream/cache/photo fixtures are in
+`account_session_fixture.dart` and lifecycle tests only, never production accounts.
+See [the lifecycle report](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md).
+
 - Authenticated phone ownership and server-enforced role access. Current-role
   deletion uses the existing `deleteOwnAccount` callable without an extra SMS.
   The server checks ownership, open jobs, pending payments and funded balance;

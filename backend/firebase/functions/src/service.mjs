@@ -143,29 +143,43 @@ export class WashKrewService {
     }));
     return {slots, multipleWindows: true};
   }
+  recentLoginAfter(auth, since) {
+    const at=auth.token?.auth_time,after=dateMillis(since);
+    return Number.isFinite(at)&&at<=this.now()/1000+60&&this.now()/1000-at<=300&&at>=Math.floor(after/1000);
+  }
   async register(auth, data) {
-    const uid = this.actor(auth), role = data.role;
-    if (!['customer', 'captain'].includes(role)) fail('invalid-argument', 'Invalid account type.');
-    const name = text(data.name ?? '', 0, 80, 'your name');
-    const ref = this.db.doc(`users/${uid}`), captainRef = this.db.doc(`captains/${uid}`);
-    await this.db.runTransaction(async tx => {
-      const [profile, captain, config] = await Promise.all([tx.get(ref), tx.get(captainRef), tx.get(this.db.doc('config/operations'))]);
-      if(profile.data()?.deletionStatus||profile.data()?.deletingRole)fail('failed-precondition','Account deletion must finish before registering again.');
-      if(profile.data()?.deletedRoles?.[role]&&(!Number.isFinite(auth.token.auth_time)||this.now()/1000-auth.token.auth_time>300))fail('failed-precondition','Log in with a fresh SMS code to create this app account again.');
-      if (role === 'captain' && !captain.exists && (name || profile.data()?.name || '').length < 2) fail('invalid-argument', 'Enter your name.');
-      const roles=profile.data()?.roles??(profile.exists?['customer',...(captain.exists?['captain']:[])]:[]);
-      const values = { phone: auth.token.phone_number, roles:[...new Set([...roles,role])], updatedAt: stamp() };
-      if (name) values.name = name;
-      if (!profile.exists) tx.set(ref, { ...values, name, email: auth.token.email ?? '', freeWashes: 0, createdAt: stamp() });
-      else tx.update(ref, {...values,[`deletedRoles.${role}`]:FieldValue.delete()});
-      if (role === 'captain' && !captain.exists) tx.set(captainRef, {
-        name: name || profile.data()?.name, phone: auth.token.phone_number, approved: false, kycStatus: 'notSubmitted', online: false,
-        societyIds: [], rating: 0, ratingCount: 0, completedWashes: 0, activeJobCount: 0,
-        paymentMode: config.data()?.paymentMode ?? 'test',
-        createdAt: stamp(), updatedAt: stamp(),
+    const uid=this.actor(auth),role=data.role;
+    if(!['customer','captain'].includes(role))fail('invalid-argument','Invalid account type.');
+    const name=text(data.name??'',0,80,'your name'),ref=this.db.doc(`users/${uid}`),captainRef=this.db.doc(`captains/${uid}`);
+    const previous=(await ref.get()).data();let resumed=false;
+    if(previous?.deletingRole){
+      if(!this.recentLoginAfter(auth,previous.deletionStartedAt??previous.updatedAt))fail('failed-precondition','Log in with a fresh SMS code to create this app account again.');
+      await this.deleteAccount(auth,{confirm:true,role:previous.deletingRole},{preserveIdentity:true});resumed=true;
+    }
+    return this.db.runTransaction(async tx=>{
+      const [profile,captain,config]=await Promise.all([tx.get(ref),tx.get(captainRef),tx.get(this.db.doc('config/operations'))]);
+      const old=profile.data()??{},wholeReset=old.deletionStatus==='completed';
+      if(old.deletingRole||old.deletionStatus==='pending')fail('failed-precondition','Account removal is finishing. Try again shortly.');
+      if(wholeReset&&!resumed&&!this.recentLoginAfter(auth,old.deletedAt))fail('failed-precondition','Log in with a fresh SMS code to create this app account again.');
+      if(old.deletedRoles?.[role]&&!this.recentLoginAfter(auth,old.deletedRoles[role]))fail('failed-precondition','Log in with a fresh SMS code to create this app account again.');
+      const roles=wholeReset?[]:old.roles??(profile.exists?['customer',...(captain.exists?['captain']:[])]:[]);
+      const newRole=!roles.includes(role)||!!old.deletedRoles?.[role],roleNameKey=role+'Name';
+      const roleName=name||(newRole?'':old[roleNameKey]??(role==='captain'?captain.data()?.name:old.name)??'');
+      const values={phone:auth.token.phone_number,roles:[...new Set([...roles,role])],[roleNameKey]:roleName,updatedAt:stamp()};
+      if(!profile.exists||wholeReset)tx.set(ref,{...values,name:roleName,email:auth.token.email??'',freeWashes:0,createdAt:stamp()});
+      else tx.update(ref,{
+        ...(roles.includes('customer')&&old.customerName===undefined?{customerName:old.name??''}:{}),
+        ...(roles.includes('captain')&&old.captainName===undefined?{captainName:captain.data()?.name??old.name??''}:{}),
+        ...values,...(name&&roles.every(r=>r===role)?{name}:{}),[`deletedRoles.${role}`]:FieldValue.delete(),
       });
+      if(role==='captain'&&!captain.exists)tx.set(captainRef,{
+        name:roleName,phone:auth.token.phone_number,approved:false,kycStatus:'notSubmitted',online:false,
+        societyIds:[],rating:0,ratingCount:0,completedWashes:0,activeJobCount:0,
+        paymentMode:config.data()?.paymentMode??'test',createdAt:stamp(),updatedAt:stamp(),
+      });
+      else if(role==='captain'&&name)tx.update(captainRef,{name,updatedAt:stamp()});
+      return {uid,name:roleName,accountCreated:newRole,needsName:roleName.length<2};
     });
-    return { uid };
   }
   async createBooking(auth, data) {
     const uid = this.actor(auth), requestId = id(data.requestId, 'booking request');
@@ -190,7 +204,8 @@ export class WashKrewService {
       if(profile.data()?.deletionStatus)fail('permission-denied','This account is being deleted.');
       if(profile.data()?.deletedRoles?.customer||profile.data()?.deletingRole==='customer')fail('permission-denied','Log in with a fresh SMS code to create your Customer account again.');
       if (!config?.bookingsEnabled) fail('failed-precondition', 'Bookings are not open yet. Please try again once service starts.');
-      if (!profile.exists || !profile.data().name) fail('failed-precondition', 'Save your name first.');
+      const customerName=profile.data()?.customerName??profile.data()?.name;
+      if (!profile.exists || !customerName) fail('failed-precondition', 'Save your name first.');
       const type = config.vehicleTypes?.find(v => v.kind === vehicleKind && v.active !== false);
       const society = await resolveLocation(this,config,societyId,tx);
       if(areaPolicy(config)&&(!validPosition(society?.location)||!validPosition(data.vehiclePosition)||metresBetween(data.vehiclePosition,society.location)>250))fail('failed-precondition','Confirm the parking location on the map again.');
@@ -245,7 +260,7 @@ export class WashKrewService {
       const policy = cancellationPolicy(config);
       if(requiresCancellationQuote(policy)&&(!data.acceptedCancellationPolicy||Object.keys(policy).some(k=>data.acceptedCancellationPolicy[k]!==policy[k])))fail('failed-precondition','Reopen the latest app and review the cancellation terms before paying.');
       tx.set(ref, {
-        customerId: uid, customerFirstName: profile.data().name.split(' ')[0], captainId: null,
+        customerId: uid, customerFirstName: customerName.split(' ')[0], captainId: null,
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
         ...(areaPolicy(config)?{coveragePolicy:'captainAreaV1',coverageLocation:{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}}:{}),
         vehicleKind, vehicleName: type.name, plate, societyId, societyName: address?.name ?? society.name, area: address?.area ?? society.area, city: address?.city ?? society.city ?? 'Hyderabad',
@@ -603,6 +618,7 @@ export class WashKrewService {
     const societyIds = [...new Set(data.societyIds ?? [])];
     if (!areaPolicy(cfg) && (!societyIds.length || societyIds.length > 10 || societyIds.some(s => !cfg.societies?.some(c => c.id === s && c.active)))) fail('invalid-argument', 'Choose available societies.');
     const current=(await this.db.doc(`captains/${uid}`).get()).data();
+    if(!current?.name||current.name.trim().length<2)fail('failed-precondition','Complete your name before submitting your application.');
     if(areaPolicy(cfg)&&!hasArea(current))fail('failed-precondition','Choose your serving area and working hours first.');
     const payout=current?.payout??{method:'upi',upi:text(data.upi,3,100,'payout UPI'),status:'pendingVerification'};
     if(payout.method==='upi'&&!/^[A-Za-z0-9._-]+@[A-Za-z0-9.-]+$/.test(payout.upi))fail('invalid-argument','Check your UPI ID.');
@@ -1050,7 +1066,7 @@ export class WashKrewService {
       tx.update(ref,{usedAt:stamp()});return {download,order:o};
     });
   }
-  async deleteAccount(auth,data) {
+  async deleteAccount(auth,data,{preserveIdentity=false}={}) {
     const uid=this.actor(auth),role=data.role??'customer';
     if(!['customer','captain'].includes(role))fail('invalid-argument','Choose the app account to delete.');
     if(data.confirm!==true)fail('invalid-argument','Confirm account deletion first.');
@@ -1069,15 +1085,18 @@ export class WashKrewService {
         if(topups.docs.some(d=>d.data().paymentStatus!=='captured'&&dateMillis(d.data().paymentExpiresAt)>this.now()))fail('failed-precondition','Check your pending wallet payment before deleting this account.');
         if((wallet.data()?.creditPaise??0)>0&&topups.docs.some(d=>d.data().status==='credited'))fail('failed-precondition','Use your remaining wallet credit or contact support before deleting this account.');
       }
+      if(dateMillis(profile.data().deletionLeaseUntil)>this.now())fail('aborted','Account removal is finishing. Try again shortly.');
       if(profile.data().deletingRole&&profile.data().deletingRole!==role)fail('failed-precondition','Wait for the other app account deletion to finish.');
       const roles=profile.data().roles??['customer',...(captain.exists?['captain']:[])];
       const remaining=roles.filter(r=>r!==role);
-      tx.update(userRef,{deletingRole:role,...(!remaining.length?{deletionStatus:'pending'}:{}),updatedAt:stamp()});
+      const startedAt=dateMillis(profile.data().deletionStartedAt)||this.now(),attempt=randomUUID();
+      tx.update(userRef,{deletingRole:role,deletionStartedAt:Timestamp.fromMillis(startedAt),deletionAttempt:attempt,deletionLeaseUntil:Timestamp.fromMillis(this.now()+180000),...(!remaining.length?{deletionStatus:'pending'}:{}),updatedAt:stamp()});
       if(role==='captain'&&captain.exists)tx.update(captainRef,{approved:false,online:false,deletionStatus:'pending',updatedAt:stamp()});
-      return {remaining};
+      return {remaining,startedAt,attempt};
     });
     if(deletion.completed)return {ok:true,deleted:true,role,identityDeleted:deletion.identityDeleted};
     const remainingRoles=deletion.remaining;
+    try {
     const commit=async docs=>{for(let i=0;i<docs.length;i+=400){const batch=this.db.batch();for(const [ref,value] of docs.slice(i,i+400))value===null?batch.delete(ref):batch.update(ref,value);await batch.commit();}};
     // Keep other parties' accounting/evidence usable while removing this user's
     // ownership and personal booking details. No client chooses the target UID.
@@ -1101,7 +1120,7 @@ export class WashKrewService {
         await commit(chunk.map(d=>[d.ref,patch]));
       }
     }
-    for(const [collection,field,remove] of [['payments','customerId',false],['refunds','customerId',false],['earnings','captainId',false],['payoutRecords','captainId',false],['supportTickets','customerId',false],['notifications','recipientId',true],['deviceTokens','uid',true],['addressRequests','customerId',true],['documentDownloads','customerId',true]]){
+    for(const [collection,field,remove] of [['walletTopups','customerId',false],['paymentOrders','customerId',false],['washRequests','customerId',true],['payments','customerId',false],['refunds','customerId',false],['earnings','captainId',false],['payoutRecords','captainId',false],['supportTickets','customerId',false],['notifications','recipientId',true],['deviceTokens','uid',true],['addressRequests','customerId',true],['documentDownloads','customerId',true]]){
       const docs=await this.db.collection(collection).where(field,'==',uid).get();
       const selected=docs.docs.filter(d=>!remainingRoles.length||(['notifications','deviceTokens','supportTickets'].includes(collection)?(d.data().role??'customer')===role:field===(role==='customer'?'customerId':'captainId')));
       await commit(selected.map(d=>[d.ref,remove?null:{[field]:null,...(collection==='supportTickets'?{note:''}:{}),accountDeletedAt:stamp()}]));
@@ -1111,17 +1130,29 @@ export class WashKrewService {
       for(const prefix of [`kyc/${uid}/`,`identity/${uid}/`])await this.evidence.deletePrefix(prefix);
       const identityChecks=await this.db.collection('identityChecks').where('captainId','==',uid).get();await commit(identityChecks.docs.map(d=>[d.ref,null]));
       await this.db.recursiveDelete(captainRef);
+      await this.db.recursiveDelete(this.db.doc(`captainApplications/${uid}`));
       const offers=await this.db.collection('jobOffers').where('captainId','==',uid).get();await commit(offers.docs.map(d=>[d.ref,null]));
     }else await commit([[this.walletRef(uid,'test'),null],[this.walletRef(uid,'live'),null],[this.db.doc(`customerState/${uid}`),null]]);
     if(remainingRoles.length){
-      await userRef.update({roles:remainingRoles,[`deletedRoles.${role}`]:stamp(),deletingRole:FieldValue.delete(),[`${role}PhotoPath`]:FieldValue.delete(),[`${role}PushEnabled`]:false,[`notificationPreferences.${role}`]:FieldValue.delete(),...(role==='customer'?{savedPlaces:FieldValue.delete(),freeWashes:FieldValue.delete()}:{}),updatedAt:stamp()});
+      await userRef.update({roles:remainingRoles,[`deletedRoles.${role}`]:Timestamp.fromMillis(this.now()),deletingRole:FieldValue.delete(),[`${role}PhotoPath`]:FieldValue.delete(),[`${role}PushEnabled`]:false,[`notificationPreferences.${role}`]:FieldValue.delete(),[`${role}Name`]:FieldValue.delete(),deletionStartedAt:FieldValue.delete(),deletionAttempt:FieldValue.delete(),deletionLeaseUntil:FieldValue.delete(),...(role==='customer'?{savedPlaces:FieldValue.delete(),freeWashes:FieldValue.delete()}:{}),updatedAt:stamp()});
       return {ok:true,deleted:true,role,identityDeleted:false};
     }
     await this.evidence.deletePrefix(`profiles/${uid}/`);
     await commit([[this.db.doc(`supportState/${uid}`),null]]);
-    try{await this.accounts.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}
-    await userRef.set({deletionStatus:'completed',deletedAt:stamp(),updatedAt:stamp()});
-    return {ok:true,deleted:true,role,identityDeleted:true};
+    if(!preserveIdentity){try{await this.accounts.deleteUser(uid);}catch(e){if(e.code!=='auth/user-not-found')throw e;}}
+    await userRef.set({deletionStatus:'completed',deletionStartedAt:Timestamp.fromMillis(deletion.startedAt),deletedAt:Timestamp.fromMillis(this.now()),updatedAt:stamp()});
+    return {ok:true,deleted:true,role,identityDeleted:!preserveIdentity};
+    } catch(error) {
+      await this.db.runTransaction(async tx=>{const current=(await tx.get(userRef)).data();if(current?.deletionAttempt===deletion.attempt)tx.update(userRef,{deletionAttempt:FieldValue.delete(),deletionLeaseUntil:FieldValue.delete()});}).catch(()=>{});
+      throw error;
+    }
+  }
+  async resumePendingDeletions({limit=2}={}) {
+    const pending=await this.db.collection('users').where('deletingRole','in',['customer','captain']).limit(limit).get();
+    for(const doc of pending.docs){const p=doc.data();if(dateMillis(p.deletionLeaseUntil)>this.now())continue;
+      try{await this.deleteAccount({uid:doc.id,token:{phone_number:p.phone}},{confirm:true,role:p.deletingRole});}
+      catch(error){if(error instanceof ServiceError)continue;throw error;}
+    }
   }
   async syncVerifiedPhone(auth) {
     const uid=this.actor(auth),phone=auth.token.phone_number;

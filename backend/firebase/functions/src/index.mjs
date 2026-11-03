@@ -211,6 +211,10 @@ export const refundCancelledBooking = onDocumentCreated({ document: 'refunds/{or
 
 export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds:300, secrets: paymentSecrets }, async () => {
   const backend = service(true), now = Date.now();
+  // A previously requested deletion must not stay stuck after a transient
+  // Storage/provider failure. Only server-owned pending markers authorize this.
+  try{await backend.resumePendingDeletions();}
+  catch(error){logger.error('Account cleanup needs a retry',{code:error.code??'cleanup'});}
   try{await backend.cleanupIdentityChecks();}
   catch(error){logger.error('Private identity cleanup needs a retry',{code:error.code??'storage'});}
   const due=await db.collection('orders').where('nextPaymentCheckAt','<=',new Date(now)).orderBy('nextPaymentCheckAt').limit(20).get();

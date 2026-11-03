@@ -85,7 +85,9 @@ Organization restricted sharing forbids public IAM bindings. Do not disable it.
 application authorization/webhook signatures remain mandatory; schedulers and
 private triggers retain IAM access controls. `configure-account-deletion` inspects
 the actual deletion runtime and binds only `firebaseauth.users.delete`; running
-that setup command does not delete a user. Verify actual deployed source/runtime,
+that setup command does not delete a user. It also binds conditional private
+Storage object deletion, without granting object creation or Storage admin; see
+[the lifecycle correction](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md). Verify actual deployed source/runtime,
 authentication rejection and required private service access after publication.
 Warm minima remain **0**; no recurring warm-instance cost was approved.
 

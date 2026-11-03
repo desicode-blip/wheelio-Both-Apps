@@ -28,15 +28,16 @@ class WashKrewRuntime {
 }
 
 class LiveBackend {
-  final auth = FirebaseAuth.instance;
-  final db = FirebaseFirestore.instance;
-  final functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
-  final storage = FirebaseStorage.instance;
+  late final auth = FirebaseAuth.instance;
+  late final db = FirebaseFirestore.instance;
+  late final functions = FirebaseFunctions.instanceFor(region: 'asia-south1');
+  late final storage = FirebaseStorage.instance;
   late final PhoneOtpSession _phoneOtp = PhoneOtpSession(auth);
   late final PhoneOtpSession _accountOtp = PhoneOtpSession(auth);
   String get pendingPhone => _phoneOtp.phone;
   String? get uid => auth.currentUser?.uid;
   bool get phoneVerified => auth.currentUser?.phoneNumber != null;
+  String? get verifiedPhone => auth.currentUser?.phoneNumber;
   Stream<User?> get sessions => auth.idTokenChanges();
 
   Future<Map<String, dynamic>> call(
@@ -56,17 +57,28 @@ class LiveBackend {
     await _phoneOtp.request(raw);
   }
 
-  Future<void> verifyOtp(
+  bool registrationInProgress = false;
+  Future<Map<String,dynamic>> verifyOtp(
     String code, {
     required String role,
     String name = '',
   }) async {
+    registrationInProgress = true;
+    try {
     await _phoneOtp.confirm(code);
     // Sign-in/link already returned a fresh token. Retrying account registration
     // must not consume the one-use SMS session a second time.
-    await call('registerAccount', {'role': role, 'name': name});
+    final result = await call('registerAccount', {'role': role, 'name': name});
     _phoneOtp.registrationCompleted();
+    return result;
+    } finally { registrationInProgress = false; }
   }
+
+  Future<Map<String,dynamic>> completeRegistration(String role,String name) =>
+      call('registerAccount',{'role':role,'name':name});
+
+  Future<Map<String,dynamic>> freshProfile() async =>
+      (await db.doc('users/$uid').get(const GetOptions(source:Source.server))).data() ?? {};
 
   void invalidateOtp() {
     _phoneOtp.invalidate();
@@ -213,7 +225,7 @@ class LiveBackend {
       .where('recipientId', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
       .limit(100)
-      .snapshots();
+      .snapshots(includeMetadataChanges:true);
 
   Future<Map<String,dynamic>> verifyCaptainIdentity(String orderId,Uint8List bytes)async{
     final attempt=await call('beginCaptainIdentity',{'orderId':orderId});
@@ -243,11 +255,12 @@ class LiveBackend {
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> get catalog =>
-      db.doc('config/operations').snapshots();
+      db.doc('config/operations').snapshots(includeMetadataChanges:true);
   Stream<DocumentSnapshot<Map<String, dynamic>>> wallet(
     String uid,
     String mode,
-  ) => db.doc('wallets/${uid}_$mode').snapshots();
+  ) => db.doc('wallets/${uid}_$mode').snapshots(includeMetadataChanges:true);
+  Stream<void> get availabilityChanges => db.doc('availabilitySignals/current').snapshots().map((_)=>null);
   Future<void> refreshCatalog() async {
     await db.enableNetwork();
     await db
@@ -257,9 +270,9 @@ class LiveBackend {
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> profile(String uid) =>
-      db.doc('users/$uid').snapshots();
+      db.doc('users/$uid').snapshots(includeMetadataChanges:true);
   Stream<DocumentSnapshot<Map<String, dynamic>>> captain(String uid) =>
-      db.doc('captains/$uid').snapshots();
+      db.doc('captains/$uid').snapshots(includeMetadataChanges:true);
   Stream<QuerySnapshot<Map<String, dynamic>>> orders(
     String uid, {
     bool captain = false,
@@ -267,17 +280,18 @@ class LiveBackend {
       .collection('orders')
       .where(captain ? 'captainId' : 'customerId', isEqualTo: uid)
       .orderBy('createdAt', descending: true)
-        .snapshots(includeMetadataChanges:captain);
+        .snapshots(includeMetadataChanges:true);
   Future<Map<String,dynamic>?> readAssignedOrder(String orderId) async =>
       (await db.doc('orders/$orderId').get(const GetOptions(source:Source.server))).data();
   Stream<QuerySnapshot<Map<String, dynamic>>> offers(String uid) =>
-      db.collection('jobOffers').where('captainId', isEqualTo: uid).snapshots();
+      db.collection('jobOffers').where('captainId', isEqualTo: uid).snapshots(includeMetadataChanges:true);
   Stream<QuerySnapshot<Map<String, dynamic>>> earnings(String uid) =>
-      db.collection('earnings').where('captainId', isEqualTo: uid).snapshots();
+      db.collection('earnings').where('captainId', isEqualTo: uid).snapshots(includeMetadataChanges:true);
   Stream<DocumentSnapshot<Map<String, dynamic>>> tracking(String orderId) =>
-      db.doc('orders/$orderId/tracking/current').snapshots();
+      db.doc('orders/$orderId/tracking/current').snapshots(includeMetadataChanges:true);
   Future<void> saveName(String name) => db.doc('users/$uid').update({
     'name': name.trim(),
+    'customerName': name.trim(),
     'updatedAt': FieldValue.serverTimestamp(),
   });
 

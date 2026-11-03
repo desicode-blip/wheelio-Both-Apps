@@ -1,6 +1,6 @@
 # WashKrew Customer (Flutter)
 
-Current Android/iOS Customer app, source version **1.0.3 (4)**, using the shared
+Current Android/iOS Customer app, source version **1.0.4 (5)**, using the shared
 Flutter UI/Firebase packages. Keep the authored **af036f0** design and approved
 exceptions in the root AGENTS.md. Android and iOS platform projects are included;
 browser support is a QA preview of this same code, not another implementation.

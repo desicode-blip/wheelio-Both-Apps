@@ -16,7 +16,7 @@ For Aman's Mac/iPhone, start with:
 Run `bash apps/flutter/tool/run-ios.sh --prepare`, then the helper without
 `--prepare` to build/install both Release apps on a trusted physical iPhone.
 Use paid team **28JNT7H8KA** and existing `.customer` / `.captain` bundle IDs.
-Customer source version is **1.0.3 (4)**; Captain is **1.0.4 (5)**. The owner
+Customer source version is **1.0.4 (5)**; Captain is **1.0.5 (6)**. The owner
 confirmed the previous Android flow works; no physical iPhone result is pre-passed.
 
 APNs key **Y5432Q73U8** is already configured for both apps/environments in Firebase.

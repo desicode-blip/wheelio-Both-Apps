@@ -167,3 +167,10 @@ and funded-wallet safeguards remain mandatory. Only completed server cleanup is
 success; interrupted cleanup can retry. Login and sensitive payout verification
 are unchanged. See docs/ACCOUNT-DELETION-2026-11-03.md. Native iPhone CAPTCHA
 fallback must not be bypassed; the existing APNs key is already configured.
+
+Same-day deletion follow-up: preserve current-role isolation and fresh-phone
+signup after cleanup. Never hydrate removed roles from cached profiles, KYC or
+work settings. Private cleanup requires conditional Storage object-delete access
+as well as Auth deletion. Only existing server-owned pending markers authorize
+scheduled recovery; do not manufacture a user sign-in or reapprove a Captain.
+See docs/ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md.

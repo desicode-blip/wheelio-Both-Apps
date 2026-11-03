@@ -468,8 +468,9 @@ class _PathPainter extends CustomPainter {
 
 /// Shown when a guest wants to go online, or from the nudge / Me tab.
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key, this.login = false});
+  const SignUpScreen({super.key, this.login = false, this.verified = false});
   final bool login;
+  final bool verified;
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
@@ -479,6 +480,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String number = '';
   int focusNumber = 0;
   bool sending = false;
+  @override void didChangeDependencies(){
+    super.didChangeDependencies();
+    if(widget.verified && number.isEmpty)number=context.store.phone;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -499,7 +504,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         header: WHeader(title: login ? store.t('Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
         footer: WFooter(
           child: WButton(
-            store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
+            widget.verified ? store.t('Continue','आगे बढ़ें','కొనసాగించు') : store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
             size: ButtonSize.captain,
             enabled: valid && !sending,
             loading: sending,
@@ -512,6 +517,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               if (store.isLive) {
                 setState(() => sending = true);
                 try {
+                  if(widget.verified && store.live!.verifiedPhone == '+91${store.phone}'){
+                    await store.completeLiveRegistration(name.trim());
+                    if(!mounted)return;
+                    store.finishRegistration();router.home();return;
+                  }
                   await store.liveRequestOtp(store.phone);
                 } catch (_) {
                   if (mounted) setState(() => sending = false);
@@ -734,7 +744,9 @@ class _WOtpScreenState extends State<WOtpScreen> {
             if (store.isLive) {
               setState(() => verifying = true);
               try {
-                await store.liveVerifyOtp(code);
+                  final needsName=await store.liveVerifyOtp(code);
+                  if(!mounted)return;
+                  if(needsName){router.replace([const R(N.signUp,index:1)]);return;}
               } catch (_) {
                 if (mounted) setState(() => verifying = false);
                 return;
