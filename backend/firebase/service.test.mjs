@@ -10,8 +10,8 @@ import {readFile} from 'node:fs/promises';
 let app,db,service,clock,provider,counter;
 const auth=uid=>({uid,token:{phone_number:'+919876543210'}});
 const customer=auth('customer'), config=JSON.parse(await readFile(new URL('./operations.test.json',import.meta.url)));
-const aiChoice={aiPhotoConsent:true,aiPhotoConsentVersion:'vehicle-after-photos-v1'};
-const customerAi={customer:{allowed:true,version:'vehicle-after-photos-v1'}};
+const aiChoice={aiPhotoConsent:true,aiPhotoConsentVersion:'vehicle-after-photos-toggle-v2',requiredConsentPolicyVersion:'vehicle-after-photos-toggle-v2'};
+const customerAi={customer:{allowed:true,version:'vehicle-after-photos-toggle-v2',revision:0}};
 const input=(requestId='request-1')=>({...aiChoice,requestId,plate:'TS09AB1234',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'T3',floor:'B2',parking:'42',note:'Near ramp',washKind:'wetOutside',day:'2026-11-01',startHour:8,endHour:10,pricePaise:1,acceptedCancellationPolicy:{kind:'refundThenCredit',refundMinutes:5,lateCreditBps:5000}});
 before(()=>{
   if(!process.env.FIRESTORE_EMULATOR_HOST)throw Error('Run only through Firebase emulators:exec.');
@@ -369,19 +369,23 @@ test('per-job face checking is assignment-bound, server-verified and uncertain m
   await service.progress(auth('captain1'),{orderId:ref.id,action:'start'});assert.equal((await ref.get()).data().status,'washing');
   clock+=24*3600000+1;await service.cleanupIdentityChecks();assert.equal((await db.doc(`identityChecks/${ref.id}`).get()).exists,false);assert.ok(removed.includes(attempt.path));
 });
-test('booking AI permission is explicit, versioned, server-stamped and not upgraded by payment retries',async()=>{
-  const legacy=input('ai-legacy');delete legacy.aiPhotoConsent;delete legacy.aiPhotoConsentVersion;
-  const old=await service.createBooking(customer,legacy),ref=db.doc(`orders/${old.bookingId}`);
+test('post-payment AI toggle defaults off, is Customer-only and rejects stale ON replays',async()=>{
+  const b=await service.createBooking(customer,input('ai-toggle')),ref=db.doc(`orders/${b.bookingId}`);
   assert.equal((await ref.get()).data().aiPhotoConsent.customer.allowed,false);
-  await service.createBooking(customer,{...legacy,...aiChoice});
+  const change=(enabled,expectedRevision=0)=>({orderId:ref.id,enabled,expectedRevision,policyVersion:aiChoice.aiPhotoConsentVersion});
+  await assert.rejects(service.setBookingPhotoAi(customer,change(true)),{code:'failed-precondition'});
+  const checkout=await service.checkout(customer,b);await service.capturePayment({id:'pay_ai_toggle',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+  await assert.rejects(service.setBookingPhotoAi(auth('captain1'),change(true)),{code:'permission-denied'});
+  await assert.rejects(service.setBookingPhotoAi(auth('other'),change(true)),{code:'permission-denied'});
+  assert.equal((await service.setBookingPhotoAi(customer,change(true))).enabled,true);
+  assert.equal((await ref.get()).data().aiPhotoConsent.customer.recordedAt.toMillis(),clock);
+  assert.equal((await service.setBookingPhotoAi(customer,change(false))).revision,2);
+  await assert.rejects(service.setBookingPhotoAi(customer,change(true,0)),{code:'aborted'});
   assert.equal((await ref.get()).data().aiPhotoConsent.customer.allowed,false);
-  await service.cancel(customer,{orderId:old.bookingId});
-  const opted=await service.createBooking(customer,input('ai-opted'));
-  const consent=(await db.doc(`orders/${opted.bookingId}`).get()).data().aiPhotoConsent.customer;
-  assert.equal(consent.allowed,true);assert.equal(consent.version,'vehicle-after-photos-v1');assert.equal(consent.recordedAt.toMillis(),clock);
-  for(const invalid of [{aiPhotoConsent:'true'}, {aiPhotoConsent:true,aiPhotoConsentVersion:'old'}]){
-    await assert.rejects(service.createBooking(customer,{...input('ai-invalid'),...invalid}),{code:'invalid-argument'});
-  }
+  await assert.rejects(service.setBookingPhotoAi(customer,{...change(true,2),enabled:'true'}),{code:'invalid-argument'});
+  await service.setBookingPhotoAi(customer,change(true,2));
+  await ref.update({status:'photosReady'});
+  await assert.rejects(service.setBookingPhotoAi(customer,change(false,3)),{code:'failed-precondition'});
 });
 
 test('AI never reads or sends images without both parties permission, and manual review can finish the wash',async()=>{
@@ -412,6 +416,70 @@ test('AI never reads or sends images without both parties permission, and manual
   assert.equal((await ref.get()).data().status,'approved');
 });
 
+test('turning OFF before model dispatch prevents inference; turning OFF after dispatch discards its result',async()=>{
+  const ref=db.doc('orders/ai-toggle-race'),captain=auth('captain1');
+  const evidence=Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/${ref.id}/captain1/after_${i}.jpg`,uploadedAt:Timestamp.fromMillis(clock)}]));
+  await ref.set({captainId:'captain1',customerId:'customer',paymentStatus:'captured',status:'washing',paymentMode:'test',evidence,aiPhotoConsent:customerAi});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});
+  service.evidence.read=async()=>Buffer.from('fixture');
+  const change=(enabled,expectedRevision)=>service.setBookingPhotoAi(customer,{orderId:ref.id,enabled,expectedRevision,policyVersion:aiChoice.aiPhotoConsentVersion});
+  let started,release,calls=0;
+  let entered=new Promise(r=>started=r),waiting=new Promise(r=>release=r);
+  service.photoChecks={reviewWash:async(_photos,{authorize})=>{started();await waiting;await authorize(true);calls++;return [{side:0,reason:'Old result'}];}};
+  let running=service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice});await entered;
+  await change(false,0);release();assert.equal((await running).status,'manualReview');assert.equal(calls,0);
+  await change(true,1);
+  entered=new Promise(r=>started=r);waiting=new Promise(r=>release=r);
+  service.photoChecks={reviewWash:async(_photos,{authorize})=>{await authorize(true);calls++;started();await waiting;return [{side:0,reason:'Stale result must not appear'}];}};
+  running=service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice});await entered;
+  assert.equal((await change(false,2)).checkMayHaveStarted,true);
+  release();assert.equal((await running).status,'manualReview');assert.equal(calls,1);
+  assert.deepEqual((await ref.get()).data().photoReview.issues,[]);
+  await change(true,3);
+  entered=new Promise(r=>started=r);waiting=new Promise(r=>release=r);
+  service.photoChecks={reviewWash:async(_photos,{authorize})=>{started();await waiting;await authorize(true);calls++;return [];}};
+  running=service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice});await entered;
+  await change(false,4);await change(true,5);release();
+  assert.equal((await running).status,'settingsChanged');assert.equal(calls,1);
+});
+
+test('send-without-AI finishes directly, even with an enabled toggle, without skipping real evidence or Customer approval',async()=>{
+  const ref=db.doc('orders/direct-photo-send'),captain=auth('captain1');let reads=0,calls=0;
+  const evidence=Object.fromEntries([0,1,2].map(i=>[`after_${i}`,{path:`orders/${ref.id}/captain1/after_${i}.jpg`}]));
+  await ref.set({captainId:'captain1',customerId:'customer',status:'washing',paymentMode:'test',slotStart:Timestamp.fromMillis(clock-1000),captainPayPaise:11600,evidence,aiPhotoConsent:customerAi});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});
+  service.evidence.read=async()=>{reads++;return Buffer.from('fixture');};service.photoChecks={reviewWash:async()=>{calls++;return [];}};
+  const request={orderId:ref.id,action:'finish',skipPhotoAi:true,...aiChoice,aiPhotoConsent:false};
+  await assert.rejects(service.progress(captain,request),{code:'failed-precondition'});
+  await ref.update({'evidence.after_3':{path:`orders/${ref.id}/captain1/after_3.jpg`}});
+  await service.progress(captain,request);
+  assert.equal((await ref.get()).data().status,'photosReady');assert.equal((await ref.get()).data().photoReview.status,'manualReview');
+  assert.equal(reads,0);assert.equal(calls,0);
+  assert.equal((await db.doc(`earnings/${ref.id}`).get()).data().status,'awaitingApproval');
+  await service.approve(customer,{orderId:ref.id});assert.equal((await ref.get()).data().status,'approved');
+});
+
+test('AI attempt limits survive toggle changes and identical checked photos reuse the cached result',async()=>{
+  const ref=db.doc('orders/ai-cost-limit'),captain=auth('captain1');let calls=0;
+  await ref.set({captainId:'captain1',customerId:'customer',paymentStatus:'captured',status:'washing',paymentMode:'test',aiPhotoConsent:customerAi,evidence:Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/${ref.id}/captain1/after_${i}.jpg`}] ))});
+  await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});service.evidence.read=async()=>Buffer.from('fixture');service.photoChecks={reviewWash:async()=>{calls++;return [];}};
+  for(let i=0;i<5;i++){
+    if(i>0){await service.setBookingPhotoAi(customer,{orderId:ref.id,enabled:false,expectedRevision:0,policyVersion:aiChoice.aiPhotoConsentVersion});await service.setBookingPhotoAi(customer,{orderId:ref.id,enabled:true,expectedRevision:i*2-1,policyVersion:aiChoice.aiPhotoConsentVersion});}
+    await service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice});
+    await service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice});assert.equal(calls,i+1);
+  }
+  await service.setBookingPhotoAi(customer,{orderId:ref.id,enabled:false,expectedRevision:8,policyVersion:aiChoice.aiPhotoConsentVersion});
+  await service.setBookingPhotoAi(customer,{orderId:ref.id,enabled:true,expectedRevision:9,policyVersion:aiChoice.aiPhotoConsentVersion});
+  await assert.rejects(service.checkWashPhotos(captain,{orderId:ref.id,...aiChoice}),{code:'resource-exhausted'});assert.equal(calls,5);
+});
+
+test('old Captain clients can finish manually without a popup-driven AI transfer',async()=>{
+  const ref=db.doc('orders/legacy-photo-client');await ref.set({captainId:'captain1',status:'washing',paymentMode:'test',aiPhotoConsent:customerAi,evidence:Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/${ref.id}/captain1/after_${i}.jpg`}]))});
+  service.evidence.read=async()=>{throw Error('No legacy AI read allowed');};
+  const result=await service.checkWashPhotos(auth('captain1'),{orderId:ref.id,aiPhotoConsent:true,aiPhotoConsentVersion:'vehicle-after-photos-v1'});
+  assert.equal(result.status,'manualReview');assert.equal(result.consentPolicyVersion,'vehicle-after-photos-v1');
+});
+
 test('photo review binds the current evidence, requires warning acknowledgement and never approves the wash',async()=>{
   const ref=db.doc('orders/photo-review');await ref.set({aiPhotoConsent:customerAi,captainId:'captain1',customerId:'customer',status:'washing',paymentMode:'test',slotStart:Timestamp.fromMillis(clock-1000),captainPayPaise:11600,evidence:Object.fromEntries([0,1,2,3].map(i=>[`after_${i}`,{path:`orders/photo-review/captain1/after_${i}.jpg`,uploadedAt:Timestamp.fromMillis(clock)}]))});
   await db.doc('privateConfig/photoChecks').set({enabled:true,aiEnabled:true,paymentMode:'test'});
@@ -429,7 +497,7 @@ test('photo-review outages are labelled honestly and can retry without retaking 
   service.photoChecks={reviewWash:async()=>{throw Error('Provider offline');}};
   assert.equal((await service.checkWashPhotos(auth('captain1'),{orderId:ref.id,...aiChoice})).status,'unavailable');
   clock+=31000;service.photoChecks={reviewWash:async()=>[]};
-  assert.deepEqual(await service.checkWashPhotos(auth('captain1'),{orderId:ref.id,...aiChoice}),{issues:[],status:'checked',consentPolicyVersion:'vehicle-after-photos-v1'});
+  assert.deepEqual(await service.checkWashPhotos(auth('captain1'),{orderId:ref.id,...aiChoice}),{issues:[],status:'checked',consentPolicyVersion:'vehicle-after-photos-toggle-v2'});
 });
 
 test('photo-review status recovery is read-only, current-evidence-bound and still works after submission',async()=>{
@@ -460,6 +528,7 @@ test('live checkout through Customer approval enforces private identity and phot
   const payment={id:'pay_live_photo_fixture',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured',method:'upi',upi:{payer_account_type:'credit_card'}};
   live.payments.set(payment.id,payment);await service.captureWebhookPayment(payment.id,'live',checkout.orderId,'washkrew');
   assert.equal((await db.doc(`orders/${b.bookingId}`).get()).data().paymentStatus,'captured');
+  await service.setBookingPhotoAi(customer,{orderId:b.bookingId,enabled:true,expectedRevision:0,policyVersion:aiChoice.aiPhotoConsentVersion});
   await service.claim(captain,d);clock=Date.parse('2026-11-01T08:00:00+05:30');await service.progress(captain,{...d,action:'arrived'});
   for(let side=0;side<4;side++)await service.evidenceUploaded(captain,{...d,stage:'before',side});
   await assert.rejects(service.progress(captain,{...d,action:'start'}),{code:'failed-precondition'});

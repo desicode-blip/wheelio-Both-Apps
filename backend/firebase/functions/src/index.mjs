@@ -96,6 +96,7 @@ export const submitTrainingQuiz = callable('submitQuiz');
 export const beginCaptainIdentity = callable('beginIdentity');
 export const verifyCaptainIdentity = callable('verifyIdentity');
 export const checkWashPhotos = callable('checkWashPhotos');
+export const setBookingPhotoAi = callable('setBookingPhotoAi');
 export const saveCaptainPayout = callable('captainPayout');
 export const claimJob = callable('claim');
 export const rejectJob = callable('reject');

@@ -7,6 +7,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../data/models.dart';
 import '../data/store.dart';
 import 'common.dart';
+import 'booking_ai_setting.dart';
 
 // MARK: C14 Log in (C14b invalid)
 
@@ -489,6 +490,7 @@ class BookedScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
+        if(o!=null)BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
         WCard(
           padding: 18,
           child: Column(

@@ -6,19 +6,19 @@ initial release. Prepare BOTH existing Flutter apps for App Store submission;
 preserve their current designs and functionality. Do not recreate screens,
 restore retired apps, change bundle IDs/team/payment backend or touch TrustKeyper.
 
-Also read docs/AI-PHOTO-CONSENT-2026-11-03.md. The owner subsequently approved an
-optional alert in the existing style: Customer permission before checkout and
-Captain permission before AI. Test both Allow and Continue without AI. Refusal
-must still lead through after photos -> Customer review -> approval. Do not
-remove the server consent gate/protocol check to work around a server-version
-message; deploy/verify the documented backend update first if needed.
+Also read docs/AI-PHOTO-TOGGLE-2026-11-03.md. The latest owner decision removes
+all checkout/Captain consent popups. After payment, the Customer can turn the
+booking’s AI toggle ON/OFF; default is OFF. Captain ON offers Check with AI or
+Send without AI; OFF sends directly. Test both paths and preference changes.
+The explanation beside the switch is the explicit opt-in. Preserve the server
+ownership/payment/revision gates and read-only protocol protection.
 
 Preserve local work, fetch origin, switch to staging and pull --ff-only. If it
 cannot fast-forward, inspect/preserve changes; no hard reset or force push.
 Record the source commit. Use Flutter 3.38.6, Xcode 26+ with iOS SDK 26+ and
 CocoaPods, paid Sumit Mandal team 28JNT7H8KA, and the existing .customer/.captain
 bundle IDs. These are two separate App Store apps. Source versions are Customer
-1.0.4 (7), Captain 1.0.5 (8); check App Store Connect for occupied build numbers.
+1.0.4 (8), Captain 1.0.5 (9); check App Store Connect for occupied build numbers.
 
 Run the portable iOS checks, then `bash apps/flutter/tool/archive-ios.sh` from
 the repo root. It prepares locked dependencies, signs/builds/exports both App

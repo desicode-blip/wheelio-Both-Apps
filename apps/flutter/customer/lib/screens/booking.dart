@@ -1971,20 +1971,6 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   bool _sheetOpen = false;
-  bool _consentOpen = false;
-
-  Future<bool> _confirmPhotoChoice() async {
-    final store = context.store;
-    if (_consentOpen) return false;
-    if (!store.isLive || store.draft.aiPhotoConsent != null) return true;
-    _consentOpen = true;
-    try {
-      final allowed = await requestAiPhotoConsent(context);
-      if (!mounted || allowed == null) return false;
-      store.set(() => store.draft.aiPhotoConsent = allowed);
-      return true;
-    } finally { _consentOpen = false; }
-  }
 
   bool _freeDefaulted = false;
   bool _useCredit = true;
@@ -2031,18 +2017,16 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final credit = store.customer?.credit ?? 0;
     d.applyWalletCredit(credit, enabled: _useCredit);
     Widget livePayOptions()=>Column(mainAxisSize:MainAxisSize.min,children:[
-      WButton('Pay by wallet · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.success,onTap:() async {
+      WButton('Pay by wallet · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.success,onTap:(){
         if(!store.isLoggedIn){router.go(N.login);return;}
         final missing=d.basePricePaise-(credit*100).round();
         if(missing>0){router.push(R(N.wallet,walletShortfallPaise:missing));return;}
-        if(!await _confirmPhotoChoice() || !mounted)return;
         setState(()=>_useCredit=true);d.walletOnly=true;d.applyWalletCredit(credit);
         if(!router.isAt(N.paying))router.push(const R(N.paying));
       }),
       const SizedBox(height:10),
-      WButton('Pay via Razorpay · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.outline,onTap:() async {
+      WButton('Pay via Razorpay · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.outline,onTap:(){
         if(!store.isLoggedIn){router.go(N.login);return;}
-        if(!await _confirmPhotoChoice() || !mounted)return;
         setState(()=>_useCredit=false);d.walletOnly=false;d.applyWalletCredit(credit,enabled:false);
         if(!router.isAt(N.paying))router.push(const R(N.paying));
       }),
@@ -2053,13 +2037,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         showCall: false,
         child: store.isLive&&!d.useFreeWash?livePayOptions():d.price == 0
             // Free wash: nothing to pay, so skip the payment sheet.
-            ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () async {
-                if(!store.isLoggedIn){router.go(N.login);return;}
-                if(await _confirmPhotoChoice() && mounted && !router.isAt(N.paying))router.push(const R(N.paying, pay: PayView.processing));
-              })
-            : WButton('Continue to pay', onTap: () async {
+            ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
+            : WButton('Continue to pay', onTap: () {
                 if (!store.isLoggedIn) { router.go(N.login); return; }
-                if(!await _confirmPhotoChoice() || !mounted)return;
                 if (store.isLive) {
                   if (!router.isAt(N.paying)) router.push(const R(N.paying));
                 } else { router.openPaySheet(true); }

@@ -38,10 +38,12 @@ review them rather than automatically classifying every provider identically.
 
 ## Policy and consent decisions before submitting
 
-The owner approved the short existing-style consent dialog on 3 November. It is
-implemented in both roles with server enforcement and a manual alternative; see
-`docs/AI-PHOTO-CONSENT-2026-11-03.md`. Remaining owner policy/provider/retention
-review is still required. No approval flag is auto-completed by this code change.
+The owner replaced the earlier consent popups with an explicit paid-booking toggle
+and adjacent Google AI/photo-sharing explanation, plus Captain Check with AI /
+Send without AI actions. See `docs/AI-PHOTO-TOGGLE-2026-11-03.md`. Server protection,
+manual alternatives and in-flight preference invalidation remain mandatory.
+Owner policy/provider/retention review and public policy publication are still
+required; this software change does not auto-complete those approval flags.
 
 - Confirm privacy/support mailbox and phone work. Publish owner-approved privacy,
   terms, support, deletion and combined policy pages on washkrew.com. Drafts are

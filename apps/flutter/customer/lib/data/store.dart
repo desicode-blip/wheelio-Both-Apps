@@ -332,7 +332,6 @@ class BookingDraft {
   TimeSlot? slot;
   bool useFreeWash;
   bool walletOnly = false;
-  bool? aiPhotoConsent;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
@@ -735,6 +734,10 @@ class AppStore extends ChangeNotifier {
     order.arrivalUpdatedAt=date(data['arrivalUpdatedAt']);
     order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
+    final ai=data['aiPhotoConsent']?['customer'];
+    order.aiPhotoCheckEnabled=ai is Map && ai['allowed']==true && ai['version']==aiPhotoConsentVersion;
+    order.aiPhotoCheckRevision=ai is Map ? (ai['revision'] as num? ?? 0).toInt() : 0;
+    order.aiPhotoCheckStarted=data['photoReview']?['aiSentAt']!=null;
     order.refundStatus = data['refundStatus'] ?? 'none';
     order.cancellationReason = data['cancellationReason'] as String?;
     order.testPayment = data['paymentMode'] == 'test';
@@ -921,6 +924,17 @@ class AppStore extends ChangeNotifier {
 
   bool get isLoggedIn => customer != null;
   Order? get currentOrder => orders.where((o) => o.id == currentOrderId).firstOrNull;
+  Future<bool> setBookingPhotoAi(Order order,bool enabled) async {
+    if(!isLive)throw StateError('AI checks require a paid live booking.');
+    final generation=_accountGeneration;
+    final result=await live!.call('setBookingPhotoAi',{'orderId':order.id,'enabled':enabled,'expectedRevision':order.aiPhotoCheckRevision,'policyVersion':aiPhotoConsentVersion});
+    final current=orders.where((o)=>o.id==order.id).firstOrNull;
+    final revision=(result['revision'] as num).toInt();
+    if(_accountActive&&generation==_accountGeneration&&current!=null&&current.aiPhotoCheckRevision<=revision){
+      current.aiPhotoCheckEnabled=result['enabled']==true;current.aiPhotoCheckRevision=revision;changed();
+    }
+    return result['checkMayHaveStarted']==true;
+  }
   Order? get activeOrder {
     final active = orders.where((o) => o.status.isActive).toList()
       ..sort((a, b) => a.slotAhead == b.slotAhead ? a.slot.start.compareTo(b.slot.start) : (a.slotAhead ? 1 : -1));
@@ -1271,8 +1285,6 @@ class AppStore extends ChangeNotifier {
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
       final booking = <String,dynamic>{
         'requestId': draftRequestId,
-        'aiPhotoConsent': d.aiPhotoConsent == true,
-        'aiPhotoConsentVersion': aiPhotoConsentVersion,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,

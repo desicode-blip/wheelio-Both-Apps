@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../data/refund_status.dart';
 import '../data/store.dart';
 import 'auth_pay.dart';
+import 'booking_ai_setting.dart';
 import 'common.dart';
 import 'problem.dart';
 
@@ -161,6 +162,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       footer: WStackedFooter(children: [WButton('Done', onTap: context.router.popToRoot), CancelLink(order: o)]),
       children: [
         const SizedBox(height: 14),
+        BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
         WCard(
           padding: 20,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -200,6 +202,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         footer: WStackedFooter(children: [WButton('Keep me posted', onTap: context.router.popToRoot), CancelLink(order: o)]),
         children: [
           const SizedBox(height: 14),
+          BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
           WCard(
             padding: 22,
             child: Column(children: [
@@ -238,6 +241,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       ]),
       children: [
         const SizedBox(height: 14),
+        BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
         if (late) ...[
           CaptainCard(
             order: o,
@@ -290,6 +294,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       footer: WFooterBar(showCall: false, child: WButton('Call $name', icon: WIcon.phone, onTap: () => Support.call())),
       children: [
         const SizedBox(height: 14),
+        BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
         WCard(
           padding: 18,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -325,6 +330,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       ]),
       children: [
         const SizedBox(height: 14),
+        BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
         CaptainCard(order: o, badge: const WBadge('Cleaning', tone: Tone.info, icon: WIcon.drop), timeText: 'Started ${Fmt.time(o.startedAt ?? DateTime.now())}'),
         const SizedBox(height: 16),
         WCard(

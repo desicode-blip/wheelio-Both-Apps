@@ -6,7 +6,7 @@ import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import {startTraining,trainingHeartbeat,submitQuiz,trainingConfig} from './training.mjs';
 import {beginIdentity,verifyIdentity,reviewIdentity} from './identity.mjs';
 import {checkWashPhotos,photoFingerprint} from './wash-photo-review.mjs';
-import {photoAiChoice} from './ai-photo-consent.mjs';
+import {photoAiChoice,setBookingPhotoAi,customerAllowsPhotoAi,AI_PHOTO_CONSENT_VERSION} from './ai-photo-consent.mjs';
 import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
@@ -65,6 +65,7 @@ export class WashKrewService {
   trainingHeartbeat(auth,data){return trainingHeartbeat(this,auth,data);}
   submitQuiz(auth,data){return submitQuiz(this,auth,data);}
   checkWashPhotos(auth,data){return checkWashPhotos(this,auth,data);}
+  setBookingPhotoAi(auth,data){return setBookingPhotoAi(this,auth,data);}
   beginIdentity(auth,data){return beginIdentity(this,auth,data);}
   verifyIdentity(auth,data){return verifyIdentity(this,auth,data);}
   reviewIdentity(data){return reviewIdentity(this,data);}
@@ -184,7 +185,8 @@ export class WashKrewService {
   }
   async createBooking(auth, data) {
     const uid = this.actor(auth), requestId = id(data.requestId, 'booking request');
-    const aiChoice=photoAiChoice(data);
+    // Checkout no longer grants AI permission. Only the paid-booking toggle can.
+    const aiChoice={allowed:false,version:AI_PHOTO_CONSENT_VERSION,revision:0,state:'notGiven'};
     const bookingId = hash(`${uid}:${requestId}`), ref = this.db.doc(`orders/${bookingId}`);
     const plate = text(data.plate, 6, 15, 'vehicle number').toUpperCase().replaceAll(' ', '');
     if (!/^[A-Z0-9]{6,12}$/.test(plate)) fail('invalid-argument', 'Check the vehicle number.');
@@ -705,7 +707,13 @@ export class WashKrewService {
         update={...update,status:'washing',startedAt:stamp()};
       }
       else if(action==='finish'&&o.status==='washing'){
-        if(identitySettings?.aiEnabled&&photoModeEnabled(identitySettings,o.paymentMode)){
+        if(photoFingerprint(before)!==photoFingerprint(o))fail('failed-precondition','The after photos changed. Review and send them again.');
+        if(data.skipPhotoAi===true||!customerAllowsPhotoAi(o)){
+          const choice=data.skipPhotoAi===true?photoAiChoice(data):{allowed:false,version:AI_PHOTO_CONSENT_VERSION,state:'notRequestedCustomerOff'};
+          if(data.skipPhotoAi===true&&(choice.allowed||data.aiPhotoConsentVersion!==AI_PHOTO_CONSENT_VERSION))fail('invalid-argument','Choose Send without AI to send these photos for Customer review.');
+          update.photoReview={fingerprint:photoFingerprint(o),status:'manualReview',issues:[],reason:'captainSentWithoutAi',checkedAt:stamp()};
+          update['aiPhotoConsent.captain']={...choice,recordedAt:stamp()};
+        }else if(identitySettings?.aiEnabled&&photoModeEnabled(identitySettings,o.paymentMode)){
           if(!o.photoReview||o.photoReview.status==='checking'||o.photoReview.fingerprint!==photoFingerprint(o))fail('failed-precondition','Check the current after photos before sending.');
           if((o.photoReview.issues?.length||!['checked','manualReview'].includes(o.photoReview.status))&&data.acknowledgePhotoIssues!==true)fail('failed-precondition','Review the photo warnings before sending.');
         }

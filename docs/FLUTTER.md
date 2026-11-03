@@ -1,6 +1,6 @@
 # Current Flutter apps - 3 November 2026
 
-Store preparation: Customer **1.0.4 (7)** / Captain **1.0.5 (8)** preserve the
+Store preparation: Customer **1.0.4 (8)** / Captain **1.0.5 (9)** preserve the
 accepted app UI and functionality. Production Android builds use all three ABIs,
 R8/resource shrinking and the private existing upload key. App backup is disabled
 to avoid restoring private role state on reinstall. iOS Runner resources include
@@ -10,11 +10,11 @@ See [the store guide](STORE-RELEASE-2026-11-03.md). Metadata/policy drafts and
 explicit publication gates live in `release/store/`; no store submission is
 performed by the build tools. Policies still need owner review and deployment.
 
-The owner-approved consent exception uses the existing alert style before
-Customer checkout and before an eligible Captain AI check. Decline remains a
-working path; it sends photos for Customer review without Gemini. Consent is
-never preselected or inherited by a new booking. See
-[AI-PHOTO-CONSENT-2026-11-03.md](AI-PHOTO-CONSENT-2026-11-03.md).
+The latest owner-approved UI exception replaces consent popups with a paid-booking
+AI toggle (default OFF) on Customer success/tracking. Captain ON offers Check with
+AI or Send without AI; OFF sends directly. Checkout has no AI dialog. Both roles
+use the existing switch/card/button design language. See
+[AI-PHOTO-TOGGLE-2026-11-03.md](AI-PHOTO-TOGGLE-2026-11-03.md).
 
 The lifecycle fix introduced in Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clears private
 state and navigation on removal, wait for fresh active-role server snapshots and

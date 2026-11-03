@@ -48,14 +48,6 @@ class ResolvedPaymentStore extends AppStore {
 }
 
 void main() {
-  test('a fresh booking does not inherit the previous AI permission',(){
-    final store=AppStore()..draftFull();
-    store.draft.aiPhotoConsent=true;
-    final previous=store.draftRequestId;
-    store.startNewBooking();
-    expect(store.draft.aiPhotoConsent,isNull);expect(store.draftRequestId,isNot(previous));
-    store.dispose();
-  });
   testWidgets('live Review opens payment once without the repeated method sheet', (tester) async {
     final sample = AppStore()..signInAsSample()..draftFull();
     final store = DirectCheckoutStore()..customer = sample.customer..draft = sample.draft;
@@ -66,11 +58,6 @@ void main() {
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: ReviewScreen())));
     await tester.tap(find.text('Pay via Razorpay · ₹149'));
     await tester.tap(find.text('Pay via Razorpay · ₹149'));
-    await tester.pumpAndSettle();
-    expect(find.text('Allow Google AI photo check?'),findsOneWidget);
-    expect(router.path,isEmpty);
-    await tester.tap(find.text('Continue without AI'));await tester.pumpAndSettle();
-    expect(store.draft.aiPhotoConsent,false);
     expect(router.last?.n, N.paying); expect(router.showPaySheet, false);
     expect(router.path.where((e) => e.route.n == N.paying).length, 1);
     expect(find.byType(PayMethodSheet), findsNothing);

@@ -5,7 +5,7 @@
 The owner reports that Aman approved the tested version for the initial release.
 Preserve that functional/UI baseline. For App Store/Play preparation read
 `docs/STORE-RELEASE-2026-11-03.md` and `release/store/PRIVACY-AND-REVIEW.md`.
-Customer is 1.0.4 (7), Captain 1.0.5 (8). Production Android uses `android:store`
+Customer is 1.0.4 (8), Captain 1.0.5 (9). Production Android uses `android:store`
 (all three ABIs, R8/resource shrinking, existing private upload key); internal
 bundles are a different profile. Mac App Store export uses `archive-ios.sh`,
 which exports locally and checks signed production entitlements; `run-ios.sh`
@@ -55,15 +55,16 @@ acceptance is unnecessary. Never touch unrelated TrustKeyper Play apps.
 
 ## Latest owner decisions
 
-- 3 November: owner authorized a short optional Google AI photo-consent dialog
-  using the existing alert style, preserving all screen layouts. Customer
-  permission is per booking; the assigned Captain confirms per check. The
-  backend requires BOTH versioned choices before reading/sending four after-wash
-  vehicle images to Vertex AI/Gemini. Missing/declined permission uses honest
-  `manualReview`, with ordinary Customer approval/earnings flow. No Aadhaar,
-  selfie or payout data is sent to this AI check. Read
-  `docs/AI-PHOTO-CONSENT-2026-11-03.md`. Older-server protocol probes are read-only;
-  never silently send an AI request through a server that lacks consent support.
+- 3 November, latest: the owner replaced the pre-checkout consent dialogs with
+  an OFF-by-default, per-paid-booking AI toggle on Customer success/tracking.
+  Its adjacent text identifies Google Vertex AI/Gemini, the four after-wash
+  vehicle photos and visible plates/surroundings. On Captain After photos, ON
+  offers Check with AI and Send without AI; OFF offers direct Send photos.
+  No consent popup remains. Backend ownership/payment/revision checks enforce
+  this, invalidate old results on preference changes and keep normal Customer
+  approval/earnings. Never send Aadhaar, selfies or payout data to this wash AI.
+  See `docs/AI-PHOTO-TOGGLE-2026-11-03.md`. This explicitly replaces the earlier
+  same-day dialog instructions; other designs remain locked.
 
 - Phone OTP uses Firebase's native verification API on Android/iOS and the web
   verification flow only in a browser. Do not add a custom bot-check screen to
