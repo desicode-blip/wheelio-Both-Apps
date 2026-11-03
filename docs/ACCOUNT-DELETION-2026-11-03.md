@@ -40,7 +40,8 @@ authorization still remain server-enforced.
 
 All **196 backend tests pass** against isolated Auth/Firestore/Storage emulators.
 All **172 Flutter tests pass**: Customer 74, Captain 37, shared Firebase 52 and
-shared UI 9. The portable iOS configuration check and tooling regressions pass
+shared UI 9. Static analysis is clean for all four packages. The portable iOS
+configuration check and tooling regressions pass
 for both apps; this is source/tooling evidence, not an Xcode build.
 Tests use isolated emulators and injected client fixtures. No real user, Captain,
 identity document or financial record was deleted as a test.
@@ -86,5 +87,24 @@ physical iPhone acceptance. Those checks remain with Aman.
 
 ## Deployment evidence
 
-Pending final verification in this working change. Do not treat this sentence as
-a deployment claim; replace it with the actual result before handoff.
+The verified implementation is commit **38403d6** on local `staging`.
+`deleteOwnAccount` was successfully updated in Firebase project `wheelio-apps`,
+region `asia-south1`, at **3 November 2026 06:19:34 UTC** (11:49:34 IST).
+
+Post-deployment checks at 06:20:50 UTC establish:
+
+- Function ACTIVE, timeout 120 seconds, minimum instances 0, maximum instances 5.
+- The exact deployed source archive matches local `service.mjs`,
+  `runtime-policy.mjs`, `account-access.mjs` and `index.mjs` (UTF-8, normalized
+  line endings). Source generation: `1793686719742313`.
+- The runtime has the existing custom role containing only
+  `firebaseauth.users.delete`, bound to the actual function service account.
+- The documented callable gateway is configured. A request without Firebase
+  authentication returns HTTP **401 / UNAUTHENTICATED**. Organization restricted
+  sharing and application authorization remain enforced.
+
+Only this deletion function was deployed. No Customer/Captain web deployment,
+Play release, real account deletion or iPhone installation was performed. The
+source change is committed locally; it has not been pushed by this task.
+Physical iPhone acceptance remains with Aman after the updated source is shared
+and both apps are rebuilt.
