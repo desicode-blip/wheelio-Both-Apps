@@ -2,6 +2,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {Timestamp} from 'firebase-admin/firestore';
 import {PhotoCheckError} from './photo-checks.mjs';
 import {photoModeEnabled} from './photo-policy.mjs';
+import {photoAiChoice,customerAllowsPhotoAi,AI_PHOTO_CONSENT_VERSION} from './ai-photo-consent.mjs';
 export const photoFingerprint=o=>createHash('sha256').update(JSON.stringify([0,1,2,3].map(i=>{const e=o.evidence?.[`after_${i}`];return [e?.path,e?.generation,e?.uploadedAt?.toMillis?.()];}))).digest('hex');
 const fail=(code,message)=>{throw new PhotoCheckError(code,message);};
 export async function checkWashPhotos(service,auth,data){
@@ -14,13 +15,22 @@ export async function checkWashPhotos(service,auth,data){
     if([0,1,2,3].some(i=>!o.evidence?.[`after_${i}`]))fail('failed-precondition','Upload all four after photos first.');
     const fingerprint=photoFingerprint(o),previous=o.photoReview;
     if(data.statusOnly)return {cached:previous?.fingerprint===fingerprint?previous:{status:'notChecked',issues:[]}};
-    if(previous?.fingerprint===fingerprint&&previous.status!=='checking'&&(previous.status!=='unavailable'||now-(previous.checkedAt?.toMillis()??0)<30000))return {cached:previous};
+    const choice=photoAiChoice(data),captainConsent={...choice,recordedAt:Timestamp.fromMillis(now)};
     if(previous?.status==='checking'&&now-(previous.startedAt?.toMillis()??0)<120000)fail('failed-precondition','Your photos are being checked. Try again in a moment.');
+    // Missing/declined permission never becomes permission through a feature
+    // flag, an older client, a retry or Captain permission alone. No image read,
+    // thumbnail or inference runs in this path. Customer review still completes.
+    if(!choice.allowed||!customerAllowsPhotoAi(o)){
+      const review={fingerprint,status:'manualReview',issues:[],checkedAt:Timestamp.fromMillis(now),reason:!customerAllowsPhotoAi(o)?'customerPermissionNotGranted':'captainPermissionNotGranted'};
+      tx.update(ref,{photoReview:review,'aiPhotoConsent.captain':captainConsent});
+      return {cached:review};
+    }
+    if(previous?.fingerprint===fingerprint&&!['checking','manualReview'].includes(previous.status)&&(previous.status!=='unavailable'||now-(previous.checkedAt?.toMillis()??0)<30000))return {cached:previous};
     const recent=now-(previous?.windowStartedAt?.toMillis()??0)<1800000,attempts=recent?(previous?.attempts??0)+1:1;
     if(attempts>5)fail('resource-exhausted','Several photo checks have been requested. Review your photos and ask Help before retrying.');
-    tx.update(ref,{photoReview:{fingerprint,status:'checking',lease,startedAt:Timestamp.fromMillis(now),attempts,windowStartedAt:recent?previous.windowStartedAt:Timestamp.fromMillis(now)}});return {o,fingerprint};
+    tx.update(ref,{'aiPhotoConsent.captain':captainConsent,photoReview:{fingerprint,status:'checking',lease,startedAt:Timestamp.fromMillis(now),attempts,windowStartedAt:recent?previous.windowStartedAt:Timestamp.fromMillis(now)}});return {o,fingerprint};
   });
-  if(selected.cached)return {issues:selected.cached.issues??[],status:selected.cached.status};
+  if(selected.cached)return {issues:selected.cached.issues??[],status:selected.cached.status,consentPolicyVersion:AI_PHOTO_CONSENT_VERSION};
   let issues=[],status='checked';
   try{
     if(!photoModeEnabled(cfg,selected.o.paymentMode)||!cfg.aiEnabled)throw Error('Review configuration pending');
@@ -32,5 +42,5 @@ export async function checkWashPhotos(service,auth,data){
     issues=await service.photoChecks.reviewWash(photos);
   }catch{status='unavailable';issues=[{side:0,reason:'Automatic photo checking is unavailable. Review all four photos before sending them to the owner.'}];}
   await service.db.runTransaction(async tx=>{const o=(await tx.get(ref)).data();if(o?.captainId!==uid||o.status!=='washing'||o.photoReview?.lease!==lease||photoFingerprint(o)!==selected.fingerprint)fail('failed-precondition','The photos or booking changed. Check them again.');tx.update(ref,{'photoReview.status':status,'photoReview.issues':issues,'photoReview.checkedAt':Timestamp.fromMillis(service.now())});});
-  return {issues,status};
+  return {issues,status,consentPolicyVersion:AI_PHOTO_CONSENT_VERSION};
 }

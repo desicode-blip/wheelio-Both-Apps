@@ -58,8 +58,8 @@ In each Runner target, verify automatic signing with paid **Sumit Mandal** team
 
 | App | Bundle ID | Source version/build |
 | --- | --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (6) |
-| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (7) |
+| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (7) |
+| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (8) |
 
 Use the workspace, including Pods. Keep Push Notifications, Background fetch and
 Remote notifications enabled. iOS minimum is 15.0. The tool checks signing-team

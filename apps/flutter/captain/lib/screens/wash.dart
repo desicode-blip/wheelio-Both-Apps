@@ -248,7 +248,13 @@ class _JobPhotosScreenState extends State<JobPhotosScreen> {
                 // Real, advisory photo review; the owner still decides approval.
                 if (store.isLive) {
                   try {
-                    final issues=await store.liveCheckPhotos();
+                    bool aiAllowed=false;
+                    if(store.customerAllowsPhotoAi){
+                      final choice=await requestAiPhotoConsent(context);
+                      if(!mounted || choice==null)return;
+                      aiAllowed=choice;
+                    }
+                    final issues=await store.liveCheckPhotos(aiAllowed:aiAllowed);
                     if(!mounted)return;
                     if(issues.isNotEmpty){router.go(N.aiCheck);return;}
                     await store.liveProgress('finish');

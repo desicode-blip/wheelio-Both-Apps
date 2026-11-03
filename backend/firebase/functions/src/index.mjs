@@ -25,6 +25,7 @@ import {CaptainReviewError} from './captain-review.mjs';
 import {callableRuntime} from './runtime-policy.mjs';
 import {pushResultSummary} from './push-results.mjs';
 import {WalletTopupError} from './wallet-topup.mjs';
+import {AiPhotoConsentError} from './ai-photo-consent.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -65,7 +66,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }

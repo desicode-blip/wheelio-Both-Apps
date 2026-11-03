@@ -1,5 +1,9 @@
 # Initial store build preparation — observed evidence
 
+Historical evidence for the first 6/7 bundles. The later owner-approved consent
+update is Customer 1.0.4 (7) / Captain 1.0.5 (8); use
+`AI-PHOTO-CONSENT-2026-11-03.md` and the latest release receipt for current builds.
+
 3 November 2026. Final production Android bundles were rebuilt from clean source
 commit **a71164a8e569ca7285e1be7369802def19ee960b**. These are distinct from the
 previous arm64 internal bundles. No Customer/Captain screen/component/design

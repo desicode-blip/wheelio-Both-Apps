@@ -9,6 +9,15 @@ current authorization to make sample screens appear to work.
 
 ## Current real integrations
 
+Optional wash-photo AI now requires versioned Customer permission on the booking
+and the assigned Captain's explicit per-check choice. Neither missing permission
+nor a feature flag grants consent. No-permission paths do not read image bytes,
+thumbnail or invoke Gemini; they record current-evidence `manualReview`, and the
+normal Customer review/approval path remains usable. Clients probe the protocol
+read-only before calling an AI action, protecting against an older backend.
+See [the consent record](AI-PHOTO-CONSENT-2026-11-03.md). No new service or fake
+approval was introduced; existing photo/identity/payment roles stay separate.
+
 Deletion/login recovery now includes least-privilege conditional private-object
 deletion, leased/retryable cleanup, scheduler recovery of existing server-marked
 requests and fresh-auth re-registration. Public coarse discovery stays available

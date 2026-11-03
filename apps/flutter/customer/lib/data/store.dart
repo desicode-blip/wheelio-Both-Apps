@@ -332,6 +332,7 @@ class BookingDraft {
   TimeSlot? slot;
   bool useFreeWash;
   bool walletOnly = false;
+  bool? aiPhotoConsent;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
@@ -1270,6 +1271,8 @@ class AppStore extends ChangeNotifier {
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
       final booking = <String,dynamic>{
         'requestId': draftRequestId,
+        'aiPhotoConsent': d.aiPhotoConsent == true,
+        'aiPhotoConsentVersion': aiPhotoConsentVersion,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,

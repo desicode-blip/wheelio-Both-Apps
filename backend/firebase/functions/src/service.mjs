@@ -6,6 +6,7 @@ import { validPosition, metresBetween, areaFits } from './geography.mjs';
 import {startTraining,trainingHeartbeat,submitQuiz,trainingConfig} from './training.mjs';
 import {beginIdentity,verifyIdentity,reviewIdentity} from './identity.mjs';
 import {checkWashPhotos,photoFingerprint} from './wash-photo-review.mjs';
+import {photoAiChoice} from './ai-photo-consent.mjs';
 import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
@@ -183,6 +184,7 @@ export class WashKrewService {
   }
   async createBooking(auth, data) {
     const uid = this.actor(auth), requestId = id(data.requestId, 'booking request');
+    const aiChoice=photoAiChoice(data);
     const bookingId = hash(`${uid}:${requestId}`), ref = this.db.doc(`orders/${bookingId}`);
     const plate = text(data.plate, 6, 15, 'vehicle number').toUpperCase().replaceAll(' ', '');
     if (!/^[A-Z0-9]{6,12}$/.test(plate)) fail('invalid-argument', 'Check the vehicle number.');
@@ -261,6 +263,7 @@ export class WashKrewService {
       if(requiresCancellationQuote(policy)&&(!data.acceptedCancellationPolicy||Object.keys(policy).some(k=>data.acceptedCancellationPolicy[k]!==policy[k])))fail('failed-precondition','Reopen the latest app and review the cancellation terms before paying.');
       tx.set(ref, {
         customerId: uid, customerFirstName: customerName.split(' ')[0], captainId: null,
+        aiPhotoConsent:{customer:{...aiChoice,recordedAt:Timestamp.fromMillis(this.now())}},
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
         ...(areaPolicy(config)?{coveragePolicy:'captainAreaV1',coverageLocation:{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}}:{}),
         vehicleKind, vehicleName: type.name, plate, societyId, societyName: address?.name ?? society.name, area: address?.area ?? society.area, city: address?.city ?? society.city ?? 'Hyderabad',
@@ -704,7 +707,7 @@ export class WashKrewService {
       else if(action==='finish'&&o.status==='washing'){
         if(identitySettings?.aiEnabled&&photoModeEnabled(identitySettings,o.paymentMode)){
           if(!o.photoReview||o.photoReview.status==='checking'||o.photoReview.fingerprint!==photoFingerprint(o))fail('failed-precondition','Check the current after photos before sending.');
-          if((o.photoReview.issues?.length||o.photoReview.status!=='checked')&&data.acknowledgePhotoIssues!==true)fail('failed-precondition','Review the photo warnings before sending.');
+          if((o.photoReview.issues?.length||!['checked','manualReview'].includes(o.photoReview.status))&&data.acknowledgePhotoIssues!==true)fail('failed-precondition','Review the photo warnings before sending.');
         }
         update={...update,status:'photosReady',finishedAt:stamp(),photoIssuesAcknowledged:data.acknowledgePhotoIssues===true,autoApproveAt:Timestamp.fromMillis(Math.floor((this.now()+19800000)/86400000+1)*86400000-19800000-60000)};
       }

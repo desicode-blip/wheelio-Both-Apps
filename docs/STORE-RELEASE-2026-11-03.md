@@ -10,8 +10,8 @@ old implementations, change the live merchant, or touch the TrustKeyper Play app
 
 | Product | Bundle/package | Source version |
 | --- | --- | --- |
-| WashKrew Customer | com.amanmaheshwari.wheelio.customer | 1.0.4 (6) |
-| WashKrew Captain | com.amanmaheshwari.wheelio.captain | 1.0.5 (7) |
+| WashKrew Customer | com.amanmaheshwari.wheelio.customer | 1.0.4 (7) |
+| WashKrew Captain | com.amanmaheshwari.wheelio.captain | 1.0.5 (8) |
 
 Build numbers increased independently from the previous test bundles. Check both
 store consoles for any build uploaded elsewhere. An occupied/higher code needs
@@ -27,6 +27,12 @@ APNs entitlement, non-debug distribution signature/profile, iOS SDK, version and
 app manifest, and saves IPA + xcarchive + dSYMs + provenance. Development push
 entitlements in source are preserved; export must use a distribution profile
 that produces `aps-environment=production`. Do not turn off Firebase verification.
+
+The later consent update is Customer 1.0.4 (7) / Captain 1.0.5 (8). Use these
+instead of the earlier 6/7 production bundles. The owner approved short optional
+dialogs in the existing style. Both Customer and Captain permission is required
+for Google AI; refusal uses ordinary Customer photo review. See
+[the implementation/deployment record](AI-PHOTO-CONSENT-2026-11-03.md).
 
 ## Required public content — concrete drafts included
 
@@ -114,8 +120,8 @@ alone cannot retrieve a private upload key or an ignored AAB.
 Validate each bundle using the official Google bundletool and Java:
 
 ```sh
-python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Customer-1.0.4-6.aab --bundletool /private/tools/bundletool.jar
-python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Captain-1.0.5-7.aab --bundletool /private/tools/bundletool.jar
+python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Customer-1.0.4-7.aab --bundletool /private/tools/bundletool.jar
+python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Captain-1.0.5-8.aab --bundletool /private/tools/bundletool.jar
 ```
 
 The verifier checks bundle structure/CRC, expected upload certificate/signature,

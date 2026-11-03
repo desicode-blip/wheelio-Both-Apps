@@ -33,7 +33,7 @@ bash apps/flutter/tool/run-ios.sh
 Preserve local changes; inspect a failed fast-forward rather than resetting.
 Open each app's `ios/Runner.xcworkspace`, sign with paid Apple team **28JNT7H8KA**,
 and keep `com.amanmaheshwari.wheelio.customer` / `.captain`.
-Source versions: Customer **1.0.4 (6)**, Captain **1.0.5 (7)**.
+Source versions: Customer **1.0.4 (7)**, Captain **1.0.5 (8)**.
 Private APNs keys are already configured in Firebase and are not needed to build.
 Record actual results in [the iPhone results template](docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md).
 Windows checks do not establish Xcode compilation, signing or physical acceptance.

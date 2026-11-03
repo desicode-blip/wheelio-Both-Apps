@@ -4,6 +4,7 @@ library;
 export 'src/brand.dart';
 export 'src/components.dart';
 export 'src/delete_account.dart';
+export 'src/ai_photo_consent.dart';
 export 'src/map_controls.dart';
 export 'src/live_camera.dart';
 export 'src/device.dart';

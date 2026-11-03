@@ -1493,9 +1493,13 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
   List<Map<String,dynamic>> get photoReviewIssues=>[for(final i in liveOrder(current.id)?['photoReview']?['issues'] as List? ?? [])Map<String,dynamic>.from(i as Map)];
   int get photoReviewSide=>photoReviewIssues.firstOrNull?['side'] as int? ?? 0;
-  Future<List<dynamic>> liveCheckPhotos()=>_call(()async{
+  bool get customerAllowsPhotoAi {
+    final consent=liveOrder(current.id)?['aiPhotoConsent']?['customer'];
+    return consent is Map && consent['allowed']==true && consent['version']==aiPhotoConsentVersion;
+  }
+  Future<List<dynamic>> liveCheckPhotos({bool aiAllowed=false})=>_call(()async{
     await flushEvidence(true);
-    final id=current.id,result=await live!.reviewWashPhotos(current.id);
+    final id=current.id,result=await live!.reviewWashPhotos(current.id,aiAllowed:aiAllowed);
     if(liveOrders[id]!=null){liveOrders[id]!['photoReview']={...liveOrders[id]!['photoReview'] as Map? ?? {},'status':result['status'],'issues':result['issues']??[]};changed();}
     return result['issues'] as List? ?? [];
   });

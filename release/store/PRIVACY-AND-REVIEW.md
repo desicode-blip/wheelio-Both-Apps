@@ -38,6 +38,11 @@ review them rather than automatically classifying every provider identically.
 
 ## Policy and consent decisions before submitting
 
+The owner approved the short existing-style consent dialog on 3 November. It is
+implemented in both roles with server enforcement and a manual alternative; see
+`docs/AI-PHOTO-CONSENT-2026-11-03.md`. Remaining owner policy/provider/retention
+review is still required. No approval flag is auto-completed by this code change.
+
 - Confirm privacy/support mailbox and phone work. Publish owner-approved privacy,
   terms, support, deletion and combined policy pages on washkrew.com. Drafts are
   outside public Hosting; changing a flag does not approve unresolved draft text.
