@@ -12,6 +12,7 @@ import 'phone_otp.dart';
 import 'checkout_flow.dart';
 import 'photo_review_flow.dart';
 import 'apns_readiness.dart';
+import 'account_deletion.dart';
 import 'backend.dart' show kycUploadError;
 
 import 'checkout_stub.dart'
@@ -88,6 +89,29 @@ class LiveBackend {
   Future<void> confirmAccountVerification(String code) async {
     await _accountOtp.confirm(code);
     await auth.currentUser!.getIdToken(true);
+  }
+
+  Future<void> deleteAppAccount(String role) {
+    if (!['customer', 'captain'].contains(role) || !phoneVerified) {
+      throw StateError('Open your signed-in app account before deleting it.');
+    }
+    final account = uid!;
+    return runAccountDeletion(
+      role: role,
+      remove: () async {
+        final result = await functions.httpsCallable('deleteOwnAccount',
+          options: HttpsCallableOptions(timeout: const Duration(seconds: 180)),
+        ).call({'confirm': true, 'role': role});
+        return Map<String, dynamic>.from(result.data as Map);
+      },
+      canReconcile: (error) => account == uid && error is FirebaseFunctionsException &&
+        ['unavailable', 'deadline-exceeded', 'internal'].contains(error.code),
+      readProfile: () async {
+        if (account != uid) throw StateError('Your signed-in account changed.');
+        return (await db.doc('users/$account').get(const GetOptions(source: Source.server))).data();
+      },
+      signOut: () async { if (account == uid) await signOut(); },
+    );
   }
 
   StreamSubscription<String>? _tokenRefresh;

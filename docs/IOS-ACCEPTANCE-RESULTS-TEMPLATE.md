@@ -51,6 +51,11 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Actual receipt download on iPhone | NOT RUN | |
 | Permissions/network/background/reopen | NOT RUN | |
 | APNs delivery/inbox/tap on both apps | NOT RUN | |
+| Signed paid-team APNs entitlement + Background App Refresh; native login/fallback result | NOT RUN | |
+| Customer: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
+| Captain: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
+| Delete one role only; other role's account/data remains usable | NOT RUN | |
+| Open jobs/pending payment/funded-wallet deletion safeguards | NOT RUN | |
 | Separately authorized cancellation/refund | NOT RUN | |
 | New policy: 100% cash-plus-credit value to wallet within five minutes | NOT RUN | |
 | Near-term wash: five-minute grace still returns 100% wallet value | NOT RUN | |

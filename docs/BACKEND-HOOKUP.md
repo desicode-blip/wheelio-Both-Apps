@@ -1,3 +1,19 @@
+# Account deletion - 3 November 2026
+
+The existing authenticated `deleteOwnAccount` callable now performs the owner's
+two-confirmation, no-extra-SMS deletion flow. The server still derives the target
+from the verified caller; clients cannot delete another UID. Role isolation,
+open-job, pending-payment and funded-wallet checks remain. Cleanup checkpoints
+closed booking history, retries safely and returns completion explicitly. The
+client reconciles transport failures only against fresh server completion state.
+The callable has a 120-second deadline and zero reserved warm instances.
+
+No new service or production test control is added. Old auth-time values,
+interrupted Storage cleanup, duplicate replies, synthetic roles and lost
+responses are fixtures in isolated emulator/unit tests only. No production
+account or KYC was deleted as a test. See
+[ACCOUNT-DELETION-2026-11-03.md](ACCOUNT-DELETION-2026-11-03.md).
+
 # Wallet top-ups and atomic offers - 2 November 2026
 
 Current iPhone handoff: existing Apple/Firebase services are retained. APNs token

@@ -1074,9 +1074,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      final result=await live!.call('deleteOwnAccount',{'confirm':true,'role':'customer'});
-      if(result['deleted']!=true)throw StateError('Account deletion has not finished. Try again.');
-      await live!.signOut();return true;
+      await live!.deleteAppAccount('customer');return true;
     }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;

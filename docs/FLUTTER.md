@@ -1,3 +1,17 @@
+# Account deletion follow-up - 3 November 2026
+
+Customer **1.0.3 (4)** and Captain **1.0.4 (5)** use two explicit decisions in
+their existing delete-account dialog. Deletion no longer opens phone-change or
+requests another SMS. One pending action prevents duplicate taps; an error stays
+in the final confirmation for retry. Current-role cleanup, server ownership and
+open-wash/payment/funded-wallet safeguards remain enforced. A lost response is
+reconciled only against a fresh server completion marker. No unrelated screen
+layout, asset, typography or palette is changed.
+
+See [ACCOUNT-DELETION-2026-11-03.md](ACCOUNT-DELETION-2026-11-03.md) for cleanup,
+tests, deployment evidence and the focused Mac/iPhone checks. The previous Play
+builds do not contain this UI change; rebuild both native apps for acceptance.
+
 # Current iPhone handoff - 2 November 2026
 
 Read [AMAN-IOS-HANDOFF-2026-11-02.md](AMAN-IOS-HANDOFF-2026-11-02.md) first on

@@ -158,3 +158,11 @@ entry, wallet screen/top-ups, and wallet versus Razorpay checkout actions. A sho
 wallet balance opens a top-up through the separate WashKrew merchant. Only a
 server-verified captured payment credits the wallet; no client-issued credit.
 Keep all unrelated authored layouts and the no-credit-card / EMI / paylater rule.
+
+Owner decision — 3 November 2026: deleting the current app account uses two
+explicit confirmations in the existing destructive dialog, without a new SMS
+OTP. Authenticated server ownership, current-role isolation, open-wash/payment
+and funded-wallet safeguards remain mandatory. Only completed server cleanup is
+success; interrupted cleanup can retry. Login and sensitive payout verification
+are unchanged. See docs/ACCOUNT-DELETION-2026-11-03.md. Native iPhone CAPTCHA
+fallback must not be bypassed; the existing APNs key is already configured.

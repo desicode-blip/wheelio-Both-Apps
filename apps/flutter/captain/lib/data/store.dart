@@ -1055,9 +1055,7 @@ class CaptainStore extends ChangeNotifier {
   Future<String?> deleteAccount() async {
     if (isLive) {
       try {
-        final result = await live!.call('deleteOwnAccount', {'confirm': true, 'role': 'captain'});
-        if (result['deleted'] != true) return 'Account deletion has not finished. Try again.';
-        await live!.signOut();
+        await live!.deleteAppAccount('captain');
         return null;
       } catch(e) { return backendError(e); }
     }

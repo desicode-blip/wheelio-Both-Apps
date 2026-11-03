@@ -8,7 +8,6 @@ import '../data/models.dart';
 import '../data/store.dart';
 import 'booking.dart';
 import 'common.dart';
-import 'support.dart';
 
 // MARK: Tabs
 
@@ -725,6 +724,8 @@ class _ProfileTabState extends State<ProfileTab> {
   bool showDelete = false;
   bool deleteBlocked = false;
   bool deleting = false;
+  bool deleteAgain = false;
+  String? deleteError;
 
   String _notificationSummary(AppStore store) {
     if (!store.notificationsOn) return 'Off';
@@ -751,6 +752,7 @@ class _ProfileTabState extends State<ProfileTab> {
     final store = context.store, router = context.router;
     final c = store.customer;
     Widget group(List<Widget> rows) => WCard(padding: 14, radius: 16, child: Column(children: rows));
+    final finalDeletion = store.isLive && deleteAgain;
     return Stack(
       children: [
         TabScroll(
@@ -837,7 +839,7 @@ class _ProfileTabState extends State<ProfileTab> {
                   },
                 ),
                 const WDivider(inset: 54),
-                WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() => showDelete = true)),
+                WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() {showDelete = true; deleteAgain = false; deleteError = null; deleteBlocked = false;})),
               ]),
             ],
           ],
@@ -848,7 +850,7 @@ class _ProfileTabState extends State<ProfileTab> {
               children: [
                 Positioned.fill(
                   child: GestureDetector(
-                    onTap: () => setState(() => showDelete = false),
+                    onTap: deleting ? null : () => setState(() {showDelete = false; deleteAgain = false; deleteError = null;}),
                     child: const ColoredBox(color: WColor.scrim),
                   ),
                 ),
@@ -866,35 +868,37 @@ class _ProfileTabState extends State<ProfileTab> {
                           children: [
                             const WIconBox(WIcon.trash, size: 52, tone: Tone.error, radius: 26),
                             const SizedBox(height: 12),
-                            const WText('Delete your account?', WType.section, weight: semibold),
+                            WText(finalDeletion ? 'Are you absolutely sure?' : 'Delete your account?', WType.section, weight: semibold),
                             const SizedBox(height: 12),
                             WText(
-                              deleteBlocked
+                              store.isLive
+                                  ? finalDeletion
+                                      ? 'Your Customer profile, vehicles, saved places and wallet credits will be removed. This cannot be undone. Payment records are kept separately. Your Captain account stays.'
+                                      : 'Are you sure you want to delete your Customer account? Open washes and pending payments must be resolved first.'
+                                  : deleteBlocked
                                   ? 'You can’t do this while a wash is in progress. Try again after it’s approved.'
                                   : 'Your vehicles, bookings and ${c?.freeWashes ?? 0} free washes go with it. You can’t do this while a wash is in progress.',
                               WType.body,
                             ),
+                            if (deleteError != null) ...[
+                              const SizedBox(height: 12),
+                              WText(deleteError!, WType.caption, color: WColor.destructive),
+                            ],
                             const SizedBox(height: 18),
                             WButton(
-                              'Delete account',
+                              store.isLive && !finalDeletion ? 'Yes, continue' : 'Delete account',
                               kind: ButtonKind.danger,
                               enabled: !deleteBlocked,
                               loading: deleting,
                               onTap: () async {
                                 if (deleting) return;
-                                setState(() => deleting = true);
+                                if (store.isLive && !finalDeletion) {setState(() => deleteAgain = true); return;}
+                                setState(() {deleting = true; deleteError = null;});
                                 bool ok;
                                 try {
-                                  if (store.isLive) {
-                                    await store.live!.requestAccountVerification();
-                                    if (!context.mounted) return;
-                                    final verified = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const ChangePhoneScreen(verifyAccount: true)));
-                                    if (verified != true) return;
-                                  }
                                   ok = await store.deleteAccount();
                                 } catch (e) {
-                                  store.set(() => store.toast = backendError(e));
-                                  if (mounted) setState(() => showDelete = false);
+                                  if (mounted) setState(() => deleteError = backendError(e));
                                   return;
                                 } finally {
                                   if (mounted) setState(() => deleting = false);
@@ -912,9 +916,11 @@ class _ProfileTabState extends State<ProfileTab> {
                             WButton(
                               'Keep my account',
                               kind: ButtonKind.text,
-                              onTap: () => setState(() {
+                              onTap: deleting ? null : () => setState(() {
                                 showDelete = false;
                                 deleteBlocked = false;
+                                deleteAgain = false;
+                                deleteError = null;
                               }),
                             ),
                           ],

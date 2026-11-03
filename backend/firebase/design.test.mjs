@@ -123,17 +123,76 @@ test('Customer deletion preserves the same phone Captain, its active work, priva
  assert.equal((await db.doc('users/captain').get()).data().deletedRoles?.customer,undefined);
 });
 
-test('Captain deletion keeps Customer bookings and wallet and requires recent SMS verification',async()=>{
+test('Captain deletion keeps Customer bookings and wallet without another SMS verification',async()=>{
  await service.register(auth('owner'),{role:'captain'});
  const job=await assigned();
  await db.doc('wallets/owner_test').set({customerId:'owner',creditPaise:1500});
- await assert.rejects(service.deleteAccount({...auth('owner'),token:{...auth('owner').token,auth_time:0}},{confirm:true,role:'captain'}),{code:'failed-precondition'});
- await service.deleteAccount(auth('owner'),{confirm:true,role:'captain'});
+ await service.deleteAccount({...auth('owner'),token:{...auth('owner').token,auth_time:0}},{confirm:true,role:'captain'});
  assert.deepEqual(deletedUsers,[]);assert.equal((await db.doc('captains/owner').get()).exists,false);
  assert.equal((await db.doc(`orders/${job.orderId}`).get()).data().customerId,'owner');
  assert.equal((await db.doc('wallets/owner_test').get()).data().creditPaise,1500);
  const profile=(await db.doc('users/owner').get()).data();assert.deepEqual(profile.roles,['customer']);
  assert.equal(removedAppAccess(profile,'captainPreferences'),true);assert.equal(removedAppAccess(profile,'createBooking'),false);
+});
+
+test('deletion requires a verified signed-in owner and explicit confirmation, not an OTP age',async()=>{
+ await assert.rejects(service.deleteAccount(null,{confirm:true,role:'customer'}),{code:'unauthenticated'});
+ await assert.rejects(service.deleteAccount({uid:'owner',token:{}},{confirm:true,role:'customer'}),{code:'permission-denied'});
+ await assert.rejects(service.deleteAccount(auth('owner'),{role:'customer'}),{code:'invalid-argument'});
+ await assert.rejects(service.deleteAccount(auth('owner'),{confirm:true,role:'admin'}),{code:'invalid-argument'});
+ await service.deleteAccount({...auth('owner'),token:{phone_number:auth('owner').token.phone_number}},{confirm:true,role:'customer',uid:'captain'});
+ assert.deepEqual(deletedUsers,['owner']);
+ assert.equal((await db.doc('captains/captain').get()).data().approved,true);
+ assert.equal((await db.doc('users/captain').get()).data().name,'Captain');
+});
+
+test('shared-role deletion retry is idempotent and does not delete the other app',async()=>{
+ await service.register(auth('owner'),{role:'captain'});
+ const data={confirm:true,role:'captain'};
+ await service.deleteAccount(auth('owner'),data);
+ const removed=deletedPrefixes.length;
+ const retry=await service.deleteAccount(auth('owner'),data);
+ assert.equal(retry.deleted,true);assert.equal(retry.identityDeleted,false);
+ assert.deepEqual(deletedUsers,[]);assert.equal(deletedPrefixes.length,removed);
+ assert.deepEqual((await db.doc('users/owner').get()).data().roles,['customer']);
+});
+
+test('last-role deletion retry returns completion without removing another identity',async()=>{
+ const data={confirm:true,role:'customer'};
+ await service.deleteAccount(auth('owner'),data);
+ const retry=await service.deleteAccount(auth('owner'),data);
+ assert.equal(retry.deleted,true);assert.equal(retry.identityDeleted,true);
+ assert.deepEqual(deletedUsers,['owner']);
+ assert.equal((await db.doc('users/captain').get()).exists,true);
+});
+
+test('large interrupted deletion checkpoints old bookings and resumes the remaining private cleanup',async()=>{
+ for(let i=0;i<25;i++)await db.doc(`orders/history_${String(i).padStart(2,'0')}`).set({customerId:'owner',captainId:'captain',status:'approved',plate:'TS09AB1234'});
+ const remove=service.evidence.deletePrefix;
+ service.evidence.deletePrefix=async p=>{if(p==='orders/history_24/customer/')throw Error('Storage interrupted');await remove(p);};
+ await assert.rejects(service.deleteAccount(auth('owner'),{confirm:true,role:'customer'}),/Storage interrupted/);
+ const saved=await db.collection('orders').get();
+ assert.ok(saved.docs.some(d=>d.data().customerId===null));
+ assert.ok(saved.docs.some(d=>d.data().customerId==='owner'));
+ assert.deepEqual(deletedUsers,[]);
+ service.evidence.deletePrefix=remove;
+ await service.deleteAccount(auth('owner'),{confirm:true,role:'customer'});
+ const completed=await db.collection('orders').get();
+ assert.ok(completed.docs.every(d=>d.data().customerId===null&&d.data().captainId==='captain'));
+ assert.deepEqual(deletedUsers,['owner']);
+});
+
+test('interrupted private cleanup can retry from pending without fresh SMS or deleting the other role',async()=>{
+ await service.register(auth('owner'),{role:'captain'});
+ const remove=service.evidence.deletePrefix;
+ service.evidence.deletePrefix=async p=>{if(p==='kyc/owner/')throw Error('Storage interrupted');await remove(p);};
+ await assert.rejects(service.deleteAccount(auth('owner'),{confirm:true,role:'captain'}),/Storage interrupted/);
+ assert.equal((await db.doc('users/owner').get()).data().deletingRole,'captain');
+ service.evidence.deletePrefix=remove;
+ await service.deleteAccount({...auth('owner'),token:{...auth('owner').token,auth_time:0}},{confirm:true,role:'captain'});
+ assert.equal((await db.doc('captains/owner').get()).exists,false);
+ assert.equal((await db.doc('users/owner').get()).data().deletingRole,undefined);
+ assert.deepEqual(deletedUsers,[]);
 });
 
 test('missing uploaded identity returns a clear precondition instead of a generic application error',async()=>{
