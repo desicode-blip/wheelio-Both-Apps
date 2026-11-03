@@ -1,7 +1,7 @@
 # Prompt for Claude on Aman's Mac - 3 November 2026
 
 Copy the prompt below into Claude with the existing repository open. The latest
-staging includes Customer **1.0.3 (4)** and Captain **1.0.4 (5)**. These source
+staging includes Customer **1.0.4 (5)** and Captain **1.0.5 (6)**. These source
 versions include the deletion fix; an older installed app is not a test of it.
 
 ---
@@ -70,6 +70,9 @@ Guide me one action at a time through this order:
    duplicates and failures must stay retryable. With both roles on one number,
    deleting one must preserve the other. Resolve open jobs/pending payments/balance
    safeguards first; do not delete a main funded working account.
+   Then sign up again with that same phone. Customer must be fresh and able to
+   select a place/book; Captain must collect the name and new documents/area/hours
+   and require new human approval. Old photos/settings must not return from cache.
 9. Check denied/cancelled/re-enabled permissions, app restart, network recovery,
    camera/gallery/GPS, push delivery/tap and actual UPI app-switch return.
 

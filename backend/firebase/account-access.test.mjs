@@ -20,3 +20,11 @@ test('missing Storage objects are absent; permission and provider errors are not
   const meta={contentType:'image/jpeg',size:123};
   assert.equal(await readObjectMetadata({getMetadata:async()=>[meta]}),meta);
 });
+
+test('deleted-token coarse discovery remains public, while private mutations stay blocked',()=>{
+ const profiles=[{deletionStatus:'pending',deletingRole:'captain',roles:['captain']},{deletionStatus:'completed'},{deletedRoles:{customer:1},roles:['captain']}];
+ for(const p of profiles){
+  for(const method of ['availability','searchPlaces','selectPlace','serviceLocation'])assert.equal(removedAppAccess(p,method),false);
+  for(const method of ['createBooking','savePlace','checkout'])assert.equal(removedAppAccess(p,method),true);
+ }
+});

@@ -6,6 +6,11 @@ The requested deliverables are the two native mobile apps and the private admin
 portal. Customer/Captain web apps are not a prerequisite for this acceptance.
 
 The same Flutter screens and functionality used on Android build for iOS.
+The latest lifecycle fix is documented in
+[ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md).
+After deletion, test fresh signup with the same phone: old names, KYC, approval,
+areas, wallet state and job/photo screens must not return from cache. A returning
+deleted Captain completes the existing name form after phone verification.
 Keep Aman's approved layouts, assets, typography and palette. Do not recreate
 either app or restore the retired SwiftUI/React implementations.
 
@@ -50,8 +55,8 @@ In each Runner target, verify automatic signing with paid **Sumit Mandal** team
 
 | App | Bundle ID | Source version/build |
 | --- | --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.3 (4) |
-| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.4 (5) |
+| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (5) |
+| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (6) |
 
 Use the workspace, including Pods. Keep Push Notifications, Background fetch and
 Remote notifications enabled. iOS minimum is 15.0. The tool checks signing-team
@@ -163,8 +168,8 @@ Windows can verify Flutter logic and portable native configuration. It cannot
 compile/sign these iPhone apps or establish actual camera, APNs, GPS and payment
 app-switch behavior. Those Mac/device results remain the final acceptance gate.
 
-**Updated deletion follow-up:** all **172 Flutter tests** pass (Customer 74,
-Captain 37, shared Firebase 52, shared UI 9), with **196 backend emulator tests**
+**Updated deletion follow-up:** all **177 Flutter tests** pass (Customer 76,
+Captain 38, shared Firebase 54, shared UI 9), with **202 backend emulator tests**
 passing. Analysis is clean for the app/shared packages and the
 standalone iOS tool. Native tooling regressions pass, including five configuration
 failure cases. Ten plist files and ten Xcode XML files parse successfully; both

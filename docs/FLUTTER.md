@@ -1,5 +1,10 @@
 # Current Flutter apps - 3 November 2026
 
+Latest lifecycle fix: Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clear private
+state and navigation on removal, wait for fresh active-role server snapshots and
+support same-phone signup without restoring old KYC, approval or saved settings.
+See [the lifecycle recovery report](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md).
+
 Only `apps/flutter/customer` and `apps/flutter/captain` are app implementations.
 Both build for Android/iOS and share `packages/washkrew_ui` and
 `packages/washkrew_firebase` beneath `apps/flutter/`. Browser folders/tooling are

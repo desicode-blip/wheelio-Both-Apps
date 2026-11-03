@@ -1,5 +1,10 @@
 # Account deletion and iPhone verification follow-up
 
+**Later same-day correction:** [ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md)
+records the missing runtime Storage delete permission, interrupted-cleanup recovery
+and fresh signup/cache isolation. The initial tests below did not establish those
+paths; use the later report and current source versions for acceptance.
+
 3 November 2026. Owner request: fix deletion in both apps, replace the extra
 deletion OTP with two clear decisions, and investigate iPhone phone-auth fallback.
 All unrelated authored designs stay unchanged.

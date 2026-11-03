@@ -195,6 +195,74 @@ test('interrupted private cleanup can retry from pending without fresh SMS or de
  assert.deepEqual(deletedUsers,[]);
 });
 
+test('fresh signup completes an interrupted last-role deletion and starts a clean Customer',async()=>{
+ await db.doc('users/captain').update({deletingRole:'captain',deletionStatus:'pending',updatedAt:Timestamp.fromMillis(clock-60000),savedPlaces:[{id:'old-place'}]});
+ await db.doc('captains/captain').update({deletionStatus:'pending',approved:false,online:false});
+ const result=await service.register(auth('captain'),{role:'customer'});
+ assert.equal(result.accountCreated,true);assert.equal(result.needsName,true);
+ const profile=(await db.doc('users/captain').get()).data();
+ assert.deepEqual(profile.roles,['customer']);assert.equal(profile.customerName,'');assert.equal(profile.name,'');
+ assert.equal(profile.savedPlaces,undefined);assert.equal(profile.deletionStatus,undefined);assert.equal(profile.deletingRole,undefined);
+ assert.equal((await db.doc('captains/captain').get()).exists,false);assert.deepEqual(deletedUsers,[]);
+ assert.ok(deletedPrefixes.includes('kyc/captain/'));
+ assert.equal(removedAppAccess(profile,'createBooking'),false);
+ await service.register(auth('helper'),{role:'captain',name:'Helper'});
+ await db.doc('captains/helper').update({approved:true,online:true,societyIds:['soc_avatar'],lastSeenAt:Timestamp.fromMillis(clock)});
+ await service.register(auth('captain'),{role:'customer',name:'New Customer'});
+ const booking=await service.createBooking(auth('captain'),{requestId:'fresh-customer',plate:'TS09AB1234',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'New tower',floor:'B1',parking:'New place',note:'',washKind:'wetOutside',day:'2026-11-01',startHour:8,endHour:10});
+ const checkout=await service.checkout(auth('captain'),booking),payment={id:'pay_fresh',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'};
+ provider.payments.set(payment.id,payment);await service.capturePayment(payment);await service.claim(auth('helper'),{orderId:booking.bookingId});
+ const order=(await db.doc('orders/'+booking.bookingId).get()).data();
+ assert.equal(order.customerFirstName,'New');assert.equal(order.captainId,'helper');assert.equal(order.parking,'New place');
+});
+
+test('deleted Captain re-registers without old approval, payout, documents, area or name',async()=>{
+ await service.register(auth('owner'),{role:'captain',name:'Previous Captain'});
+ await db.doc('captains/owner').update({approved:true,serviceArea:{radiusKm:9},payout:{upi:'old@bank'},trainingVideos:['old']});
+ await service.deleteAccount(auth('owner'),{confirm:true,role:'captain'});
+ clock+=1000;
+ const result=await service.register(auth('owner'),{role:'captain'});
+ assert.equal(result.needsName,true);assert.equal(result.name,'');
+ const c=(await db.doc('captains/owner').get()).data();assert.equal(c.name,'');assert.equal(c.approved,false);assert.equal(c.online,false);
+ for(const field of ['serviceArea','payout','trainingVideos','submittedAt','deletionStatus'])assert.equal(c[field],undefined);
+ const profile=(await db.doc('users/owner').get()).data();assert.equal(profile.customerName,'Owner');assert.equal(profile.captainName,'');
+ assert.equal(profile.deletedRoles?.captain,undefined);
+ await service.register(auth('owner'),{role:'captain',name:'New Captain'});
+ assert.equal((await db.doc('captains/owner').get()).data().name,'New Captain');
+});
+
+test('a recent but pre-deletion cached token cannot resurrect a deleted role',async()=>{
+ await service.register(auth('owner'),{role:'captain',name:'Captain'});
+ const old=auth('owner');clock+=10000;
+ await service.deleteAccount(auth('owner'),{confirm:true,role:'captain'});
+ await assert.rejects(service.register(old,{role:'captain',name:'Old'}),{code:'failed-precondition'});
+ clock+=1000;await service.register(auth('owner'),{role:'captain',name:'New'});
+ assert.equal((await db.doc('captains/owner').get()).data().approved,false);
+});
+
+test('scheduled recovery finishes only server-marked pending deletion and keeps the other role',async()=>{
+ await service.register(auth('owner'),{role:'captain',name:'Captain'});
+ await db.doc('users/owner').update({deletingRole:'captain',deletionStartedAt:Timestamp.fromMillis(clock-60000)});
+ await db.doc('captains/owner').update({approved:false,deletionStatus:'pending'});
+ await service.resumePendingDeletions();
+ assert.equal((await db.doc('captains/owner').get()).exists,false);
+ assert.deepEqual((await db.doc('users/owner').get()).data().roles,['customer']);
+ assert.equal((await db.doc('captains/captain').get()).data().approved,true);
+ assert.deepEqual(deletedUsers,[]);
+});
+
+test('closed wallet history and legacy private records do not return on new signup',async()=>{
+ await db.doc('walletTopups/old').set({customerId:'owner',paymentStatus:'captured',status:'credited'});
+ await db.doc('paymentOrders/old').set({customerId:'owner',kind:'walletTopup'});
+ await db.doc('washRequests/old').set({customerId:'owner',notes:'old private note'});
+ await service.deleteAccount(auth('owner'),{confirm:true,role:'customer'});
+ assert.equal((await db.doc('walletTopups/old').get()).data().customerId,null);
+ assert.equal((await db.doc('paymentOrders/old').get()).data().customerId,null);
+ assert.equal((await db.doc('washRequests/old').get()).exists,false);
+ clock+=1000;const result=await service.register(auth('owner'),{role:'customer'});
+ assert.equal(result.needsName,true);assert.equal((await db.doc('users/owner').get()).data().customerName,'');
+});
+
 test('missing uploaded identity returns a clear precondition instead of a generic application error',async()=>{
  service.evidence.metadata=async()=>null;
  await service.register(auth('applicant'),{role:'captain',name:'Applicant'});

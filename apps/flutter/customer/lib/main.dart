@@ -84,12 +84,23 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
   );
 }
 
-class _Root extends StatelessWidget {
+class _Root extends StatefulWidget {
   const _Root();
+  @override State<_Root> createState()=>_RootState();
+}
+class _RootState extends State<_Root> {
+  int? observedReset;
+  bool resetting=false;
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    observedReset ??= store.accountResetRevision;
+    if(observedReset != store.accountResetRevision){
+      observedReset=store.accountResetRevision;resetting=true;
+      WidgetsBinding.instance.addPostFrameCallback((_){if(mounted){router.resetAccountNavigation();setState(()=>resetting=false);}});
+    }
+    if(resetting)return const Material(color:WColor.white,child:WelcomeScreen());
     if (store.isLive && !store.backendReady) {
       return WScreen(
         children: [

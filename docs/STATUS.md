@@ -15,11 +15,12 @@ Read [AGENTS.md](../AGENTS.md) before editing; keep approved designs unchanged.
   Customer review/rating and Captain earnings ledger. No automatic bank payout.
 - Two-confirmation role-specific deletion without a new deletion OTP; resumable
   cleanup, truthful error handling and preserved open-job/payment/balance guards.
-- The latest functional release passed **196 backend tests**, **172 Flutter tests**
+- The latest functional release passed **202 backend tests**, **177 Flutter tests**
   and static/native configuration checks. The deletion backend is deployed;
-  [its report](ACCOUNT-DELETION-2026-11-03.md) records exact runtime/source evidence.
+  [the lifecycle report](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md) records exact
+  runtime/source evidence and verified recovery of the reported stuck deletion.
 - The owner confirmed the prior updated Android apps work. Current source versions
-  Customer **1.0.3 (4)** / Captain **1.0.4 (5)** include the newer deletion UI;
+  Customer **1.0.4 (5)** / Captain **1.0.5 (6)** include the newer deletion UI;
   earlier installed Play builds do not automatically receive it.
 
 ## Remaining human/device acceptance

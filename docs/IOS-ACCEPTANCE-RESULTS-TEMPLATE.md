@@ -55,6 +55,9 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Customer: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
 | Captain: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
 | Delete one role only; other role's account/data remains usable | NOT RUN | |
+| Same phone re-registers as fresh Customer; no deleted marker blocks place/booking | NOT RUN | |
+| Same phone re-registers as fresh Captain; name required, KYC/approval/hours cleared | NOT RUN | |
+| Cached profiles/photos and delayed callbacks cannot restore deleted private data | NOT RUN | |
 | Open jobs/pending payment/funded-wallet deletion safeguards | NOT RUN | |
 | Separately authorized cancellation/refund | NOT RUN | |
 | New policy: 100% cash-plus-credit value to wallet within five minutes | NOT RUN | |

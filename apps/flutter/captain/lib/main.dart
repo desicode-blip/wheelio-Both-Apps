@@ -108,10 +108,18 @@ class _Root extends StatefulWidget {
 }
 class _RootState extends State<_Root>{
   String? restoredAccount;
+  int? observedReset;
+  bool resetting=false;
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
+    observedReset ??= store.accountResetRevision;
+    if(observedReset != store.accountResetRevision){
+      observedReset=store.accountResetRevision;restoredAccount=null;resetting=true;
+      WidgetsBinding.instance.addPostFrameCallback((_){if(mounted){router.home();setState(()=>resetting=false);}});
+    }
+    if(resetting)return const Material(color:WColor.white,child:LanguageScreen());
     if(store.liveUid.isEmpty)restoredAccount=null;
     if(store.isLive&&store.liveUid.isNotEmpty&&store.liveLoaded&&store.liveOrdersLoaded&&store.signedUp&&restoredAccount!=store.liveUid){
       restoredAccount=store.liveUid;
@@ -208,7 +216,7 @@ Widget _destination(R r) => Builder(builder:(context){
   if(!context.store.trainingEnabled && [N.training,N.video,N.quiz,N.quizResult,N.refresher].contains(r.n))return context.store.signedUp ? const MeTab() : const StepsScreen();
   return switch (r.n) {
   N.welcome => const WelcomeScreen(),
-  N.signUp => SignUpScreen(login: r.flag),
+  N.signUp => SignUpScreen(login: r.flag, verified: r.index == 1),
   N.otp => WOtpScreen(login: r.flag),
   N.steps => StepsScreen(problem: r.flag),
   N.aadhaar => AadhaarScreen(unclear: r.flag),

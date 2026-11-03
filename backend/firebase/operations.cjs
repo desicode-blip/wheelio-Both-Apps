@@ -108,7 +108,28 @@ async function main() {
     const project='https://cloudresourcemanager.googleapis.com/v1/projects/wheelio-apps',policy=await cloud(project+':getIamPolicy','POST',{}),member=`serviceAccount:${account}`;
     let binding=policy.bindings.find(b=>b.role===role);if(!binding){binding={role,members:[]};policy.bindings.push(binding);}if(!binding.members.includes(member))binding.members.push(member);
     await cloud(project+':setIamPolicy','POST',{policy});
-    console.log('Configured only Firebase Auth user deletion for the actual deletion-function runtime account. Signed-in ownership, role isolation and open-booking/payment checks remain enforced. No account was created, read or deleted.');
+    // Auth removal also needs private object cleanup. The previous viewer role
+    // could read/list files but every real delete failed with Storage HTTP 403.
+    const bucket='wheelio-apps.firebasestorage.app',bucketApi='https://storage.googleapis.com/storage/v1/b/'+bucket;
+    const metadata=await cloud(bucketApi+'?fields=iamConfiguration');
+    if(!metadata.iamConfiguration?.uniformBucketLevelAccess?.enabled)throw Error('Private deletion requires the existing uniform bucket access setting.');
+    const storageRole='projects/wheelio-apps/roles/washkrewPrivateDataDeletion';
+    const storageRoleUrl='https://iam.googleapis.com/v1/'+storageRole;
+    const foundRole=await fetch(storageRoleUrl,{headers});
+    if(foundRole.status===404)await cloud('https://iam.googleapis.com/v1/projects/wheelio-apps/roles','POST',{roleId:'washkrewPrivateDataDeletion',role:{title:'WashKrew private account object deletion',description:'Delete only objects in the conditional account-cleanup paths; no object creation or IAM access.',includedPermissions:['storage.objects.delete'],stage:'GA'}});
+    else if(!foundRole.ok)throw Error('Cannot verify private deletion role.');
+    else {const existingRole=await foundRole.json();if(existingRole.includedPermissions?.length!==1||existingRole.includedPermissions[0]!=='storage.objects.delete')throw Error('Unexpected private deletion role permissions.');}
+    const objectRoot='projects/_/buckets/'+bucket+'/objects/';
+    const expression="resource.type == 'storage.googleapis.com/Object' && ("+
+      ['kyc/','identity/','profiles/'].map(prefix=>"resource.name.startsWith('"+objectRoot+prefix+"')").concat(['customer/','problems/'].map(folder=>"resource.name.extract('"+objectRoot+"orders/{order}/"+folder+"') != ''")).join(' || ')+')';
+    const bucketPolicy=await cloud(bucketApi+'/iam?optionsRequestedPolicyVersion=3');
+    const condition={title:'washkrew-private-account-cleanup',expression};
+    const grant=bucketPolicy.bindings.find(b=>b.role===storageRole&&b.condition?.title===condition.title);
+    if(grant){grant.condition=condition;if(!grant.members.includes(member))grant.members.push(member);}
+    else bucketPolicy.bindings.push({role:storageRole,members:[member],condition});
+    bucketPolicy.version=3;
+    await cloud(bucketApi+'/iam','PUT',bucketPolicy);
+    console.log('Configured Auth user deletion and conditional private-object deletion for the actual runtime. Authenticated ownership, role isolation and open-job/payment guards remain. No user or private object was deleted by this permission setup.');
   } else if(command==='prepare-payment-modes') {
     const [key,credential]=await Promise.all([secret('RAZORPAY_KEY_ID'),secret('RAZORPAY_KEY_SECRET')]);
     if(!key.startsWith('rzp_test_'))throw Error('Preserve the verified historical test pair before changing the current keys to live.');
