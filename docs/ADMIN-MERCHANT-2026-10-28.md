@@ -96,8 +96,8 @@ this update does not enable it for Customer charges.
   rejection of the retired shared merchant for new live bookings passed.
 - Captain analysis and **4 Captain tests** passed. Both production Flutter web
   release builds passed, and the admin build is integrated into the normal
-  Firebase builder. Earlier Customer/shared checks are recorded in
-  `AVAILABILITY-2026-10-27.md`; they were not newly counted as a run here.
+  Firebase builder. Earlier Customer/shared checks are retained in Git history;
+  they were not newly counted as a run here. See STATUS.md for current results.
 - Default Firebase Hosting and Functions are published; the separate marketing
   Hosting site was not overwritten. Existing organization policy remains intact;
   the documented HTTP gateway step was applied with application authorization
@@ -117,7 +117,7 @@ this update does not enable it for Customer charges.
   browser camera/upload test. Razorpay's embedded TEST document remained paused
   by Browser Use with an empty iframe. The current browser attempt is **not** a
   successful payment/refund acceptance. Historical real test checkout/refunds on
-  21–22 October remain recorded in `WEB-ACCEPTANCE.md`.
+  21–22 October remain recorded in Git history, not counted as a new run here.
 - The separate authenticated local HTTP integration also **passed**: booking,
   atomic assignment, arrival, real local reference-face comparison, protected
   identity capture, eight decoded evidence uploads, wash status, stored synthetic

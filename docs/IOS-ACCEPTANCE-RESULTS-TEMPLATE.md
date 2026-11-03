@@ -3,7 +3,7 @@
 Copy this to a local dated result file before testing. No native case below is
 pre-approved or pre-marked PASS. Read AMAN-IOS-HANDOFF-2026-11-02.md and
 WALLET-CANCELLATION-2026-10-31.md for current build/role order. New financial rules
-override the older PDF's cash-refund examples; old bookings retain saved terms.
+supersede historical cash-refund examples; old bookings retain saved terms.
 Keep personal/financial/identity data and private evidence outside Git/shared reports.
 
 - Date / tester:
@@ -51,6 +51,11 @@ action. For PASS, record the actual observed behavior and safe evidence.
 | Actual receipt download on iPhone | NOT RUN | |
 | Permissions/network/background/reopen | NOT RUN | |
 | APNs delivery/inbox/tap on both apps | NOT RUN | |
+| Signed paid-team APNs entitlement + Background App Refresh; native login/fallback result | NOT RUN | |
+| Customer: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
+| Captain: two delete confirmations, no deletion OTP, cancel/pending/retry | NOT RUN | |
+| Delete one role only; other role's account/data remains usable | NOT RUN | |
+| Open jobs/pending payment/funded-wallet deletion safeguards | NOT RUN | |
 | Separately authorized cancellation/refund | NOT RUN | |
 | New policy: 100% cash-plus-credit value to wallet within five minutes | NOT RUN | |
 | Near-term wash: five-minute grace still returns 100% wallet value | NOT RUN | |

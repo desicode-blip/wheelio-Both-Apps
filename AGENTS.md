@@ -14,7 +14,9 @@
   `packages/washkrew_ui` and `packages/washkrew_firebase`. The owner explicitly
   requested removal of the retired SwiftUI, Next.js/React and legacy Flutter
   implementations. They remain recoverable in Git; do not rebuild or restore
-  them. Keep current Firebase backend, admin, website, landing and design exports.
+  them. Keep current Firebase backend, admin, website, landing and the canonical
+  design exports in `designs/`. Duplicate exports and retired backend source were
+  removed on 3 November; recover history from Git, not additional runnable apps.
 - Develop every app change in Flutter. Owner authorized generating and installing
   both Android apps on the connected phone on 31 October 2026. Keep their existing
   Flutter UI. USB acceptance APKs use this laptop's debug certificate; they are
@@ -22,12 +24,11 @@
   `docs/ANDROID-DEVICE-CHECK-2026-10-31.md` for the current evidence and limitations.
   Keep the Firebase project, bundle IDs and Apple team. Windows checks do not
   establish Xcode compilation, signing or physical iPhone success.
-- Read `docs/AMAN-IPHONE-ACCEPTANCE-2026-10-28.md` and its PDF in `output/pdf/`
-  before continuing on Aman's Mac. Use the two Flutter `ios/Runner.xcworkspace`
-  files. Record actual PASS/FAIL/BLOCKED evidence for both roles.
-  The latest compact build/test sequence is
-  `docs/AMAN-IOS-BUILD-AND-TEST-2026-10-30.md` and its PDF in `output/pdf/`;
-  use `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md` for the native result record.
+- On Aman's Mac use `docs/AMAN-IOS-HANDOFF-2026-11-02.md`, the two Flutter
+  `ios/Runner.xcworkspace` files and `docs/IOS-ACCEPTANCE-RESULTS-TEMPLATE.md`.
+  The current copy/paste prompt is
+  `docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md`. Older guides/PDFs were removed
+  because their society, payment and APNs instructions were superseded.
 
 - Current Mac starting point (2 November): read
   `docs/AMAN-IOS-HANDOFF-2026-11-02.md` first. It supersedes historical build,
@@ -75,7 +76,7 @@
   `docs/WALLET-CANCELLATION-2026-10-31.md`; it supersedes the financial rules in
   the older report and iPhone PDF. No new wallet-history screen is authorized.
 - Payment cutover does not establish live charge/refund or physical acceptance.
-  Read `docs/LIVE-PAYMENTS-2026-10-28.md` and `docs/COMPLETION-2026-10-28.md`.
+  Read `docs/LIVE-PAYMENTS-2026-10-28.md` and `docs/STATUS.md`.
   Private photo services support test/live, with fresh five-minute selfie sessions;
   photo quality/face similarity never substitutes for human identity/KYC decisions.
 - `/admin/` is private human Captain review for `info@trustkeyper.com`,
@@ -123,8 +124,8 @@ IDs `com.amanmaheshwari.wheelio.customer` / `.captain`, Apple team `28JNT7H8KA` 
 - Backend tests: install npm dependencies in `backend/firebase` and its `functions`
   folder, then `pnpm firebase:test` (Auth/Firestore/Storage emulators, demo project,
   Java 21+). Never seed QA Captains or fixed OTPs in production.
-- Historical Supabase/Neon notes are archives, not current frontend instructions.
-  Do not migrate/delete databases as part of frontend cleanup. Private credential
+- Retired Supabase/Neon source and setup notes are recoverable in Git history.
+  Do not migrate/delete actual databases as part of repository cleanup. Private credential
   PDFs, secrets, auth tokens, KYC and downloaded merchant keys never belong in Git.
 
 ## Git
@@ -158,3 +159,11 @@ entry, wallet screen/top-ups, and wallet versus Razorpay checkout actions. A sho
 wallet balance opens a top-up through the separate WashKrew merchant. Only a
 server-verified captured payment credits the wallet; no client-issued credit.
 Keep all unrelated authored layouts and the no-credit-card / EMI / paylater rule.
+
+Owner decision — 3 November 2026: deleting the current app account uses two
+explicit confirmations in the existing destructive dialog, without a new SMS
+OTP. Authenticated server ownership, current-role isolation, open-wash/payment
+and funded-wallet safeguards remain mandatory. Only completed server cleanup is
+success; interrupted cleanup can retry. Login and sensitive payout verification
+are unchanged. See docs/ACCOUNT-DELETION-2026-11-03.md. Native iPhone CAPTCHA
+fallback must not be bypassed; the existing APNs key is already configured.

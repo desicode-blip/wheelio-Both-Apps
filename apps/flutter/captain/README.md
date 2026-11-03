@@ -1,11 +1,19 @@
 # WashKrew Captain (Flutter)
 
-The current Captain app for Firebase web and iPhone. Its design is locked to Git **af036f0**. Other app implementations were removed at the owner's request. Build this Flutter project; Android is not generated.
+Current Android/iOS Captain app, source version **1.0.4 (5)**, using the shared
+Flutter UI/Firebase packages. Keep the authored **af036f0** design and approved
+exceptions in the root AGENTS.md. Android and iOS platform projects are included;
+browser support is a QA preview of this same code, not another implementation.
 
-For iPhone preparation, signing, Release installation and final checks, follow [MAC-HANDOFF.md](../../../docs/MAC-HANDOFF.md).
+On Aman's Mac follow [the current iPhone handoff](../../../docs/AMAN-IOS-HANDOFF-2026-11-02.md)
+and [Claude retest prompt](../../../docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md).
+From the repository root:
 
 ```sh
-flutter build web --release --pwa-strategy=none
+bash apps/flutter/tool/run-ios.sh --prepare
+bash apps/flutter/tool/run-ios.sh
 ```
 
-See [docs/FLUTTER.md](../../../docs/FLUTTER.md) for structure, commands and the phone-frame decision.
+The helper builds both Release apps. Use each ios/Runner.xcworkspace with the
+existing paid Apple team and bundle ID. See [Flutter commands](../../../docs/FLUTTER.md)
+and [Play internal testing](../../../docs/PLAY-INTERNAL-2026-11-01.md) for Android.

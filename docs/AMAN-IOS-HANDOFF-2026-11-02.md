@@ -1,6 +1,6 @@
 # WashKrew Customer and Captain: current Mac handoff
 
-**2 November 2026. This is the current starting point for Aman and Claude.**
+**Updated 3 November 2026. This is the current starting point for Aman and Claude.**
 It supersedes older build, society-approval, payment and APNs instructions.
 The requested deliverables are the two native mobile apps and the private admin
 portal. Customer/Captain web apps are not a prerequisite for this acceptance.
@@ -50,8 +50,8 @@ In each Runner target, verify automatic signing with paid **Sumit Mandal** team
 
 | App | Bundle ID | Source version/build |
 | --- | --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.2 (3) |
-| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.3 (4) |
+| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.3 (4) |
+| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.4 (5) |
 
 Use the workspace, including Pods. Keep Push Notifications, Background fetch and
 Remote notifications enabled. iOS minimum is 15.0. The tool checks signing-team
@@ -78,6 +78,17 @@ that the key is missing are historical. Keep private keys outside Git. The clien
 now waits briefly for asynchronous APNs registration and retries on app resume;
 this does not prove actual delivery. Native phone verification stays enabled;
 Firebase may still require its secure fallback if silent verification is unavailable.
+
+The supplied key is **Y5432Q73U8**, team **28JNT7H8KA**, both environments and
+both app topics. The screenshot confirming its creation does not establish that
+an installed build receives silent pushes. Do not create, revoke or request
+another private key. If native login still opens Firebase's fallback, check the
+actual signed Runner entitlement for `aps-environment` and the paid-team
+application identifier, Push Notifications capability, Background fetch/Remote
+notifications, and iPhone Background App Refresh. Record the exact source commit,
+both installed versions, physical iPhone/iOS and redacted Firebase Auth/APNs error
+codes. Report token presence only, never token values. Keep native verification
+enabled; see [Firebase's iOS phone-auth prerequisites](https://firebase.google.com/docs/auth/ios/phone-auth).
 
 ## Follow this role order on native apps
 
@@ -122,6 +133,15 @@ Firebase may still require its secure fallback if silent verification is unavail
     two hours returns zero. Exactly five minutes is full, exactly two hours is 50%.
     Washing closes self-cancellation. Service failures return full wallet value;
     historical cash-refund records retain their original rules.
+11. **Account deletion on consenting spare test accounts:** finish/cancel open
+    jobs and resolve pending payments first. In each app's Profile/Me, tap Delete
+    account, confirm Yes, continue, then read and confirm the irreversible final
+    dialog. No new SMS or phone-change screen should appear. Keep my account must
+    cancel without deleting. A final tap shows one pending action; failures stay
+    retryable. With both roles on one number, deleting one must preserve the other
+    app account and its data. Test the second role separately; do not delete the
+    main funded/working account merely to complete this checklist. See
+    [ACCOUNT-DELETION-2026-11-03.md](ACCOUNT-DELETION-2026-11-03.md).
 
 Use two phones where possible: Aman's iPhone plus the checked Android phone can
 exercise both roles together. With one iPhone, switch the native apps but record
@@ -143,8 +163,9 @@ Windows can verify Flutter logic and portable native configuration. It cannot
 compile/sign these iPhone apps or establish actual camera, APNs, GPS and payment
 app-switch behavior. Those Mac/device results remain the final acceptance gate.
 
-**Completed before this handoff:** all **149 Flutter tests** pass (Customer 73,
-Captain 36, shared Firebase 40), and analysis is clean for those packages and the
+**Updated deletion follow-up:** all **172 Flutter tests** pass (Customer 74,
+Captain 37, shared Firebase 52, shared UI 9), with **196 backend emulator tests**
+passing. Analysis is clean for the app/shared packages and the
 standalone iOS tool. Native tooling regressions pass, including five configuration
 failure cases. Ten plist files and ten Xcode XML files parse successfully; both
 Mac shell wrappers pass Bash syntax checks. No Xcode or CocoaPods execution was
@@ -165,3 +186,7 @@ and [Geolocator's foreground-only iOS configuration](https://github.com/Baseflow
 > and payment authorization. Reproduce failures, fix only their cause and retest.
 > Record actual device evidence in the result template; do not invent a pass or
 > request merchant/private APNs keys to compile the clients. Focus on native apps.
+> Also test the new two-confirmation account deletion without a deletion OTP in
+> both apps, including cancel/retry and preserving the other app's account. If
+> login opens Firebase fallback, inspect signed APNs entitlements and Background
+> App Refresh and return redacted error codes; do not disable app verification.

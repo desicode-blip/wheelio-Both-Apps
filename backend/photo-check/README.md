@@ -8,7 +8,7 @@ closed. `node backend/photo-check/activate.cjs live` verifies the deployed runti
 and matching configured service URI before atomically preserving existing modes
 and adding live. It does not approve a Captain, training, KYC, a live transaction
 or physical-device acceptance. See
-[the completion report](../../docs/COMPLETION-2026-10-28.md) for remaining gates.
+[the current status](../../docs/STATUS.md) for remaining gates.
 
 This service runs in the existing `wheelio-apps` project, with zero minimum instances. It is callable only through Google Cloud IAM by the Functions runtime account. App clients use Firebase-authenticated, assignment-checked callables; they never receive a server credential or direct service access. No additional merchant account is involved.
 

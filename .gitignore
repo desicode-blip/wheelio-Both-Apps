@@ -11,14 +11,12 @@ pubspec.lock
 **/ios/Flutter/Generated.xcconfig
 **/android/local.properties
 
-# Secrets: copy env/dev.example.json to env/dev.json and fill it in
+# Local environment configuration and private keys
 **/env/*.json
 !**/env/*.example.json
-backend/supabase/.env
 # Apple push/signing private keys stay outside the source handoff.
 *.p8
 *.p12
-supabase/.temp/
 .DS_Store
 
 # Xcode build output and per-user Xcode state (not source)
@@ -33,11 +31,8 @@ supabase/.temp/
 # Temporary rendered PDF review pages (final reports live in output/pdf/).
 tmp/pdfs/
 
-# Next.js / Node
+# Node dependencies and generated output
 node_modules/
-.next/
-.open-next/
-.wrangler/
 out/
 .pnpm-store/
 *.tsbuildinfo

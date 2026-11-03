@@ -1054,15 +1054,16 @@ export class WashKrewService {
     const uid=this.actor(auth),role=data.role??'customer';
     if(!['customer','captain'].includes(role))fail('invalid-argument','Choose the app account to delete.');
     if(data.confirm!==true)fail('invalid-argument','Confirm account deletion first.');
-    if(!Number.isFinite(auth.token.auth_time)||this.now()/1000-auth.token.auth_time>300||auth.token.auth_time>this.now()/1000+60)fail('failed-precondition','For your security, sign out and log in again before deleting your account.');
     if(!this.accounts?.deleteUser||!this.evidence.deletePrefix)fail('failed-precondition','Account deletion is temporarily unavailable. Please try again.');
     const userRef=this.db.doc(`users/${uid}`),captainRef=this.db.doc(`captains/${uid}`);
-    const remainingRoles=await this.db.runTransaction(async tx=>{
+    const deletion=await this.db.runTransaction(async tx=>{
       const [customerJobs,captainJobs,profile,captain]=await Promise.all([
         tx.get(this.db.collection('orders').where('customerId','==',uid)),tx.get(this.db.collection('orders').where('captainId','==',uid)),tx.get(userRef),tx.get(captainRef),
       ]);
-      if((role==='customer'?customerJobs:captainJobs).docs.some(d=>['pendingPayment','searching','onTheWay','washing','photosReady','disputed'].includes(d.data().status)))fail('failed-precondition','Finish or cancel your open bookings and resolve reports before deleting your account.');
       if(!profile.exists)fail('failed-precondition','This account is not available.');
+      if(profile.data().deletionStatus==='completed')return {completed:true,identityDeleted:true};
+      if(profile.data().deletedRoles?.[role]&&profile.data().deletingRole!==role)return {completed:true,identityDeleted:false};
+      if((role==='customer'?customerJobs:captainJobs).docs.some(d=>['pendingPayment','searching','onTheWay','washing','photosReady','disputed'].includes(d.data().status)))fail('failed-precondition','Finish or cancel your open bookings and resolve reports before deleting your account.');
       if(role==='customer'){
         const [topups,wallet]=await Promise.all([tx.get(this.db.collection('walletTopups').where('customerId','==',uid)),tx.get(this.walletRef(uid,'live'))]);
         if(topups.docs.some(d=>d.data().paymentStatus!=='captured'&&dateMillis(d.data().paymentExpiresAt)>this.now()))fail('failed-precondition','Check your pending wallet payment before deleting this account.');
@@ -1073,8 +1074,10 @@ export class WashKrewService {
       const remaining=roles.filter(r=>r!==role);
       tx.update(userRef,{deletingRole:role,...(!remaining.length?{deletionStatus:'pending'}:{}),updatedAt:stamp()});
       if(role==='captain'&&captain.exists)tx.update(captainRef,{approved:false,online:false,deletionStatus:'pending',updatedAt:stamp()});
-      return remaining;
+      return {remaining};
     });
+    if(deletion.completed)return {ok:true,deleted:true,role,identityDeleted:deletion.identityDeleted};
+    const remainingRoles=deletion.remaining;
     const commit=async docs=>{for(let i=0;i<docs.length;i+=400){const batch=this.db.batch();for(const [ref,value] of docs.slice(i,i+400))value===null?batch.delete(ref):batch.update(ref,value);await batch.commit();}};
     // Keep other parties' accounting/evidence usable while removing this user's
     // ownership and personal booking details. No client chooses the target UID.
@@ -1084,8 +1087,19 @@ export class WashKrewService {
     ]){
       if(remainingRoles.length&&field!==(role==='customer'?'customerId':'captainId'))continue;
       const docs=await this.db.collection('orders').where(field,'==',uid).get();
-      if(field==='customerId')for(const d of docs.docs){await this.evidence.deletePrefix(`orders/${d.id}/customer/`);await this.evidence.deletePrefix(`orders/${d.id}/problems/`);}
-      await commit(docs.docs.map(d=>[d.ref,patch]));
+      // Checkpoint completed groups so a timeout does not restart an entire
+      // history. Bound independent Storage requests and finish each started group.
+      for(let start=0;start<docs.docs.length;start+=20){
+        const chunk=docs.docs.slice(start,start+20);
+        if(field==='customerId')for(let at=0;at<chunk.length;at+=4){
+          const results=await Promise.allSettled(chunk.slice(at,at+4).map(async d=>{
+            await this.evidence.deletePrefix(`orders/${d.id}/customer/`);
+            await this.evidence.deletePrefix(`orders/${d.id}/problems/`);
+          }));
+          const failed=results.find(r=>r.status==='rejected');if(failed)throw failed.reason;
+        }
+        await commit(chunk.map(d=>[d.ref,patch]));
+      }
     }
     for(const [collection,field,remove] of [['payments','customerId',false],['refunds','customerId',false],['earnings','captainId',false],['payoutRecords','captainId',false],['supportTickets','customerId',false],['notifications','recipientId',true],['deviceTokens','uid',true],['addressRequests','customerId',true],['documentDownloads','customerId',true]]){
       const docs=await this.db.collection(collection).where(field,'==',uid).get();

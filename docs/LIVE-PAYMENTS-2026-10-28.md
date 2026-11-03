@@ -1,12 +1,12 @@
 # Live-payment request and credit-card checkout restriction — 28 October 2026
 
-**30 October follow-up:** [REFUND-WALLET-CHECKOUT-2026-10-30.md](REFUND-WALLET-CHECKOUT-2026-10-30.md)
-records the newer cancellation and wallet decisions. New checkout presentation
+**Current policy:** [WALLET-CANCELLATION-2026-10-31.md](WALLET-CANCELLATION-2026-10-31.md)
+records the current cancellation and wallet decisions. New checkout presentation
 uses explicit runtime groups for UPI, debit, netbanking and provider wallets;
 the saved ID below remains historical. EMI/paylater remain excluded. Verification
 and actual deployment state for that follow-up are recorded in its own report.
 
-**Later completion update:** [COMPLETION-2026-10-28.md](COMPLETION-2026-10-28.md)
+**Current completion update:** [STATUS.md](STATUS.md)
 supersedes the photo-test-only gate below. The verified private service now
 supports both live and historical test jobs; no hardware or live transaction
 acceptance is claimed. The current training requirement/content decision and

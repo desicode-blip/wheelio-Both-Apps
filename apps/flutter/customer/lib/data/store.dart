@@ -1,8 +1,5 @@
-// App state plus an in-memory backend with the sample people and places from the designs
-// (Ananya, Raju, My Home Avatar Tower 3, TS 09 EA 4521). Ported from AppStore.swift and
-// Notifications.swift. Demo login: any valid mobile number, code 123456. Code 000000 = expired.
-// BACKEND: when the real services are connected, the marked methods call the server
-// (backend/API-CONTRACT.md); screens don't change.
+// Customer state uses live Firebase controllers in normal builds and isolated
+// authored sample state in explicit demo builds. See docs/BACKEND-HOOKUP.md.
 
 import 'dart:math';
 import 'dart:async';
@@ -1036,7 +1033,7 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Designed actions the live backend can't do yet (P0 list: docs/P0-BACKEND-FOR-DESIGN.md).
+  /// Deferred integrations are listed in docs/STATUS.md.
   /// The screen stays exactly as designed; tapping explains it instead of pretending.
   static const notYet = 'This isn’t available yet. Call us and we’ll do it for you.';
   bool blockLive([String message = notYet]) {
@@ -1074,9 +1071,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      final result=await live!.call('deleteOwnAccount',{'confirm':true,'role':'customer'});
-      if(result['deleted']!=true)throw StateError('Account deletion has not finished. Try again.');
-      await live!.signOut();return true;
+      await live!.deleteAppAccount('customer');return true;
     }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;

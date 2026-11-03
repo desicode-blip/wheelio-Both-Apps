@@ -108,7 +108,7 @@ async function main() {
     const project='https://cloudresourcemanager.googleapis.com/v1/projects/wheelio-apps',policy=await cloud(project+':getIamPolicy','POST',{}),member=`serviceAccount:${account}`;
     let binding=policy.bindings.find(b=>b.role===role);if(!binding){binding={role,members:[]};policy.bindings.push(binding);}if(!binding.members.includes(member))binding.members.push(member);
     await cloud(project+':setIamPolicy','POST',{policy});
-    console.log('Configured only Firebase Auth user deletion for the actual deletion-function runtime account. App recent-auth and open-booking checks remain enforced. No account was created, read or deleted.');
+    console.log('Configured only Firebase Auth user deletion for the actual deletion-function runtime account. Signed-in ownership, role isolation and open-booking/payment checks remain enforced. No account was created, read or deleted.');
   } else if(command==='prepare-payment-modes') {
     const [key,credential]=await Promise.all([secret('RAZORPAY_KEY_ID'),secret('RAZORPAY_KEY_SECRET')]);
     if(!key.startsWith('rzp_test_'))throw Error('Preserve the verified historical test pair before changing the current keys to live.');

@@ -20,28 +20,31 @@ class DeleteAccountText {
 ///
 /// [delete] runs when the danger button is tapped and returns an error to show
 /// in the dialog, or null when the account is gone. The dialog then closes with
-/// true. "Keep my account" or tapping outside closes it with false.
+/// true. With [finalConfirmation], two visible decisions are required; outside
+/// taps cannot dismiss the operation. Keep/back can cancel before deletion starts.
 Future<bool> showDeleteAccountDialog(
   BuildContext context, {
   required DeleteAccountText text,
   required Future<String?> Function() delete,
+  DeleteAccountText? finalConfirmation,
   ButtonSize size = ButtonSize.regular,
 }) async {
   final done = await showGeneralDialog<bool>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: finalConfirmation == null,
     barrierLabel: text.keep,
     barrierColor: WColor.scrim,
     transitionDuration: const Duration(milliseconds: 180),
-    pageBuilder: (_, _, _) => _DeleteAccountDialog(text: text, delete: delete, size: size),
+    pageBuilder: (_, _, _) => _DeleteAccountDialog(text: text, finalConfirmation: finalConfirmation, delete: delete, size: size),
     transitionBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: child),
   );
   return done == true;
 }
 
 class _DeleteAccountDialog extends StatefulWidget {
-  const _DeleteAccountDialog({required this.text, required this.delete, required this.size});
+  const _DeleteAccountDialog({required this.text, this.finalConfirmation, required this.delete, required this.size});
   final DeleteAccountText text;
+  final DeleteAccountText? finalConfirmation;
   final Future<String?> Function() delete;
   final ButtonSize size;
   @override
@@ -50,12 +53,15 @@ class _DeleteAccountDialog extends StatefulWidget {
 
 class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   bool busy = false;
+  bool finalStep = false;
   String? error;
 
   Future<void> _deleteTapped() async {
     if (busy) return;
     setState(() { busy = true; error = null; });
-    final problem = await widget.delete();
+    String? problem;
+    try { problem = await widget.delete(); }
+    catch (e) { problem = e is StateError ? e.message : 'Account deletion did not finish. Please try again.'; }
     if (!mounted) return;
     if (problem == null) {
       Navigator.of(context).pop(true);
@@ -66,8 +72,9 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final t = widget.text;
-    return Center(
+    final confirming = widget.finalConfirmation != null && !finalStep;
+    final t = finalStep ? widget.finalConfirmation! : widget.text;
+    return PopScope(canPop: !busy, child: Center(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: WSpace.gutter),
         padding: const EdgeInsets.all(24),
@@ -92,13 +99,13 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 ]),
               ],
               const SizedBox(height: 18),
-              WButton(t.delete, kind: ButtonKind.danger, size: widget.size, loading: busy, onTap: _deleteTapped),
+              WButton(t.delete, kind: ButtonKind.danger, size: widget.size, loading: busy, onTap: confirming ? () => setState(() {finalStep = true; error = null;}) : _deleteTapped),
               const SizedBox(height: 12),
               WButton(t.keep, kind: ButtonKind.text, size: widget.size, onTap: busy ? null : () => Navigator.of(context).pop(false)),
             ],
           ),
         ),
       ),
-    );
+    ));
   }
 }

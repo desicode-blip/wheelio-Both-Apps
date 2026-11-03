@@ -7,7 +7,6 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../data/store.dart';
 import 'parts.dart';
 import 'welcome.dart';
-import 'account.dart';
 
 // MARK: W40 Money
 
@@ -480,19 +479,20 @@ class MeTab extends StatelessWidget {
                         'आपकी प्रोफ़ाइल, KYC दस्तावेज़ और काम का इतिहास भी हट जाएगा। कोई काम चल रहा हो तो आप ऐसा नहीं कर सकते।',
                         'మీ ప్రొఫైల్, KYC పత్రాలు, పనుల చరిత్ర కూడా తొలగిపోతాయి. ఏదైనా పని జరుగుతుంటే మీరు ఇది చేయలేరు.',
                       ),
-                      delete: store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
+                      delete: store.isLive ? store.t('Yes, continue', 'हाँ, आगे बढ़ें', 'అవును, కొనసాగించు') : store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
                       keep: store.t('Keep my account', 'अकाउंट रखें', 'ఖాతాను ఉంచండి'),
                     ),
-                    delete: () async {
-                      if (store.isLive) {
-                        try { await store.live!.requestAccountVerification(); }
-                        catch(e) { return backendError(e); }
-                        if (!context.mounted) return 'Verification cancelled.';
-                        final verified = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => const WChangePhoneScreen(verifyAccount: true)));
-                        if (verified != true) return 'Verification cancelled. Your account is still here.';
-                      }
-                      return store.deleteAccount();
-                    },
+                    finalConfirmation: store.isLive ? DeleteAccountText(
+                      title: store.t('Are you absolutely sure?', 'क्या आप बिल्कुल पक्का हैं?', 'మీరు ఖచ్చితంగా నిర్ణయించుకున్నారా?'),
+                      message: store.t(
+                        'Your Captain profile, KYC documents and saved work settings will be removed. This cannot be undone. Payment records are kept separately. Your Customer account stays.',
+                        'आपकी कैप्टन प्रोफ़ाइल, KYC दस्तावेज़ और काम की सेटिंग हट जाएंगी। यह वापस नहीं हो सकता। पेमेंट रिकॉर्ड अलग से रखे जाते हैं। आपका Customer अकाउंट रहेगा।',
+                        'మీ Captain ప్రొఫైల్, KYC పత్రాలు, పని సెట్టింగ్‌లు తొలగిపోతాయి. దీన్ని రద్దు చేయలేరు. చెల్లింపు రికార్డులు వేరుగా ఉంచబడతాయి. మీ Customer ఖాతా ఉంటుంది.',
+                      ),
+                      delete: store.t('Delete account', 'अकाउंट हटाएं', 'ఖాతాను తొలగించండి'),
+                      keep: store.t('Keep my account', 'अकाउंट रखें', 'ఖాతాను ఉంచండి'),
+                    ) : null,
+                    delete: store.deleteAccount,
                   );
                   if (gone) router.home();
                 },

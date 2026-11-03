@@ -2,11 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
-      "port": 3000,
-      "url": "http://127.0.0.1:3000"
+      "name": "washkrew-website",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["apps/flutter/tool/serve.mjs", "apps/website/public", "8765"],
+      "port": 8765,
+      "url": "http://127.0.0.1:8765"
     },
     {
       "name": "flutter-customer",

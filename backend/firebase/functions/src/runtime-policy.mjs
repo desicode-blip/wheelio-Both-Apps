@@ -10,6 +10,7 @@ export function callableRuntime(method, emulator = process.env.FUNCTIONS_EMULATO
   if (minimum !== 0 && minimum !== 1) throw new Error('Interactive warming must be zero or one.');
   return {
     minInstances: !emulator && warmMethods.has(method) ? minimum : 0,
+    ...(method === 'deleteAccount' ? {timeoutSeconds: 120} : {}),
     ...(['checkWashPhotos', 'verifyIdentity'].includes(method)
       ? {timeoutSeconds: 120, memory: '512MiB'} : {}),
   };
