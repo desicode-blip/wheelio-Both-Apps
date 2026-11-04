@@ -93,7 +93,7 @@ export async function reviewCaptainApplication(service,auth,data){
       if(cfg.training?.required&&(!cfg.training.version||c.trainingVersion!==cfg.training.version||!c.trainingCompletedAt||!c.quizPassedAt))fail('failed-precondition','The current approved training and quiz must be completed first.');
     }
     tx.update(ref,{approved:decision==='approve',kycStatus:decision==='approve'?'approved':'changesRequested',online:false,
-      ...(decision==='approve'?{societyIds,approvedAt:stamp(),approvedBy:reviewer.email,payoutReviewedAt:stamp()}:{}),
+      ...(decision==='approve'?{societyIds,approvedAt:stamp(),approvedBy:reviewer.email,retentionDueAt:new Date(service.now()+90*86400000),payoutReviewedAt:stamp()}:{}),
       reviewReason:reason,reviewIssues:decision==='approve'?[]:[...new Set(issues)],reviewedAt:stamp(),reviewedBy:reviewer.email,updatedAt:stamp()});
     signal(tx,service);
     tx.create(ref.collection('applicationReviews').doc(reviewId),{decision,reason,issues:decision==='approve'?[]:issues,societyIds:decision==='approve'?societyIds:[],reviewer,previousVersion:data.expectedVersion,identityReviewed:data.identityReviewed===true,payoutReviewed:data.payoutReviewed===true,createdAt:stamp()});

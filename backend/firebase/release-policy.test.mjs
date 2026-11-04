@@ -88,6 +88,14 @@ test('retention removes closed wash media but holds open disputes; approved KYC 
  assert.equal((await db.doc('supportTickets/keep').get()).exists,true);assert.equal((await db.doc('supportTickets/remove').get()).exists,false);
  await maintainRetention(s);assert.equal(removed.filter(p=>p==='orders/closed/').length,1);
 });
+test('due retention is found outside the bounded legacy cursor page',async()=>{
+ const batch=db.batch();
+ for(let i=0;i<45;i++)batch.set(db.doc('orders/a'+String(i).padStart(3,'0')),{status:'approved',slotEnd:ts(now)});
+ batch.set(db.doc('orders/zzzz_due'),{status:'approved',slotEnd:ts(now-91*DAY),retentionDueAt:ts(now-1000)});await batch.commit();
+ await maintainRetention(s);
+ assert.ok((await db.doc('orders/zzzz_due').get()).data().mediaPurgedAt);
+ assert.ok(removed.includes('orders/zzzz_due/'));
+});
 test('a retired KYC reference requires a real human job-selfie review, never an invented face match',async()=>{
  await db.doc('privateConfig/photoChecks').set({enabled:true,paymentModes:['test','live']});
  await db.doc('captains/worker').set({approved:true,kycMediaPurgedAt:ts(now-1000)});

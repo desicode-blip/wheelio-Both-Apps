@@ -286,7 +286,7 @@ export class WashKrewService {
         pincode: address?.pincode ?? society.pincode ?? '', manualAddress: !!address, addressKey: address ? data.addressKey : null,
         tower, floor, parking, note, washKind: data.washKind, day: data.day, startHour: window.startHour, endHour: window.endHour,
         vehiclePosition: validPosition(data.vehiclePosition) ? {latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude} : null,
-        slotStart: Timestamp.fromMillis(start), slotEnd: Timestamp.fromMillis(end), slotKey,
+        slotStart: Timestamp.fromMillis(start), slotEnd: Timestamp.fromMillis(end), retentionDueAt:Timestamp.fromMillis(end+90*86400000), slotKey,
         requestedWindows: windows, anyTime: data.anyTime === true,
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
         ...pricing, creditReservedLots:credits.spent, basePricePaise: type.pricePaise, cancellationPolicy: policy,
