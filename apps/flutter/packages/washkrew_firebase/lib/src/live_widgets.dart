@@ -247,7 +247,7 @@ class _SupportRequestFormState extends State<SupportRequestForm> {
               : () async {
                   setState(() => busy = true);
                   try {
-                    await WashKrewRuntime.backend!.call('createSupportRequest', {
+                    final result = await WashKrewRuntime.backend!.call('createSupportRequest', {
                       'requestId': requestId,
                       'kind': kind,
                       'note': note.trim(),
@@ -256,7 +256,7 @@ class _SupportRequestFormState extends State<SupportRequestForm> {
                       setState(() {
                         saved = true;
                         message =
-                            'Request saved. ${Brand.name} operations will review it.';
+                            'Request saved. Reference: ${result['reference'] ?? result['requestId']}. ${Brand.name} operations will review it.';
                       });
                   } catch (e) {
                     if (mounted) setState(() => message = backendError(e));

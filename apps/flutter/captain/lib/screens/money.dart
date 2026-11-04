@@ -339,7 +339,7 @@ class BlockedScreen extends StatelessWidget {
               'గత 2 వారాల్లో చాలా తక్కువ రేటింగ్‌లు. ఇది తప్పు అనుకుంటే మళ్ళీ తనిఖీ చేయమని అడగండి.'),
           center: true),
       const SizedBox(height: 20),
-      WButton(store.t('Ask to check again', 'फिर से जाँच का अनुरोध', 'మళ్ళీ తనిఖీ చేయమని అడగండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () async {if(!store.isLive)return;try{await store.live!.call('createSupportRequest',{'requestId':'work-review-${DateTime.now().millisecondsSinceEpoch}','kind':'other','note':'Captain requests a review of their work restriction.'});store.set(()=>store.toast='Your review request is saved.');}catch(e){store.set(()=>store.toast=backendError(e));}}),
+      WButton(store.t('Ask to check again', 'फिर से जाँच का अनुरोध', 'మళ్ళీ తనిఖీ చేయమని అడగండి'), icon: WIcon.mic, kind: ButtonKind.outline, size: ButtonSize.captain, onTap: () async {if(!store.isLive)return;try{final result=await store.live!.call('createSupportRequest',{'role':'captain','requestId':'work-review-${DateTime.now().millisecondsSinceEpoch}','kind':'other','note':'Captain requests a review of their work restriction.'});store.set(()=>store.toast='Review request saved. Reference: ${result['reference'] ?? result['requestId']}');}catch(e){store.set(()=>store.toast=backendError(e));}}),
       const SizedBox(height: 14),
       WText(store.isLive?'Pending earnings: ${Fmt.rupees(store.weekMoney.$2+store.weekMoney.$3)}. Operations can confirm the payout.':store.t('Your pending money (₹464) will still be paid.', 'आपके बाकी पैसे (₹464) फिर भी मिलेंगे।', 'మీ బాకీ డబ్బు (₹464) చెల్లిస్తాము.'), WType.caption, align: TextAlign.center),
       const Spacer(),
