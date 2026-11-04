@@ -31,7 +31,7 @@ Email info@washkrew.com or call +91 80885 16875 (24 hours a day, every day). Our
 ## What we collect from captains
 
 - **Account:** your name, mobile number and preferred language.
-- **Identity verification:** a photo of your Aadhaar card or other ID and a selfie, so our team can confirm who you are.
+- **Identity verification:** a photo of your Aadhaar card or other ID and a selfie, so our team can confirm who you are. You can upload a full or a masked Aadhaar (with only the last 4 digits showing). We recommend the masked version.
 - **Payout details:** your bank account or UPI ID, so we can pay your earnings.
 - **Work details:** your service area, working hours, online status, job history, ratings and earnings.
 - **Location during jobs:** when you use a job step such as "arrived", the app sends your current location to confirm you are at the vehicle. The app does not track you in the background.
@@ -144,7 +144,7 @@ When we update this policy, we change the date at the top. If a change is signif
 
 For any privacy question, request or complaint, contact our Grievance Officer:
 
-- **Name:** Aman Maheshwari
+- **Name:** Aman
 - **Designation:** Grievance Officer
 - **Email:** info@washkrew.com
 - **Phone:** +91 80885 16875

@@ -26,6 +26,7 @@ Availability depends on captains covering your area at the time you choose. A bo
 
 - Payments are processed by Razorpay using the methods shown at checkout. Direct credit card payments, EMI and pay later are not offered.
 - WashKrew wallet credit can only be used for WashKrew bookings. It cannot be transferred, withdrawn as cash or used anywhere else, and it does not earn interest.
+- Wallet credit expires one year after it is added to your wallet. Credit that has not been used by then is removed and cannot be restored.
 - Free washes and offers have the conditions shown with them in the app. They cannot be exchanged for money.
 
 ## 5. Cancellation and refunds
@@ -34,12 +35,11 @@ Availability depends on captains covering your area at the time you choose. A bo
 
 | When you cancel | What you get back |
 | --- | --- |
-| Within 5 minutes of your booking being confirmed | 100% of what you paid, as wallet credit. This applies even if the wash is less than 2 hours away. |
-| After 5 minutes, and at least 2 hours before your wash window starts | 50% of what you paid, as wallet credit. The other 50% is the cancellation fee. |
-| After 5 minutes, and less than 2 hours before your wash window starts | Nothing is returned. |
+| Within 5 minutes of your booking being confirmed | 98% of what you paid, as wallet credit. The other 2% is the cancellation fee. |
+| More than 5 minutes after your booking was confirmed | Nothing is returned. The full amount is the cancellation fee. |
 | After the captain has started washing | You can no longer cancel. |
 
-"What you paid" includes both the money you paid and any wallet credit you used. The amount is worked out from the time your booking was confirmed and the start of your wash window, as shown in the app. The app shows what you will get back before you confirm a cancellation.
+"What you paid" includes both the money you paid and any wallet credit you used. The 5 minutes are counted from the time the app confirms your booking. The app shows what you will get back before you confirm a cancellation.
 
 **If we cannot complete your wash**
 
@@ -100,4 +100,4 @@ Please contact us first so we can try to resolve any problem quickly. Our Grieva
 
 ## 15. Contact
 
-Email info@washkrew.com or call +91 80885 16875, 24 hours a day, every day. Grievance Officer: Aman Maheshwari, at the same email, phone and address.
+Email info@washkrew.com or call +91 80885 16875, 24 hours a day, every day. Grievance Officer: Aman, at the same email, phone and address.

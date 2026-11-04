@@ -14,13 +14,16 @@
     "policiesUrl": "https://washkrew.com/policies",
     "registeredOffice": "Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301",
     "supportHours": "Phone 24/7, 365 days; email replies within 6 hours",
-    "grievanceOfficer": "Aman Maheshwari",
+    "grievanceOfficer": "Aman",
     "retention": {
       "paymentAndInvoiceRecords": "8 years",
       "washPhotos": "90 days after the wash",
       "captainIdDocumentsAndSelfies": "90 days after the application decision",
       "webDeletionRequestCompletion": "within 90 days"
-    }
+    },
+    "customerCancellation": "Within 5 minutes of confirmation: 98% back as wallet credit (2% fee). After 5 minutes: no refund. WashKrew-side failure or upheld wash complaint: 100% as wallet credit.",
+    "walletCreditExpiry": "12 months after the credit is added",
+    "aadhaarUpload": "Full or masked Aadhaar accepted; masked recommended; reviewed manually"
   },
   "approvals": {
     "policyTextApproved": true,
@@ -54,6 +57,7 @@
     }
   },
   "approvalNotes": {
-    "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open."
+    "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open.",
+    "2026-11-04": "Aman: info@washkrew.com final; Grievance Officer shown as \"Aman\"; new customer cancellation rule (98% credit within 5 minutes, none after); wallet credit expires after one year; full or masked Aadhaar accepted."
   }
 }

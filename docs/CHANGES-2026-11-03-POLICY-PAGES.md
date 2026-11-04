@@ -6,7 +6,7 @@ For the developer (Ajay). Website and policy text only. The Customer and Captain
 
 - Legal name **Washkrew**. Registered office (legal address): Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301.
 - Support: **info@washkrew.com**, **+91 80885 16875**. Phone answered 24/7, 365 days; emails answered within 6 hours.
-- Grievance Officer and Apple review contact: Aman (Aman Maheshwari), same email and phone.
+- Grievance Officer and Apple review contact: Aman Maheshwari, shown on the pages as "Aman", same email and phone.
 - Retention: payment and invoice records **8 years**; wash photos **90 days**; Captain ID documents and selfies **90 days**.
 - Account deletion requested from the website: completed **within 90 days**. Each request (1) opens a pre-filled email to info@washkrew.com and (2) raises a request in the admin portal.
 
@@ -37,9 +37,13 @@ To change policy text later: edit the Markdown, run `node release/store/prepare-
 
 Until #1–#3 exist, the form still works through the pre-filled email only, and the page says so after submitting.
 
-## Not decided in this change (raised with Aman)
+## Owner decisions, 4 November 2026 (pages updated; app/backend changes needed)
 
-- Grievance Officer full name on the pages is "Aman Maheshwari"; confirm.
-- E-Commerce Rules 2020 allow a cancellation fee only if the platform bears a similar charge when it cancels. Current rule: WashKrew-side failure returns 100% as wallet credit with no extra compensation.
-- Captain Aadhaar photos: storing full Aadhaar images is restricted; consider asking Captains to upload masked Aadhaar.
-- Unused wallet top-up money when an account is closed: no refund rule is stated yet.
+| # | Decision | What the developer needs to do |
+|---|---|---|
+| 11 | **New customer cancellation rule.** Within 5 minutes of the booking being confirmed: 98% back as wallet credit, 2% cancellation fee. After 5 minutes: nothing back (100% fee). The 2-hour band is removed. Service failures and upheld wash complaints still return 100% as wallet credit. | Change the new-booking cancellation policy snapshot (currently `walletByTime`: 100% within 5 min, 50% if 2+ hours before the window, 0 after) and the quote shown in the app before cancelling. Keep older bookings on their saved policy. Update tests and the in-app cancellation copy. |
+| 12 | **Wallet credit expires one year after it is added.** | Track an expiry date per credit (top-ups, cancellation credit, service-failure credit, offers), spend the oldest credit first, expire unused credit after 12 months, and show expiry dates in the wallet. Decide how already-existing balances are dated (suggest: 12 months from go-live). |
+| 13 | **Aadhaar: full or masked both accepted; masked recommended.** Review stays manual. | Optional: add a short hint on the Captain document step ("You can upload a masked Aadhaar"). Admin reviewers should accept both. |
+| 14 | Grievance Officer shown as **"Aman"**. | Use the same name in the in-app support/legal config if it shows one. |
+
+The terms (section 4 and 5), support FAQ and privacy policy already state these rules, so items 11 and 12 must be live in the apps before the pages are deployed.

@@ -19,11 +19,11 @@ Never share your one-time code, UPI PIN, card details or passwords with anyone, 
 
 ### How do I cancel a booking?
 
-Open the booking in the app and choose cancel. The app shows what you will get back before you confirm. Cancel within 5 minutes of booking and you get 100% back as wallet credit. After that, you get 50% back if you cancel at least 2 hours before your wash window, and nothing if you cancel later. The full rules are in our terms of use.
+Open the booking in the app and choose cancel. The app shows what you will get back before you confirm. Cancel within 5 minutes of booking and you get 98% back as wallet credit; 2% is kept as a cancellation fee. After 5 minutes, the booking can't be refunded. The full rules are in our [terms of use](/terms#cancellation-and-refunds).
 
 ### Where does my money go if a booking is cancelled?
 
-Refunds for cancelled bookings go to your WashKrew wallet, and you can use the credit on your next wash. If we cancel or your captain does not arrive, you get 100% back as wallet credit.
+Refunds for cancelled bookings go to your WashKrew wallet, and you can use the credit on your next wash. If we cancel or your captain does not arrive, you get 100% back as wallet credit. Wallet credit expires one year after it is added.
 
 ### I'm not happy with my wash. What can I do?
 
@@ -45,7 +45,7 @@ In the app: WashKrew app, Profile, then Delete account. WashKrew Captain app, Me
 
 If your problem is not resolved, contact our Grievance Officer. We acknowledge every complaint within 48 hours and resolve it within one month.
 
-- **Name:** Aman Maheshwari
+- **Name:** Aman
 - **Designation:** Grievance Officer
 - **Email:** info@washkrew.com
 - **Phone:** +91 80885 16875
