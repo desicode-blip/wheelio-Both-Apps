@@ -1,5 +1,7 @@
 # Website handoff for Ajay: 4 November 2026
 
+**4 November implementation update:** the owner-approved policy backend, website deletion review and public pages are now deployed. Read [the current release record](POLICY-RELEASE-2026-11-04.md) and its deployment evidence; the earlier pending implementation checklist below is historical. Store reviewer access/screenshots/metadata and signed Mac/device acceptance remain open.
+
 Everything in this push is the **washkrew.com website** (`apps/website/`) and the policy text behind it (`release/store/`). The Customer and Captain apps, Functions, Firestore/Storage rules and payments are **not changed**.
 
 The pages now promise a few things the apps and backend do not do yet. Please finish the **"Before you deploy"** items first, then deploy the website. Full detail is in `docs/CHANGES-2026-11-03-POLICY-PAGES.md`.

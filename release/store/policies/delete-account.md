@@ -29,7 +29,7 @@ If there is an open job, a pending payment, a complaint or wallet money on the a
 
 - Your profile, name and contact details
 - Saved addresses, vehicles and preferences
-- Photos, videos and voice notes
+- Your profile media and private customer notes. Before-and-after wash evidence needed by the other booking party is kept for the periods in our privacy policy, including any open complaint.
 - For captains: ID documents, selfie, payout details and your application
 
 ## What we keep, and why

@@ -1,5 +1,7 @@
 # Current project status - 3 November 2026
 
+**4 November implementation update:** the owner-approved policy backend, website deletion review and public pages are now deployed. Read [the current release record](POLICY-RELEASE-2026-11-04.md) and its deployment evidence; the earlier pending implementation checklist below is historical. Store reviewer access/screenshots/metadata and signed Mac/device acceptance remain open.
+
 The current source is the latest washkrew.com website and the two Flutter
 Customer/Captain apps for Android/iOS, plus their shared packages, Firebase
 backend, private photo service, human-review admin, build tools and tests.

@@ -1,5 +1,7 @@
 # Store disclosures and reviewer access — owner review required
 
+**4 November implementation update:** the owner-approved policy backend, website deletion review and public pages are now deployed. Read [the current release record](../../docs/POLICY-RELEASE-2026-11-04.md) and its deployment evidence; the earlier pending implementation checklist below is historical. Store reviewer access/screenshots/metadata and signed Mac/device acceptance remain open.
+
 This is a source-based preparation record, not a declaration already filed with
 Apple/Google. Review each platform’s questions against the FINAL signed app,
 current provider disclosures, actual service operations and legal policy.

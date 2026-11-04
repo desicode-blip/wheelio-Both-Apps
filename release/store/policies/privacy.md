@@ -68,7 +68,7 @@ The suggestion only helps. A person still decides any complaint or refund. You c
 
 ## Face checks on captain selfies
 
-When a captain submits a selfie, our photo-checking service, which runs on Google Cloud, detects the face and compares it with the ID photo. It also checks for blurry or dark images. These results only help our reviewers. They are not used for any other purpose, and they are deleted with the ID documents.
+When a captain submits a selfie, our photo-checking service, which runs on Google Cloud, detects the face and compares it with the approved onboarding selfie while that reference is retained. After that reference is deleted, the fresh job selfie requires human verification before the job can continue. It also checks for blurry or dark images. These results only help our reviewers. They are not used for any other purpose, and they are deleted with the ID documents.
 
 ## Who we share data with
 

@@ -1,5 +1,7 @@
 # Changes 3 November 2026: policy pages and account deletion requests
 
+**4 November implementation update:** the owner-approved policy backend, website deletion review and public pages are now deployed. Read [the current release record](POLICY-RELEASE-2026-11-04.md) and its deployment evidence; the earlier pending implementation checklist below is historical. Store reviewer access/screenshots/metadata and signed Mac/device acceptance remain open.
+
 For the developer (Ajay). Website and policy text only. The Customer and Captain apps, backend, rules and payments are **not changed**. Several items below need backend work before these pages go live, because the policies now promise them.
 
 ## Owner decisions (Aman, 3 November 2026)
