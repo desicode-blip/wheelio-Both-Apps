@@ -11,6 +11,7 @@ if(config.emulator){
 await setPersistence(auth,browserSessionPersistence);
 const base=config.emulator?'http://127.0.0.1:5001/'+config.firebase.projectId+'/asia-south1/':'https://asia-south1-'+config.firebase.projectId+'.cloudfunctions.net/';
 const labels={underReview:'Awaiting review',notSubmitted:'Not submitted',changesRequested:'Corrections requested',approved:'Approved'};
+let deletionCursor=null,deletionGeneration=0;
 let generation=0,selection=0,cursor=null,selected=null,mode='test',busy=false,photoURLs=[];
 const call=async(name,data={})=>(await httpsCallable(functions,name,{timeout:30000})(data)).data;
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
@@ -108,5 +109,57 @@ function renderDetail(c){
 }
 onAuthStateChanged(auth,async user=>{
   generation++;selection++;emptyDetail();$('email').textContent=user?.email??'';$('signout').hidden=!user;$('signin').hidden=!!user;$('workspace').hidden=true;
-  if(user)await loadList();else message('');
+  $('identity-workspace').hidden=true;$('identity-checks').replaceChildren();$('deletion-workspace').hidden=true;$('deletion-requests').replaceChildren();deletionGeneration++;
+  if(user){await loadList();if(!$('workspace').hidden){await loadDeletionRequests();await loadIdentityReviews();}}else message('');
 });
+
+
+$('deletion-status').onchange=()=>loadDeletionRequests();
+$('deletion-refresh').onclick=()=>loadDeletionRequests();
+$('deletion-more').onclick=()=>loadDeletionRequests(true);
+async function loadDeletionRequests(append=false){
+  const seq=++deletionGeneration,account=auth.currentUser?.uid;if(!account)return;
+  if(!append){deletionCursor=null;$('deletion-requests').replaceChildren();}
+  try{
+    const data=await call('listDeletionRequests',{status:$('deletion-status').value,...(append&&deletionCursor?{cursor:deletionCursor}:{})});
+    if(seq!==deletionGeneration||auth.currentUser?.uid!==account)return;
+    $('deletion-workspace').hidden=false;deletionCursor=data.nextCursor;$('deletion-more').hidden=!deletionCursor;
+    for(const r of data.requests){
+      const box=section(r.reference),facts=element('div',undefined,'facts');
+      facts.append(fact('Name',r.name),fact('Registered mobile',r.phone),fact('App',r.role),fact('Status',r.status),fact('Received',date(r.createdAt)),fact('Complete by',date(r.dueAt)));box.append(facts,element('p',r.email),element('p',r.reason));
+      if(r.note)box.append(element('p','Last review: '+r.note));
+      if(!['completed','declined'].includes(r.status)){
+        const label=element('label','Review note'),note=element('textarea');note.maxLength=1000;label.append(note);box.append(label);
+        const verified=check('I contacted the registered number and verified ownership. No SMS code was requested.');
+        const permanent=check('I confirm permanent deletion of the requested app account(s).');
+        if(['acknowledged','verified','processing'].includes(r.status))box.append(verified.row);
+        if(['verified','processing'].includes(r.status))box.append(permanent.row);
+        const actions=element('div',undefined,'actions'),status=element('p');status.setAttribute('role','status');
+        const targets=r.status==='new'?['acknowledged','declined']:r.status==='acknowledged'?['verified','declined']:['verified','completed','declined'];
+        for(const target of targets){const btn=element('button',target==='completed'?'Delete verified account(s)':target==='verified'?'Confirm ownership':target==='acknowledged'?'Acknowledge':'Decline');
+          btn.onclick=async()=>{for(const b of actions.children)b.disabled=true;status.textContent='Saving…';try{await call('reviewDeletionRequest',{id:r.id,version:r.version,status:target,note:note.value,ownershipConfirmed:verified.input.checked,confirmDeletion:permanent.input.checked});await loadDeletionRequests();}catch(e){status.textContent=e.message;for(const b of actions.children)b.disabled=false;}};actions.append(btn);}
+        box.append(actions,status);
+      }
+      $('deletion-requests').append(box);
+    }
+    if(!$('deletion-requests').children.length)$('deletion-requests').append(element('p','No deletion requests in this status.','muted'));
+  }catch(e){if(seq===deletionGeneration&&auth.currentUser?.uid===account)message(e.message||'Deletion requests could not be loaded.',true);}
+}
+
+$('identity-refresh').onclick=()=>loadIdentityReviews();
+async function loadIdentityReviews(){
+  const account=auth.currentUser?.uid;if(!account)return;
+  try{
+    const data=await call('listIdentityReviews');if(auth.currentUser?.uid!==account)return;
+    $('identity-workspace').hidden=false;$('identity-checks').replaceChildren();
+    for(const item of data.checks){
+      const box=section('Booking '+item.id),view=element('button','View current private selfie'),note=element('textarea'),label=element('label','Verification note');label.append(note);
+      const confirmed=check('I verified this is the assigned Captain through a human identity check.');
+      view.onclick=async()=>{view.disabled=true;try{const token=await auth.currentUser.getIdToken(),r=await fetch(base+'identityReviewPhoto?orderId='+encodeURIComponent(item.id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});if(!r.ok)throw Error('Selfie unavailable. Refresh this review.');const url=URL.createObjectURL(await r.blob());if(auth.currentUser?.uid!==account){URL.revokeObjectURL(url);return;}photoURLs.push(url);const img=element('img');img.src=url;img.alt='Current job selfie';img.style.maxWidth='280px';box.append(img);}catch(e){message(e.message,true);}finally{view.disabled=false;}};
+      box.append(element('p','Captain '+item.captainId+' · Review before '+date(item.expiresAt)),view,label,confirmed.row);
+      for(const accept of [true,false]){const b=element('button',accept?'Accept verified selfie':'Request retake');b.onclick=async()=>{if(accept&&!confirmed.input.checked){message('Complete and confirm the human identity check first.',true);return;}b.disabled=true;try{await call('reviewCaptainIdentity',{orderId:item.id,accept,reason:note.value});await loadIdentityReviews();}catch(e){message(e.message,true);b.disabled=false;}};box.append(b);}
+      $('identity-checks').append(box);
+    }
+    if(!data.checks.length)$('identity-checks').append(element('p','No current selfies awaiting human review.','muted'));
+  }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
+}

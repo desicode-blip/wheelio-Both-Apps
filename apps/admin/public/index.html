@@ -12,6 +12,13 @@
         <article id="detail" class="card"><div class="empty"><h2>Select an application</h2><p>Review the submitted photos, training status, payout details and requested societies before making a decision.</p></div></article>
       </div>
     </section>
+<section id="identity-workspace" class="card" hidden><h2>Job selfie reviews</h2><p>Manual verification is required when a retained identity reference is no longer available. Review the current selfie and verify the Captain personally before accepting.</p><button id="identity-refresh">Refresh selfie reviews</button><div id="identity-checks"></div></section>
+    <section id="deletion-workspace" class="card" hidden>
+      <h2>Account deletion requests</h2>
+      <p>Contact the registered number to verify ownership. Never request their SMS code. Completing a verified request runs the existing account cleanup; open jobs, pending payments and funded-wallet safeguards still apply.</p>
+      <div class="tools"><label for="deletion-status">Status</label><select id="deletion-status"><option value="new">New</option><option value="acknowledged">Acknowledged</option><option value="verified">Verified</option><option value="processing">Cleanup pending</option><option value="completed">Completed</option><option value="declined">Declined</option><option value="all">All</option></select><button id="deletion-refresh">Refresh requests</button></div>
+      <div id="deletion-requests"></div><button id="deletion-more" hidden>Load more requests</button>
+    </section>
   </main>
   <footer>WashKrew operations · Human review required. Photo quality is not identity verification, and payout details are not automatically verified with a bank.</footer>
 </body></html>

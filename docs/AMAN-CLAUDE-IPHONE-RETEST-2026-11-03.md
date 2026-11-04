@@ -1,7 +1,9 @@
 # Prompt for Claude on Aman's Mac - 3 November 2026
 
+**4 November update: read [the policy release](POLICY-RELEASE-2026-11-04.md) first. New source is Customer 1.0.4 (9) / Captain 1.0.5 (10); new cancellation credit is 98/50/0 with one-year credit expiry. Historical snapshots stay unchanged.**
+
 Copy the prompt below into Claude with the existing repository open. The latest
-staging includes Customer **1.0.4 (8)** and Captain **1.0.5 (9)**. These source
+staging includes Customer **1.0.4 (9)** and Captain **1.0.5 (10)**. These source
 versions include the deletion fix; an older installed app is not a test of it.
 For the owner-approved initial store release, use the newer
 `AMAN-CLAUDE-STORE-PUBLISH-2026-11-03.md` prompt instead. This page remains the

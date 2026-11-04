@@ -98,3 +98,8 @@ The previous Play builds remain Customer 1.0.2 (3) / Captain 1.0.3 (4); source
 version changes do not automatically update installed apps. Mac builds, signing,
 physical camera/GPS/APNs, UPI app switching and end-to-end iPhone acceptance
 remain to be observed and recorded. Never label source tests as device acceptance.
+
+
+## 4 November policy release
+
+See [the current implementation and Mac acceptance guide](POLICY-RELEASE-2026-11-04.md). New bookings use 98/50/0 wallet credit, dated expiring credits, private human-reviewed website deletion requests and scheduled retention. No new service or fake approval/payment was introduced. Native layouts remain preserved; only the existing wallet card gains expiry text. Customer 1.0.4 (9), Captain 1.0.5 (10).

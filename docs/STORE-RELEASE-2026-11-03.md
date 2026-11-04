@@ -1,5 +1,7 @@
 # Initial Android and iOS store release
 
+**4 November update: read [the policy release](POLICY-RELEASE-2026-11-04.md) first. New source is Customer 1.0.4 (9) / Captain 1.0.5 (10); new cancellation credit is 98/50/0 with one-year credit expiry. Historical snapshots stay unchanged.**
+
 Current publishing starting point, 3 November 2026. Ajay reports that Aman tested
 the apps and considers this version good for the initial release. That is
 owner-reported functional acceptance, not an Xcode archive or store-review result.
@@ -10,8 +12,8 @@ old implementations, change the live merchant, or touch the TrustKeyper Play app
 
 | Product | Bundle/package | Source version |
 | --- | --- | --- |
-| WashKrew Customer | com.amanmaheshwari.wheelio.customer | 1.0.4 (8) |
-| WashKrew Captain | com.amanmaheshwari.wheelio.captain | 1.0.5 (9) |
+| WashKrew Customer | com.amanmaheshwari.wheelio.customer | 1.0.4 (9) |
+| WashKrew Captain | com.amanmaheshwari.wheelio.captain | 1.0.5 (10) |
 
 Build numbers increased independently from the previous test bundles. Check both
 store consoles for any build uploaded elsewhere. An occupied/higher code needs
@@ -28,72 +30,26 @@ app manifest, and saves IPA + xcarchive + dSYMs + provenance. Development push
 entitlements in source are preserved; export must use a distribution profile
 that produces `aps-environment=production`. Do not turn off Firebase verification.
 
-The latest toggle update is Customer 1.0.4 (8) / Captain 1.0.5 (9). It supersedes
+The latest toggle update is Customer 1.0.4 (9) / Captain 1.0.5 (10). It supersedes
 the earlier dialog builds. Checkout has no AI popup. After payment, Customer’s
 OFF-by-default toggle controls the option; Captain ON offers Check with AI and
 Send without AI, while OFF sends directly. See
 [the current implementation record](AI-PHOTO-TOGGLE-2026-11-03.md).
 
-## Required public content — concrete drafts included
+## Public content and current policy release
 
-Owner-confirmed legal name: **Washkrew**. Support: **info@washkrew.com**,
-**+91 80885 16875**. Source-based drafts are in `release/store/policies/`.
-They are not deployed or represented as approved legal policies.
+Aman supplied and approved the policy pages, legal address, monitored contacts,
+support schedule, Grievance Officer and retention decisions in staging on
+4 November. Ajay authorized their backend implementation before publishing.
+See `docs/POLICY-RELEASE-2026-11-04.md` for the new rules, deployment order,
+provider audit-log exception and final evidence. Source policy text is now in
+`release/store/policies/`; generated pages are in `apps/website/public/`.
 
-```sh
-node release/store/prepare-website.mjs --preview
-# Review build/store/policy-preview/{privacy,terms,support,delete-account,policies}.html
-```
-
-Before submission Aman/Ajay must finalize the actual policy text, effective date,
-business address, retention schedule, audience/commercial details and any needed
-legal/grievance provisions. Verify the mailbox and phone are monitored. Review
-photo/face processing and the Google Vertex AI/Gemini transfer, including any
-required in-app consent. This is important for Apple’s data-sharing review.
-Set the corresponding approval fields in `release/store/release.json` only after
-the real review is done; the staging command rejects unresolved draft wording.
-
-After approval, stage the pages and deploy only the existing website target:
-
-```sh
-node release/store/prepare-website.mjs --stage-approved
-cd apps/website
-firebase deploy --only hosting:website --project wheelio-apps
-cd ../..
-```
-
-The target URLs are `https://washkrew.com/privacy`, `/terms`, `/support`,
-`/delete-account` and `/policies`. They must work publicly over HTTPS without a
-login. The deletion page provides a support email request without installing the
-app. Monitor and handle those requests with ownership verification. Do not
-describe a mailto link as automatically deleting an account.
-
-Publish approved support/legal content into the EXISTING operations config so
-the current in-app policies/support controls use it. The publishing login needs
-to be valid for ajay@trustkeyper.com; client compilation does not need that login.
-Use `backend/firebase/operator.cjs publish-content` with an approved JSON file:
-
-```json
-{
-  "support": {
-    "phone": "+918088516875",
-    "email": "info@washkrew.com",
-    "hours": "Contact us for current support hours."
-  },
-  "legal": {
-    "entity": "Washkrew",
-    "termsPrivacyUrl": "https://washkrew.com/policies"
-  }
-}
-```
-
-First run `node backend/firebase/operator.cjs publish-content PATH.json` to
-inspect the action; after approval append `--confirm`. Do not copy the old
-training example: training must stay hidden/disabled. Do not change prices,
-coverage, payment mode, secrets or historical refund obligations in this step.
-The support-hours sentence promises no invented hours; owner may replace it with
-their actual schedule. On 3 November the public config read returned no support
-or legal fields. The owner CLI login was expired, so no config change was made.
+The target URLs are https://washkrew.com/privacy, /terms, /support,
+/delete-account and /policies. Deploy to the EXISTING website target only.
+The approved app support/legal configuration is
+`release/store/approved-content.json`; publish using the existing owner CLI.
+Training stays hidden. Do not change payment credentials, mode, prices or coverage.
 
 ## Android production bundles
 
@@ -120,8 +76,8 @@ alone cannot retrieve a private upload key or an ignored AAB.
 Validate each bundle using the official Google bundletool and Java:
 
 ```sh
-python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Customer-1.0.4-8.aab --bundletool /private/tools/bundletool.jar
-python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Captain-1.0.5-9.aab --bundletool /private/tools/bundletool.jar
+python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Customer-1.0.4-9.aab --bundletool /private/tools/bundletool.jar
+python apps/flutter/tool/verify-android-store.py build/store/android/WashKrew-Captain-1.0.5-10.aab --bundletool /private/tools/bundletool.jar
 ```
 
 The verifier checks bundle structure/CRC, expected upload certificate/signature,

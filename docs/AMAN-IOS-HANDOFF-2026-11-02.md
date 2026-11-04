@@ -1,5 +1,7 @@
 # WashKrew Customer and Captain: current Mac handoff
 
+**4 November update: read [the policy release](POLICY-RELEASE-2026-11-04.md) first. New source is Customer 1.0.4 (9) / Captain 1.0.5 (10); new cancellation credit is 98/50/0 with one-year credit expiry. Historical snapshots stay unchanged.**
+
 **Updated 3 November 2026. This is the current starting point for Aman and Claude.**
 For store archives/submission, the newer
 [store release guide](STORE-RELEASE-2026-11-03.md) is the starting point.
@@ -58,8 +60,8 @@ In each Runner target, verify automatic signing with paid **Sumit Mandal** team
 
 | App | Bundle ID | Source version/build |
 | --- | --- | --- |
-| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (8) |
-| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (9) |
+| Customer | `com.amanmaheshwari.wheelio.customer` | 1.0.4 (9) |
+| Captain | `com.amanmaheshwari.wheelio.captain` | 1.0.5 (10) |
 
 Use the workspace, including Pods. Keep Push Notifications, Background fetch and
 Remote notifications enabled. iOS minimum is 15.0. The tool checks signing-team

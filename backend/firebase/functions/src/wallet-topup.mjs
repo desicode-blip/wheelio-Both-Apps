@@ -1,3 +1,4 @@
+import {changeCredits,creditExpiry} from './wallet-credits.mjs';
 import {createHash,randomUUID} from 'node:crypto';
 import {FieldValue,Timestamp} from 'firebase-admin/firestore';
 import {acceptsFunding} from './payment-policy.mjs';
@@ -60,8 +61,8 @@ export async function captureWalletTopup(s,payment,mapping,mode,merchant){
   const user=profile.data(),allowed=acceptsFunding(payment,o.paymentPolicy)&&!!user&&!user.deletionStatus&&!user.deletedRoles?.customer&&user.deletingRole!=='customer';
   const old=wallet.data()?.creditPaise??0;
   if(allowed&&(!Number.isSafeInteger(old)||old<0||!Number.isSafeInteger(old+o.amountPaise)))fail('failed-precondition','Wallet balance needs support review.');
-  tx.update(ref,{paymentStatus:'captured',razorpayPaymentId:payment.id,status:allowed?'credited':'refundPending',refundStatus:allowed?'none':'queued',creditedPaise:allowed?o.amountPaise:0,capturedAt:Timestamp.fromMillis(s.now()),nextPaymentCheckAt:FieldValue.delete(),updatedAt:stamp()});
-  if(allowed)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:mode,creditPaise:old+o.amountPaise,updatedAt:stamp()},{merge:true});
+  tx.update(ref,{paymentStatus:'captured',razorpayPaymentId:payment.id,status:allowed?'credited':'refundPending',refundStatus:allowed?'none':'queued',creditedPaise:allowed?o.amountPaise:0,...(allowed?{creditExpiresAt:Timestamp.fromMillis(creditExpiry(s.now()))}:{}),capturedAt:Timestamp.fromMillis(s.now()),nextPaymentCheckAt:FieldValue.delete(),updatedAt:stamp()});
+  if(allowed)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:mode,...changeCredits(wallet.data(),{now:s.now(),addPaise:o.amountPaise}).state,updatedAt:stamp()},{merge:true});
   else tx.create(s.db.doc('refunds/'+mapping.topupId),{topupId:mapping.topupId,customerId:o.customerId,paymentId:payment.id,amount:o.amountPaise,paymentMode:mode,paymentMerchant:merchant,status:'queued',createdAt:stamp()});
   tx.create(s.db.doc('payments/'+mapping.topupId),{customerId:o.customerId,source:'walletTopup',paymentId:payment.id,amount:o.amountPaise,currency:'INR',status:'captured',updatedAt:stamp()});
   if(state.data()?.pendingTopupId===mapping.topupId)tx.set(state.ref,{pendingTopupId:null},{merge:true});

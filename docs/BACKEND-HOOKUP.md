@@ -81,3 +81,8 @@ Minimum warm instances remain zero; no recurring warm-instance cost is approved.
 
 No secret keys, auth tokens, private APNs/upload signing keys, KYC or private
 credential PDFs belong in Git, client defines or shared acceptance reports.
+
+
+## 4 November policy release
+
+See [the current implementation and Mac acceptance guide](POLICY-RELEASE-2026-11-04.md). New bookings use 98/50/0 wallet credit, dated expiring credits, private human-reviewed website deletion requests and scheduled retention. No new service or fake approval/payment was introduced. Native layouts remain preserved; only the existing wallet card gains expiry text. Customer 1.0.4 (9), Captain 1.0.5 (10).

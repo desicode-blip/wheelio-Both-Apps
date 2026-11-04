@@ -329,7 +329,10 @@ String cancellationPolicyText(Map<String, dynamic> policy) {
     final percent = (policy['lateCreditBps'] as num) / 100;
     final h = hours == hours.roundToDouble() ? hours.toInt().toString() : hours.toString();
     final p = percent == percent.roundToDouble() ? percent.toInt().toString() : percent.toString();
-    return 'Within $minutes min of confirmation: 100% wallet credit. Later: $p% at least $h hours before your wash window; 0% inside $h hours. No bank refund.';
+    final early = (policy['earlyCreditBps'] as num? ?? 10000) / 100;
+    final e = early == early.roundToDouble() ? early.toInt().toString() : early.toString();
+    final earlyFee = early < 100 ? ' (${100 - early}% fee)' : '';
+    return 'Within $minutes min of confirmation: $e% wallet credit$earlyFee. Later: $p% at least $h hours before your wash window; 0% inside $h hours. No bank refund.';
   }
   return 'Full refund within ${policy['refundMinutes']} minutes of confirmation. Later: 50% fee, 50% to your wallet.';
 }

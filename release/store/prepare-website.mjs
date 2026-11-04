@@ -146,7 +146,6 @@ const toHome = s => s
   .replace(/href="#([a-z-]+)"/g, 'href="/#$1"')
   .replace(/ data-footer-store="[a-z]+"/g, '');
 const extraIcons = `<symbol id="i-call" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol>
-      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     </defs>`;
 const sprite = pick(/<svg width="0" height="0"[\s\S]*?<\/svg>/).replace('</defs>', extraIcons);
@@ -222,7 +221,7 @@ function deletionScript() {
         if (!/^[6-9]\\d{9}$/.test(phone)) return fail('Enter your 10-digit registered mobile number.', form.elements.phone);
         if (data.email && !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(data.email)) return fail('Check your email address, or leave it empty.', form.elements.email);
         if (!data.confirm) return fail('Tick the box to confirm you understand.', form.elements.confirm);
-        const request = {role: data.role, name: data.name.trim(), phone: '+91' + phone, email: (data.email || '').trim(), reason: (data.reason || '').trim(), source: 'washkrew.com/delete-account'};
+        const request = {role: data.role, name: data.name.trim(), phone: '+91' + phone, email: (data.email || '').trim(), reason: (data.reason || '').trim(), source: 'washkrew.com/delete-account', website: data.website || ''};
         const subject = 'Account deletion request: ' + roles[request.role] + ', ' + request.phone;
         const body = 'Please delete my account.\\n\\nApp: ' + roles[request.role] + '\\nFull name: ' + request.name + '\\nRegistered mobile: ' + request.phone + (request.email ? '\\nEmail: ' + request.email : '') + (request.reason ? '\\nReason: ' + request.reason : '') + '\\n\\nI understand my account and personal data will be permanently deleted, apart from records the law requires WashKrew to keep.';
         // Open the pre-filled email first, while the click still counts as the user's action.

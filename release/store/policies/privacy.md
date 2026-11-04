@@ -1,6 +1,6 @@
 # Privacy policy
 
-Last updated: 3 November 2026
+Last updated: 4 November 2026
 
 This policy explains how Washkrew ("WashKrew", "we", "us") collects, uses, shares and protects personal data when you use washkrew.com, the **WashKrew** app for customers and the **WashKrew Captain** app for captains. It is written to meet India's Digital Personal Data Protection Act, 2023 and the Information Technology Act, 2000, and the privacy rules of the Apple App Store and Google Play.
 
@@ -98,9 +98,9 @@ Your data is stored mainly on Google Cloud servers in Mumbai, India. Some provid
 | Payment, invoice, wallet, earnings and payout records | 8 years, as Indian tax and accounting laws require. |
 | Support messages and complaints | 1 year after the issue is closed. |
 | Account deletion requests | 3 years, as a record that we completed your request. |
-| Server logs and error reports | Up to 90 days. |
+| Application/server logs and error reports | Up to 90 days (currently 30 days for application logs). Google-required security/audit logs have a provider-locked 400-day retention period and cannot be deleted earlier. |
 
-When the period ends, we delete the data or remove anything that identifies you.
+When the period ends, we delete the data or remove anything that identifies you, except the mandatory provider audit records described above. Deleted Storage objects may remain recoverable in the private provider recovery window for 7 days. We currently have no configured Firestore backup schedules.
 
 ## Your rights and choices
 

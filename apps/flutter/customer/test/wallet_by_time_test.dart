@@ -54,6 +54,10 @@ Future<void> phone(WidgetTester tester,AppStore store,AppRouter router,Widget ch
 }
 Future<void> cleanup(WidgetTester tester,AppStore store,AppRouter router) async {await tester.pumpWidget(const SizedBox());store.dispose();router.dispose();}
 void main(){
+  test('new grace copy uses 98 percent while historic policy remains full',(){
+    expect(cancellationPolicyText({...timingPolicy,'earlyCreditBps':9800}),contains('98% wallet credit'));
+    expect(cancellationPolicyText(timingPolicy),contains('100% wallet credit'));
+  });
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(()async{
     final loader=FontLoader('packages/washkrew_ui/Roboto');for(final n in ['Regular','Medium','SemiBold','Bold']){loader.addFont(rootBundle.load('packages/washkrew_ui/lib/fonts/Roboto-$n.ttf'));}await loader.load();

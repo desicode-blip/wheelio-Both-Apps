@@ -60,6 +60,28 @@ async function main() {
     if(current.fields?.paymentMode?.stringValue!=='live'||current.fields?.paymentMerchant?.stringValue!=='washkrew')throw Error('Verify the separate WashKrew live merchant before changing new checkout presentation.');
     await api('/config/operations?updateMask.fieldPaths=checkoutPresentation&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields({checkoutPresentation:'allNonCredit'})});
     console.log('New orders use explicit runtime UPI, debit-card, netbanking and provider-wallet groups instead of pinning the historical saved checkout layout. The saved configuration ID, merchant keys, funding ban and existing order snapshots are preserved. No payment was created.');
+  } else if(command==='configure-release-policy') {
+    for(const name of ['getWallet','accountDeletionRequest','listDeletionRequests','reviewDeletionRequest','maintainDataRetention']){
+      const r=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+      if(!r.ok||(await r.json()).state!=='ACTIVE')throw Error('Deploy and verify the release policy controllers before activation.');
+    }
+    const {Firestore,Timestamp,FieldPath}=require('./functions/node_modules/@google-cloud/firestore');
+    const {OAuth2Client}=require('./functions/node_modules/google-auth-library');
+    const {walletCredits}=await import('./functions/src/wallet-credits.mjs');
+    const client=new OAuth2Client();client.setCredentials({access_token:token.access_token,expiry_date:Date.now()+3500000});
+    const db=new Firestore({projectId:'wheelio-apps',authClient:client});
+    try{
+      const ref=db.doc('config/operations'),old=(await ref.get()).data(),start=old.walletExpiryStartedAt?.toMillis()??Date.now();
+      // Mark the single cutover time first. No existing cancellation snapshot is edited.
+      await ref.set({walletExpiryStartedAt:Timestamp.fromMillis(start)},{merge:true});
+      let after=null,count=0;
+      for(;;){let q=db.collection('wallets').orderBy(FieldPath.documentId());if(after)q=q.startAfter(after);const page=await q.limit(100).get();
+        for(const doc of page.docs)await db.runTransaction(async tx=>{const row=await tx.get(doc.ref),d=row.data();if(d&&d.creditLotVersion!==1){tx.set(doc.ref,walletCredits(d,Date.now(),start),{merge:true});count++;}});
+        if(page.size<100)break;after=page.docs.at(-1).id;
+      }
+      await ref.set({cancellationPolicy:{kind:'walletByTime',earlyCreditBps:9800,creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,serviceFailure:'wallet'},walletCreditExpiryMonths:12},{merge:true});
+      console.log('Release rules active for new bookings: 98/50/0 percent wallet credit, full service-failure credit. Existing balances receive a full year from cutover; '+count+' legacy wallets dated. Historical booking terms and merchant preserved.');
+    }finally{await db.terminate();}
   } else if(command==='configure-cancellation-wallet-time') {
     const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/getCancellationQuote',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
     if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy and verify the wallet-by-time backend and Customer build before activation.');
@@ -196,7 +218,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['setBookingPhotoAi','saveCaptainServiceArea','registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
+    const names=['listIdentityReviews','reviewCaptainIdentity','identityReviewPhoto','getWallet','createWalletTopup','verifyWalletTopup','checkWalletTopup','accountDeletionRequest','listDeletionRequests','reviewDeletionRequest','setBookingPhotoAi','saveCaptainServiceArea','registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
     names.push('searchPlaceSuggestions','selectPlaceSuggestion','createWalletTopup','verifyWalletTopup','checkWalletTopup');
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});

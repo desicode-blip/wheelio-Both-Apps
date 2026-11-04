@@ -1,3 +1,6 @@
+import {listIdentityReviews,reviewCaptainIdentity,identityReviewEvidence} from './identity-review.mjs';
+import {listDeletionRequests,reviewDeletionRequest} from './deletion-requests.mjs';
+import {walletCredits,changeCredits} from './wallet-credits.mjs';
 import { createHash, randomUUID, randomBytes } from 'node:crypto';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { PaymentProviderError } from './payments.mjs';
@@ -58,6 +61,11 @@ export class WashKrewService {
     return worksWindow(captain, window, elapsed, {wholeWindow});
   }
   startTraining(auth,data){return startTraining(this,auth,data);}
+  listIdentityReviews(auth,data){return listIdentityReviews(this,auth,data);}
+  reviewCaptainIdentity(auth,data){return reviewCaptainIdentity(this,auth,data);}
+  identityReviewEvidence(auth,data){return identityReviewEvidence(this,auth,data);}
+  listDeletionRequests(auth,data){return listDeletionRequests(this,auth,data);}
+  reviewDeletionRequest(auth,data){return reviewDeletionRequest(this,auth,data);}
   listCaptainApplications(auth,data){return listCaptainApplications(this,auth,data);}
   getCaptainApplication(auth,data){return getCaptainApplication(this,auth,data);}
   reviewCaptainApplication(auth,data){return reviewCaptainApplication(this,auth,data);}
@@ -96,6 +104,10 @@ export class WashKrewService {
     });return {ok:true};
   }
   walletRef(uid, mode) { return this.db.doc(`wallets/${uid}_${mode}`); }
+  async getWallet(auth) {
+    const uid=this.actor(auth),cfg=await this.config(),ref=this.walletRef(uid,cfg.paymentMode);
+    return this.db.runTransaction(async tx=>{const [doc,profile]=await Promise.all([tx.get(ref),tx.get(this.db.doc('users/'+uid))]);if(!profile.exists||profile.data().roles&&!profile.data().roles.includes('customer'))fail('permission-denied','Complete your Customer account first.');const state=walletCredits(doc.data(),this.now(),dateMillis(cfg.walletExpiryStartedAt)||this.now());tx.set(ref,{customerId:uid,paymentMode:cfg.paymentMode,...state,updatedAt:stamp()},{merge:true});return state;});
+  }
   createWalletTopup(auth,data){return createWalletTopup(this,auth,data);}
   verifyWalletTopup(auth,data){return checkWalletTopup(this,auth,data,{verify:true});}
   checkWalletTopup(auth,data){return checkWalletTopup(this,auth,data);}
@@ -245,7 +257,7 @@ export class WashKrewService {
       const window = windows[availableIndex], {start,end} = windowTimes(data.day, window);
       const slotKey = slots[availableIndex].id;
       if (!['test','live'].includes(config.paymentMode)) fail('failed-precondition', 'Payment mode is not configured.');
-      const walletRef = this.walletRef(uid, config.paymentMode), wallet = (await tx.get(walletRef)).data();
+      const walletRef = this.walletRef(uid, config.paymentMode), walletSnapshot = await tx.get(walletRef), walletData = walletSnapshot.data()??{}, wallet= {...walletData,...walletCredits(walletData,this.now(),dateMillis(config.walletExpiryStartedAt)||this.now())};
       if (data.useFreeWash && !(wallet?.freeWashes > 0)) fail('failed-precondition', 'Your free-wash balance changed. Review this booking again.');
       const pricing = walletPrice(type.pricePaise, wallet, {useFreeWash:data.useFreeWash===true,useCredit:data.useCredit===true});
       if(data.paymentChoice!==undefined&&!['wallet','razorpay'].includes(data.paymentChoice))fail('invalid-argument','Choose wallet or Razorpay.');
@@ -261,7 +273,9 @@ export class WashKrewService {
         if(!canonical&&!(mapping?.approved===true&&mapping.societyId===societyId))fail('failed-precondition','This address is no longer served. Check availability again.');
         address = request.address;
       }
+      const credits=changeCredits(wallet,{now:this.now(),spendPaise:pricing.creditUsedPaise});
       const policy = cancellationPolicy(config);
+      if(policy.earlyCreditBps!==undefined&&data.cancellationPolicyVersion!==2)fail('failed-precondition','Update the Customer app to review the current cancellation and wallet-expiry terms before booking.');
       if(requiresCancellationQuote(policy)&&(!data.acceptedCancellationPolicy||Object.keys(policy).some(k=>data.acceptedCancellationPolicy[k]!==policy[k])))fail('failed-precondition','Reopen the latest app and review the cancellation terms before paying.');
       tx.set(ref, {
         customerId: uid, customerFirstName: customerName.split(' ')[0], captainId: null,
@@ -275,17 +289,17 @@ export class WashKrewService {
         slotStart: Timestamp.fromMillis(start), slotEnd: Timestamp.fromMillis(end), slotKey,
         requestedWindows: windows, anyTime: data.anyTime === true,
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
-        ...pricing, basePricePaise: type.pricePaise, cancellationPolicy: policy,
+        ...pricing, creditReservedLots:credits.spent, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
         captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
         paymentPolicy:config.paymentPolicy??null,checkoutPresentation:config.checkoutPresentation??null,checkoutConfigId:config.checkoutPresentation==='allNonCredit'?null:config.checkoutConfigId??null,
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
         evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
       });
-      if (pricing.freeWashUsed || pricing.creditUsedPaise > 0) tx.set(walletRef, {
+      if(walletSnapshot.exists||pricing.freeWashUsed||pricing.creditUsedPaise>0)tx.set(walletRef, {
         customerId:uid, paymentMode:config.paymentMode,
         freeWashes: Math.max(0,(wallet?.freeWashes??0)-(pricing.freeWashUsed?1:0)),
-        creditPaise: Math.max(0,(wallet?.creditPaise??0)-pricing.creditUsedPaise), updatedAt:stamp(),
+        ...credits.state, updatedAt:stamp(),
       }, {merge:true});
       tx.set(this.db.doc(`customerState/${uid}`), { pendingBookingId: bookingId }, { merge: true });
       return { bookingId, status: 'pendingPayment', amount: pricing.pricePaise };
@@ -467,8 +481,10 @@ export class WashKrewService {
     const restore=order.walletReserved&&!order.walletReleased;
     const free=(restore&&order.freeWashUsed?1:0)+(benefit?.freeWashes??0);
     const credit=(restore&&benefit?.restoreReserved!==false?(order.creditUsedPaise??0):0)+(benefit?.creditPaise??0);
+    const reserved=restore&&benefit?.restoreReserved!==false?order.creditReservedLots??[]:[];
+    const restored=reserved.reduce((n,l)=>n+l.amountPaise,0);
     if(free||credit)tx.set(wallet.ref,{customerId:order.customerId,paymentMode:order.paymentMode,
-      freeWashes:(wallet.data()?.freeWashes??0)+free,creditPaise:(wallet.data()?.creditPaise??0)+credit,updatedAt:stamp()},{merge:true});
+      freeWashes:(wallet.data()?.freeWashes??0)+free,...changeCredits(wallet.data(),{now:this.now(),addPaise:credit-restored,restoreLots:reserved}).state,updatedAt:stamp()},{merge:true});
   }
   event(tx, ref, type, details = {}) {
     tx.create(ref.collection('events').doc(), { type, ...details, createdAt: stamp() });
@@ -894,7 +910,7 @@ export class WashKrewService {
     const prior=(await this.db.doc(`orders/${orderId}`).get()).data();
     if(!prior||prior.customerId!==uid)fail('permission-denied','This booking is not yours.');
     const sameReport=o=>o.dispute?.kind===kind&&o.dispute.note===note&&(o.dispute.photos??[]).length===photoCount;
-    if(sameReport(prior))return {ok:true};
+    if(sameReport(prior))return {ok:true,reference:'SUP-'+orderId.toUpperCase()};
     for(let i=0;i<photoCount;i++){
       const path=`orders/${orderId}/problems/${uid}_${i}.jpg`,meta=await this.evidence.metadata(path);
       if(!meta||!/^image\/(jpeg|png|webp)$/.test(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>8*1024*1024)fail('invalid-argument','Upload each problem photo before sending the report.');
@@ -903,13 +919,13 @@ export class WashKrewService {
     await this.db.runTransaction(async tx=>{
       const ref=this.db.doc(`orders/${orderId}`),o=(await tx.get(ref)).data();
       if(o?.customerId===uid&&sameReport(o))return;
-      if(!o||o.customerId!==uid||!['photosReady','approved'].includes(o.status))fail('permission-denied','A problem cannot be opened for this booking.');
+      if(!o||o.mediaRetentionStatus||o.customerId!==uid||!['photosReady','approved'].includes(o.status))fail('permission-denied','A problem cannot be opened for this booking.');
       tx.update(ref,{status:'disputed',dispute:{kind,note,photos,outcome:kind==='damage'?'damagePriority':'underReview',createdAt:Timestamp.fromMillis(this.now())},updatedAt:stamp()});
-      tx.set(this.db.doc(`supportTickets/${orderId}`),{customerId:uid,orderId,captainId:o.captainId,kind,note,photos,priority:kind==='damage'?'damage':'normal',status:'open',createdAt:stamp()});
+      tx.set(this.db.doc(`supportTickets/${orderId}`),{customerId:uid,reference:'SUP-'+orderId.toUpperCase(),orderId,captainId:o.captainId,kind,note,photos,priority:kind==='damage'?'damage':'normal',status:'open',createdAt:stamp()});
       tx.set(this.db.doc(`earnings/${orderId}`),{status:'onHold',updatedAt:stamp()},{merge:true});
       this.event(tx,ref,'problemReported',{status:'disputed'});
     });
-    return {ok:true};
+    return {ok:true,reference:'SUP-'+orderId.toUpperCase()};
   }
   async supportRequest(auth,data) {
     const uid=this.actor(auth),requestId=id(data.requestId),kind=data.kind,note=text(data.note,5,1000,'your message');
@@ -919,10 +935,10 @@ export class WashKrewService {
       const [old,rate]=await Promise.all([tx.get(ref),tx.get(state)]);
       if(old.exists)return;
       if(dateMillis(rate.data()?.lastRequestAt)>this.now()-60000)fail('resource-exhausted','Your previous request is saved. Wait one minute before sending another.');
-      tx.set(ref,{customerId:uid,kind,note,status:'open',createdAt:stamp(),updatedAt:stamp()});
+      tx.set(ref,{customerId:uid,role:data.role??'customer',reference:'SUP-'+ref.id.toUpperCase(),kind,note,status:'open',createdAt:stamp(),updatedAt:stamp()});
       tx.set(state,{lastRequestAt:Timestamp.fromMillis(this.now())});
     });
-    return {requestId:ref.id,status:'open'};
+    return {requestId:ref.id,reference:'SUP-'+ref.id.toUpperCase(),status:'open'};
   }
   async registerPushToken(auth,data) {
     const uid=this.actor(auth),token=text(data.token,20,4096,'notification registration'),role=data.role;
@@ -1006,13 +1022,13 @@ export class WashKrewService {
       const free=(wallet.data()?.freeWashes??0)+(restore&&o.freeWashUsed?1:0)+bonus;
       const credit=(wallet.data()?.creditPaise??0)+(benefit?benefit.creditPaise:restore?o.creditUsedPaise??0:0);
       tx.update(ref,{status:outcome==='upheld'?'disputeUpheld':outcome==='rejected'?'approved':'disputed',dispute:{...o.dispute,outcome,decisionNote:note,creditsAwarded:bonus,decidedAt:stamp()},...(outcome==='upheld'?{refundStatus:!benefit&&o.pricePaise>0?'queued':'none',refundAmountPaise:benefit?0:o.pricePaise,...(benefit?{cancellationBenefit:benefit,cancellationFeePaise:0}:{}),walletReleased:!!o.walletReserved}:{}),updatedAt:stamp()});
-      tx.set(this.db.doc(`supportTickets/${orderId}`),{status:outcome==='damagePriority'?'open':'resolved',decision:outcome,decisionNote:note,updatedAt:stamp()},{merge:true});
+      tx.set(this.db.doc(`supportTickets/${orderId}`),{status:outcome==='damagePriority'?'open':'resolved',...(outcome!=='damagePriority'?{closedAt:Timestamp.fromMillis(this.now())}:{}),decision:outcome,decisionNote:note,updatedAt:stamp()},{merge:true});
       if(outcome!=='damagePriority'){
         tx.set(this.db.doc(`earnings/${orderId}`),{status:outcome==='upheld'?'voided':'approved',updatedAt:stamp()},{merge:true});
         if(captain.exists&&!o.approvedAt)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),...(outcome==='rejected'?{completedWashes:(captain.data().completedWashes??0)+1}:{}),updatedAt:stamp()});
       }
       if(outcome==='upheld'){
-        if(restore||bonus||benefit?.creditPaise)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:o.paymentMode,freeWashes:free,creditPaise:credit,updatedAt:stamp()},{merge:true});
+        if(restore||bonus||benefit?.creditPaise)tx.set(wallet.ref,{customerId:o.customerId,paymentMode:o.paymentMode,freeWashes:free,...changeCredits(wallet.data(),{now:this.now(),addPaise:credit-(wallet.data()?.creditPaise??0)}).state,updatedAt:stamp()},{merge:true});
         if(!benefit&&o.pricePaise>0&&!refund.exists)tx.set(refund.ref,{bookingId:orderId,customerId:o.customerId,paymentId:o.razorpayPaymentId,amount:o.pricePaise,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
       }
       this.event(tx,ref,'disputeReviewed',{outcome});
@@ -1077,8 +1093,8 @@ export class WashKrewService {
       tx.update(ref,{usedAt:stamp()});return {download,order:o};
     });
   }
-  async deleteAccount(auth,data,{preserveIdentity=false}={}) {
-    const uid=this.actor(auth),role=data.role??'customer';
+  async deleteAccount(auth,data,{preserveIdentity=false,operatorOwner=null}={}) {
+    const uid=operatorOwner??this.actor(auth),role=data.role??'customer';
     if(!['customer','captain'].includes(role))fail('invalid-argument','Choose the app account to delete.');
     if(data.confirm!==true)fail('invalid-argument','Confirm account deletion first.');
     if(!this.accounts?.deleteUser||!this.evidence.deletePrefix)fail('failed-precondition','Account deletion is temporarily unavailable. Please try again.');
@@ -1094,7 +1110,7 @@ export class WashKrewService {
       if(role==='customer'){
         const [topups,wallet]=await Promise.all([tx.get(this.db.collection('walletTopups').where('customerId','==',uid)),tx.get(this.walletRef(uid,'live'))]);
         if(topups.docs.some(d=>d.data().paymentStatus!=='captured'&&dateMillis(d.data().paymentExpiresAt)>this.now()))fail('failed-precondition','Check your pending wallet payment before deleting this account.');
-        if((wallet.data()?.creditPaise??0)>0&&topups.docs.some(d=>d.data().status==='credited'))fail('failed-precondition','Use your remaining wallet credit or contact support before deleting this account.');
+        if(walletCredits(wallet.data(),this.now()).creditPaise>0&&topups.docs.some(d=>d.data().status==='credited'))fail('failed-precondition','Use your remaining wallet credit or contact support before deleting this account.');
       }
       if(dateMillis(profile.data().deletionLeaseUntil)>this.now())fail('aborted','Account removal is finishing. Try again shortly.');
       if(profile.data().deletingRole&&profile.data().deletingRole!==role)fail('failed-precondition','Wait for the other app account deletion to finish.');

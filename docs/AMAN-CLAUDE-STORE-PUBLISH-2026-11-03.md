@@ -1,5 +1,7 @@
 # Prompt to send Aman for Claude on his Mac
 
+**4 November update: read [the policy release](POLICY-RELEASE-2026-11-04.md) first. New source is Customer 1.0.4 (9) / Captain 1.0.5 (10); new cancellation credit is 98/50/0 with one-year credit expiry. Historical snapshots stay unchanged.**
+
 Read AGENTS.md, CLAUDE.md, docs/STORE-RELEASE-2026-11-03.md and
 release/store/PRIVACY-AND-REVIEW.md first. Aman approved the tested version for the
 initial release. Prepare BOTH existing Flutter apps for App Store submission;
@@ -18,7 +20,7 @@ cannot fast-forward, inspect/preserve changes; no hard reset or force push.
 Record the source commit. Use Flutter 3.38.6, Xcode 26+ with iOS SDK 26+ and
 CocoaPods, paid Sumit Mandal team 28JNT7H8KA, and the existing .customer/.captain
 bundle IDs. These are two separate App Store apps. Source versions are Customer
-1.0.4 (8), Captain 1.0.5 (9); check App Store Connect for occupied build numbers.
+1.0.4 (9), Captain 1.0.5 (10); check App Store Connect for occupied build numbers.
 
 Run the portable iOS checks, then `bash apps/flutter/tool/archive-ios.sh` from
 the repo root. It prepares locked dependencies, signs/builds/exports both App

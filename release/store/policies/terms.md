@@ -1,6 +1,6 @@
 # Terms of use
 
-Last updated: 3 November 2026
+Last updated: 4 November 2026
 
 These terms are an agreement between you and Washkrew ("WashKrew", "we", "us"), Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301. They cover washkrew.com, the **WashKrew** app for customers and the **WashKrew Captain** app for captains. By creating an account or using the service, you agree to these terms and to our privacy policy.
 
