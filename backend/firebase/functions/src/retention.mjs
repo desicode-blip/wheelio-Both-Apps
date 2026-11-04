@@ -21,11 +21,11 @@ async function page(s,name,visit,limit=40) {
       if(name!=='wallets'){
         const current=await doc.ref.get();if(!current.exists)continue;const d=current.data();
         let at=0;
-        if(name==='orders'&&!d.mediaPurgedAt)at=(ms(d.slotEnd)||ms(d.cancelledAt)||ms(d.createdAt))+90*DAY;
+        if(name==='orders')at=d.mediaPurgedAt?yearsAfter(ms(d.createdAt)||ms(d.slotEnd)||ms(doc.createTime),8):(ms(d.slotEnd)||ms(d.cancelledAt)||ms(d.createdAt))+90*DAY;
         else if(name==='captains'&&!d.kycMediaPurgedAt&&['approved','declined'].includes(d.kycStatus))at=(ms(d.reviewedAt)||ms(d.approvedAt))+90*DAY;
         else if(name==='supportTickets'&&['resolved','closed'].includes(d.status))at=yearsAfter(ms(d.closedAt)||ms(d.updatedAt),1);
         else if(name==='accountDeletionRequests'&&['completed','declined'].includes(d.status)&&ms(d.closedAt))at=yearsAfter(ms(d.closedAt),3);
-        else if(!['orders','captains','supportTickets','accountDeletionRequests'].includes(name)){const start=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt);if(start)at=yearsAfter(start,8);}
+        else if(!['orders','captains','supportTickets','accountDeletionRequests'].includes(name)){const start=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt)||ms(doc.createTime);if(start)at=yearsAfter(start,8);}
         if(at)await doc.ref.update({retentionDueAt:Timestamp.fromMillis(Math.max(at,s.now()+3600000))});
       }
     }catch(error){logger.error('Retention cleanup needs a retry',{collection:name,code:error.code??'cleanup'});}
@@ -36,6 +36,7 @@ export async function maintainRetention(s) {
   const now=s.now();
   await page(s,'orders',async doc=>{
     const o=doc.data(),end=ms(o.slotEnd)||ms(o.cancelledAt)||ms(o.createdAt);
+    if(terminal.has(o.status)&&now>=yearsAfter(ms(o.createdAt)||end||ms(doc.createTime),8)){await s.db.recursiveDelete(doc.ref);return;}
     if(!terminal.has(o.status)||!end||now-end<90*DAY||o.mediaPurgedAt)return;
     // Lock report creation before deleting. Unresolved disputes are excluded.
     const locked=await s.db.runTransaction(async tx=>{const current=(await tx.get(doc.ref)).data();if(!terminal.has(current?.status)||current.mediaPurgedAt)return false;tx.update(doc.ref,{mediaRetentionStatus:'purging'});return true;});
@@ -64,5 +65,5 @@ export async function maintainRetention(s) {
   await page(s,'accountDeletionRequests',async doc=>{const t=doc.data();if(['completed','declined'].includes(t.status)&&ms(t.closedAt)>0&&now>=yearsAfter(ms(t.closedAt),3))await s.db.recursiveDelete(doc.ref);});
   await page(s,'wallets',async doc=>{await s.db.runTransaction(async tx=>{const d=(await tx.get(doc.ref)).data();if(d)tx.set(doc.ref,{...walletCredits(d,now),updatedAt:Timestamp.fromMillis(now)},{merge:true});});});
   // Financial records are retained for eight years; unresolved obligations stay.
-  for(const collection of ['payments','refunds','walletTopups','earnings','payoutRecords'])await page(s,collection,async doc=>{const d=doc.data(),at=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt);if(at&&now>=yearsAfter(at,8)&&['captured','processed','credited','approved','paid','voided'].includes(d.status))await s.db.recursiveDelete(doc.ref);});
+  for(const collection of ['payments','paymentOrders','refunds','walletTopups','earnings','payoutRecords'])await page(s,collection,async doc=>{const d=doc.data(),at=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt)||ms(doc.createTime);if(at&&now>=yearsAfter(at,8)&&(collection==='paymentOrders'||['captured','processed','credited','approved','paid','voided','recorded'].includes(d.status))){const order=(await s.db.doc('orders/'+(d.bookingId??d.orderId??doc.id)).get()).data();if(order&&!terminal.has(order.status))return;await s.db.recursiveDelete(doc.ref);}});
 }

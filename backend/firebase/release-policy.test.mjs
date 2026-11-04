@@ -96,6 +96,21 @@ test('due retention is found outside the bounded legacy cursor page',async()=>{
  assert.ok((await db.doc('orders/zzzz_due').get()).data().mediaPurgedAt);
  assert.ok(removed.includes('orders/zzzz_due/'));
 });
+test('eight-year financial cleanup holds unresolved work and removes settled records',async()=>{
+ const old=ts(Date.parse('2016-01-01T00:00:00Z'));
+ await db.doc('orders/settled').set({status:'approved',createdAt:old,slotEnd:old,mediaPurgedAt:old});
+ await db.doc('orders/hold').set({status:'disputed',createdAt:old,slotEnd:old});
+ await db.doc('payments/settled').set({status:'captured',createdAt:old});
+ await db.doc('paymentOrders/mapping').set({bookingId:'settled',createdAt:old});
+ await db.doc('payments/hold').set({status:'captured',createdAt:old});
+ await db.doc('refunds/pending').set({status:'retry',createdAt:old});
+ await maintainRetention(s);
+ assert.equal((await db.doc('orders/settled').get()).exists,false);
+ assert.equal((await db.doc('payments/settled').get()).exists,false);
+ assert.equal((await db.doc('paymentOrders/mapping').get()).exists,false);
+ assert.equal((await db.doc('payments/hold').get()).exists,true);
+ assert.equal((await db.doc('refunds/pending').get()).exists,true);
+});
 test('a retired KYC reference requires a real human job-selfie review, never an invented face match',async()=>{
  await db.doc('privateConfig/photoChecks').set({enabled:true,paymentModes:['test','live']});
  await db.doc('captains/worker').set({approved:true,kycMediaPurgedAt:ts(now-1000)});
