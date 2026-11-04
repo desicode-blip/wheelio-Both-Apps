@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WashKrew | Vehicle cleaning, on demand</title>
-  <meta name="description" content="WashKrew sends an approved captain to wash your car or bike where it's parked, with photos before and after every job. Now live in gated societies across Hyderabad.">
+  <meta name="description" content="WashKrew sends an approved captain to wash your car or bike where it's parked, with photos before and after every job. Now live across Hyderabad.">
   <meta name="theme-color" content="#FFFFFF">
   <link rel="canonical" href="https://washkrew.com/">
   <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -80,13 +80,13 @@
             <a class="btn btn-primary" href="#get-app" data-app="customer">Request a wash</a>
             <a class="btn btn-secondary" href="#get-app" data-app="captain">Apply as a captain</a>
           </div>
-          <p class="hero-note"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg><span id="hero-city">Now live in gated societies across Hyderabad.</span></p>
+          <p class="hero-note"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg><span id="hero-city">Now live across Hyderabad.</span></p>
         </div>
 
         <figure class="hero-media">
           <picture>
             <source type="image/webp" srcset="/assets/captain-at-work-800.webp 800w, /assets/captain-at-work-1400.webp 1400w" sizes="(min-width: 960px) 560px, 100vw">
-            <img src="/assets/captain-at-work-800.webp" width="1400" height="1050" alt="A WashKrew captain in a black polo wiping a silver hatchback's window with a blue cloth, in a society parking area." fetchpriority="high">
+            <img src="/assets/captain-at-work-800.webp" width="1400" height="1050" alt="A WashKrew captain in a black polo wiping a silver hatchback's window with a blue cloth, in a residential parking area." fetchpriority="high">
           </picture>
           <div class="record-card" aria-label="Example of a finished wash in the WashKrew app">
             <div class="record-top">
@@ -113,6 +113,7 @@
               <ul>
                 <li>Dry wash (dusting)</li>
                 <li>Wet wash, outside</li>
+                <li class="soon" aria-disabled="true">Complete wash, including interiors <span class="soon-tag">Coming soon</span></li>
               </ul>
             </div>
           </div>
@@ -126,7 +127,7 @@
               </ul>
             </div>
           </div>
-          <p class="service-note">Exterior washes by hand, with water and microfibre cloths. Inside cleaning comes later. You see the price for your vehicle before you book.</p>
+          <p class="service-note">Washed by hand, with water and microfibre cloths. You see the price for your vehicle before you book.</p>
         </div>
       </div>
     </section>
@@ -183,7 +184,7 @@
       <div class="wrap crew-grid">
         <div class="crew-copy">
           <h2 id="crew-title" class="h2">Look for the black polo and the blue cloth.</h2>
-          <p>WashKrew captains arrive in uniform, with their own kit and clean microfibre cloths. You will know who is working on your vehicle, and so will your society.</p>
+          <p>WashKrew captains arrive in uniform, with their own kit and clean microfibre cloths. You will always know who is working on your vehicle.</p>
           <dl class="facts">
             <div><dt><svg class="ico" aria-hidden="true"><use href="#i-id"/></svg>Identity-checked</dt><dd>Every captain's documents are reviewed before their first wash.</dd></div>
             <div><dt><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>Reviewed first</dt><dd>Admins review Captain identity and payout details before approving applications.</dd></div>
@@ -209,7 +210,7 @@
         </figure>
         <div class="captains-copy">
           <h2 id="captains-title" class="h2">Earn <span class="earn">₹60,000+ a month,</span> <span class="earn">close to home.</span></h2>
-          <p>Become a WashKrew Captain. Wash cars and bikes in gated societies near you, with clear rules and every job recorded in the app. The more washes you complete, the more you earn.</p>
+          <p>Become a WashKrew Captain. Wash cars and bikes near where you live, with clear rules and every job recorded in the app. The more washes you complete, the more you earn.</p>
           <ol class="steps">
             <li><span class="step-n">1</span>Download the WashKrew Captain app</li>
             <li><span class="step-n">2</span>Apply and add your identity documents</li>
@@ -226,7 +227,7 @@
       <div class="wrap"><div class="closing-inner">
         <div>
           <h2 id="closing-title" class="h2">Now live in Hyderabad.</h2>
-          <p id="closing-text">We are opening society by society. Get the app and choose your society to see whether we are there yet.</p>
+          <p id="closing-text">We are opening area by area. Get the app and enter your address to see whether we are there yet.</p>
         </div>
         <a class="btn btn-primary" href="#get-app" data-app="customer">Request a wash</a>
       </div>
@@ -255,7 +256,7 @@
       <div class="footer-top">
         <div class="footer-brand">
           <img src="/assets/washkrew-lockup-dark.svg" alt="WashKrew, vehicle cleaning on demand" width="198" height="60" loading="lazy">
-          <p class="footer-about">Doorstep car and bike washes in gated societies, with photos before and after every job.</p>
+          <p class="footer-about">Doorstep car and bike washes, with photos before and after every job.</p>
           <ul class="footer-contact">
             <li><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><a href="tel:+918088516875">+91 80885 16875</a><span>24/7</span></li>
             <li><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg><a href="mailto:info@washkrew.com">info@washkrew.com</a></li>
@@ -391,9 +392,9 @@
       const t = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
       if (!key || live) {
         const name = live ? live.name : HOME_CITY;
-        t('hero-city', 'Now live in gated societies across ' + name + '.');
+        t('hero-city', 'Now live across ' + name + '.');
         t('closing-title', 'Now live in ' + name + '.');
-        t('closing-text', 'We are opening society by society. Get the app and choose your society to see whether we are there yet.');
+        t('closing-text', 'We are opening area by area. Get the app and enter your address to see whether we are there yet.');
         t('dialog-city', 'Now live in ' + name + '.');
         t('footer-city', 'Now live in ' + name);
         return;

@@ -12,9 +12,9 @@ These terms are an agreement between you and Washkrew ("WashKrew", "we", "us"), 
 
 ## 2. The service
 
-WashKrew arranges doorstep exterior washes for cars and bikes. An approved WashKrew captain washes your vehicle where it is parked, in the societies and areas we serve. The wash types and prices for your vehicle are shown in the app.
+WashKrew arranges doorstep exterior washes for cars and bikes. An approved WashKrew captain washes your vehicle where it is parked, in the areas we serve. The wash types and prices for your vehicle are shown in the app.
 
-Availability depends on captains covering your area at the time you choose. A booking is for a time window, not an exact minute. Interior cleaning is not offered unless the app shows it for your society.
+Availability depends on captains covering your area at the time you choose. A booking is for a time window, not an exact minute. A complete wash including interiors is coming soon and is not offered yet.
 
 ## 3. Bookings and prices
 
@@ -62,7 +62,7 @@ See section 6. If our team agrees there was a problem with the wash, you get 100
 ## 7. Your responsibilities as a customer
 
 - Give an accurate address, parking spot and vehicle details, and make sure the vehicle can be reached at the booked time.
-- Make sure you are allowed to have the vehicle washed where it is parked, including any permission your society needs.
+- Make sure you are allowed to have the vehicle washed where it is parked, including any permission your building or residential management needs.
 - Treat captains with respect. Abuse, harassment or unsafe behaviour towards a captain can lead to your account being closed.
 
 ## 8. Captains

@@ -22,7 +22,7 @@ Email info@washkrew.com or call +91 80885 16875 (24 hours a day, every day). Our
 
 - **Account:** your name and mobile number. We use your mobile number to sign you in with a one-time code.
 - **Vehicles:** vehicle type, model and registration number.
-- **Location:** your society, saved address, parking details and the spot you pin on the map. The app asks before using your device location, and only while you are using it.
+- **Location:** your saved address, parking details and the spot you pin on the map. The app asks before using your device location, and only while you are using it.
 - **Bookings:** wash type, time window, price, status, your ratings and feedback.
 - **Photos, videos and voice notes** you choose to add, for example to show where your vehicle is parked.
 - **Payments:** payment status and reference numbers from Razorpay, your WashKrew wallet balance and history. We never see or store your card number, CVV, UPI PIN or net banking password.
@@ -119,7 +119,7 @@ Withdrawing consent does not affect anything we did before, and we may still kee
 
 ## App permissions
 
-- **Location:** to find your society and pin your vehicle. For captains, to show nearby jobs and confirm arrival. Only while the app is in use.
+- **Location:** to find your address and pin your vehicle. For captains, to show nearby jobs and confirm arrival. Only while the app is in use.
 - **Camera and photos:** to add vehicle photos, wash photos and captain documents.
 - **Microphone:** to record a voice note or video for the captain or for help.
 - **Notifications:** for booking and job updates.

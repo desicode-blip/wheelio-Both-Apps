@@ -47,3 +47,8 @@ Until #1–#3 exist, the form still works through the pre-filled email only, and
 | 14 | Grievance Officer shown as **"Aman"**. | Use the same name in the in-app support/legal config if it shows one. |
 
 The terms (sections 4 and 5), support FAQ and privacy policy already state these rules, so items 11 and 12 must be live in the apps before the pages are deployed.
+
+## Update 4 November 2026: positioning and services
+
+- The website and policies no longer say "gated societies" or "society". WashKrew starts there but is not limited to it, so the copy now says "across Hyderabad", "near where you live" and "area by area".
+- "What we wash" for cars adds **Complete wash, including interiors** shown greyed out with a "Coming soon" tag. Terms section 2 says the same. No booking change is needed: the apps should keep not offering it until it launches.

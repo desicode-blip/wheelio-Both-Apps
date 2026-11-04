@@ -142,6 +142,8 @@ a { color: var(--primary); }
 .service h3 { font-size: 20px; line-height: 28px; font-weight: 600; }
 .service ul { margin: 8px 0 0; padding: 0; list-style: none; }
 .service li { font-size: 16px; line-height: 28px; color: var(--body); }
+.service li.soon { color: var(--secondary); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; line-height: 24px; margin-top: 2px; }
+.soon-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--canvas); border: 1px solid var(--border); font-size: 12px; line-height: 18px; font-weight: 500; color: var(--secondary); white-space: nowrap; }
 .service-note { font-size: 16px; line-height: 26px; color: var(--secondary); padding: 8px 8px 0; max-width: 34ch; }
 
 /* How it works: the job record */
