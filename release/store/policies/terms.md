@@ -35,11 +35,12 @@ Availability depends on captains covering your area at the time you choose. A bo
 
 | When you cancel | What you get back |
 | --- | --- |
-| Within 5 minutes of your booking being confirmed | 98% of what you paid, as wallet credit. The other 2% is the cancellation fee. |
-| More than 5 minutes after your booking was confirmed | Nothing is returned. The full amount is the cancellation fee. |
+| Within 5 minutes of your booking being confirmed | 98% of what you paid, as wallet credit. The other 2% is the cancellation fee. This applies even if the wash is less than 2 hours away. |
+| After 5 minutes, and at least 2 hours before your wash window starts | 50% of what you paid, as wallet credit. The other 50% is the cancellation fee. |
+| After 5 minutes, and less than 2 hours before your wash window starts | Nothing is returned. The full amount is the cancellation fee. |
 | After the captain has started washing | You can no longer cancel. |
 
-"What you paid" includes both the money you paid and any wallet credit you used. The 5 minutes are counted from the time the app confirms your booking. The app shows what you will get back before you confirm a cancellation.
+"What you paid" includes both the money you paid and any wallet credit you used. The 5 minutes are counted from the time the app confirms your booking, and the 2 hours from the start of your wash window. The app shows what you will get back before you confirm a cancellation.
 
 **If we cannot complete your wash**
 

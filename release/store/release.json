@@ -21,7 +21,7 @@
       "captainIdDocumentsAndSelfies": "90 days after the application decision",
       "webDeletionRequestCompletion": "within 90 days"
     },
-    "customerCancellation": "Within 5 minutes of confirmation: 98% back as wallet credit (2% fee). After 5 minutes: no refund. WashKrew-side failure or upheld wash complaint: 100% as wallet credit.",
+    "customerCancellation": "Within 5 minutes of confirmation: 98% back as wallet credit (2% fee), even if the wash is under 2 hours away. After 5 minutes and at least 2 hours before the wash window: 50% back as wallet credit. After 5 minutes and under 2 hours before the window: nothing back. WashKrew-side failure or upheld wash complaint: 100% as wallet credit.",
     "walletCreditExpiry": "12 months after the credit is added",
     "aadhaarUpload": "Full or masked Aadhaar accepted; masked recommended; reviewed manually"
   },
@@ -58,6 +58,7 @@
   },
   "approvalNotes": {
     "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open.",
-    "2026-11-04": "Aman: info@washkrew.com final; Grievance Officer shown as \"Aman\"; new customer cancellation rule (98% credit within 5 minutes, none after); wallet credit expires after one year; full or masked Aadhaar accepted."
+    "2026-11-04": "Aman: info@washkrew.com final; Grievance Officer shown as \"Aman\"; customer cancellation rule: 98% credit within 5 minutes, 50% if at least 2 hours before the wash window, none later; wallet credit expires after one year; full or masked Aadhaar accepted.",
+    "2026-11-04 (later)": "Aman changed the cancellation rule: 98% within 5 minutes, then 50% until 2 hours before the wash window, then nothing."
   }
 }
