@@ -1,0 +1,64 @@
+{
+  "firebaseProject": "wheelio-apps",
+  "appleTeam": "28JNT7H8KA",
+  "ownerReportedAcceptance": "3 November 2026: Ajay reports that Aman tested the version and approved it for the initial release.",
+  "business": {
+    "legalName": "Washkrew",
+    "supportEmail": "info@washkrew.com",
+    "supportPhone": "+918088516875",
+    "website": "https://washkrew.com",
+    "privacyUrl": "https://washkrew.com/privacy",
+    "termsUrl": "https://washkrew.com/terms",
+    "supportUrl": "https://washkrew.com/support",
+    "deletionUrl": "https://washkrew.com/delete-account",
+    "policiesUrl": "https://washkrew.com/policies",
+    "registeredOffice": "Works/Office No. 08 (FF), Block: MART, Mahagun Moderne, Plot No. GH-02, Sector 78, Noida, Uttar Pradesh 201301",
+    "supportHours": "Phone 24/7, 365 days; email replies within 6 hours",
+    "grievanceOfficer": "Aman",
+    "retention": {
+      "paymentAndInvoiceRecords": "8 years",
+      "washPhotos": "90 days after the wash",
+      "captainIdDocumentsAndSelfies": "90 days after the application decision",
+      "webDeletionRequestCompletion": "within 90 days"
+    },
+    "customerCancellation": "Within 5 minutes of confirmation: 98% back as wallet credit (2% fee), even if the wash is under 2 hours away. After 5 minutes and at least 2 hours before the wash window: 50% back as wallet credit. After 5 minutes and under 2 hours before the window: nothing back. WashKrew-side failure or upheld wash complaint: 100% as wallet credit.",
+    "walletCreditExpiry": "12 months after the credit is added",
+    "aadhaarUpload": "Full or masked Aadhaar accepted; masked recommended; reviewed manually"
+  },
+  "approvals": {
+    "policyTextApproved": true,
+    "supportMailboxAndPhoneVerified": true,
+    "retentionAndPhotoProcessingReviewed": true,
+    "storePrivacyAnswersReviewed": false,
+    "reviewerAccessConfirmedPrivately": false,
+    "currentStoreScreenshotsReady": false,
+    "ageRatingAndAudienceConfirmed": false
+  },
+  "apps": {
+    "customer": {
+      "name": "WashKrew",
+      "package": "com.amanmaheshwari.wheelio.customer",
+      "playAppId": "4974657291613494539",
+      "appStoreConnectId": null,
+      "category": "Lifestyle",
+      "shortDescription": "Book a doorstep exterior wash and review your Captain’s before-and-after photos.",
+      "subtitle": "Doorstep vehicle washes",
+      "description": "Book a doorstep exterior vehicle wash in an area covered by an approved WashKrew Captain. Add your vehicle and parking details, choose an available time window, and pay using the supported Razorpay methods or WashKrew wallet credit. Follow booking updates and review the before-and-after wash photos. Wallet credit can be used for future WashKrew bookings. Availability depends on Captain coverage, working hours and capacity."
+    },
+    "captain": {
+      "name": "WashKrew Captain",
+      "package": "com.amanmaheshwari.wheelio.captain",
+      "playAppId": "4974897678367286968",
+      "appStoreConnectId": null,
+      "category": "Business",
+      "shortDescription": "Manage your wash area, accept jobs and share before-and-after wash photos.",
+      "subtitle": "Manage your wash jobs",
+      "description": "WashKrew Captain helps approved Captains manage doorstep exterior vehicle washes. Submit your documents, selfie and payout details for human review. Set your service location, coverage radius and working hours. Once approved, go online to receive eligible nearby offers; the first valid acceptance receives the job. Follow the job steps, record before-and-after vehicle photos and keep the Customer updated. View job and earnings records in the app. Captain approval and available demand are required; this app does not guarantee jobs or income."
+    }
+  },
+  "approvalNotes": {
+    "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open.",
+    "2026-11-04": "Aman: info@washkrew.com final; Grievance Officer shown as \"Aman\"; customer cancellation rule: 98% credit within 5 minutes, 50% if at least 2 hours before the wash window, none later; wallet credit expires after one year; full or masked Aadhaar accepted.",
+    "2026-11-04 (later)": "Aman changed the cancellation rule: 98% within 5 minutes, then 50% until 2 hours before the wash window, then nothing."
+  }
+}

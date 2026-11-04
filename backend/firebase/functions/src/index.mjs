@@ -1,3 +1,5 @@
+import {maintainRetention} from './retention.mjs';
+import {requestDeletion} from './deletion-requests.mjs';
 import {areaPolicy,signal,covers,CaptainAreaError} from './captain-area.mjs';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -25,6 +27,7 @@ import {CaptainReviewError} from './captain-review.mjs';
 import {callableRuntime} from './runtime-policy.mjs';
 import {pushResultSummary} from './push-results.mjs';
 import {WalletTopupError} from './wallet-topup.mjs';
+import {AiPhotoConsentError} from './ai-photo-consent.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -48,7 +51,7 @@ function service(withPayment = false, withMaps = false) {
       async read(path,generation){const [bytes]=await getStorage().bucket().file(path,{generation}).download();return bytes;},
       async deletePrefix(prefix) { await getStorage().bucket().deleteFiles({prefix}); },
     },
-    accounts:{deleteUser:uid=>getAuth().deleteUser(uid)},
+    accounts:{deleteUser:uid=>getAuth().deleteUser(uid),findByPhone:phone=>getAuth().getUserByPhoneNumber(phone)},
     maps:withMaps?new GoogleRoutes(mapsKey.value()):undefined,
     places:withMaps?new GooglePlaces(mapsKey.value()):undefined,
     photoChecks:new PrivatePhotoChecks(db),
@@ -65,7 +68,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -78,6 +81,20 @@ export const createBooking = callable('createBooking');
 export const createCheckout = callable('checkout', true);
 export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
+export const getWallet = callable('getWallet');
+export const listIdentityReviews = callable('listIdentityReviews');
+export const reviewCaptainIdentity = callable('reviewCaptainIdentity');
+export const listDeletionRequests = callable('listDeletionRequests');
+export const reviewDeletionRequest = callable('reviewDeletionRequest');
+export const accountDeletionRequest = onRequest({invoker:'private',cors:false},async(req,res)=>{
+  res.set('Cache-Control','no-store');
+  if(req.method!=='POST'){res.status(405).send('POST required');return;}
+  const origin=req.get('origin');
+  if(origin&&!['https://washkrew.com','https://www.washkrew.com','https://washkrew.web.app'].includes(origin)){res.status(403).send('Use the WashKrew website.');return;}
+  if(!req.is('application/json')||(req.rawBody?.length??0)>8192||!req.body||Array.isArray(req.body)||typeof req.body!=='object'){res.status(400).send('Invalid request.');return;}
+  try{res.json(await requestDeletion(service(),req.body??{},req.ip??'unknown'));}
+  catch(e){res.status(e.code==='resource-exhausted'?429:e.code==='invalid-argument'?400:503).json({error:e.code==='invalid-argument'||e.code==='resource-exhausted'?e.message:'Request unavailable. Email info@washkrew.com.'});}
+});
 export const createWalletTopup = callable('createWalletTopup', true);
 export const verifyWalletTopup = callable('verifyWalletTopup', true);
 export const checkWalletTopup = callable('checkWalletTopup', true);
@@ -95,6 +112,7 @@ export const submitTrainingQuiz = callable('submitQuiz');
 export const beginCaptainIdentity = callable('beginIdentity');
 export const verifyCaptainIdentity = callable('verifyIdentity');
 export const checkWashPhotos = callable('checkWashPhotos');
+export const setBookingPhotoAi = callable('setBookingPhotoAi');
 export const saveCaptainPayout = callable('captainPayout');
 export const claimJob = callable('claim');
 export const rejectJob = callable('reject');
@@ -133,6 +151,22 @@ export const captainApplicationPhoto = onRequest({invoker:'private',cors,timeout
     let decoded;
     try{decoded=await getAuth().verifyIdToken(token);}catch{response.status(401).send('Sign in again.');return;}
     const backend=service(),photo=await backend.captainReviewEvidence({uid:decoded.uid,token:decoded},request.query);
+    const bytes=await backend.evidence.read(photo.path,photo.generation);
+    response.set('Content-Type',photo.contentType);response.status(200).send(bytes);
+  }catch(error){
+    if(error instanceof CaptainReviewError){response.status(error.code==='not-found'?404:error.code==='invalid-argument'?400:error.code==='unauthenticated'?401:403).send(error.message);return;}
+    logger.error('Captain review photo unavailable',{code:error.code??'internal'});response.status(503).send('The private photo could not be loaded. Try again.');
+  }
+});
+export const identityReviewPhoto = onRequest({invoker:'private',cors,timeoutSeconds:60},async(request,response)=>{
+  response.set('Cache-Control','private, no-store');response.set('X-Content-Type-Options','nosniff');response.set('Referrer-Policy','no-referrer');
+  if(request.method!=='GET'){response.status(405).send('GET required');return;}
+  try{
+    const token=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+    if(!token){response.status(401).send('Sign in with your approved Google account.');return;}
+    let decoded;
+    try{decoded=await getAuth().verifyIdToken(token);}catch{response.status(401).send('Sign in again.');return;}
+    const backend=service(),photo=await backend.identityReviewEvidence({uid:decoded.uid,token:decoded},request.query);
     const bytes=await backend.evidence.read(photo.path,photo.generation);
     response.set('Content-Type',photo.contentType);response.status(200).send(bytes);
   }catch(error){
@@ -209,6 +243,7 @@ export const dispatchPaidBooking = onDocumentUpdated('orders/{orderId}', async e
 export const refundCancelledBooking = onDocumentCreated({ document: 'refunds/{orderId}', secrets: paymentSecrets, retry: true },
   event => service(true).processRefund(event.params.orderId));
 
+export const maintainDataRetention = onSchedule({schedule:'every 60 minutes',timeoutSeconds:540},()=>maintainRetention(service()));
 export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeoutSeconds:300, secrets: paymentSecrets }, async () => {
   const backend = service(true), now = Date.now();
   // A previously requested deletion must not stay stuck after a transient

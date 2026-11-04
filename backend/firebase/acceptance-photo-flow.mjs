@@ -37,7 +37,7 @@ try{
   let window=(await call('getAvailability',{societyId:'soc_avatar',day},owner)).slots.find(s=>s.available);
   if(!window){day=new Date(Date.now()+19800000+86400000).toISOString().slice(0,10);window=(await call('getAvailability',{societyId:'soc_avatar',day},owner)).slots.find(s=>s.available);}
   assert.ok(window,'No disposable local fixture capacity is available. Restart fresh emulators.');
-  const booking=await call('createBooking',{requestId:'photo-flow-'+Date.now(),plate:'TS09QA0051',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'Local QA',floor:'B2',parking:'51',note:'Disposable loopback acceptance',washKind:'wetOutside',day,startHour:window.startHour,endHour:window.endHour},owner);
+  const booking=await call('createBooking',{aiPhotoConsent:true,aiPhotoConsentVersion:'vehicle-after-photos-toggle-v2',requestId:'photo-flow-'+Date.now(),plate:'TS09QA0051',societyId:'soc_avatar',vehicleKind:'hatchback',tower:'Local QA',floor:'B2',parking:'51',note:'Disposable loopback acceptance',washKind:'wetOutside',day,startHour:window.startHour,endHour:window.endHour},owner);
   // Only the capture is simulated. No Razorpay request or real funds are used.
   const provider={keyId:'rzp_test_local_disabled',createOrder:async({amount})=>({id:'order_local_photo_'+Date.now(),amount,currency:'INR'})},service=new WashKrewService({db,payments:provider});
   const checkout=await service.checkout({uid:customerId,token:{phone_number:phones.customer}},booking);await service.capturePayment({id:'pay_local_photo_'+Date.now(),order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
@@ -56,7 +56,8 @@ try{
       await call('updateCaptainLocation',{orderId,latitude:17.3998,longitude:78.3546,accuracy:10},captain);
     }
   }
-  const review=await call('checkWashPhotos',{orderId},captain);assert.equal(review.status,'unavailable','Local fixture must not call a live AI provider');
+  await call('setBookingPhotoAi',{orderId,enabled:true,expectedRevision:0,policyVersion:'vehicle-after-photos-toggle-v2'},owner);
+  const review=await call('checkWashPhotos',{orderId,requiredConsentPolicyVersion:'vehicle-after-photos-toggle-v2',aiPhotoConsent:true,aiPhotoConsentVersion:'vehicle-after-photos-toggle-v2'},captain);assert.equal(review.status,'unavailable','Local fixture must not call a live AI provider');
   await assert.rejects(call('updateWashProgress',{orderId,action:'finish'},captain));
   await call('updateWashProgress',{orderId,action:'finish',acknowledgePhotoIssues:true},captain);assert.equal((await clientOrder(orderId,owner)).status.stringValue,'photosReady');
   await call('approveWash',{orderId},owner);await call('rateWash',{orderId,stars:5,tags:[]},owner);

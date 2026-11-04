@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:washkrew_ui/washkrew_ui.dart' show Brand, Permission;
+import 'package:washkrew_ui/washkrew_ui.dart' show Brand, Permission, aiPhotoConsentVersion;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -233,10 +233,15 @@ class LiveBackend {
     await storage.ref(attempt['path'] as String).putData(bytes,SettableMetadata(contentType:'image/jpeg'));
     return call('verifyCaptainIdentity',{'orderId':orderId,'session':attempt['session']});
   }
-  Future<Map<String,dynamic>> reviewWashPhotos(String orderId)=>runPhotoReview(
-    invoke:(statusOnly)=>call('checkWashPhotos',{'orderId':orderId,if(statusOnly)'statusOnly':true}),
+  Future<Map<String,dynamic>> reviewWashPhotos(String orderId,{bool aiAllowed=false}) async {
+    final result=await runPhotoReview(
+    requiredConsentVersion:aiPhotoConsentVersion,
+    invoke:(statusOnly)=>call('checkWashPhotos',{'orderId':orderId,'requiredConsentPolicyVersion':aiPhotoConsentVersion,if(statusOnly)'statusOnly':true,if(!statusOnly)...{'aiPhotoConsent':aiAllowed,'aiPhotoConsentVersion':aiPhotoConsentVersion}}),
     canReconcile:(error)=>error is FirebaseFunctionsException&&['unavailable','deadline-exceeded','failed-precondition'].contains(error.code),
   );
+    if(result['status']=='settingsChanged')throw StateError('The AI setting or photos changed. Check the current choice and try again, or send without AI.');
+    return result;
+  }
   Future<void> signOut() async {
     _pushGeneration++;
     _pushRegistrations.clear();

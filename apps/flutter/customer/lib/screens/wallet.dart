@@ -89,6 +89,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   '₹1 credit pays for ₹1 of a wash. Credits can be used only in ${Brand.name}; they cannot be withdrawn or transferred.',
                   WType.caption,
                 ),
+                const SizedBox(height: 8),
+                const WText('Credits expire one year after being added. The oldest credits are used first.', WType.caption),
+                for(final lot in store.walletCreditLots.where((l)=>(l['expiresAt'] as num)>DateTime.now().millisecondsSinceEpoch))
+                  Padding(padding: const EdgeInsets.only(top: 6), child: WText('${Fmt.rupees((lot['amountPaise'] as num)/100)} expires ${Fmt.date(DateTime.fromMillisecondsSinceEpoch((lot['expiresAt'] as num).toInt()))} ${DateTime.fromMillisecondsSinceEpoch((lot['expiresAt'] as num).toInt()).year}', WType.caption)),
               ],
             ),
           ),

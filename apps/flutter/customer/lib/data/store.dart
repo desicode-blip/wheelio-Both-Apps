@@ -390,6 +390,8 @@ class AppStore extends ChangeNotifier {
   String _walletIdentity = '';
   int _walletFree = 0;
   num _walletCredit = 0;
+  List<Map<String,dynamic>> walletCreditLots = [];
+  Timer? _walletExpiryTimer;
   final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
   final Map<String, MediaClip> draftMedia = {};
   static const demoOtp = '123456';
@@ -509,15 +511,29 @@ class AppStore extends ChangeNotifier {
     if (_walletIdentity == identity) return;
     _walletIdentity = identity;
     _walletSubscription?.cancel();
-    _walletFree = 0; _walletCredit = 0;
+    _walletFree = 0; _walletCredit = 0; walletCreditLots = []; _walletExpiryTimer?.cancel();
     customer?.freeWashes = 0; customer?.credit = 0;
     if (identity.isEmpty) return;
     final generation = _accountGeneration;
+    live!.call('getWallet', {}).catchError((Object e) { if(generation==_accountGeneration && _accountActive) {backendMessage=backendError(e);changed();} return <String,dynamic>{}; });
     _walletSubscription = live!.wallet(_liveUid, testPayments ? 'test' : 'live').listen((s) {
       if (generation != _accountGeneration || !_accountActive || identity != _walletIdentity || s.metadata.isFromCache) return;
       final d = s.data() ?? {};
       _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
-      _walletCredit = (d['creditPaise'] as num? ?? 0) / 100;
+      walletCreditLots = [for(final lot in d['creditLots'] as List? ?? []) Map<String,dynamic>.from(lot as Map)];
+      void applyBalance() {
+        if(generation!=_accountGeneration || !_accountActive || identity!=_walletIdentity)return;
+        final now=DateTime.now().millisecondsSinceEpoch;
+        final available=walletCreditLots.where((l)=>(l['expiresAt'] as num)>now).toList();
+        _walletCredit=d['creditLotVersion']==1 ? available.fold<num>(0,(sum,l)=>sum+(l['amountPaise'] as num))/100 : (d['creditPaise'] as num? ?? 0)/100;
+        customer?.credit=_walletCredit;
+        _walletExpiryTimer?.cancel();
+        if(available.isNotEmpty) {
+          final next=available.map((l)=>(l['expiresAt'] as num).toInt()).reduce((a,b)=>a<b?a:b);
+          _walletExpiryTimer=Timer(Duration(milliseconds:next-now+1),(){applyBalance();changed();});
+        }
+      }
+      applyBalance();
       customer?.freeWashes = _walletFree; customer?.credit = _walletCredit;
       changed();
     }, onError: (Object e) { backendMessage = backendError(e); changed(); });
@@ -531,7 +547,7 @@ class AppStore extends ChangeNotifier {
     notificationPrefs=NotificationPrefs();liveBanner=null;toast=null;
     currentOrderId=null;viewingOrderId=null;draft=BookingDraft();
     draftBookingId=null;draftRequestId=newId('draft');draftPhotoBytes.clear();draftMedia.clear();
-    _walletFree=0;_walletCredit=0;_walletIdentity='';_walletSubscription?.cancel();
+    _walletFree=0;_walletCredit=0;walletCreditLots=[];_walletExpiryTimer?.cancel();_walletIdentity='';_walletSubscription?.cancel();
     _preferenceSave?.cancel();_readIds.clear();_unreadIds.clear();_deletedIds.clear();
     _invalidateAvailability();backendMessage=null;returningCustomer=false;
     pendingPhone='';pendingNewPhone='';hasSeenWelcome=false;payMethodId='gpay';
@@ -734,6 +750,10 @@ class AppStore extends ChangeNotifier {
     order.arrivalUpdatedAt=date(data['arrivalUpdatedAt']);
     order.serverSlotStart = date(data['slotStart']);
     order.paymentStatus = data['paymentStatus'] ?? 'unpaid';
+    final ai=data['aiPhotoConsent']?['customer'];
+    order.aiPhotoCheckEnabled=ai is Map && ai['allowed']==true && ai['version']==aiPhotoConsentVersion;
+    order.aiPhotoCheckRevision=ai is Map ? (ai['revision'] as num? ?? 0).toInt() : 0;
+    order.aiPhotoCheckStarted=data['photoReview']?['aiSentAt']!=null;
     order.refundStatus = data['refundStatus'] ?? 'none';
     order.cancellationReason = data['cancellationReason'] as String?;
     order.testPayment = data['paymentMode'] == 'test';
@@ -743,7 +763,7 @@ class AppStore extends ChangeNotifier {
     if (data['dispute'] is Map) {
       final d = data['dispute'] as Map;
       order.dispute = Dispute(
-        ref: data['ref'],
+        ref: 'SUP-${id.toUpperCase()}',
         kind: ProblemKind.values.byName(d['kind']),
         createdAt: date(d['createdAt']) ?? DateTime.now(),
         note: d['note'] ?? '',
@@ -770,6 +790,7 @@ class AppStore extends ChangeNotifier {
     _invalidateAvailability();
     _preferenceSave?.cancel();
     _walletSubscription?.cancel();
+    _walletExpiryTimer?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
       s.cancel();
     }
@@ -920,6 +941,17 @@ class AppStore extends ChangeNotifier {
 
   bool get isLoggedIn => customer != null;
   Order? get currentOrder => orders.where((o) => o.id == currentOrderId).firstOrNull;
+  Future<bool> setBookingPhotoAi(Order order,bool enabled) async {
+    if(!isLive)throw StateError('AI checks require a paid live booking.');
+    final generation=_accountGeneration;
+    final result=await live!.call('setBookingPhotoAi',{'orderId':order.id,'enabled':enabled,'expectedRevision':order.aiPhotoCheckRevision,'policyVersion':aiPhotoConsentVersion});
+    final current=orders.where((o)=>o.id==order.id).firstOrNull;
+    final revision=(result['revision'] as num).toInt();
+    if(_accountActive&&generation==_accountGeneration&&current!=null&&current.aiPhotoCheckRevision<=revision){
+      current.aiPhotoCheckEnabled=result['enabled']==true;current.aiPhotoCheckRevision=revision;changed();
+    }
+    return result['checkMayHaveStarted']==true;
+  }
   Order? get activeOrder {
     final active = orders.where((o) => o.status.isActive).toList()
       ..sort((a, b) => a.slotAhead == b.slotAhead ? a.slot.start.compareTo(b.slot.start) : (a.slotAhead ? 1 : -1));
@@ -1270,6 +1302,7 @@ class AppStore extends ChangeNotifier {
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
       final booking = <String,dynamic>{
         'requestId': draftRequestId,
+        'cancellationPolicyVersion':2,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,

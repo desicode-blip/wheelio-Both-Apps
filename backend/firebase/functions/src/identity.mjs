@@ -30,7 +30,9 @@ export async function verifyIdentity(service,auth,data){
   const baseline=`kyc/${uid}/selfie.jpg`;
   const read=async path=>{const meta=await service.evidence.metadata(path);if(!meta||!/^image\/(jpeg|png|webp)$/.test(meta.contentType)||Number(meta.size)<=0||Number(meta.size)>8*1024*1024)fail('failed-precondition','A clear approved Captain photo and a fresh selfie are required.');return service.evidence.read(path,meta.generation);};
   let result;
-  try{const [reference,capture]=await Promise.all([read(baseline),read(p.path)]);result=await service.photoChecks.compare(reference,capture);if(!['candidateMatch','review','retake'].includes(result?.status))fail('unavailable','The photo check did not return a result. Try again.');}
+  try{const captain=(await service.db.doc(`captains/${uid}`).get()).data();
+    if(captain?.kycMediaPurgedAt){await read(p.path);result={status:'review',model:'human-review-reference-retired'};}
+    else {const [reference,capture]=await Promise.all([read(baseline),read(p.path)]);result=await service.photoChecks.compare(reference,capture);}if(!['candidateMatch','review','retake'].includes(result?.status))fail('unavailable','The photo check did not return a result. Try again.');}
   catch(error){await service.db.runTransaction(async tx=>{const check=(await tx.get(ref)).data();if(check?.session===p.session&&check.lease===lease&&check.status==='checking')tx.update(ref,{status:'uploading'});});throw error;}
   if(!['candidateMatch','review','retake'].includes(result.status))fail('unavailable','The photo check did not return a result. Try again.');
   const verified=result.status==='candidateMatch';

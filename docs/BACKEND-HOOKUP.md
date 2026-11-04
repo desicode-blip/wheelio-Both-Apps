@@ -9,6 +9,15 @@ current authorization to make sample screens appear to work.
 
 ## Current real integrations
 
+Optional wash-photo AI now requires versioned Customer permission on the booking
+and the assigned Captain's explicit per-check choice. Neither missing permission
+nor a feature flag grants consent. No-permission paths do not read image bytes,
+thumbnail or invoke Gemini; they record current-evidence `manualReview`, and the
+normal Customer review/approval path remains usable. Clients probe the protocol
+read-only before calling an AI action, protecting against an older backend.
+See [the paid-booking toggle record](AI-PHOTO-TOGGLE-2026-11-03.md). No new service or fake
+approval was introduced; existing photo/identity/payment roles stay separate.
+
 Deletion/login recovery now includes least-privilege conditional private-object
 deletion, leased/retryable cleanup, scheduler recovery of existing server-marked
 requests and fresh-auth re-registration. Public coarse discovery stays available
@@ -72,3 +81,8 @@ Minimum warm instances remain zero; no recurring warm-instance cost is approved.
 
 No secret keys, auth tokens, private APNs/upload signing keys, KYC or private
 credential PDFs belong in Git, client defines or shared acceptance reports.
+
+
+## 4 November policy release
+
+See [the current implementation and Mac acceptance guide](POLICY-RELEASE-2026-11-04.md). New bookings use 98/50/0 wallet credit, dated expiring credits, private human-reviewed website deletion requests and scheduled retention. No new service or fake approval/payment was introduced. Native layouts remain preserved; only the existing wallet card gains expiry text. Customer 1.0.4 (9), Captain 1.0.5 (10).

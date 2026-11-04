@@ -7,6 +7,13 @@ React/Next.js, legacy Flutter and Supabase implementations are not build targets
 
 For Aman's Mac/iPhone, start with:
 
+For the initial STORE release, first read
+`docs/STORE-RELEASE-2026-11-03.md` and
+`docs/AMAN-CLAUDE-STORE-PUBLISH-2026-11-03.md`. Aman has approved the tested version
+according to the owner; preserve that functional baseline and the UI. Export
+local App Store IPAs using `archive-ios.sh`; `run-ios.sh` is for device installs.
+Policy/contact/reviewer/screenshot gates must be completed before submission.
+
 1. `docs/AMAN-CLAUDE-IPHONE-RETEST-2026-11-03.md` - current task prompt.
 2. `docs/AMAN-IOS-HANDOFF-2026-11-02.md` - safe pull, prepare, sign/build/install,
    exact role order, current financial rules and native acceptance limits.
@@ -16,7 +23,7 @@ For Aman's Mac/iPhone, start with:
 Run `bash apps/flutter/tool/run-ios.sh --prepare`, then the helper without
 `--prepare` to build/install both Release apps on a trusted physical iPhone.
 Use paid team **28JNT7H8KA** and existing `.customer` / `.captain` bundle IDs.
-Customer source version is **1.0.4 (5)**; Captain is **1.0.5 (6)**. The owner
+Customer source version is **1.0.4 (9)**; Captain is **1.0.5 (10)**. The owner
 confirmed the previous Android flow works; no physical iPhone result is pre-passed.
 
 APNs key **Y5432Q73U8** is already configured for both apps/environments in Firebase.
@@ -46,3 +53,19 @@ Customer/Captain web acceptance is not required. Keep the private admin, website
 backend, tests, canonical design exports and current build tools. Superseded guides
 and duplicate source were removed; do not recover them as competing instructions.
 Commit work and push only when the owner requests it.
+
+
+## Owner decision — 4 November 2026: policy release
+
+The owner explicitly approved implementing Aman's 4 November website handoff
+before publication. Read `docs/POLICY-RELEASE-2026-11-04.md` first. This supersedes
+only the earlier 100% first-five-minute cancellation and undated credit rules:
+NEW bookings snapshot 98% grace credit (2% fee), then 50% at least two hours before
+the window and zero later; service failures remain 100%. Preserve historical
+snapshots/refunds. Credit expires one year after grant, oldest first; restored
+unpaid reservations retain their expiry. Legacy balances get a year from cutover.
+Website deletion requests require private human ownership verification and the
+existing protected role-scoped cleanup. Scheduled retention must preserve open
+disputes and honest manual selfie review when the old KYC reference is purged.
+Current source: Customer 1.0.4 (9), Captain 1.0.5 (10). Do not forward older 8/9
+artifacts as this release. Aman's website changes remain intact.

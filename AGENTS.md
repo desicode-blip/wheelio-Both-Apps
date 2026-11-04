@@ -1,5 +1,21 @@
 # WashKrew - instructions for all coding agents
 
+## Initial store release preparation — 3 November 2026
+
+The owner reports that Aman approved the tested version for the initial release.
+Preserve that functional/UI baseline. For App Store/Play preparation read
+`docs/STORE-RELEASE-2026-11-03.md` and `release/store/PRIVACY-AND-REVIEW.md`.
+Customer is 1.0.4 (9), Captain 1.0.5 (10). Production Android uses `android:store`
+(all three ABIs, R8/resource shrinking, existing private upload key); internal
+bundles are a different profile. Mac App Store export uses `archive-ios.sh`,
+which exports locally and checks signed production entitlements; `run-ios.sh`
+still installs on a device. No store submission is performed by these tools.
+The owner supplied legal name Washkrew, info@washkrew.com and +918088516875.
+Policy drafts and explicit owner/store gates are in `release/store/`; do not
+publish unapproved draft legal text or claim review credentials/screenshots are
+ready without actual evidence. The website/admin remain current; app web
+acceptance is unnecessary. Never touch unrelated TrustKeyper Play apps.
+
 ## Current source and design lock - 28 October 2026
 
 - The owner chose commit **af036f070aa624310b97b8277bfb6aabf9d8c4cc**
@@ -38,6 +54,17 @@
   admin portal remains necessary. Do not change the authored app designs.
 
 ## Latest owner decisions
+
+- 3 November, latest: the owner replaced the pre-checkout consent dialogs with
+  an OFF-by-default, per-paid-booking AI toggle on Customer success/tracking.
+  Its adjacent text identifies Google Vertex AI/Gemini, the four after-wash
+  vehicle photos and visible plates/surroundings. On Captain After photos, ON
+  offers Check with AI and Send without AI; OFF offers direct Send photos.
+  No consent popup remains. Backend ownership/payment/revision checks enforce
+  this, invalidate old results on preference changes and keep normal Customer
+  approval/earnings. Never send Aadhaar, selfies or payout data to this wash AI.
+  See `docs/AI-PHOTO-TOGGLE-2026-11-03.md`. This explicitly replaces the earlier
+  same-day dialog instructions; other designs remain locked.
 
 - Phone OTP uses Firebase's native verification API on Android/iOS and the web
   verification flow only in a browser. Do not add a custom bot-check screen to
@@ -174,3 +201,19 @@ work settings. Private cleanup requires conditional Storage object-delete access
 as well as Auth deletion. Only existing server-owned pending markers authorize
 scheduled recovery; do not manufacture a user sign-in or reapprove a Captain.
 See docs/ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md.
+
+
+## Owner decision — 4 November 2026: policy release
+
+The owner explicitly approved implementing Aman's 4 November website handoff
+before publication. Read `docs/POLICY-RELEASE-2026-11-04.md` first. This supersedes
+only the earlier 100% first-five-minute cancellation and undated credit rules:
+NEW bookings snapshot 98% grace credit (2% fee), then 50% at least two hours before
+the window and zero later; service failures remain 100%. Preserve historical
+snapshots/refunds. Credit expires one year after grant, oldest first; restored
+unpaid reservations retain their expiry. Legacy balances get a year from cutover.
+Website deletion requests require private human ownership verification and the
+existing protected role-scoped cleanup. Scheduled retention must preserve open
+disputes and honest manual selfie review when the old KYC reference is purged.
+Current source: Customer 1.0.4 (9), Captain 1.0.5 (10). Do not forward older 8/9
+artifacts as this release. Aman's website changes remain intact.

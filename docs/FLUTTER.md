@@ -1,6 +1,22 @@
 # Current Flutter apps - 3 November 2026
 
-Latest lifecycle fix: Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clear private
+Store preparation: Customer **1.0.4 (8)** / Captain **1.0.5 (9)** preserve the
+accepted app UI and functionality. Production Android builds use all three ABIs,
+R8/resource shrinking and the private existing upload key. App backup is disabled
+to avoid restoring private role state on reinstall. iOS Runner resources include
+source-based privacy manifests; `archive-ios.sh` exports local App Store IPAs and
+checks the signed distribution/APNs/team/package/SDK, preserving archives/dSYMs.
+See [the store guide](STORE-RELEASE-2026-11-03.md). Metadata/policy drafts and
+explicit publication gates live in `release/store/`; no store submission is
+performed by the build tools. Policies still need owner review and deployment.
+
+The latest owner-approved UI exception replaces consent popups with a paid-booking
+AI toggle (default OFF) on Customer success/tracking. Captain ON offers Check with
+AI or Send without AI; OFF sends directly. Checkout has no AI dialog. Both roles
+use the existing switch/card/button design language. See
+[AI-PHOTO-TOGGLE-2026-11-03.md](AI-PHOTO-TOGGLE-2026-11-03.md).
+
+The lifecycle fix introduced in Customer **1.0.4 (5)** / Captain **1.0.5 (6)** clears private
 state and navigation on removal, wait for fresh active-role server snapshots and
 support same-phone signup without restoring old KYC, approval or saved settings.
 See [the lifecycle recovery report](ACCOUNT-LIFECYCLE-RECOVERY-2026-11-03.md).
@@ -12,6 +28,11 @@ QA previews of this same source; native acceptance does not require a web releas
 The private Captain admin and marketing website remain separate current products.
 
 ## Build and checks
+
+Android internal builds select arm64 for both Flutter AOT/engine and the release
+build-type NDK filter. This also filters plugin libraries; leaving Flutter 3.38's
+three default build-type filters would advertise unsupported architectures with
+no matching engine. Normal production release/debug/profile filters are unchanged.
 
 Use Flutter **3.38.6 / Dart 3.10.7**. Keep both app lockfiles. Root `pnpm typecheck`
 and `pnpm test` run the two apps and both shared packages. Native iPhone builds
@@ -77,3 +98,8 @@ The previous Play builds remain Customer 1.0.2 (3) / Captain 1.0.3 (4); source
 version changes do not automatically update installed apps. Mac builds, signing,
 physical camera/GPS/APNs, UPI app switching and end-to-end iPhone acceptance
 remain to be observed and recorded. Never label source tests as device acceptance.
+
+
+## 4 November policy release
+
+See [the current implementation and Mac acceptance guide](POLICY-RELEASE-2026-11-04.md). New bookings use 98/50/0 wallet credit, dated expiring credits, private human-reviewed website deletion requests and scheduled retention. No new service or fake approval/payment was introduced. Native layouts remain preserved; only the existing wallet card gains expiry text. Customer 1.0.4 (9), Captain 1.0.5 (10).

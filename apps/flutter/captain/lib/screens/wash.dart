@@ -216,6 +216,25 @@ class _JobPhotosScreenState extends State<JobPhotosScreen> {
   bool busy=false;
   bool get after=>widget.after;
 
+  Future<void> _send({required bool checkAi}) async {
+    if(busy)return;
+    final store=context.store,router=context.router;
+    setState(()=>busy=true);
+    try{
+      if(store.isLive){
+        try{
+          if(checkAi){
+            final issues=await store.liveCheckPhotos(aiAllowed:true);
+            if(!mounted)return;
+            if(issues.isNotEmpty){router.go(N.aiCheck);return;}
+          }
+          await store.liveProgress('finish',skipPhotoAi:!checkAi);
+        }catch(_){return;}
+        if(mounted)router.go(N.uploading);
+      }else{router.go(store.aiFlag?N.aiCheck:N.uploading);}
+    }finally{if(mounted)setState(()=>busy=false);}
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
@@ -241,26 +260,13 @@ class _JobPhotosScreenState extends State<JobPhotosScreen> {
       header: WHeader(title: store.current.plate),
       footer: WFooter(
         child: after
-            ? WButton(store.t('Check photos', 'फ़ोटो जाँचें', 'ఫోటోలు తనిఖీ చేయండి'), size: ButtonSize.captain, loading:busy, enabled: done.length == 4&&!busy, onTap: () async {
-                if(busy)return;
-                setState(()=>busy=true);
-                try{
-                // Real, advisory photo review; the owner still decides approval.
-                if (store.isLive) {
-                  try {
-                    final issues=await store.liveCheckPhotos();
-                    if(!mounted)return;
-                    if(issues.isNotEmpty){router.go(N.aiCheck);return;}
-                    await store.liveProgress('finish');
-                  } catch (_) {
-                    return;
-                  }
-                  if(mounted)router.go(N.uploading);
-                  return;
-                }
-                router.go(store.aiFlag ? N.aiCheck : N.uploading);
-                }finally{if(mounted)setState(()=>busy=false);}
-              })
+            ? Column(mainAxisSize:MainAxisSize.min,children:[
+                WButton(store.isLive?(store.customerAllowsPhotoAi?store.t('Check with AI','AI से जाँचें','AI తో తనిఖీ చేయండి'):store.t('Send photos','फ़ोटो भेजें','ఫోటోలు పంపండి')):store.t('Check photos','फ़ोटो जाँचें','ఫోటోలు తనిఖీ చేయండి'),size:ButtonSize.captain,loading:busy,enabled:done.length==4&&!busy,onTap:()=>_send(checkAi:!store.isLive||store.customerAllowsPhotoAi)),
+                if(store.isLive&&store.customerAllowsPhotoAi)...[
+                  const SizedBox(height:10),
+                  WButton(store.t('Send without AI','AI के बिना भेजें','AI లేకుండా పంపండి'),kind:ButtonKind.outline,size:ButtonSize.captain,enabled:done.length==4&&!busy,onTap:()=>_send(checkAi:false)),
+                ],
+              ])
             : WButton(store.t('Next', 'आगे', 'తదుపరి'), size: ButtonSize.captain, loading:busy, enabled: done.length == 4&&!busy, onTap: () async {
                 if(busy)return;
                 setState(()=>busy=true);
@@ -583,7 +589,7 @@ class _AiCheckScreenState extends State<AiCheckScreen>{
           ),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: WLink(sending?'Sending photos…':store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap:sending?null:() async {setState(()=>sending=true);try{if(store.isLive){try{await store.liveProgress('finish',acknowledgePhotoIssues:true);}catch(_){return;}}if(mounted)router.swapTop(const R(N.uploading));}finally{if(mounted)setState(()=>sending=false);}}),
+            child: WLink(sending?'Sending photos…':store.t('It’s clean, send anyway', 'साफ़ है, फिर भी भेजें', 'శుభ్రంగా ఉంది, అయినా పంపండి'), onTap:sending?null:() async {setState(()=>sending=true);try{if(store.isLive){try{await store.liveProgress('finish',acknowledgePhotoIssues:true,skipPhotoAi:true);}catch(_){return;}}if(mounted)router.swapTop(const R(N.uploading));}finally{if(mounted)setState(()=>sending=false);}}),
           ),
         ]),
       ),

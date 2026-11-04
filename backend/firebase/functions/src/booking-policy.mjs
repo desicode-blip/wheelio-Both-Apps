@@ -15,10 +15,11 @@ export function cancellationPolicy(config) {
   if (p?.kind === 'walletByTime') {
     if (!Number.isSafeInteger(p.creditMinutes) || p.creditMinutes < 0 || p.creditMinutes > 60 ||
         !Number.isSafeInteger(p.cutoffMinutes) || p.cutoffMinutes < 0 || p.cutoffMinutes > 1440 ||
+        (p.earlyCreditBps !== undefined && (!Number.isSafeInteger(p.earlyCreditBps) || p.earlyCreditBps < 0 || p.earlyCreditBps > 10000)) ||
         !Number.isSafeInteger(p.lateCreditBps) || p.lateCreditBps < 0 || p.lateCreditBps > 10000 || p.serviceFailure !== 'wallet') {
       throw new Error('Cancellation policy is not configured.');
     }
-    return {kind:'walletByTime',creditMinutes:p.creditMinutes,cutoffMinutes:p.cutoffMinutes,lateCreditBps:p.lateCreditBps,serviceFailure:'wallet'};
+    return {kind:'walletByTime',...(p.earlyCreditBps!==undefined?{earlyCreditBps:p.earlyCreditBps}:{}),creditMinutes:p.creditMinutes,cutoffMinutes:p.cutoffMinutes,lateCreditBps:p.lateCreditBps,serviceFailure:'wallet'};
   }
   if (p?.kind === 'refundThenCredit') {
     if (!Number.isSafeInteger(p.refundMinutes) || p.refundMinutes < 0 || p.refundMinutes > 60 ||
@@ -63,7 +64,7 @@ export function cancellationBenefit(order, now) {
       throw new Error('Cancellation timing could not be confirmed. Please retry.');
     }
     // Five-minute grace wins even for a booking starting in less than two hours.
-    if (now-confirmed <= p.creditMinutes*60000) return walletBenefit(order,total,'fullCredit');
+    if (now-confirmed <= p.creditMinutes*60000) return walletBenefit(order,Math.floor(total*(p.earlyCreditBps??10000)/10000),'fullCredit');
     // Exactly two hours before the confirmed window is still eligible for 50%.
     if (now <= start-p.cutoffMinutes*60000) return walletBenefit(order,Math.floor(total*p.lateCreditBps/10000),'partialCredit');
     return walletBenefit(order,0,'noCredit');

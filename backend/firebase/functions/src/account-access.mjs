@@ -1,4 +1,4 @@
-const customerMethods = new Set(['createWalletTopup','verifyWalletTopup','checkWalletTopup','checkAddress','createBooking','checkout','verifyPayment','checkPayment','customerPhoto','customerMedia','approve','rate','cancel','getCancellationQuote','reportProblem','savePlace','createDocument']);
+const customerMethods = new Set(['getWallet','setBookingPhotoAi','createWalletTopup','verifyWalletTopup','checkWalletTopup','checkAddress','createBooking','checkout','verifyPayment','checkPayment','customerPhoto','customerMedia','approve','rate','cancel','getCancellationQuote','reportProblem','savePlace','createDocument']);
 const captainMethods = new Set(['saveCaptainArea','captainOnline','captainPreferences','captainPosition','submitCaptainApplication','startTraining','trainingHeartbeat','submitQuiz','beginIdentity','verifyIdentity','checkWashPhotos','captainPayout','claim','reject','progress','evidenceUploaded','location','captainDisputeResponse']);
 
 // Cached tokens from a removed role cannot recreate app data. Registering that

@@ -82,7 +82,7 @@ export async function reviewCaptainApplication(service,auth,data){
     const [snapshot,config,profile]=await Promise.all([tx.get(ref),tx.get(service.db.doc('config/operations')),tx.get(service.db.doc(`users/${id}`))]);
     const c=snapshot.data(),cfg=config.data();
     if(!c||!profile.exists||c.deletionStatus||profile.data()?.deletionStatus||profile.data()?.deletingRole==='captain')fail('failed-precondition','This Captain account is unavailable.');
-    if(c.kycStatus!=='underReview'||c.approved===true)fail('failed-precondition','Only a submitted application awaiting review can be decided.');
+    if(c.kycRetentionStatus==='purging'||c.kycStatus!=='underReview'||c.approved===true)fail('failed-precondition','Only a submitted application awaiting review can be decided.');
     if(version(snapshot)!==data.expectedVersion)fail('aborted','The application changed. Refresh and review the latest details.');
     if(decision==='approve'){
       if(metadata.some(m=>!validImage(m)))fail('failed-precondition','Both identity and selfie uploads are required.');
@@ -93,7 +93,7 @@ export async function reviewCaptainApplication(service,auth,data){
       if(cfg.training?.required&&(!cfg.training.version||c.trainingVersion!==cfg.training.version||!c.trainingCompletedAt||!c.quizPassedAt))fail('failed-precondition','The current approved training and quiz must be completed first.');
     }
     tx.update(ref,{approved:decision==='approve',kycStatus:decision==='approve'?'approved':'changesRequested',online:false,
-      ...(decision==='approve'?{societyIds,approvedAt:stamp(),approvedBy:reviewer.email,payoutReviewedAt:stamp()}:{}),
+      ...(decision==='approve'?{societyIds,approvedAt:stamp(),approvedBy:reviewer.email,retentionDueAt:new Date(service.now()+90*86400000),payoutReviewedAt:stamp()}:{}),
       reviewReason:reason,reviewIssues:decision==='approve'?[]:[...new Set(issues)],reviewedAt:stamp(),reviewedBy:reviewer.email,updatedAt:stamp()});
     signal(tx,service);
     tx.create(ref.collection('applicationReviews').doc(reviewId),{decision,reason,issues:decision==='approve'?[]:issues,societyIds:decision==='approve'?societyIds:[],reviewer,previousVersion:data.expectedVersion,identityReviewed:data.identityReviewed===true,payoutReviewed:data.payoutReviewed===true,createdAt:stamp()});

@@ -1493,18 +1493,22 @@ class CaptainStore extends ChangeNotifier {
   Future<void> liveReject(String orderId) => _call(() => live!.call('rejectJob', {'orderId': orderId}));
   List<Map<String,dynamic>> get photoReviewIssues=>[for(final i in liveOrder(current.id)?['photoReview']?['issues'] as List? ?? [])Map<String,dynamic>.from(i as Map)];
   int get photoReviewSide=>photoReviewIssues.firstOrNull?['side'] as int? ?? 0;
-  Future<List<dynamic>> liveCheckPhotos()=>_call(()async{
+  bool get customerAllowsPhotoAi {
+    final consent=liveOrder(current.id)?['aiPhotoConsent']?['customer'];
+    return consent is Map && consent['allowed']==true && consent['version']==aiPhotoConsentVersion;
+  }
+  Future<List<dynamic>> liveCheckPhotos({bool aiAllowed=false})=>_call(()async{
     await flushEvidence(true);
-    final id=current.id,result=await live!.reviewWashPhotos(current.id);
+    final id=current.id,result=await live!.reviewWashPhotos(current.id,aiAllowed:aiAllowed);
     if(liveOrders[id]!=null){liveOrders[id]!['photoReview']={...liveOrders[id]!['photoReview'] as Map? ?? {},'status':result['status'],'issues':result['issues']??[]};changed();}
     return result['issues'] as List? ?? [];
   });
-  Future<void> liveProgress(String action,{bool acknowledgePhotoIssues=false}) async {
+  Future<void> liveProgress(String action,{bool acknowledgePhotoIssues=false,bool skipPhotoAi=false}) async {
     final orderId=current.id;
     if(orderId.isEmpty)throw StateError('Open your assigned job first.');
     _workflowOrderId=orderId;
     if(action=='start'||action=='finish')await flushEvidence(action=='finish');
-    await _call(() => live!.call('updateWashProgress', {'orderId':orderId, 'action': action,if(action=='finish')'acknowledgePhotoIssues':acknowledgePhotoIssues}));
+    await _call(() => live!.call('updateWashProgress', {'orderId':orderId, 'action': action,if(action=='finish')'acknowledgePhotoIssues':acknowledgePhotoIssues,if(action=='finish'&&skipPhotoAi)...{'skipPhotoAi':true,'aiPhotoConsent':false,'aiPhotoConsentVersion':aiPhotoConsentVersion}}));
   }
   Future<void> liveVehicleHelp(String reason)=>_call(()=>live!.call('updateVehicleHelp',{'orderId':current.id,'action':'request','value':reason}));
   Future<void> liveEvidence({required bool after, required int side, required Uint8List bytes}) =>

@@ -29,6 +29,7 @@ service firebase.storage {
     match /orders/{orderId}/problems/{file} {
       allow read: if signedIn() && (order(orderId).customerId == request.auth.uid || order(orderId).captainId == request.auth.uid);
       allow create, update: if signedIn() && order(orderId).customerId == request.auth.uid && order(orderId).status in ['photosReady', 'approved']
+        && !order(orderId).keys().hasAny(['mediaRetentionStatus'])
         && file in [request.auth.uid + '_0.jpg', request.auth.uid + '_1.jpg', request.auth.uid + '_2.jpg'] && photo();
       allow delete: if false;
     }
@@ -57,6 +58,7 @@ service firebase.storage {
     match /kyc/{uid}/{file} {
       allow read: if signedIn() && uid == request.auth.uid;
       allow create, update: if signedIn() && uid == request.auth.uid && activeRole('captain') && file.matches('(aadhaar|selfie|bank)\\.jpg') && photo()
+        && firestore.get(/databases/(default)/documents/captains/$(uid)).data.get('kycRetentionStatus', '') != 'purging'
         && firestore.get(/databases/(default)/documents/captains/$(uid)).data.kycStatus in ['notSubmitted', 'changesRequested'];
       allow delete: if false;
     }

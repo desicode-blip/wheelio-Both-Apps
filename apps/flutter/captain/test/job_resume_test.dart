@@ -72,7 +72,7 @@ void main(){
       store.receiveLiveOrders('captain',[saved]);
       await tester.pumpWidget(CaptainApp(store:store));await settle(tester);
       expect(find.byType(JobPhotosScreen),findsOneWidget);
-      expect(find.text('After photos'),findsOneWidget);expect(find.text('Check photos'),findsOneWidget);
+      expect(find.text('After photos'),findsOneWidget);expect(find.text('Send photos'),findsOneWidget);
       expect(find.text('Show your face'),findsNothing);expect(store.afterDone,{0,1,2,3});
       await tester.pumpWidget(const SizedBox());await tester.pump();
     }

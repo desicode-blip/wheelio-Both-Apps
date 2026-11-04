@@ -4,8 +4,14 @@
       "collectionGroup": "walletTopups",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "customerId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "customerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
@@ -142,6 +148,12 @@
   "fieldOverrides": [
     {
       "collectionGroup": "placeLookupLimits",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "deletionRequestLimits",
       "fieldPath": "expiresAt",
       "ttl": true,
       "indexes": []

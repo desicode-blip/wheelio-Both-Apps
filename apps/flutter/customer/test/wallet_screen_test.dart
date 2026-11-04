@@ -62,6 +62,7 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       final s = WalletFixture()
+            ..walletCreditLots = [{'amountPaise':7450,'addedAt':DateTime(2026).millisecondsSinceEpoch,'expiresAt':DateTime(2030,11,4).millisecondsSinceEpoch}]
             ..customer = (Customer(id: 'wallet-owner', phone: '')
               ..credit = 74.5),
           r = AppRouter();
@@ -77,6 +78,7 @@ void main() {
       );
       expect(find.text('₹74.50'), findsOneWidget);
       expect(find.text('Top up ₹74.50'), findsOneWidget);
+      expect(find.textContaining('expires Mon, 4 Nov 2030'), findsOneWidget);
       await proof.capture(tester, 'wallet');
       await tester.enterText(find.byType(TextField), '0.50');
       await tester.pump();

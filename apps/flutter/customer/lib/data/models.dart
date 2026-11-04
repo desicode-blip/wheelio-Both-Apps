@@ -329,7 +329,12 @@ String cancellationPolicyText(Map<String, dynamic> policy) {
     final percent = (policy['lateCreditBps'] as num) / 100;
     final h = hours == hours.roundToDouble() ? hours.toInt().toString() : hours.toString();
     final p = percent == percent.roundToDouble() ? percent.toInt().toString() : percent.toString();
-    return 'Within $minutes min of confirmation: 100% wallet credit. Later: $p% at least $h hours before your wash window; 0% inside $h hours. No bank refund.';
+    final early = (policy['earlyCreditBps'] as num? ?? 10000) / 100;
+    final e = early == early.roundToDouble() ? early.toInt().toString() : early.toString();
+    final fee = 100 - early;
+    final feeLabel = fee == fee.roundToDouble() ? fee.toInt().toString() : fee.toString();
+    final earlyFee = early < 100 ? ' ($feeLabel% fee)' : '';
+    return 'Within $minutes min of confirmation: $e% wallet credit$earlyFee. Later: $p% at least $h hours before your wash window; 0% inside $h hours. No bank refund.';
   }
   return 'Full refund within ${policy['refundMinutes']} minutes of confirmation. Later: 50% fee, 50% to your wallet.';
 }
@@ -340,6 +345,9 @@ class Order {
   /// Captain's photo for one side (0 front, 1 back, 2 left, 3 right), stage 'before' or 'after'.
   String? evidence(String stage, int side) => evidencePaths['${stage}_$side'];
   String paymentStatus = 'unpaid';
+  bool aiPhotoCheckEnabled = false;
+  int aiPhotoCheckRevision = 0;
+  bool aiPhotoCheckStarted = false;
   String refundStatus = 'none';
     String? cancellationReason;
   bool testPayment = false;
