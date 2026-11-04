@@ -204,7 +204,7 @@ a { color: var(--primary); }
 .footer-contact span { color: var(--on-dark-muted); font-size: 13px; }
 .footer-brand img { height: 56px; width: auto; }
 .footer-about { margin-top: 16px; font-size: 15px; line-height: 24px; max-width: 30ch; }
-.footer-label { font-size: 15px; line-height: 20px; font-weight: 500; color: var(--on-dark); margin-bottom: 12px; }
+.footer-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--on-dark-muted); margin-bottom: 14px; }
 .socials { margin-top: 24px; }
 .social-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .social {
@@ -400,6 +400,8 @@ a.contact-card:hover { border-color: var(--primary); }
 .choice-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .choice { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 1px solid var(--border); border-radius: var(--r-button); background: var(--white); font-weight: 400 !important; cursor: pointer; }
 .choice:has(input:checked) { background: var(--primary-tint); border: 2px solid var(--primary); padding: 0 15px; }
+.delete-form .choice { padding: 0 16px; }
+.delete-form .choice:has(input:checked) { padding: 0 15px; }
 .choice input, .check input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400 !important; color: var(--body) !important; line-height: 22px !important; cursor: pointer; }
 .check input { margin-top: 2px; }
@@ -428,4 +430,12 @@ a.contact-card:hover { border-color: var(--primary); }
   .delete-form { padding: 20px 16px; }
   .btn-danger { justify-self: stretch; }
   .policy-table tbody th { width: auto; }
+}
+
+/* A new policy page eases in from the top, so it is clear something new has opened. */
+@keyframes page-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.policy-page .policy-hero, .policy-page .policy-layout { animation: page-in 300ms var(--ease) both; }
+.policy-page .policy-layout { animation-delay: 60ms; }
+@media (prefers-reduced-motion: reduce) {
+  .policy-page .policy-hero, .policy-page .policy-layout { animation: none; }
 }
