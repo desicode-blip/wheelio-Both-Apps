@@ -29,10 +29,10 @@
     "policyTextApproved": true,
     "supportMailboxAndPhoneVerified": true,
     "retentionAndPhotoProcessingReviewed": true,
-    "storePrivacyAnswersReviewed": false,
+    "storePrivacyAnswersReviewed": true,
     "reviewerAccessConfirmedPrivately": false,
-    "currentStoreScreenshotsReady": false,
-    "ageRatingAndAudienceConfirmed": false
+    "currentStoreScreenshotsReady": true,
+    "ageRatingAndAudienceConfirmed": true
   },
   "apps": {
     "customer": {
@@ -59,6 +59,7 @@
   "approvalNotes": {
     "2026-11-03": "Aman confirmed the Noida registered office, info@washkrew.com and +91 80885 16875 as monitored (phone 24/7, email replies within 6 hours), the retention periods and the 90-day deletion timeline, and asked Claude to write the final policies. Aman reviews the preview before the push to staging. Age rating/audience, store privacy answers, reviewer access and screenshots remain open.",
     "2026-11-04": "Aman: info@washkrew.com final; Grievance Officer shown as \"Aman\"; customer cancellation rule: 98% credit within 5 minutes, 50% if at least 2 hours before the wash window, none later; wallet credit expires after one year; full or masked Aadhaar accepted.",
-    "2026-11-04 (later)": "Aman changed the cancellation rule: 98% within 5 minutes, then 50% until 2 hours before the wash window, then nothing."
+    "2026-11-04 (later)": "Aman changed the cancellation rule: 98% within 5 minutes, then 50% until 2 hours before the wash window, then nothing.",
+    "2026-11-05": "iOS submitted to App Review 5 Nov ~01:05 IST by Aman (via Claude): WashKrew 1.0.4 (10), WashKrew Captain 1.0.5 (11), iPhone-only, Free, India only, 18+, manual release. Privacy answers published after Aman's review. Screenshots from Aman's iPhone with personal details blurred. Review sign-in uses the two owner-authorized Firebase test numbers (kept only in App Store Connect's private review fields). Aman chose to skip approving the Captain test account; review notes state it is an unapproved Captain and offer approval on request. reviewerAccessConfirmedPrivately stays false until that account is approved."
   }
 }
