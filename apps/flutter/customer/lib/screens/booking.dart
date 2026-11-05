@@ -10,6 +10,7 @@ import '../data/models.dart';
 import '../data/booking_availability.dart';
 import '../data/place_search.dart';
 import '../data/store.dart';
+import 'sticky_list.dart';
 import 'common.dart';
 
 // MARK: C05 Vehicle type (C52: 200% text)
@@ -33,53 +34,45 @@ class VehiclePickScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     return WScreen(
+      scrolls: false,
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
       children: [
-        const WTitleBlock('Which vehicle?', subtitle: 'Pick a saved vehicle, or add another one.'),
-        for (final v in store.myVehicles) ...[
-          WCard(
-            radius: 16,
-            onTap: () {
-              store.pickVehicleForBooking(v);
-              router.go(N.washType);
-            },
-            child: Row(
-              children: [
-                WIconBox(v.type.icon, size: 48),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: StickyActionList(
+            header: const [WTitleBlock('Which vehicle?', subtitle: 'Pick a saved vehicle, or add a new one.')],
+            items: [
+              for (final v in store.myVehicles) ...[
+                WCard(
+                  radius: 16,
+                  onTap: () {
+                    store.pickVehicleForBooking(v);
+                    router.go(N.washType);
+                  },
+                  child: Row(
                     children: [
-                      VehiclePlate(v.plate),
-                      const SizedBox(height: 6),
-                      WText(v.type.shortName, WType.caption),
+                      WIconBox(v.type.icon, size: 48),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            VehiclePlate(v.plate),
+                            const SizedBox(height: 6),
+                            WText(v.type.shortName, WType.caption),
+                          ],
+                        ),
+                      ),
+                      const WIconView(WIcon.chevron, size: 14, color: WColor.secondary),
                     ],
                   ),
                 ),
-                const WIconView(WIcon.chevron, size: 14, color: WColor.secondary),
+                const SizedBox(height: 12),
               ],
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-        Pressable(
-          onTap: () {
-            store.startNewBooking();
-            router.go(N.vehicleType);
-          },
-          child: const DashedBorder(
-            child: SizedBox(
-              height: 62,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  WIconView(WIcon.plus, size: 16, color: WColor.primaryStrong, weight: semibold),
-                  SizedBox(width: 10),
-                  WText('Add another vehicle', WType.title, color: WColor.primaryStrong),
-                ],
-              ),
-            ),
+            ],
+            action: AddVehicleButton(onTap: () {
+              store.startNewBooking();
+              router.go(N.vehicleType);
+            }),
           ),
         ),
       ],

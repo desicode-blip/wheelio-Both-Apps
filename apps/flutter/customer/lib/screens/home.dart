@@ -8,6 +8,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../data/models.dart';
 import '../data/store.dart';
 import 'booking.dart';
+import 'sticky_list.dart';
 import 'common.dart';
 
 // MARK: Tabs
@@ -973,13 +974,20 @@ class VehiclesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    return TabScroll(
-      children: [
-        const SizedBox(height: 20),
-        const WText('Your vehicles', WType.screen),
-        const SizedBox(height: 12),
-        WText('${store.myVehicles.length} saved · tap one to book', WType.caption),
-        const SizedBox(height: 18),
+    // v2 CU-VEHICLE: list with a sticky "Add new vehicle" button.
+    return ColoredBox(
+      color: WColor.canvas,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(WSpace.gutter, MediaQuery.paddingOf(context).top, WSpace.gutter, 0),
+        child: StickyActionList(
+          header: [
+            const SizedBox(height: 20),
+            const WText('Your vehicles', WType.screen),
+            const SizedBox(height: 12),
+            WText('${store.myVehicles.length} saved · tap one to book', WType.caption),
+            const SizedBox(height: 18),
+          ],
+          items: [
         for (final v in store.myVehicles) ...[
           WCard(
             radius: 16,
@@ -1007,26 +1015,13 @@ class VehiclesTab extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
-        Pressable(
-          onTap: () {
+          ],
+          action: AddVehicleButton(onTap: () {
             store.startAddVehicle();
             router.go(N.vehicleType);
-          },
-          child: const DashedBorder(
-            child: SizedBox(
-              height: 62,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  WIconView(WIcon.plus, size: 16, color: WColor.primaryStrong, weight: semibold),
-                  SizedBox(width: 10),
-                  WText('Add a vehicle', WType.title, color: WColor.primaryStrong),
-                ],
-              ),
-            ),
-          ),
+          }),
         ),
-      ],
+      ),
     );
   }
 }
