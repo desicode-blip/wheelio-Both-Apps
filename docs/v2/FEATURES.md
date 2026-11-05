@@ -114,3 +114,4 @@ How to use this map:
 | 5 Nov | CU-APPROVE | (i) explanation on AI wash photo check (stays OFF) | [CU-APPROVE.md](CU-APPROVE.md) | built |
 | 5 Nov | SH-NOTIFY | Ask once after install in both apps; Open Settings if refused | [SH-NOTIFY.md](SH-NOTIFY.md) | built |
 | 5 Nov | CU-VEHICLE | Add/edit vehicles + optional photos, kept on the phone; Which vehicle? at booking start | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
+| 5 Nov | CU-VEHICLE | Vehicle + wash on one screen; washes and prices expand under the chosen vehicle (C05) | [CU-VEHICLE.md](CU-VEHICLE.md) | built |

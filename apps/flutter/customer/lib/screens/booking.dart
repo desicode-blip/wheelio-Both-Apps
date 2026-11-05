@@ -90,10 +90,23 @@ class VehicleTypeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final next = WButton('Next', enabled: store.draft.type != null, onTap: () => router.go(store.draft.editing == RepeatEdit.vehicle || store.draft.addingVehicle ? N.vehicleNumber : N.washType));
+    // v2 CU-VEHICLE (5 Nov, Aman): a new booking asks vehicle and wash on one screen.
+    // No price on the vehicles; the chosen vehicle opens its washes, with the price,
+    // right below it. Add a vehicle, Book again's "Change vehicle" and the large-text
+    // layout (C52) keep the vehicle-only screen.
+    final merged = !large && !store.draft.addingVehicle && store.draft.editing != RepeatEdit.vehicle;
+    final selected = store.draft.type;
+    final wash = store.draft.wash;
+    final washOk = wash != null && wash.available && WashKind.options(selected?.kind).contains(wash);
+    final next = WButton('Next', enabled: selected != null && (!merged || washOk), onTap: () => router.go(store.draft.editing == RepeatEdit.vehicle || store.draft.addingVehicle || merged ? N.vehicleNumber : N.washType));
+    void pickType(VehicleType t) => store.set(() {
+      store.draft.type = t;
+      final w = store.draft.wash;
+      if (w == null || !w.available || !WashKind.options(t.kind).contains(w)) store.draft.wash = WashKind.wetOutside;
+    });
     return OnAppear(
       onAppear: () {
-        if (store.draft.type == null && !large) store.set(() => store.draft.type = VehicleType.all[1]);
+        if (store.draft.type == null && !large && !merged) store.set(() => store.draft.type = VehicleType.all[1]);
       },
       child: TextScale(
         scale: large ? 1.6 : 1,
@@ -109,7 +122,10 @@ class VehicleTypeScreen extends StatelessWidget {
                 )
               : WFooterBar(showCall: false, child: next),
           children: [
-            WTitleBlock(store.draft.addingVehicle ? 'What kind of vehicle?' : 'What are we washing?', subtitle: large ? null : store.draft.addingVehicle ? 'Save it once. Book a wash for it any time.' : 'Pick your vehicle. You choose the wash next.'),
+            WTitleBlock(
+              store.draft.addingVehicle ? 'What kind of vehicle?' : merged ? 'What should we wash?' : 'What are we washing?',
+              subtitle: large ? null : store.draft.addingVehicle ? 'Save it once. Book a wash for it any time.' : merged ? 'Pick your vehicle to see the washes and prices.' : 'Pick your vehicle. You choose the wash next.',
+            ),
             for (final t in large ? VehicleType.all.take(2) : VehicleType.all) ...[
               if (large)
                 // C52: at 200% text the tile stacks so nothing is cut off.
@@ -139,12 +155,23 @@ class VehicleTypeScreen extends StatelessWidget {
                   icon: t.icon,
                   title: t.name,
                   // v2 CU-VEHICLE: adding a vehicle is not a booking, so no time or price.
-                  subtitle: store.draft.addingVehicle ? null : 'About ${t.minutes} min',
-                  trailing: store.draft.addingVehicle ? null : Fmt.rupees(t.price),
+                  subtitle: store.draft.addingVehicle || merged ? null : 'About ${t.minutes} min',
+                  trailing: store.draft.addingVehicle || merged ? null : Fmt.rupees(t.price),
                   selected: store.draft.type == t,
-                  onTap: () => store.set(() => store.draft.type = t),
+                  onTap: () => merged ? pickType(t) : store.set(() => store.draft.type = t),
                 ),
               const SizedBox(height: 12),
+              // The chosen vehicle opens its washes right below it.
+              if (merged && selected == t) ...[
+                for (final w in WashKind.options(t.kind)) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: WashOptionCard(wash: w, isBike: t.kind == VehicleKind.bike, price: t.price),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                const SizedBox(height: 8),
+              ],
             ],
           ],
         ),
@@ -181,71 +208,91 @@ class WashTypeScreen extends StatelessWidget {
             subtitle: 'Same price for every option${store.draft.type != null ? ': ${Fmt.rupees(store.draft.type!.price)}' : ''}.',
           ),
           for (final w in options) ...[
-            Opacity(
-              opacity: w.available ? 1 : 0.7,
-              child: Pressable(
-                onTap: () {
-                  if (w.available) {
-                    store.set(() => store.draft.wash = w);
-                  } else {
-                    showWAlert(
-                      context,
-                      title: 'Not available in your society yet',
-                      message: 'Inside cleaning isn’t offered in your society right now. We’ll let you know when it is.',
-                    );
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: outlinedDecoration(
-                    radius: 16,
-                    fill: store.draft.wash == w ? WColor.primaryTint : WColor.white,
-                    stroke: store.draft.wash == w ? WColor.primary : WColor.border,
-                    width: store.draft.wash == w ? 2 : 1,
-                  ),
-                  child: Row(
-                    children: [
-                      WIconBox(w.icon, size: 48, tone: w.available ? Tone.info : Tone.mute),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            WText(w.name(isBike), WType.title),
-                            const SizedBox(height: 2),
-                            WText(w.detail(isBike), WType.caption),
-                            if (!w.available)
-                              const Padding(
-                                padding: EdgeInsets.only(top: 2),
-                                child: WText('Not in your society yet', WType.label, color: WColor.secondary),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Pressable(
-                        label: 'See what ${w.name(isBike)} means',
-                        onTap: () => showWAlert(
-                          context,
-                          title: 'Video coming soon',
-                          message: 'We’re making a short video that shows this wash. For now, pick the one you like and carry on.',
-                        ),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(shape: BoxShape.circle, color: store.draft.wash == w ? Colors.transparent : WColor.primaryTint),
-                          alignment: Alignment.center,
-                          child: const WIconView(WIcon.eye, size: 18, color: WColor.primaryStrong),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            WashOptionCard(wash: w, isBike: isBike),
             const SizedBox(height: 12),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// One wash option: icon, name, detail and the video eye. v2 CU-VEHICLE: also used
+/// inside the merged vehicle + wash screen (C05), where its price is shown too.
+class WashOptionCard extends StatelessWidget {
+  const WashOptionCard({super.key, required this.wash, required this.isBike, this.price});
+  final WashKind wash;
+  final bool isBike;
+  final num? price;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final w = wash;
+    return Opacity(
+      opacity: w.available ? 1 : 0.7,
+      child: Pressable(
+        onTap: () {
+          if (w.available) {
+            store.set(() => store.draft.wash = w);
+          } else {
+            showWAlert(
+              context,
+              title: 'Not available in your society yet',
+              message: 'Inside cleaning isn’t offered in your society right now. We’ll let you know when it is.',
+            );
+          }
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: outlinedDecoration(
+            radius: 16,
+            fill: store.draft.wash == w ? WColor.primaryTint : WColor.white,
+            stroke: store.draft.wash == w ? WColor.primary : WColor.border,
+            width: store.draft.wash == w ? 2 : 1,
+          ),
+          child: Row(
+            children: [
+              WIconBox(w.icon, size: 48, tone: w.available ? Tone.info : Tone.mute),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    WText(w.name(isBike), WType.title),
+                    const SizedBox(height: 2),
+                    WText(w.detail(isBike), WType.caption),
+                    if (!w.available)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: WText('Not in your society yet', WType.label, color: WColor.secondary),
+                      ),
+                  ],
+                ),
+              ),
+              if (price != null) ...[
+                const SizedBox(width: 8),
+                WText(Fmt.rupees(price!), WType.title),
+              ],
+              const SizedBox(width: 8),
+              Pressable(
+                label: 'See what ${w.name(isBike)} means',
+                onTap: () => showWAlert(
+                  context,
+                  title: 'Video coming soon',
+                  message: 'We’re making a short video that shows this wash. For now, pick the one you like and carry on.',
+                ),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: store.draft.wash == w ? Colors.transparent : WColor.primaryTint),
+                  alignment: Alignment.center,
+                  child: const WIconView(WIcon.eye, size: 18, color: WColor.primaryStrong),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

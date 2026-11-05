@@ -82,3 +82,27 @@ Customers with no saved vehicles start at C05 as before.
 ### Status
 
 Built; analyze clean; Customer 95/95 tests pass (incl. tap-through of the add flow). iPhone: Aman tested 5 Nov 19:00; prices and plate skip fixed after review.
+
+## 5 Nov 2026 — Vehicle and wash on one screen (C05)
+
+- **Why (Aman):** one screen instead of two. Ask the vehicle first, without a price; the
+  chosen vehicle opens the wash options right below it, with the price next to each.
+- **Screens:** C05 changed (now "What should we wash?"). The separate wash screen (C05w)
+  stays only for a saved vehicle picked on C04 and for Book again's "Change wash".
+- **What changed for the user:**
+  - Title "What should we wash?", subtitle "Pick your vehicle to see the washes and prices."
+  - Vehicle tiles show no price and no time. Nothing is pre-selected.
+  - Tapping a vehicle selects it and expands its washes (indented, below the tile), each
+    with the vehicle's price. Tapping another vehicle moves the panel to it. The wash
+    defaults to "Wet wash, outside" (or keeps the earlier pick if that vehicle has it).
+  - "Inside cleaning" stays greyed with "Not in your society yet".
+  - **Next** (enabled once a vehicle and wash are chosen) goes straight to the number plate.
+  - Unchanged: Add a vehicle (no prices), Book again → Change vehicle, large text (C52).
+- **Files changed:** `customer/lib/screens/booking.dart` (new `WashOptionCard`, reused by the
+  wash screen; merged C05), `customer/test/vehicle_wash_merged_test.dart` (new).
+- **Backend needed (Ajay):** none. Same `draft.type` and `draft.wash` as before.
+- **How to test on the phone:** Home → Book a wash (if you have saved vehicles, tap
+  *Add new vehicle* on "Which vehicle?") → no prices → tap Hatchback → three washes with ₹
+  appear below → tap Bike → two washes → pick one → Next → number plate.
+- **Status:** built; analyze clean; Customer tests 97/97. iPhone check pending.
+
