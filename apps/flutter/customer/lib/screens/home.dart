@@ -604,7 +604,6 @@ class RepeatScreen extends StatelessWidget {
       router.go(first);
     }
 
-    final fresh = d.freshPhotos;
     return WScreen(
       header: Padding(
         padding: const EdgeInsets.only(top: 4),
@@ -613,11 +612,11 @@ class RepeatScreen extends StatelessWidget {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          fresh == true ? 'Take photos' : 'Pick a time',
-          enabled: fresh != null && type != null && place != null,
+          'Next',
+          enabled: type != null && place != null,
           onTap: () {
             store.set(() => d.editing = null);
-            router.go(fresh == true ? N.photos : N.timeSlot);
+            router.go(N.repeatPhotos);
           },
         ),
       ),
@@ -692,22 +691,93 @@ class RepeatScreen extends StatelessWidget {
             ],
           ),
         ),
-        const Padding(padding: EdgeInsets.only(top: 24, bottom: 10), child: WText('Fresh photos of the vehicle?', WType.label)),
-        _RepeatChoice(
-          icon: WIcon.camera,
-          title: 'Yes, take new photos',
-          detail: '4 quick photos. They help your Captain find the vehicle.',
-          selected: fresh == true,
-          onTap: () => store.set(() => d.freshPhotos = true),
+      ],
+    );
+  }
+}
+
+// MARK: C45b Book again – photos
+// v2 CU-BOOKINGS: after confirming vehicle, wash and place, show last time's
+// photos. Primary: use them (or continue without photos when there are none).
+// Secondary: take fresh photos (C07). Both continue to the time (C12).
+
+class RepeatPhotosScreen extends StatelessWidget {
+  const RepeatPhotosScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store, router = context.router;
+    final d = store.draft;
+    final old = d.lastPhotoPaths;
+    final hasOld = old.isNotEmpty;
+    final icon = (d.type ?? VehicleType.all[1]).icon;
+    return WScreen(
+      header: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: WAppBar(title: 'Book again', onLeading: router.pop, onTrailing: () => router.go(N.help)),
+      ),
+      footer: WFooterBar(
+        showCall: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            WButton(
+              hasOld ? 'Use these photos' : 'Continue without photos',
+              onTap: () {
+                store.set(() {
+                  d.photos.clear();
+                  d.reusePhotosFrom = hasOld ? d.lastPhotosOrderId : null;
+                });
+                router.go(N.timeSlot);
+              },
+            ),
+            const SizedBox(height: 10),
+            WButton(
+              'Take fresh photos',
+              kind: ButtonKind.outline,
+              onTap: () {
+                store.set(() => d.reusePhotosFrom = null);
+                router.go(N.photos);
+              },
+            ),
+            if (hasOld)
+              WLink(
+                'Continue without photos',
+                color: WColor.secondary,
+                k: WType.caption,
+                onTap: () {
+                  store.set(() {
+                    d.photos.clear();
+                    d.reusePhotosFrom = null;
+                  });
+                  router.go(N.timeSlot);
+                },
+              ),
+          ],
         ),
-        const SizedBox(height: 10),
-        _RepeatChoice(
-          icon: WIcon.clock,
-          title: 'No, go to time',
-          detail: 'Your Captain still takes the official before and after photos.',
-          selected: fresh == false,
-          onTap: () => store.set(() => d.freshPhotos = false),
+      ),
+      children: [
+        WTitleBlock(
+          hasOld ? 'Photos from last time' : 'No photos from last time',
+          subtitle: hasOld
+              ? 'Use them again if the vehicle looks the same, or take fresh ones.'
+              : 'Take fresh photos to help your Captain find the vehicle, or continue without them.',
+          top: 14,
         ),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.15,
+          children: [
+            for (final a in PhotoAngle.values)
+              DesignPhoto(path: old[a.name], height: 140, icon: icon, tag: a.label.split(' ').first, radius: 14),
+          ],
+        ),
+        const SizedBox(height: 16),
+        const WText('Your Captain still takes the official before and after photos.', WType.caption),
       ],
     );
   }
@@ -736,42 +806,6 @@ class _RepeatSection extends StatelessWidget {
           const SizedBox(height: 10),
           child,
         ],
-      ),
-    );
-  }
-}
-
-/// A selectable answer card, styled like the wash options (C05w).
-class _RepeatChoice extends StatelessWidget {
-  const _RepeatChoice({required this.icon, required this.title, required this.detail, required this.selected, required this.onTap});
-  final WIcon icon;
-  final String title, detail;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Pressable(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: outlinedDecoration(radius: 16, fill: selected ? WColor.primaryTint : WColor.white, stroke: selected ? WColor.primary : WColor.border, width: selected ? 2 : 1),
-        child: Row(
-          children: [
-            WIconBox(icon, size: 48),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  WText(title, WType.title),
-                  const SizedBox(height: 2),
-                  WText(detail, WType.caption),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

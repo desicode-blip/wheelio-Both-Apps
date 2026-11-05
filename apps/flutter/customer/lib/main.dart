@@ -218,6 +218,7 @@ Widget _screen(R r) {
     N.refund => const RefundScreen(),
     N.bookingDetail => BookingDetailScreen(orderId: r.id!),
     N.repeatBooking => RepeatScreen(id: r.id!),
+    N.repeatPhotos => const RepeatPhotosScreen(),
     N.help => const HelpScreen(),
     N.helpCaptain => HelpCaptainScreen(topic: r.topic!),
     N.helpEmergency => const EmergencyHelpScreen(),

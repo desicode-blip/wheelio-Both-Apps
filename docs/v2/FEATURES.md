@@ -102,3 +102,11 @@ How to use this map:
 - How to test on the phone:
 - Status: designing / built / tested on iPhone / pushed to staging (commit)
 ```
+
+## Change log
+
+| Date | ID | Change | Doc | Status |
+|---|---|---|---|---|
+| 5 Nov | CU-BOOKINGS | Prefilled Book again + photos step (C45, C45b) | [CU-BOOKINGS.md](CU-BOOKINGS.md) | built, iPhone retest |
+| 5 Nov | CU-TIME | "When is your vehicle free?" + slot checkboxes (C12) | [CU-TIME.md](CU-TIME.md) | built, iPhone retest |
+| 5 Nov | SH-DESIGN | `WChip` optional checkbox (used by CU-TIME) | [CU-TIME.md](CU-TIME.md) | built |

@@ -1874,8 +1874,8 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
       ),
       children: [
         WTitleBlock(
-          'When should we come?',
-          subtitle: noneFree ? null : (_multi ? 'Pick one or more windows. The captain arrives any time in them.' : 'The captain arrives any time in this window.'),
+          'When is your vehicle free?',
+          subtitle: noneFree ? null : (_multi ? 'Tick every time slot when it can be washed. Your Captain comes in one of them.' : 'Your Captain comes any time in this time slot.'),
         ),
         WSegmented(options: [for (final d in days) Fmt.day(d)], selection: dayIndex, onChanged: _changeDay),
         const SizedBox(height: 20),
@@ -1951,6 +1951,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
                   strike: !s.available,
                   height: 54,
                   fill: true,
+                  checkbox: _multi,
                   onTap: () => _toggle(s),
                 ),
             ],
@@ -1960,7 +1961,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
             padding: const EdgeInsets.only(top: 18),
             child: WText(
               chosen.length > 1 && !wholeDay
-                  ? 'You picked ${chosen.length} windows: ${TimeSlot(days[dayIndex], 0, 0, windows: [for (final s in chosen) (s.startHour, s.endHour)]).label}. No need to be home.'
+                  ? 'You picked ${chosen.length} time slots: ${TimeSlot(days[dayIndex], 0, 0, windows: [for (final s in chosen) (s.startHour, s.endHour)]).label}. No need to be home.'
                   : 'No need to be home. A captain comes in your slot and cleans your vehicle just the way you asked.',
               WType.caption,
             ),

@@ -792,7 +792,7 @@ class WRadio extends StatelessWidget {
 }
 
 class WChip extends StatelessWidget {
-  const WChip(this.title, {super.key, this.selected = false, this.icon, this.enabled = true, this.strike = false, this.height = 46, this.fill = false, this.onTap});
+  const WChip(this.title, {super.key, this.selected = false, this.icon, this.enabled = true, this.strike = false, this.height = 46, this.fill = false, this.checkbox = false, this.onTap});
   final String title;
   final bool selected;
   final WIcon? icon;
@@ -800,6 +800,10 @@ class WChip extends StatelessWidget {
   final bool strike;
   final double height;
   final bool fill;
+
+  /// v2 CU-TIME: show a checkbox in front of the title, so a multi-select
+  /// group reads as "tick as many as you like".
+  final bool checkbox;
   final VoidCallback? onTap;
 
   @override
@@ -812,7 +816,19 @@ class WChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 15),
           decoration: outlinedDecoration(radius: WRadius.chip, fill: selected ? WColor.primaryTint : enabled ? WColor.white : WColor.canvas, stroke: selected ? WColor.primary : WColor.border, width: selected ? 2 : 1),
           child: Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-            if (selected) ...[const WIconView(WIcon.check, size: 13, color: WColor.primaryStrong, weight: semibold), const SizedBox(width: 6)] else if (icon != null) ...[WIconView(icon!, size: 14), const SizedBox(width: 6)],
+            if (checkbox) ...[
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: selected ? WColor.primary : WColor.white,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: selected ? WColor.primary : enabled ? WColor.secondary : WColor.border, width: 1.5),
+                ),
+                child: selected ? const Center(child: WIconView(WIcon.check, size: 14, color: WColor.white, weight: semibold)) : null,
+              ),
+              const SizedBox(width: 10),
+            ] else if (selected) ...[const WIconView(WIcon.check, size: 13, color: WColor.primaryStrong, weight: semibold), const SizedBox(width: 6)] else if (icon != null) ...[WIconView(icon!, size: 14), const SizedBox(width: 6)],
             Flexible(
               child: WText(title, WType.bodyStrong,
                   size: 15.5,

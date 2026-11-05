@@ -49,6 +49,7 @@ enum N {
   refund,
   bookingDetail,
   repeatBooking,
+  repeatPhotos,
   help,
   helpCaptain,
   helpEmergency,
@@ -354,8 +355,14 @@ class BookingDraft {
   /// v2 CU-BOOKINGS: which part of a Book again is being changed (null = none).
   RepeatEdit? editing;
 
-  /// v2 CU-BOOKINGS: the customer's answer to "Fresh photos?" (null = not answered).
-  bool? freshPhotos;
+  /// v2 CU-BOOKINGS: the customer's photos from the booking this Book again
+  /// started from (angle name -> storage path). Empty when there are none.
+  Map<String, String> lastPhotoPaths = {};
+  String? lastPhotosOrderId;
+
+  /// v2 CU-BOOKINGS: set when the customer chose "Use these photos".
+  /// BACKEND (Ajay): copy that booking's customerPhotos onto the new booking.
+  String? reusePhotosFrom;
 
   int get photosDone => photos.values.where((s) => s == UploadState.done).length;
   bool get photosComplete => PhotoAngle.values.every((a) => photos[a] == UploadState.done);
@@ -1276,6 +1283,13 @@ class AppStore extends ChangeNotifier {
     startRepeat(Vehicle(v0.id, v0.plate, v0.type, place), place: place, wash: from?.wash);
     draft.repeatFrom = id;
     draft.note = lastNote.copy();
+    final photoSource = (from != null && from.customerPhotoPaths.isNotEmpty)
+        ? from
+        : orders.where((o) => o.vehicle.id == v0.id && o.customerPhotoPaths.isNotEmpty).firstOrNull;
+    if (photoSource != null) {
+      draft.lastPhotoPaths = Map.of(photoSource.customerPhotoPaths);
+      draft.lastPhotosOrderId = photoSource.id;
+    }
     draft.wash ??= WashKind.wetOutside;
     notifyListeners();
   }

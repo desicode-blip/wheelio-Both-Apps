@@ -14,7 +14,7 @@ void main() {
     expect(d.plate, isNotEmpty);
     expect(d.wash, isNotNull);
     expect(d.photos, isEmpty);
-    expect(d.freshPhotos, isNull);
+    expect(d.reusePhotosFrom, isNull);
 
     d.plate = 'TS 09 AB 1234';
     store.openRepeat('veh_car'); // returning to the same Book again keeps the edit
@@ -38,6 +38,15 @@ void main() {
     store.draft.type = VehicleType.all.first;
     expect(store.finishRepeatEdit(RepeatEdit.vehicle), isTrue);
     expect(WashKind.options(store.draft.type?.kind), contains(store.draft.wash));
+  });
+
+  test('Last photos come from the booking being repeated', () {
+    final store = AppStore()..signInAsSample();
+    final o = store.orders.first;
+    o.customerPhotoPaths = {'front': 'bookings/x/front.jpg', 'back': 'bookings/x/back.jpg'};
+    store.openRepeat(o.id);
+    expect(store.draft.lastPhotoPaths, o.customerPhotoPaths);
+    expect(store.draft.lastPhotosOrderId, o.id);
   });
 
   test('A new booking is not a Book again', () {
