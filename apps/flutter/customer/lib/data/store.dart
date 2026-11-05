@@ -51,6 +51,7 @@ enum N {
   bookingDetail,
   repeatBooking,
   repeatPhotos,
+  vehiclePick,
   help,
   helpCaptain,
   helpEmergency,
@@ -360,6 +361,12 @@ class BookingDraft {
   /// started from (angle name -> storage path). Empty when there are none.
   Map<String, String> lastPhotoPaths = {};
   String? lastPhotosOrderId;
+
+  /// v2 CU-VEHICLE: this draft only adds a vehicle to the list (no booking).
+  bool addingVehicle = false;
+
+  /// v2 CU-VEHICLE: a booking started from a saved vehicle (its id).
+  String? pickedVehicleId;
 
   /// v2 CU-BOOKINGS: set when the customer chose "Use these photos".
   /// BACKEND (Ajay): copy that booking's customerPhotos onto the new booking.
@@ -991,7 +998,63 @@ class AppStore extends ChangeNotifier {
   List<Order> get pastOrders => demo.emptyHistory
       ? []
       : (orders.where((o) => !o.status.isUpcoming && o.status != OrderStatus.pendingPayment).toList()..sort((a, b) => b.slot.start.compareTo(a.slot.start)));
-  List<Vehicle> get myVehicles => demo.emptyHistory ? [] : vehicles;
+  List<Vehicle> get myVehicles => demo.emptyHistory ? [] : [...vehicles, for (final v in localVehicles) if (!vehicles.any((o) => o.plate == v.plate)) v];
+
+  // MARK: v2 CU-VEHICLE — vehicles added without a booking
+  /// BACKEND (Ajay): store these on the account (e.g. `customers/{uid}/vehicles`
+  /// via a `saveCustomerVehicle` callable) and stream them here. Until then they
+  /// are kept on this phone, per account.
+  List<Vehicle> localVehicles = [];
+  String get _vehicleKey => 'vehicles:${customer?.id ?? 'guest'}';
+
+  Future<void> loadLocalVehicles() async {
+    final list = await LocalFlags.getList(_vehicleKey);
+    final loaded = <Vehicle>[];
+    for (final m in list) {
+      final kind = VehicleKind.values.where((k) => k.name == m['kind']).firstOrNull;
+      final type = VehicleType.all.where((t) => t.kind == kind).firstOrNull;
+      if (type == null) continue;
+      loaded.add(Vehicle(m['id'] as String, m['plate'] as String, type, null));
+    }
+    set(() => localVehicles = loaded);
+  }
+
+  /// The first booking screen: pick a saved vehicle, or start from the type.
+  N get firstBookingStep => myVehicles.isEmpty ? N.vehicleType : N.vehiclePick;
+
+  void startAddVehicle() {
+    startNewBooking();
+    draft.addingVehicle = true;
+    notifyListeners();
+  }
+
+  /// Saves the vehicle in the draft. Returns an error message, or null.
+  Future<String?> saveNewVehicle() async {
+    final type = draft.type, plate = draft.plate.trim();
+    if (type == null || plate.isEmpty) return 'Choose the vehicle type and enter the number plate.';
+    if (myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.replaceAll(' ', ''))) return 'This vehicle is already saved.';
+    final v = Vehicle('local_${newId('veh')}', plate, type, null);
+    localVehicles = [...localVehicles, v];
+    await LocalFlags.setList(_vehicleKey, [for (final x in localVehicles) {'id': x.id, 'plate': x.plate, 'kind': x.type.kind.name}]);
+    draft.addingVehicle = false;
+    notifyListeners();
+    return null;
+  }
+
+  /// A new booking for a saved vehicle: type and plate are filled in, and the
+  /// photos from its latest booking are offered on the photos step.
+  void pickVehicleForBooking(Vehicle v) {
+    startNewBooking();
+    draft.type = v.type;
+    draft.plate = v.plate;
+    draft.pickedVehicleId = v.id;
+    final last = orders.where((o) => o.vehicle.plate == v.plate && o.customerPhotoPaths.isNotEmpty).firstOrNull;
+    if (last != null) {
+      draft.lastPhotoPaths = Map.of(last.customerPhotoPaths);
+      draft.lastPhotosOrderId = last.id;
+    }
+    notifyListeners();
+  }
   Order? order(String id) => orders.where((o) => o.id == id).firstOrNull;
 
   void _update(String id, void Function(Order o) change) {

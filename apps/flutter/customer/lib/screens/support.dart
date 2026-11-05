@@ -227,7 +227,7 @@ class _HelpCaptainScreenState extends State<HelpCaptainScreen> {
               const SizedBox(height: 8),
               WButton('Book a wash', onTap: () {
                 store.startNewBooking();
-                router.replace(const [R(N.vehicleType)]);
+                router.replace([R(store.firstBookingStep)]);
               }),
             ],
     );

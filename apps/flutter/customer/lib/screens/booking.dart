@@ -14,6 +14,71 @@ import 'common.dart';
 
 // MARK: C05 Vehicle type (C52: 200% text)
 
+// MARK: C04 Which vehicle? (v2 CU-VEHICLE)
+// A new booking starts here when the customer has saved vehicles: pick one
+// (type and plate are filled in, then wash and photos), or add another.
+
+class VehiclePickScreen extends StatelessWidget {
+  const VehiclePickScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store, router = context.router;
+    return WScreen(
+      header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
+      children: [
+        const WTitleBlock('Which vehicle?', subtitle: 'Pick a saved vehicle, or add another one.'),
+        for (final v in store.myVehicles) ...[
+          WCard(
+            radius: 16,
+            onTap: () {
+              store.pickVehicleForBooking(v);
+              router.go(N.washType);
+            },
+            child: Row(
+              children: [
+                WIconBox(v.type.icon, size: 48),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WPlate(v.plate),
+                      const SizedBox(height: 6),
+                      WText(v.type.shortName, WType.caption),
+                    ],
+                  ),
+                ),
+                const WIconView(WIcon.chevron, size: 14, color: WColor.secondary),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Pressable(
+          onTap: () {
+            store.startNewBooking();
+            router.go(N.vehicleType);
+          },
+          child: const DashedBorder(
+            child: SizedBox(
+              height: 62,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  WIconView(WIcon.plus, size: 16, color: WColor.primaryStrong, weight: semibold),
+                  SizedBox(width: 10),
+                  WText('Add another vehicle', WType.title, color: WColor.primaryStrong),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class VehicleTypeScreen extends StatelessWidget {
   const VehicleTypeScreen({super.key, this.large = false, this.asRoot = false});
   final bool large;
@@ -24,7 +89,7 @@ class VehicleTypeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final next = WButton('Next', enabled: store.draft.type != null, onTap: () => router.go(store.draft.editing == RepeatEdit.vehicle ? N.vehicleNumber : N.washType));
+    final next = WButton('Next', enabled: store.draft.type != null, onTap: () => router.go(store.draft.editing == RepeatEdit.vehicle || store.draft.addingVehicle ? N.vehicleNumber : N.washType));
     return OnAppear(
       onAppear: () {
         if (store.draft.type == null && !large) store.set(() => store.draft.type = VehicleType.all[1]);
@@ -32,7 +97,7 @@ class VehicleTypeScreen extends StatelessWidget {
       child: TextScale(
         scale: large ? 1.6 : 1,
         child: WScreen(
-          header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, showBack: !asRoot, showProgress: DesignFlags.firstStepProgress),
+          header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, title: store.draft.addingVehicle ? 'Add a vehicle' : 'Book a wash', showBack: !asRoot, showProgress: DesignFlags.firstStepProgress && !store.draft.addingVehicle),
           footer: large
               ? Container(
                   decoration: const BoxDecoration(
@@ -43,7 +108,7 @@ class VehicleTypeScreen extends StatelessWidget {
                 )
               : WFooterBar(showCall: false, child: next),
           children: [
-            WTitleBlock('What are we washing?', subtitle: large ? null : 'Pick your vehicle. You choose the wash next.'),
+            WTitleBlock(store.draft.addingVehicle ? 'What kind of vehicle?' : 'What are we washing?', subtitle: large ? null : store.draft.addingVehicle ? 'Save it once. Book a wash for it any time.' : 'Pick your vehicle. You choose the wash next.'),
             for (final t in large ? VehicleType.all.take(2) : VehicleType.all) ...[
               if (large)
                 // C52: at 200% text the tile stacks so nothing is cut off.
@@ -106,7 +171,7 @@ class WashTypeScreen extends StatelessWidget {
         header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
         footer: WFooterBar(
           showCall: false,
-          child: WButton(store.draft.editing == RepeatEdit.wash ? 'Done' : 'Next', enabled: store.draft.wash != null, onTap: () => store.finishRepeatEdit(RepeatEdit.wash) ? router.popTo(N.repeatBooking) : router.go(N.vehicleNumber)),
+          child: WButton(store.draft.editing == RepeatEdit.wash ? 'Done' : 'Next', enabled: store.draft.wash != null, onTap: () => store.finishRepeatEdit(RepeatEdit.wash) ? router.popTo(N.repeatBooking) : router.go(store.draft.pickedVehicleId != null ? N.repeatPhotos : N.vehicleNumber)),
         ),
         children: [
           WTitleBlock(
@@ -199,6 +264,18 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
     final t = plate.trim();
     if (t.isEmpty) return;
     context.store.set(() => context.store.draft.plate = Fmt.plate(t));
+    if (context.store.draft.addingVehicle) {
+      final store = context.store, router = context.router;
+      store.saveNewVehicle().then((error) {
+        if (error != null) {
+          store.set(() => store.toast = error);
+          return;
+        }
+        router.popToRoot();
+        store.set(() => store.toast = 'Vehicle saved');
+      });
+      return;
+    }
     if (context.store.finishRepeatEdit(RepeatEdit.vehicle)) {
       context.router.popTo(N.repeatBooking);
       return;
@@ -210,10 +287,10 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
   Widget build(BuildContext context) {
     final t = context.store.draft.type;
     return WScreen(
-      header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
+      header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, title: context.store.draft.addingVehicle ? 'Add a vehicle' : 'Book a wash', showProgress: !context.store.draft.addingVehicle),
       footer: WFooterBar(
         showCall: false,
-        child: WButton(context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+        child: WButton(context.store.draft.addingVehicle ? 'Save vehicle' : context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
       ),
       children: [
         const WTitleBlock('What’s the number plate?', subtitle: 'So the captain finds the right vehicle.'),

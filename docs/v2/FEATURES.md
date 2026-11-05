@@ -113,3 +113,4 @@ How to use this map:
 | 5 Nov | CU-LIVE | Upload gate pass on C19/C22; Captain sees it on W27 | [CU-LIVE.md](CU-LIVE.md) | built, backend needed |
 | 5 Nov | CU-APPROVE | (i) explanation on AI wash photo check (stays OFF) | [CU-APPROVE.md](CU-APPROVE.md) | built |
 | 5 Nov | SH-NOTIFY | Ask once after install in both apps; Open Settings if refused | [SH-NOTIFY.md](SH-NOTIFY.md) | built |
+| 5 Nov | CU-VEHICLE | Add a vehicle without booking; Which vehicle? at booking start; photo choice | [CU-VEHICLE.md](CU-VEHICLE.md) | built, backend needed |

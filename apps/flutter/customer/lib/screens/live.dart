@@ -322,7 +322,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
       footer: WStackedFooter(children: [
         WButton('Book another wash', kind: ButtonKind.outline, onTap: () {
           store.startNewBooking();
-          router.replace(const [R(N.vehicleType)]);
+          router.replace([R(store.firstBookingStep)]);
         }),
         WButton('Go home', kind: ButtonKind.text, onTap: () {
           router.tab = 0;

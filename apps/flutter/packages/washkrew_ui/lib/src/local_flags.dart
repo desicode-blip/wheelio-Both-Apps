@@ -44,6 +44,39 @@ class LocalFlags {
     } catch (_) {/* Memory still holds it for this session. */}
   }
 
+  // v2 CU-VEHICLE: small JSON lists kept on this device (e.g. saved vehicles
+  // until the server stores them). Separate file from the yes/no flags.
+  static Map<String, dynamic>? _json;
+
+  static Future<File?> _jsonFile() async {
+    final f = await _file();
+    return f == null ? null : File(f.path.replaceFirst('washkrew_flags.json', 'washkrew_local.json'));
+  }
+
+  static Future<List<Map<String, dynamic>>> getList(String key) async {
+    if (_json == null) {
+      _json = {};
+      try {
+        final f = await _jsonFile();
+        if (f != null && await f.exists()) _json = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      } catch (_) {/* treated as empty */}
+    }
+    return [for (final e in (_json![key] as List? ?? const [])) Map<String, dynamic>.from(e as Map)];
+  }
+
+  static Future<void> setList(String key, List<Map<String, dynamic>> value) async {
+    await getList(key);
+    _json![key] = value;
+    try {
+      final f = await _jsonFile();
+      await f?.create(recursive: true);
+      await f?.writeAsString(jsonEncode(_json));
+    } catch (_) {/* memory still holds it */}
+  }
+
   @visibleForTesting
-  static void resetForTest() => _cache = {};
+  static void resetForTest() {
+    _cache = {};
+    _json = {};
+  }
 }

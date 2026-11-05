@@ -19,6 +19,7 @@ class MainTabs extends StatelessWidget {
     // v2 SH-NOTIFY: ask once after install, on top of Home.
     return OnAppear(
       onAppear: () async {
+        await store.loadLocalVehicles();
         if (!await store.shouldAskNotificationsFirst()) return;
         if (router.path.isEmpty) router.go(N.notifyFirst);
       },
@@ -99,7 +100,7 @@ class _HomeTabState extends State<HomeTab> {
 
   void _book() {
     context.store.startNewBooking();
-    context.router.go(N.vehicleType);
+    context.router.go(context.store.firstBookingStep);
   }
 
   /// One entry per vehicle + place + wash, newest first. When the same vehicle has other
@@ -448,7 +449,7 @@ class _BookingsTabState extends State<BookingsTab> {
                         primary: 'Book a wash',
                         onPrimary: () {
                           store.startNewBooking();
-                          router.go(N.vehicleType);
+                          router.go(store.firstBookingStep);
                         },
                       ),
                     )
@@ -718,10 +719,12 @@ class RepeatPhotosScreen extends StatelessWidget {
     final old = d.lastPhotoPaths;
     final hasOld = old.isNotEmpty;
     final icon = (d.type ?? VehicleType.all[1]).icon;
+    // Book again already has its place; a saved-vehicle booking still asks where it is.
+    final next = d.isRepeat && d.place != null ? N.timeSlot : d.place == null ? N.location : N.floorSlot;
     return WScreen(
       header: Padding(
         padding: const EdgeInsets.only(top: 4),
-        child: WAppBar(title: 'Book again', onLeading: router.pop, onTrailing: () => router.go(N.help)),
+        child: WAppBar(title: d.isRepeat ? 'Book again' : 'Book a wash', onLeading: router.pop, onTrailing: () => router.go(N.help)),
       ),
       footer: WFooterBar(
         showCall: false,
@@ -735,7 +738,7 @@ class RepeatPhotosScreen extends StatelessWidget {
                   d.photos.clear();
                   d.reusePhotosFrom = hasOld ? d.lastPhotosOrderId : null;
                 });
-                router.go(N.timeSlot);
+                router.go(next);
               },
             ),
             const SizedBox(height: 10),
@@ -757,7 +760,7 @@ class RepeatPhotosScreen extends StatelessWidget {
                     d.photos.clear();
                     d.reusePhotosFrom = null;
                   });
-                  router.go(N.timeSlot);
+                  router.go(next);
                 },
               ),
           ],
@@ -858,7 +861,7 @@ class VehiclesTab extends StatelessWidget {
         ],
         Pressable(
           onTap: () {
-            store.startNewBooking();
+            store.startAddVehicle();
             router.go(N.vehicleType);
           },
           child: const DashedBorder(
