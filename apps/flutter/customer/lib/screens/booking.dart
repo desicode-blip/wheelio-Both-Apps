@@ -810,10 +810,26 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
                     Center(
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
-                        child: CustomPaint(
+                        // v2 CU-PHOTOS (5 Nov, Aman): the side to shoot is written above
+                        // the outline, in the same white as the dotted line.
+                        child: Column(
                           key: ValueKey('$bike-$current'),
-                          size: VehicleOutlinePainter.sizeFor(bike, current),
-                          painter: VehicleOutlinePainter(bike: bike, angle: current),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              current.label.replaceAll(' side', '').toUpperCase(),
+                              style: wStyle(WType.title, color: Colors.white.withValues(alpha: 0.9)).copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 3,
+                                shadows: [Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 4)],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            CustomPaint(
+                              size: VehicleOutlinePainter.sizeFor(bike, current),
+                              painter: VehicleOutlinePainter(bike: bike, angle: current),
+                            ),
+                          ],
                         ),
                       ),
                     ),
