@@ -117,6 +117,14 @@ class AppRouter extends WRouter<R> {
 
   bool isAt(N n) => last?.n == n;
   void go(N n) => push(R(n));
+
+  /// v2 CU-BOOKINGS: drop every screen above the last [n] (used to return to Book again).
+  void popTo(N n) {
+    final i = path.lastIndexWhere((e) => e.route.n == n);
+    if (i < 0) return;
+    path = path.sublist(0, i + 1);
+    notifyListeners();
+  }
   void resetAccountNavigation(){showPaySheet=false;path=[];tab=0;}
 
   void setSplash(bool v) {
@@ -306,6 +314,9 @@ class DemoScenario {
   double stepSeconds = 5;
 }
 
+/// v2 CU-BOOKINGS: the parts of a Book again the customer can change.
+enum RepeatEdit { vehicle, wash, place }
+
 /// The booking being built, one small decision per screen.
 class BookingDraft {
   BookingDraft({
@@ -336,6 +347,15 @@ class BookingDraft {
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
   bool isRepeat;
+
+  /// v2 CU-BOOKINGS: the order or vehicle this Book again started from.
+  String? repeatFrom;
+
+  /// v2 CU-BOOKINGS: which part of a Book again is being changed (null = none).
+  RepeatEdit? editing;
+
+  /// v2 CU-BOOKINGS: the customer's answer to "Fresh photos?" (null = not answered).
+  bool? freshPhotos;
 
   int get photosDone => photos.values.where((s) => s == UploadState.done).length;
   bool get photosComplete => PhotoAngle.values.every((a) => photos[a] == UploadState.done);
@@ -1242,6 +1262,42 @@ class AppStore extends ChangeNotifier {
     draft = BookingDraft(type: v.type, wash: wash, plate: v.plate, place: (place ?? v.place)?.copy(), isRepeat: true);
     prefetchAvailability();
     notifyListeners();
+  }
+
+  /// v2 CU-BOOKINGS: prefill a booking from a past order (or a saved vehicle).
+  /// Keeps an already-open Book again for the same id, so returning from a
+  /// "Change" step does not reset the customer's edits.
+  void openRepeat(String id) {
+    if (draft.isRepeat && draft.repeatFrom == id) return;
+    final from = order(id);
+    final v0 = from?.vehicle ?? vehicles.where((v) => v.id == id).firstOrNull ?? AppStore.car();
+    final place = from?.place ?? v0.place;
+    final lastNote = orders.where((o) => o.vehicle.id == v0.id && !o.note.isEmpty).firstOrNull?.note ?? (isLive ? EntryNote() : EntryNote(voiceSeconds: 12));
+    startRepeat(Vehicle(v0.id, v0.plate, v0.type, place), place: place, wash: from?.wash);
+    draft.repeatFrom = id;
+    draft.note = lastNote.copy();
+    draft.wash ??= WashKind.wetOutside;
+    notifyListeners();
+  }
+
+  /// v2 CU-BOOKINGS: start changing one part of a Book again.
+  void editRepeat(RepeatEdit part) {
+    draft.editing = part;
+    notifyListeners();
+  }
+
+  /// v2 CU-BOOKINGS: true when [part] was being changed from Book again. The
+  /// caller then returns to the Book again summary instead of the next step.
+  bool finishRepeatEdit(RepeatEdit part) {
+    if (!draft.isRepeat || draft.editing != part) return false;
+    draft.editing = null;
+    if (part == RepeatEdit.vehicle) {
+      final options = WashKind.options(draft.type?.kind);
+      final w = draft.wash;
+      if (w == null || !options.contains(w) || !w.available) draft.wash = WashKind.wetOutside;
+    }
+    notifyListeners();
+    return true;
   }
 
   void startNewBooking() {

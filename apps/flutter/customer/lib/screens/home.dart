@@ -342,7 +342,7 @@ class _HomeTabState extends State<HomeTab> {
                   for (final e in entries) ...[
                     WCard(
                       radius: 16,
-                      onTap: () => router.push(R(N.repeatBooking, id: e.order.id)),
+                      onTap: () { store.openRepeat(e.order.id); router.push(R(N.repeatBooking, id: e.order.id)); },
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -523,7 +523,7 @@ class BookingDetailScreen extends StatelessWidget {
         child: WButton(
           'Book again',
           icon: WIcon.refresh,
-          onTap: () => router.push(R(N.repeatBooking, id: o.id)),
+          onTap: () { store.openRepeat(o.id); router.push(R(N.repeatBooking, id: o.id)); },
         ),
       ),
       children: [
@@ -580,6 +580,10 @@ class BookingDetailScreen extends StatelessWidget {
 }
 
 // MARK: C45 Book again
+// v2 CU-BOOKINGS (5 Nov 2026): prefilled rebooking. Vehicle, wash and place are
+// shown ready to use; "Change" reopens only that part of the normal booking
+// flow and comes back here. The customer then chooses fresh photos or not,
+// and goes on to pick a time and pay as usual.
 
 class RepeatScreen extends StatelessWidget {
   const RepeatScreen({super.key, required this.id});
@@ -590,11 +594,17 @@ class RepeatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final from = store.order(id);
-    final v0 = from?.vehicle ?? store.vehicles.where((v) => v.id == id).firstOrNull ?? AppStore.car();
-    final v = Vehicle(v0.id, v0.plate, v0.type, from?.place ?? v0.place);
-    final lastNote = store.orders.where((o) => o.vehicle.id == v.id && !o.note.isEmpty).firstOrNull?.note ?? (store.isLive ? EntryNote() : EntryNote(voiceSeconds: 12));
-    final place = v.place;
+    final d = store.draft;
+    final type = d.type;
+    final isBike = type?.kind == VehicleKind.bike;
+    final wash = d.wash ?? WashKind.wetOutside;
+    final place = d.place;
+    void change(RepeatEdit part, N first) {
+      store.editRepeat(part);
+      router.go(first);
+    }
+
+    final fresh = d.freshPhotos;
     return WScreen(
       header: Padding(
         padding: const EdgeInsets.only(top: 4),
@@ -603,49 +613,166 @@ class RepeatScreen extends StatelessWidget {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          'Take photos',
+          fresh == true ? 'Take photos' : 'Pick a time',
+          enabled: fresh != null && type != null && place != null,
           onTap: () {
-            store.startRepeat(v, place: place, wash: from?.wash);
-            store.set(() => store.draft.note = lastNote.copy());
-            router.go(N.photos);
+            store.set(() => d.editing = null);
+            router.go(fresh == true ? N.photos : N.timeSlot);
           },
         ),
       ),
       children: [
-        const WTitleBlock('Same wash, new time', subtitle: 'We kept your vehicle and parking details.', top: 14),
-        WCard(
-          radius: 16,
+        const WTitleBlock('Same wash, new time', subtitle: 'Everything is filled in from last time. Change anything you need.', top: 14),
+        _RepeatSection(
+          label: 'Vehicle',
+          onChange: () => change(RepeatEdit.vehicle, N.vehicleType),
           child: Row(
             children: [
-              WIconBox(v.type.icon, size: 48),
+              WIconBox((type ?? VehicleType.all[1]).icon, size: 48),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    WPlate(v.plate),
+                    WPlate(d.plate),
                     const SizedBox(height: 6),
-                    WText('${v.type.shortName} · ${place?.tower ?? ''} · ${place?.parkingShort ?? ''}', WType.caption),
+                    WText(type?.shortName ?? '', WType.caption),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        WKeyValueCard(
-          rows: [
-            ('Wash', (from?.washKind ?? WashKind.wetOutside).name(v.type.kind == VehicleKind.bike)),
-            ('Place', place?.title ?? ''),
-            ('Parking', '${place?.tower ?? ''} · ${place?.parkingShort ?? ''}'),
-            ('Notes', lastNote.summary),
+        const SizedBox(height: 12),
+        _RepeatSection(
+          label: 'Wash',
+          onChange: () => change(RepeatEdit.wash, N.washType),
+          child: Row(
+            children: [
+              WIconBox(wash.icon, size: 48),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    WText(wash.name(isBike), WType.title),
+                    const SizedBox(height: 2),
+                    WText('${wash.detail(isBike)}${type != null ? ' · ${Fmt.rupees(type.price)}' : ''}', WType.caption),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _RepeatSection(
+          label: 'Place',
+          onChange: () => change(RepeatEdit.place, N.location),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const WIconBox(WIcon.location, size: 48),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    WText(place?.title ?? 'Choose where the vehicle is parked', WType.title),
+                    if (place != null) ...[
+                      const SizedBox(height: 2),
+                      WText(place.parkingShort, WType.caption),
+                    ],
+                    if (!d.note.isEmpty) ...[
+                      const SizedBox(height: 2),
+                      WText('Notes: ${d.note.summary}', WType.caption),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Padding(padding: EdgeInsets.only(top: 24, bottom: 10), child: WText('Fresh photos of the vehicle?', WType.label)),
+        _RepeatChoice(
+          icon: WIcon.camera,
+          title: 'Yes, take new photos',
+          detail: '4 quick photos. They help your Captain find the vehicle.',
+          selected: fresh == true,
+          onTap: () => store.set(() => d.freshPhotos = true),
+        ),
+        const SizedBox(height: 10),
+        _RepeatChoice(
+          icon: WIcon.clock,
+          title: 'No, go to time',
+          detail: 'Your Captain still takes the official before and after photos.',
+          selected: fresh == false,
+          onTap: () => store.set(() => d.freshPhotos = false),
+        ),
+      ],
+    );
+  }
+}
+
+/// One prefilled part of Book again, with its "Change" link.
+class _RepeatSection extends StatelessWidget {
+  const _RepeatSection({required this.label, required this.child, required this.onChange});
+  final String label;
+  final Widget child;
+  final VoidCallback onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    return WCard(
+      radius: 16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: WText(label, WType.caption, color: WColor.secondary)),
+              WLink('Change', onTap: onChange),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+/// A selectable answer card, styled like the wash options (C05w).
+class _RepeatChoice extends StatelessWidget {
+  const _RepeatChoice({required this.icon, required this.title, required this.detail, required this.selected, required this.onTap});
+  final WIcon icon;
+  final String title, detail;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: outlinedDecoration(radius: 16, fill: selected ? WColor.primaryTint : WColor.white, stroke: selected ? WColor.primary : WColor.border, width: selected ? 2 : 1),
+        child: Row(
+          children: [
+            WIconBox(icon, size: 48),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  WText(title, WType.title),
+                  const SizedBox(height: 2),
+                  WText(detail, WType.caption),
+                ],
+              ),
+            ),
           ],
         ),
-        Padding(padding: const EdgeInsets.only(top: 22, bottom: 4), child: WText(store.isLive?'Before your next wash':'Still needed for this wash', WType.label)),
-        WListRow(icon: WIcon.camera, title: '4 fresh photos', subtitle:store.isLive?'Optional: helps your Captain find the vehicle':'Every wash starts with new photos'),
-        const WDivider(),
-        WListRow(icon: WIcon.door, title: 'Gate pass', subtitle:store.isLive?'Arrange entry with your society. Messaging setup is pending.':'We’ll ask on WhatsApp after you pay', trailing:store.isLive?'Pending':'Later', chevron: false),
-      ],
+      ),
     );
   }
 }
@@ -667,7 +794,7 @@ class VehiclesTab extends StatelessWidget {
         for (final v in store.myVehicles) ...[
           WCard(
             radius: 16,
-            onTap: () => router.push(R(N.repeatBooking, id: v.id)),
+            onTap: () { store.openRepeat(v.id); router.push(R(N.repeatBooking, id: v.id)); },
             child: Row(
               children: [
                 WIconBox(v.type.icon, size: 48),

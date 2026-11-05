@@ -24,7 +24,7 @@ class VehicleTypeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final next = WButton('Next', enabled: store.draft.type != null, onTap: () => router.go(N.washType));
+    final next = WButton('Next', enabled: store.draft.type != null, onTap: () => router.go(store.draft.editing == RepeatEdit.vehicle ? N.vehicleNumber : N.washType));
     return OnAppear(
       onAppear: () {
         if (store.draft.type == null && !large) store.set(() => store.draft.type = VehicleType.all[1]);
@@ -106,7 +106,7 @@ class WashTypeScreen extends StatelessWidget {
         header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
         footer: WFooterBar(
           showCall: false,
-          child: WButton('Next', enabled: store.draft.wash != null, onTap: () => router.go(N.vehicleNumber)),
+          child: WButton(store.draft.editing == RepeatEdit.wash ? 'Done' : 'Next', enabled: store.draft.wash != null, onTap: () => store.finishRepeatEdit(RepeatEdit.wash) ? router.popTo(N.repeatBooking) : router.go(N.vehicleNumber)),
         ),
         children: [
           WTitleBlock(
@@ -199,6 +199,10 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
     final t = plate.trim();
     if (t.isEmpty) return;
     context.store.set(() => context.store.draft.plate = Fmt.plate(t));
+    if (context.store.finishRepeatEdit(RepeatEdit.vehicle)) {
+      context.router.popTo(N.repeatBooking);
+      return;
+    }
     context.router.go(N.photos);
   }
 
@@ -209,7 +213,7 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
       footer: WFooterBar(
         showCall: false,
-        child: WButton('Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+        child: WButton(context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
       ),
       children: [
         const WTitleBlock('What’s the number plate?', subtitle: 'So the captain finds the right vehicle.'),
@@ -320,7 +324,8 @@ class PhotosScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final d = store.draft;
-    void goNext() => router.go(store.draft.place == null ? N.location : N.floorSlot);
+    // v2 CU-BOOKINGS: a Book again already has its place, so photos lead straight to the time.
+    void goNext() => router.go(d.isRepeat && d.place != null ? N.timeSlot : store.draft.place == null ? N.location : N.floorSlot);
     final title = d.photosComplete
         ? WTitleBlock('Looking good', subtitle: '4 photos${d.videoSeconds != null ? ' and a video' : ''}. Tap any photo to retake.')
         : d.photos.isEmpty
@@ -1669,13 +1674,17 @@ class _EntryNotesScreenState extends State<EntryNotesScreen> {
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          'Next',
+          store.draft.editing == RepeatEdit.place ? 'Done' : 'Next',
           onTap: () {
             store.set(() {
               store.draft.note.text = text;
               store.draft.note.voiceSeconds = voice;
               store.draft.note.videoSeconds = video;
             });
+            if (store.finishRepeatEdit(RepeatEdit.place)) {
+              context.router.popTo(N.repeatBooking);
+              return;
+            }
             context.router.go(N.timeSlot);
           },
         ),

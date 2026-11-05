@@ -94,7 +94,7 @@ final _sections = <(String, List<_E>)>[
     _E('C43b', 'Bookings – empty', (s) => s..signInAsSample()..demo.emptyHistory = true, tab: 1),
     _E('C43c', 'Bookings – past', (s) => s.signInAsSample(), tab: 1),
     _E('C44', 'Booking detail', (s) => s.signInAsSample(), route: const R(N.bookingDetail, id: 'ord_past1')),
-    _E('C45', 'Book again', (s) => s.signInAsSample(), route: const R(N.repeatBooking, id: 'veh_car')),
+    _E('C45', 'Book again', (s) { s.signInAsSample(); s.openRepeat('veh_car'); }, route: const R(N.repeatBooking, id: 'veh_car')),
     _E('C46', 'Your vehicles', (s) => s.signInAsSample(), tab: 2),
     _E('C47', 'Profile', (s) => s.signInAsSample(2), tab: 3),
     const _E('C48', 'Help', _none, route: R(N.help)),
