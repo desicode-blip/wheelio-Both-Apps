@@ -1049,13 +1049,14 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool plateTaken(String plate) => myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.trim().replaceAll(' ', ''));
+  bool plateTaken(String plate) => plate.trim().isNotEmpty && myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.trim().replaceAll(' ', ''));
 
   /// Saves the vehicle in the draft. Returns an error message, or null.
   Future<String?> saveNewVehicle({bool withPhotos = false}) async {
     final type = draft.type, plate = draft.plate.trim();
-    if (type == null || plate.isEmpty) return 'Choose the vehicle type and enter the number plate.';
-    if (myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.replaceAll(' ', ''))) return 'This vehicle is already saved.';
+    if (type == null) return 'Choose the vehicle type.';
+    // The plate may be skipped and added later (Edit vehicle, or when booking).
+    if (plate.isNotEmpty && plateTaken(plate)) return 'This vehicle is already saved.';
     final v = Vehicle('local_${newId('veh')}', plate, type, null);
     localVehicles = [...localVehicles, v];
     await _saveVehiclePhotos(v, withPhotos);
@@ -1068,9 +1069,9 @@ class AppStore extends ChangeNotifier {
   /// changed for vehicles added here; photos for any saved vehicle. Nothing is
   /// sent anywhere until the vehicle is used for a booking.
   Future<String?> updateVehicle(Vehicle v, {VehicleType? type, String? plate, required Map<PhotoAngle, Uint8List> photos}) async {
-    final newPlate = Fmt.plate((plate ?? v.plate).trim());
-    if (newPlate.isEmpty) return 'Enter the number plate.';
-    final clash = myVehicles.any((x) => x.id != v.id && x.plate.replaceAll(' ', '') == newPlate.replaceAll(' ', ''));
+    final raw = (plate ?? v.plate).trim();
+    final newPlate = raw.isEmpty ? '' : Fmt.plate(raw);
+    final clash = newPlate.isNotEmpty && myVehicles.any((x) => x.id != v.id && x.plate.replaceAll(' ', '') == newPlate.replaceAll(' ', ''));
     if (clash) return 'Another saved vehicle has this number plate.';
     final updated = Vehicle(v.id, newPlate, type ?? v.type, v.place)..photos = Map.of(photos);
     localVehicles = [for (final x in localVehicles) if (x.id != v.id) x, updated];

@@ -18,8 +18,11 @@ through the existing booking upload. Deleting the account clears them from the p
 
 **Add a vehicle (Vehicles tab → Add a vehicle):**
 C05 with header "Add a vehicle" (no step bar), title "What kind of vehicle?", subtitle
-"Save it once. Book a wash for it any time." → C06 number plate (same plate twice →
-"This vehicle is already saved.") → C07 photos, **optional**: title "Add photos (optional)",
+"Save it once. Book a wash for it any time.", **no prices or wash times** (5 Nov review)
+→ C06 number plate, subtitle "So your Captain finds the right vehicle. You can add it
+later." with a quiet grey **Skip for now** link under Next (same plate twice → "This
+vehicle is already saved."). A skipped plate shows as "Number plate not added" and is
+asked for when that vehicle is booked → C07 photos, **optional**: title "Add photos (optional)",
 tip "Keep the number plate visible in at least one photo. You can also add photos later."
 **Save vehicle** (with 1–4 photos) or **Skip, add photos later** → back to Vehicles with
 "Vehicle saved". No wash, place or time.
@@ -78,4 +81,4 @@ Customers with no saved vehicles start at C05 as before.
 
 ### Status
 
-Built; analyze clean; Customer 93/93 tests pass. iPhone test pending.
+Built; analyze clean; Customer 95/95 tests pass (incl. tap-through of the add flow). iPhone: Aman tested 5 Nov 19:00; prices and plate skip fixed after review.

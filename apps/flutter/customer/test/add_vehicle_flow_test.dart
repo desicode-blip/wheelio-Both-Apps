@@ -41,6 +41,8 @@ void main() {
     await _settle(tester);
     expect(find.text('What kind of vehicle?'), findsOneWidget);
     expect(find.text('Add a vehicle'), findsOneWidget); // header title
+    expect(find.textContaining('₹'), findsNothing); // no prices when only adding a vehicle
+    expect(find.textContaining('About '), findsNothing);
     await tester.tap(find.text('Next'));
     await _settle(tester);
     expect(find.text('What’s the number plate?'), findsOneWidget);
@@ -54,6 +56,31 @@ void main() {
     await _settle(tester);
     expect(find.text('Your vehicles'), findsOneWidget);
     expect(store.myVehicles.any((v) => v.plate.replaceAll(' ', '') == 'KA01AB1234'), isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('The number plate can be skipped', (tester) async {
+    tester.view.physicalSize = const Size(1000, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(() => LocalFlags.set('notifyAsked', true));
+    final store = AppStore()..signInAsSample();
+    final router = AppRouter()..tab = 2;
+    final before = store.myVehicles.length;
+    await tester.pumpWidget(AppScope(store: store, router: router, child: MaterialApp(home: Material(child: ListenableBuilder(listenable: Listenable.merge([router, store]), builder: (_, _) => WNavStack<R>(router: router, root: const MainTabs(), builder: _screen))))));
+    await _settle(tester);
+    await tester.tap(find.text('Add a vehicle'));
+    await _settle(tester);
+    await tester.tap(find.text('Next'));
+    await _settle(tester);
+    await tester.tap(find.text('Skip for now'));
+    await _settle(tester);
+    expect(find.text('Add photos (optional)'), findsOneWidget);
+    await tester.tap(find.text('Skip, add photos later'));
+    await _settle(tester);
+    expect(store.myVehicles.length, before + 1);
+    expect(find.text('Number plate not added'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

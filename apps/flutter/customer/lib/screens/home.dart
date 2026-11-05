@@ -642,7 +642,7 @@ class RepeatScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    WPlate(d.plate),
+                    VehiclePlate(d.plate),
                     const SizedBox(height: 6),
                     WText(type?.shortName ?? '', WType.caption),
                   ],
@@ -992,7 +992,7 @@ class VehiclesTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      WPlate(v.plate),
+                      VehiclePlate(v.plate),
                       const SizedBox(height: 6),
                       WText(v.place == null ? '${v.type.shortName}${v.photos.isNotEmpty ? ' · ${v.photos.length} photos' : ''}' : '${v.type.shortName} · ${v.place?.tower ?? ''} · ${v.place?.parkingShort ?? ''}', WType.caption),
                       // v2 CU-VEHICLE: edit type, plate and photos any time (kept on this phone).

@@ -14,6 +14,14 @@ import 'common.dart';
 
 // MARK: C05 Vehicle type (C52: 200% text)
 
+/// v2 CU-VEHICLE: the number plate, or a quiet note when it was skipped.
+class VehiclePlate extends StatelessWidget {
+  const VehiclePlate(this.plate, {super.key});
+  final String plate;
+  @override
+  Widget build(BuildContext context) => plate.trim().isEmpty ? const WText('Number plate not added', WType.bodyStrong, color: WColor.secondary) : WPlate(plate);
+}
+
 // MARK: C04 Which vehicle? (v2 CU-VEHICLE)
 // A new booking starts here when the customer has saved vehicles: pick one
 // (type and plate are filled in, then wash and photos), or add another.
@@ -43,7 +51,7 @@ class VehiclePickScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      WPlate(v.plate),
+                      VehiclePlate(v.plate),
                       const SizedBox(height: 6),
                       WText(v.type.shortName, WType.caption),
                     ],
@@ -137,8 +145,9 @@ class VehicleTypeScreen extends StatelessWidget {
                 WSelectionTile(
                   icon: t.icon,
                   title: t.name,
-                  subtitle: 'About ${t.minutes} min',
-                  trailing: Fmt.rupees(t.price),
+                  // v2 CU-VEHICLE: adding a vehicle is not a booking, so no time or price.
+                  subtitle: store.draft.addingVehicle ? null : 'About ${t.minutes} min',
+                  trailing: store.draft.addingVehicle ? null : Fmt.rupees(t.price),
                   selected: store.draft.type == t,
                   onTap: () => store.set(() => store.draft.type = t),
                 ),
@@ -171,7 +180,7 @@ class WashTypeScreen extends StatelessWidget {
         header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
         footer: WFooterBar(
           showCall: false,
-          child: WButton(store.draft.editing == RepeatEdit.wash ? 'Done' : 'Next', enabled: store.draft.wash != null, onTap: () => store.finishRepeatEdit(RepeatEdit.wash) ? router.popTo(N.repeatBooking) : router.go(store.draft.pickedVehicleId != null ? N.repeatPhotos : N.vehicleNumber)),
+          child: WButton(store.draft.editing == RepeatEdit.wash ? 'Done' : 'Next', enabled: store.draft.wash != null, onTap: () => store.finishRepeatEdit(RepeatEdit.wash) ? router.popTo(N.repeatBooking) : router.go(store.draft.pickedVehicleId != null && store.draft.plate.isNotEmpty ? N.repeatPhotos : N.vehicleNumber)),
         ),
         children: [
           WTitleBlock(
@@ -260,10 +269,21 @@ class VehicleNumberScreen extends StatefulWidget {
 class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
   late String plate = context.store.draft.plate;
 
+  /// v2 CU-VEHICLE: in Add a vehicle the plate can be skipped and added later.
+  void _skipPlate() {
+    context.store.set(() => context.store.draft.plate = '');
+    context.router.go(N.photos);
+  }
+
   void _next() {
     final t = plate.trim();
     if (t.isEmpty) return;
     context.store.set(() => context.store.draft.plate = Fmt.plate(t));
+    // v2 CU-VEHICLE: a saved vehicle without a plate gets it here, then its photos step.
+    if (context.store.draft.pickedVehicleId != null && !context.store.draft.addingVehicle && context.store.draft.editing == null) {
+      context.router.go(N.repeatPhotos);
+      return;
+    }
     if (context.store.draft.addingVehicle) {
       final store = context.store;
       if (store.plateTaken(store.draft.plate)) {
@@ -288,10 +308,15 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
       header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, title: context.store.draft.addingVehicle ? 'Add a vehicle' : 'Book a wash', showProgress: !context.store.draft.addingVehicle),
       footer: WFooterBar(
         showCall: false,
-        child: WButton(context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+        child: context.store.draft.addingVehicle
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                WButton('Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+                WLink('Skip for now', color: WColor.secondary, k: WType.caption, onTap: _skipPlate),
+              ])
+            : WButton(context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
       ),
       children: [
-        const WTitleBlock('What’s the number plate?', subtitle: 'So the captain finds the right vehicle.'),
+        WTitleBlock('What’s the number plate?', subtitle: context.store.draft.addingVehicle ? 'So your Captain finds the right vehicle. You can add it later.' : 'So the captain finds the right vehicle.'),
         WTextField(
           label: 'Vehicle number',
           value: plate,
