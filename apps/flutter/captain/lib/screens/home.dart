@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
+import 'package:washkrew_firebase/washkrew_firebase.dart' show DesignPhoto;
 
 import '../data/store.dart';
 import 'money.dart';
@@ -2262,6 +2263,10 @@ class GateProblemScreen extends StatelessWidget {
         const SizedBox(height: 12),
         WBody(store.t('Owner’s MyGate pass for today.', 'आज के लिए मालिक का MyGate पास।', 'ఈరోజు కోసం యజమాని MyGate పాస్.'), center: true),
         const SizedBox(height: 26),
+        // v2 CU-LIVE: show the customer's uploaded gate pass when there is one.
+        if (store.isLive && store.liveOrder(store.current.id)?['entryPass']?['path'] is String)
+          DesignPhoto(path: store.liveOrder(store.current.id)!['entryPass']['path'] as String, height: 320, icon: WIcon.door, radius: 12)
+        else
         Container(
           height: 196,
           decoration: BoxDecoration(

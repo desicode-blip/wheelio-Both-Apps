@@ -110,3 +110,5 @@ How to use this map:
 | 5 Nov | CU-BOOKINGS | Prefilled Book again + photos step (C45, C45b) | [CU-BOOKINGS.md](CU-BOOKINGS.md) | built, iPhone retest |
 | 5 Nov | CU-TIME | "When is your vehicle free?" + slot checkboxes (C12) | [CU-TIME.md](CU-TIME.md) | built, iPhone retest |
 | 5 Nov | SH-DESIGN | `WChip` optional checkbox (used by CU-TIME) | [CU-TIME.md](CU-TIME.md) | built |
+| 5 Nov | CU-LIVE | Upload gate pass on C19/C22; Captain sees it on W27 | [CU-LIVE.md](CU-LIVE.md) | built, backend needed |
+| 5 Nov | CU-APPROVE | (i) explanation on AI wash photo check (stays OFF) | [CU-APPROVE.md](CU-APPROVE.md) | built |

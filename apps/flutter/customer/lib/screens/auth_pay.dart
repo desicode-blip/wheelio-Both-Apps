@@ -6,6 +6,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import '../data/models.dart';
 import '../data/store.dart';
+import 'gate_pass.dart';
 import 'common.dart';
 import 'booking_ai_setting.dart';
 
@@ -491,30 +492,8 @@ class BookedScreen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         if(o!=null)BookingAiPhotoSetting(key:ValueKey('ai-${o.id}'),order:o),
-        WCard(
-          padding: 18,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const WIconBox(WIcon.whatsapp, size: 44, tone: Tone.ok),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [const WText('One last thing: your gate pass', WType.title), WText(store.isLive ? 'WhatsApp messaging is not connected yet.' : 'We sent you a WhatsApp message', WType.caption)],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              WText(store.isLive ? 'No gate-pass message has been sent. Check your society’s entry requirements before the wash.' : 'Reply there with your MyGate or society entry pass, so the captain can get in.', WType.body),
-              const SizedBox(height: 14),
-              WButton('Open WhatsApp', icon: WIcon.whatsapp, kind: ButtonKind.outline, onTap: () => store.blockLive('WhatsApp gate-pass messaging is not connected yet.') ? null : router.go(N.whatsApp)),
-            ],
-          ),
-        ),
+        // v2 CU-LIVE: upload the gate pass here instead of the unconnected WhatsApp step.
+        if (o != null) GatePassCard(order: o),
         const SizedBox(height: 18),
         if (store.isLive && o?.captain != null)
           WBanner(tone: Tone.info, icon: WIcon.search, text: '${o!.captain!.name} accepted your booking. Open tracking for the latest status.')

@@ -5,6 +5,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 import '../data/models.dart';
 import '../data/refund_status.dart';
 import '../data/store.dart';
+import 'gate_pass.dart';
 import 'auth_pay.dart';
 import 'booking_ai_setting.dart';
 import 'common.dart';
@@ -257,7 +258,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         ] else ...[
           CaptainCard(order: o, badge: const WBadge('Accepted', tone: Tone.info, icon: WIcon.check), timeText:hasEta?'Arrives by ${Fmt.time(arrives)}':'Arrival estimate unavailable'),
           const SizedBox(height: 16),
-          if (o.entryPassReceived)
+          if (o.entryPassReceived && o.gatePassBytes == null && o.gatePassPath == null)
             Container(
               constraints: const BoxConstraints(minHeight: 44),
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -265,7 +266,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
               child: Row(children: [const WIconView(WIcon.check, size: 15, color: WColor.onSuccess, weight: semibold), const SizedBox(width: 12), Expanded(child: WText('Entry pass received. $name can get in.', WType.caption, color: WColor.onSuccess, size: 14))]),
             )
           else
-            WBanner(tone: Tone.wait, icon: WIcon.door, title: 'We still need your gate pass.', text: 'Without it $name may be stopped at the gate.', actionTitle: 'Send now', onAction: () => context.store.blockLive() ? null : router.go(N.whatsApp)),
+            GatePassCard(order: o),
         ],
         const SizedBox(height: 26),
         const WStatusSteps(steps: _liveSteps, current: 1),

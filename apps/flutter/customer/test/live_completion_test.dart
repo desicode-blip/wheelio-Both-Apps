@@ -12,7 +12,7 @@ class CompletionStore extends AppStore {
 }
 
 void main() {
-  testWidgets('Firebase confirmation shows assignment and cannot open a sample WhatsApp conversation', (tester) async {
+  testWidgets('Firebase confirmation shows assignment and offers the gate pass upload', (tester) async {
     tester.view.physicalSize = const Size(430, 1100);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -22,10 +22,11 @@ void main() {
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: BookedScreen())));
     expect(find.textContaining('accepted your booking'), findsOneWidget);
     expect(find.textContaining('We’re finding a captain now'), findsNothing);
-    expect(find.text('We sent you a WhatsApp message'), findsNothing);
-    await tester.tap(find.text('Open WhatsApp'));
+    // v2 CU-LIVE: the gate pass is uploaded on this screen; no WhatsApp step.
+    expect(find.text('Open WhatsApp'), findsNothing);
+    expect(find.text('Gate pass'), findsOneWidget);
+    expect(find.text('Upload gate pass'), findsOneWidget);
     expect(router.last, isNull);
-    expect(store.toast, 'WhatsApp gate-pass messaging is not connected yet.');
     await tester.pumpWidget(const SizedBox());
     store.dispose();
     router.dispose();
@@ -51,7 +52,7 @@ void main() {
     router.dispose();
   });
 
-  testWidgets('disconnected design fixture retains the original booking copy and WhatsApp reference', (tester) async {
+  testWidgets('design fixture shows the gate pass card', (tester) async {
     tester.view.physicalSize = const Size(430, 1100);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -59,9 +60,9 @@ void main() {
     final store = AppStore()..sampleOrder(OrderStatus.onTheWay);
     final router = AppRouter();
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: BookedScreen())));
-    expect(find.text('We sent you a WhatsApp message'), findsOneWidget);
-    await tester.tap(find.text('Open WhatsApp'));
-    expect(router.last?.n, N.whatsApp);
+    // v2 CU-LIVE: the sample booking already has its pass, so the card shows it as shared.
+    expect(find.text('Gate pass'), findsOneWidget);
+    expect(find.text('Open WhatsApp'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     store.dispose();
     router.dispose();

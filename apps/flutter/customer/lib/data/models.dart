@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 // Domain models, ported from apps/ios/Customer/Data/Models.swift. Field names mirror the backend.
 
 import 'package:washkrew_ui/washkrew_ui.dart';
@@ -389,6 +390,7 @@ class Order {
     this.finishedAt,
     this.autoApproveAt,
     this.entryPassReceived = false,
+    this.gatePassPath,
     this.captainCantFind = false,
     this.rating,
     this.paidWith,
@@ -468,6 +470,14 @@ class Order {
   DateTime? finishedAt;
   DateTime? autoApproveAt;
   bool entryPassReceived;
+
+  /// v2 CU-LIVE gate pass: storage path of the customer's uploaded pass, when the
+  /// backend returns it (`entryPass.path`).
+  String? gatePassPath;
+
+  /// v2 CU-LIVE gate pass: the photo picked on this phone, shown until the
+  /// backend upload is connected (BACKEND: Ajay).
+  Uint8List? gatePassBytes;
   bool captainCantFind;
   int? rating;
   PaymentMethod? paidWith;

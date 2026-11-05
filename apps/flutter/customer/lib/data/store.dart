@@ -757,6 +757,7 @@ class AppStore extends ChangeNotifier {
       finishedAt: date(data['finishedAt']),
       autoApproveAt: date(data['autoApproveAt']),
       entryPassReceived: data['entryPass']?['status'] == 'received',
+      gatePassPath: data['entryPass']?['path'] as String?,
       captainCantFind: data['vehicleHelp']?['status'] == 'waiting',
       runningLateMinutes:(data['runningLateMinutes'] as num?)?.toInt(),
       noShowChecking:data['noShowChecking']==true,
@@ -1312,6 +1313,16 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     return true;
+  }
+
+  /// v2 CU-LIVE: the customer uploads their society gate pass for this booking.
+  /// BACKEND (Ajay): upload to Storage (e.g. `orders/{id}/gatePass.jpg`), set
+  /// `entryPass = {status:'received', path, uploadedAt}` and let the assigned
+  /// Captain read it. Until then, live mode keeps the photo on this phone only.
+  Future<void> uploadGatePass(Order o, Uint8List bytes) async {
+    o.gatePassBytes = bytes;
+    if (!isLive) o.entryPassReceived = true;
+    notifyListeners();
   }
 
   void startNewBooking() {
