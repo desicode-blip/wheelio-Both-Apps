@@ -112,13 +112,15 @@ void main() {
           child: const MaterialApp(home: ReviewScreen()),
         ),
       );
-      await tester.tap(find.text('Pay by wallet · ₹149'));
+      await tester.tap(find.text('Pay now · ₹0'));
       expect(s.draft.walletOnly, true);
       expect(s.draft.pricePaise, 0);
       expect(r.last?.n, N.paying);
       r.pop();
       await tester.pump();
-      await tester.tap(find.text('Pay via Razorpay · ₹149'));
+      await tester.tap(find.byType(WToggle));
+      await tester.pump();
+      await tester.tap(find.text('Pay now · ₹149'));
       expect(s.draft.walletOnly, false);
       expect(s.draft.pricePaise, 14900);
       expect(r.last?.n, N.paying);

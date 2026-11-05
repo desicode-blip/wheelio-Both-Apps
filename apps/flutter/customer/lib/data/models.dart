@@ -524,3 +524,19 @@ class BusinessRules {
   static String get cancellationFeeText => cancellationFee?.toString() ?? '[CANCELLATION FEE]';
   static const refundAmountText = '[REFUND AMOUNT]';
 }
+
+/// v2 CU-VEHICLE (6 Nov): the number plate as the server stores it — letters and
+/// digits only (spaces, dashes and dots removed).
+String plateKey(String raw) => raw.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+/// Why a typed number plate cannot be used for a booking, or null when it can.
+/// Same rule as the server (6 to 12 letters and digits), checked while typing so
+/// nobody finds out at payment.
+String? plateProblem(String raw) {
+  final k = plateKey(raw);
+  if (k.isEmpty) return 'Enter the number plate.';
+  if (k.length < 6) return 'That looks too short. Type the full number, like TS 09 EA 4521.';
+  if (k.length > 12) return 'That looks too long. Check the number on the plate.';
+  return null;
+}
+

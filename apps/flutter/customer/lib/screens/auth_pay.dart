@@ -335,7 +335,10 @@ class _PayingScreenState extends State<PayingScreen> {
     _failureMessage = null;
     PaymentOutcome outcome;
     try {
+      store.paymentClosed = false;
       outcome = await store.createOrderAndPay();
+      // v2 CU-PAY: Razorpay closed without paying. Plain message, quick retry.
+      if (store.paymentClosed) _failureMessage = 'You closed the payment. No money was taken.';
     } catch (e) {
       _failureMessage = backendError(e);
       store.set(() => store.toast = _failureMessage);
@@ -401,12 +404,12 @@ class _PayingScreenState extends State<PayingScreen> {
               PayView.failed => WFullState(
                 icon: WIcon.receipt,
                 tone: Tone.error,
-                title: 'Payment didn’t go through',
+                title: store.isLive && store.paymentClosed ? 'Payment not completed' : 'Payment didn’t go through',
                 message: store.isLive
                     ? (_failureMessage ?? 'Payment could not be completed. Check its status before trying again or changing method.')
                     : 'Your bank declined it. No money was taken. Try again or use another method.',
-                primary: 'Try again',
-                secondary: 'Change method',
+                primary: store.isLive && store.paymentClosed ? 'Pay now' : 'Try again',
+                secondary: store.isLive ? 'Back to Check and pay' : 'Change method',
                 onPrimary: () {
                   store.set(() => store.demo.payment = PaymentOutcome.success);
                   setState(() => view = PayView.processing);
@@ -414,8 +417,8 @@ class _PayingScreenState extends State<PayingScreen> {
                 },
                 onSecondary: () {
                   if (store.isLive) {
-                    setState(() => view = PayView.processing);
-                    _run();
+                    // v2 CU-PAY: back to Check and pay to change wallet or details.
+                    router.pop();
                     return;
                   }
                   router.pop();

@@ -106,3 +106,22 @@ Built; analyze clean; Customer 95/95 tests pass (incl. tap-through of the add fl
   appear below → tap Bike → two washes → pick one → Next → number plate.
 - **Status:** built; analyze clean; Customer tests 97/97. iPhone check pending.
 
+## 6 Nov 2026 — Number plate checked when it's typed
+
+- **Why (Aman):** a short plate ("JJJ") was accepted, then payment failed with "Check
+  vehicle number." Mistakes must be caught at entry, never at payment.
+- **Cause:** the server accepts 6–12 letters and digits; the app accepted anything.
+- **What changed for the user:**
+  - Plate screen (C06) and Edit vehicle check the same rule and explain under the field
+    ("That looks too short. Type the full number, like TS 09 EA 4521."). Spaces, dashes and
+    dots are fine.
+  - A plate saved earlier that the server can't use (or a skipped one) is asked for in a
+    small sheet when Pay is tapped — *Save and pay* continues straight to payment and also
+    fixes the saved vehicle.
+- **Files changed:** `customer/lib/data/models.dart` (`plateKey`, `plateProblem`),
+  `store.dart` (sends the plate as letters/digits), `screens/booking.dart` (C06, PlateFixSheet),
+  `screens/home.dart` (Edit vehicle), `test/plate_check_test.dart` (new).
+- **Backend needed (Ajay):** optional — if bookings without a plate should go through,
+  relax the plate check in `createBooking` (`service.mjs`).
+- **Status:** built; tests pass.
+

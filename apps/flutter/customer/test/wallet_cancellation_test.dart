@@ -92,10 +92,12 @@ void main() {
     s.customer = Customer(id: 'fixture', phone: '')..credit = 74.5;
     final r = AppRouter();
     await tester.pumpWidget(AppScope(store: s, router: r, child: const MaterialApp(home: ReviewScreen())));
-    expect(find.text('₹74.50 credit'), findsOneWidget);
-    expect(find.text('Choose Pay by wallet below, or top up your balance.'), findsOneWidget);
-    expect(find.text('Full refund within 5 minutes of confirmation. Later: 50% fee, 50% to your wallet.'), findsOneWidget);
-    await tester.tap(find.text('Pay by wallet · ₹149'));await tester.pump();
+    expect(find.text('Use wallet balance'), findsOneWidget);
+    expect(find.text('₹74.50'), findsOneWidget);
+    expect(find.text('Cancellation policy'), findsOneWidget);
+    expect(find.text('Pay now · ₹149'), findsOneWidget); // wallet off: it does not cover the wash
+    await tester.tap(find.byType(WToggle));await tester.pump();
+    await tester.tap(find.text('Top up ₹74.50 and pay'));await tester.pump();
     expect(r.last?.n,N.wallet);expect(r.last?.walletShortfallPaise,7450);
     expect(s.draft.pricePaise, 14900);
     await tester.pumpWidget(const SizedBox()); s.dispose(); r.dispose();

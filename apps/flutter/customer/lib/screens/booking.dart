@@ -298,7 +298,8 @@ class WashOptionCard extends StatelessWidget {
   }
 }
 
-// MARK: C06 Vehicle number. Any number is accepted as typed, so customers never hit an error here.
+// MARK: C06 Vehicle number. v2 CU-VEHICLE (6 Nov): checked here with the server's rule,
+// so a mistake is fixed now and never blocks payment later.
 
 class VehicleNumberScreen extends StatefulWidget {
   const VehicleNumberScreen({super.key});
@@ -308,6 +309,7 @@ class VehicleNumberScreen extends StatefulWidget {
 
 class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
   late String plate = context.store.draft.plate;
+  String? _error;
 
   /// v2 CU-VEHICLE: in Add a vehicle the plate can be skipped and added later.
   void _skipPlate() {
@@ -318,6 +320,11 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
   void _next() {
     final t = plate.trim();
     if (t.isEmpty) return;
+    final problem = plateProblem(t);
+    if (problem != null) {
+      setState(() => _error = problem);
+      return;
+    }
     context.store.set(() => context.store.draft.plate = Fmt.plate(t));
     // v2 CU-VEHICLE: a saved vehicle without a plate gets it here, then its photos step.
     if (context.store.draft.pickedVehicleId != null && !context.store.draft.addingVehicle && context.store.draft.editing == null) {
@@ -363,8 +370,12 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
           placeholder: 'TS 09 EA 4521',
           caps: TextCapitalization.characters,
           autofocus: true,
+          error: _error,
           onSubmit: _next,
-          onChanged: (v) => setState(() => plate = v),
+          onChanged: (v) => setState(() {
+            plate = v;
+            _error = null;
+          }),
         ),
         const Padding(padding: EdgeInsets.only(top: 18), child: _PlateHint()),
         if (t != null)
@@ -2167,7 +2178,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _freeDefaulted = true;
     final store = context.store;
     store.prefetchPaymentResources();
-    if(store.isLive)_useCredit=false;
+    // v2 CU-REVIEW: the wallet is switched on when it pays for the whole wash.
+    final c = store.customer?.credit ?? 0;
+    final split = !store.isLive || store.liveConfig['walletSplitPayments'] == true;
+    _useCredit = c > 0 && (split || (c * 100).round() >= store.draft.basePricePaise);
     if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
@@ -2197,130 +2211,205 @@ class _ReviewScreenState extends State<ReviewScreen> {
     });
     final d = store.draft;
     final free = store.customer?.freeWashes ?? 0;
-    // Credit from a late cancellation comes off automatically (not with a free wash).
     final credit = store.customer?.credit ?? 0;
-    d.applyWalletCredit(credit, enabled: _useCredit);
-    Widget livePayOptions()=>Column(mainAxisSize:MainAxisSize.min,children:[
-      WButton('Pay by wallet · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.success,onTap:(){
-        if(!store.isLoggedIn){router.go(N.login);return;}
-        final missing=d.basePricePaise-(credit*100).round();
-        if(missing>0){router.push(R(N.wallet,walletShortfallPaise:missing));return;}
-        setState(()=>_useCredit=true);d.walletOnly=true;d.applyWalletCredit(credit);
-        if(!router.isAt(N.paying))router.push(const R(N.paying));
-      }),
-      const SizedBox(height:10),
-      WButton('Pay via Razorpay · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.outline,onTap:(){
-        if(!store.isLoggedIn){router.go(N.login);return;}
-        setState(()=>_useCredit=false);d.walletOnly=false;d.applyWalletCredit(credit,enabled:false);
-        if(!router.isAt(N.paying))router.push(const R(N.paying));
-      }),
-    ]);
+    // v2 CU-REVIEW (5 Nov, Aman): one wallet toggle and one "Pay now" button.
+    // The live server takes either the full price from the wallet or the full price
+    // through Razorpay. Paying part from the wallet needs Ajay's backend change and is
+    // switched on by liveConfig.walletSplitPayments; until then a wallet that does not
+    // cover the total offers a top-up of the difference.
+    final splitOk = !store.isLive || store.liveConfig['walletSplitPayments'] == true;
+    final showWallet = credit > 0 && !d.useFreeWash;
+    final covers = (credit * 100).round() >= d.basePricePaise;
+    final topUpPaise = (d.basePricePaise - (credit * 100).round()).clamp(100, 1000000);
+    final useWallet = showWallet && _useCredit;
+    final needsTopUp = useWallet && !covers && !splitOk;
+    d.applyWalletCredit(credit, enabled: useWallet && !needsTopUp);
+    final policy = store.liveConfig['cancellationPolicy'] is Map ? Map<String, dynamic>.from(store.liveConfig['cancellationPolicy']) : null;
+    Future<void> pay() async {
+      if (!store.isLoggedIn) { router.go(N.login); return; }
+      // v2 CU-VEHICLE (6 Nov): a plate saved long ago that the server can't use is
+      // fixed here in one step, then payment carries on. No error after Pay.
+      if (plateProblem(d.plate) != null) {
+        final ok = await showWSheet<bool>(context, height: 380, builder: (_) => AppScope(store: store, router: router, child: const PlateFixSheet()));
+        if (ok != true || !mounted) return;
+      }
+      if (needsTopUp) { router.push(R(N.wallet, walletShortfallPaise: topUpPaise)); return; }
+      if (store.isLive && !d.useFreeWash) {
+        d.walletOnly = useWallet && d.pricePaise == 0;
+        if (!router.isAt(N.paying)) router.push(const R(N.paying));
+        return;
+      }
+      if (d.price == 0) { router.push(const R(N.paying, pay: PayView.processing)); return; }
+      if (store.isLive) {
+        if (!router.isAt(N.paying)) router.push(const R(N.paying));
+      } else { router.openPaySheet(true); }
+    }
+    final label = needsTopUp
+        ? 'Top up ${Fmt.rupees(topUpPaise / 100)} and pay'
+        : d.useFreeWash
+        ? 'Book with free wash'
+        : 'Pay now · ${Fmt.rupees(d.price)}';
+    Widget row(WIcon icon, String title, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          WIconBox(icon, size: 40),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [WText(title, WType.caption), const SizedBox(height: 2), WText(value, WType.bodyStrong)],
+            ),
+          ),
+        ],
+      ),
+    );
+    Widget money(String title, num amount, {bool strong = false, bool minus = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(child: WText(title, strong ? WType.title : WType.body)),
+          WText('${minus ? '− ' : ''}${Fmt.rupees(amount)}', strong ? WType.title : WType.body, weight: strong ? bold : null, mono: true),
+        ],
+      ),
+    );
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
         showCall: false,
-        child: store.isLive&&!d.useFreeWash?livePayOptions():d.price == 0
-            // Free wash: nothing to pay, so skip the payment sheet.
-            ? WButton(d.useFreeWash ? 'Book with free wash' : 'Book with credit', kind: ButtonKind.success, onTap: () => store.isLoggedIn ? router.push(const R(N.paying, pay: PayView.processing)) : router.go(N.login))
-            : WButton('Continue to pay', onTap: () {
-                if (!store.isLoggedIn) { router.go(N.login); return; }
-                if (store.isLive) {
-                  if (!router.isAt(N.paying)) router.push(const R(N.paying));
-                } else { router.openPaySheet(true); }
-              }),
+        child: WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, onTap: pay),
       ),
       children: [
         const WTitleBlock('Check and pay'),
         WCard(
           radius: 16,
-          onTap: router.pop,
-          child: Row(
+          child: Column(
             children: [
-              WIconBox(d.type?.icon ?? WIcon.car, size: 48),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    WPlate(d.plate.isEmpty ? 'TS 09 EA 4521' : d.plate),
-                    const SizedBox(height: 6),
-                    WText(
-                      '${d.type?.shortName ?? ''}${d.wash != null ? ' · ${d.wash!.shortName}' : ''} · ${d.place?.tower ?? ''} · ${d.place?.parkingShort ?? ''}',
-                      WType.caption,
-                    ),
-                  ],
-                ),
-              ),
-              const WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
+              row(WIcon.clock, 'When', d.slot?.full ?? ''),
+              row(WIcon.sparkle, 'Wash', (d.wash ?? WashKind.wetOutside).name(d.type?.kind == VehicleKind.bike)),
+              row(WIcon.edit, 'Notes', d.note.summary),
+              const Divider(height: 24, color: WColor.divider),
+              money('Wash price', d.basePrice),
+              if (d.useFreeWash) money('Free wash', d.basePrice, minus: true),
+              if (!d.useFreeWash && d.creditApplied > 0) money('From wallet', d.creditApplied, minus: true),
+              money('To pay', d.useFreeWash ? 0 : d.price, strong: true),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        WKeyValueCard(
-          boldLast: true,
-          rows: [('When', d.slot?.full ?? ''), ('Wash', d.wash == WashKind.dryDusting ? 'Exterior · dry dusting' : 'Exterior · water and cloth'), ('Notes', d.note.summary), if (store.isLive && store.liveConfig['cancellationPolicy'] is Map && usesCancellationQuote(Map<String,dynamic>.from(store.liveConfig['cancellationPolicy']))) ('Cancellation', cancellationPolicyText(Map<String,dynamic>.from(store.liveConfig['cancellationPolicy']))), ('Total', Fmt.rupees(d.price))],
-        ),
-        // Only when they have one: a short note that a free wash can pay for this booking.
+        // Only when they have one: a free wash can pay for this booking.
         if (free > 0) ...[
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
-            decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
+          WCard(
+            radius: 16,
             child: Row(
               children: [
-                const WIconView(WIcon.gift, size: 22, color: WColor.onSuccess),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WText(free == 1 ? 'You have 1 free wash' : 'You have $free free washes', WType.bodyStrong, color: WColor.onSuccess),
-                      WText(d.useFreeWash ? 'Used for this booking. You pay ₹0.' : 'Use it for this booking and pay nothing.', WType.caption, color: WColor.onSuccess),
-                    ],
-                  ),
-                ),
+                const WIconBox(WIcon.gift, size: 40, tone: Tone.ok),
+                const SizedBox(width: 14),
+                Expanded(child: WText(free == 1 ? 'Use my free wash' : 'Use a free wash ($free left)', WType.bodyStrong)),
                 WToggle(on: d.useFreeWash, tint: WColor.success, onChanged: (v) => store.set(() => store.draft.useFreeWash = v)),
               ],
             ),
           ),
         ],
-        if (credit > 0 && !d.useFreeWash) ...[
+        if (showWallet) ...[
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
-            decoration: BoxDecoration(color: WColor.successTint, borderRadius: BorderRadius.circular(14)),
-            child: Row(
+          WCard(
+            radius: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const WIconView(WIcon.rupee, size: 22, color: WColor.onSuccess),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WText('${Fmt.rupees(credit)} credit', WType.bodyStrong, color: WColor.onSuccess),
-                      WText(
-                        store.isLive?'Choose Pay by wallet below, or top up your balance.':_useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
-                        WType.caption,
-                        color: WColor.onSuccess,
+                Row(
+                  children: [
+                    const WIconBox(WIcon.wallet, size: 40),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [const WText('Use wallet balance', WType.bodyStrong), WText(Fmt.rupees(credit), WType.caption)],
                       ),
-                    ],
-                  ),
+                    ),
+                    WToggle(on: _useCredit, onChanged: (v) => setState(() => _useCredit = v)),
+                  ],
                 ),
-                if(!store.isLive)WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
+                if (needsTopUp) ...[
+                  const SizedBox(height: 10),
+                  WText('Add ${Fmt.rupees(topUpPaise / 100)} to pay the full amount from your wallet.', WType.caption),
+                ],
               ],
             ),
           ),
         ],
-        if(store.isLive&&!d.useFreeWash)...[
-          const SizedBox(height:14),
-          WCard(child:Row(children:[const WIconView(WIcon.rupee,color:WColor.primary),const SizedBox(width:10),Expanded(child:WText('Wallet balance ${Fmt.rupees(credit)}',WType.bodyStrong)),
-            WLink('Top up',onTap:()=>router.push(R(N.wallet,walletShortfallPaise:(d.basePricePaise-(credit*100).round()).clamp(100,1000000))))])),
+        if (policy != null && usesCancellationQuote(policy)) ...[
+          const SizedBox(height: 16),
+          Center(
+            child: WLink(
+              'Cancellation policy',
+              onTap: () => showWAlert(context, title: 'Cancellation policy', message: cancellationPolicyText(policy)),
+            ),
+          ),
         ],
-        const SizedBox(height: 18),
-        if (d.price > 0) HeldSafelyBanner(amount: d.price),
       ],
     );
   }
+}
+
+/// v2 CU-VEHICLE: asks for the number plate at Pay when the saved one can't be used.
+class PlateFixSheet extends StatefulWidget {
+  const PlateFixSheet({super.key});
+  @override
+  State<PlateFixSheet> createState() => _PlateFixSheetState();
+}
+
+class _PlateFixSheetState extends State<PlateFixSheet> {
+  late String plate = context.store.draft.plate;
+  String? error;
+
+  Future<void> _save() async {
+    final store = context.store;
+    final problem = plateProblem(plate);
+    if (problem != null) {
+      setState(() => error = problem);
+      return;
+    }
+    final fixed = Fmt.plate(plate);
+    store.set(() => store.draft.plate = fixed);
+    // Keep the saved vehicle on this phone in step, so it's right next time too.
+    final id = store.draft.pickedVehicleId;
+    final v = id == null ? null : store.myVehicles.where((x) => x.id == id).firstOrNull;
+    if (v != null) await store.updateVehicle(v, plate: fixed, photos: v.photos);
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    // Sits above the keyboard.
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const WText('Add the number plate', WType.section, weight: semibold),
+        const SizedBox(height: 4),
+        const WText('So your Captain finds the right vehicle.', WType.caption),
+        const SizedBox(height: 16),
+        WTextField(
+          label: 'Vehicle number',
+          value: plate,
+          placeholder: 'TS 09 EA 4521',
+          caps: TextCapitalization.characters,
+          autofocus: true,
+          error: error,
+          onSubmit: _save,
+          onChanged: (v) => setState(() {
+            plate = v;
+            error = null;
+          }),
+        ),
+        const SizedBox(height: 18),
+        WButton('Save and pay', enabled: plate.trim().isNotEmpty, onTap: _save),
+      ],
+    ),
+  );
 }
 
 // MARK: C17 Payment method sheet

@@ -875,6 +875,8 @@ class _VehicleEditScreenState extends State<VehicleEditScreen> {
     );
   }
 
+  String? plateError;
+
   Future<void> _save() async {
     final store = context.store, router = context.router, v = vehicle;
     if (v == null || saving) return;
@@ -883,7 +885,12 @@ class _VehicleEditScreenState extends State<VehicleEditScreen> {
     if (!mounted) return;
     setState(() => saving = false);
     if (error != null) {
-      store.set(() => store.toast = error);
+      // v2 CU-VEHICLE: a plate problem shows under the field; anything else as a toast.
+      if (editableDetails && plate.trim().isNotEmpty && plateProblem(plate) == error) {
+        setState(() => plateError = error);
+      } else {
+        store.set(() => store.toast = error);
+      }
       return;
     }
     router.pop();
@@ -912,7 +919,10 @@ class _VehicleEditScreenState extends State<VehicleEditScreen> {
               for (final t in VehicleType.all) WChip(t.shortName, icon: t.icon, selected: type == t, onTap: () => setState(() => type = t)),
             ]),
             const SizedBox(height: 20),
-            WTextField(label: 'Vehicle number', value: plate, placeholder: 'TS 09 EA 4521', caps: TextCapitalization.characters, onChanged: (x) => setState(() => plate = x)),
+            WTextField(label: 'Vehicle number', value: plate, placeholder: 'TS 09 EA 4521', caps: TextCapitalization.characters, error: plateError, onChanged: (x) => setState(() {
+              plate = x;
+              plateError = null;
+            })),
             const SizedBox(height: 20),
           ],
           const WText('Photos', WType.label),

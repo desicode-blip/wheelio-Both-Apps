@@ -1071,6 +1071,10 @@ class AppStore extends ChangeNotifier {
   Future<String?> updateVehicle(Vehicle v, {VehicleType? type, String? plate, required Map<PhotoAngle, Uint8List> photos}) async {
     final raw = (plate ?? v.plate).trim();
     final newPlate = raw.isEmpty ? '' : Fmt.plate(raw);
+    if (newPlate.isNotEmpty && plate != null) {
+      final problem = plateProblem(newPlate);
+      if (problem != null) return problem;
+    }
     final clash = newPlate.isNotEmpty && myVehicles.any((x) => x.id != v.id && x.plate.replaceAll(' ', '') == newPlate.replaceAll(' ', ''));
     if (clash) return 'Another saved vehicle has this number plate.';
     final updated = Vehicle(v.id, newPlate, type ?? v.type, v.place)..photos = Map.of(photos);
@@ -1495,6 +1499,40 @@ class AppStore extends ChangeNotifier {
 
   void prefetchPaymentResources() {
     if (live != null) unawaited(live!.preloadCheckout());
+    // v2 CU-PAY (6 Nov): confirm the parking place while the customer reads Check
+    // and pay, so Pay does not wait for that server call before Razorpay opens.
+    final p = draft.place;
+    if (isLive && captainAreaEnabled && p != null && !p.society.id.startsWith('loc_')) {
+      _placeCheck = (p, confirmPlace(p)..ignore());
+    }
+  }
+
+  /// v2 CU-PAY: true when the last checkout ended because Razorpay was closed.
+  bool paymentClosed = false;
+  PaymentOutcome _paidOutcome(Map<String, dynamic> paid) {
+    paymentClosed = paid['closed'] == true;
+    if (paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled') return PaymentOutcome.success;
+    return paymentClosed ? PaymentOutcome.failed : PaymentOutcome.pending;
+  }
+  (Place, Future<Place>)? _placeCheck;
+  // v2 CU-PAY: the details the current unpaid booking was made with, and whether its
+  // photos and notes are already saved (they are before Razorpay ever opens).
+  String? _draftSig;
+  String? _uploadedFor;
+
+  /// v2 CU-PAY (6 Nov): closing Razorpay leaves the booking waiting for payment, and
+  /// the server refuses a new booking while one waits. Release an unpaid one first.
+  /// Never touches a booking that has been paid.
+  Future<void> _releaseUnpaid(String id) async {
+    try {
+      final c = await live!.call('checkPayment', {'bookingId': id});
+      if (c['paymentStatus'] == 'captured' || c['status'] != 'pendingPayment') return;
+      final q = await cancellationQuote(id);
+      await live!.call('cancelBooking', {'orderId': id, if (q?['confirmation'] != null) 'confirmation': q!['confirmation']});
+      await _refreshLiveOrder(id);
+    } catch (_) {
+      // Best effort: the server also expires unpaid bookings; booking reports any block.
+    }
   }
 
   void _checkoutStage(CheckoutStage stage) {
@@ -1517,16 +1555,21 @@ class AppStore extends ChangeNotifier {
         draftBookingId = pending.id;
         final paid = await live!.pay(pending.id, onStage: _checkoutStage);
         await _refreshLiveOrder(pending.id);
-        return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+        return _paidOutcome(paid);
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
       // The confirmed server location is already saved by the map flow. The
       // booking transaction still resolves it and validates the parking pin.
-      if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
+      if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){
+        final pre=_placeCheck;_placeCheck=null;
+        Place? done;
+        if(pre!=null&&identical(pre.$1,p)){try{done=await pre.$2;}catch(_){done=null;}}
+        p=done??await confirmPlace(p);draft.place=p;
+      }
       final booking = <String,dynamic>{
         'requestId': draftRequestId,
         'cancellationPolicyVersion':2,
-        'plate': d.plate,
+        'plate': plateKey(d.plate),
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,
         'societyId': p.society.id,
@@ -1547,6 +1590,29 @@ class AppStore extends ChangeNotifier {
         'startHour': s.startHour,
         'endHour': s.endHour,
       };
+      // v2 CU-PAY (6 Nov): retrying after closing Razorpay reuses the same unpaid
+      // booking (photos already saved, Razorpay order already made), so Razorpay opens
+      // at once. Changed details or another waiting booking are released first.
+      final sig = jsonEncode({for (final e in booking.entries) if (e.key != 'requestId') e.key: e.value});
+      final previous = draftBookingId;
+      final prevOrder = previous == null ? null : orders.where((o) => o.id == previous).firstOrNull;
+      final reusable = prevOrder != null && prevOrder.status == OrderStatus.pendingPayment && _draftSig == sig;
+      if (previous != null && reusable && _uploadedFor == previous) {
+        final paid = await live!.pay(previous, onStage: _checkoutStage);
+        await _refreshLiveOrder(previous);
+        return _paidOutcome(paid);
+      }
+      if (previous != null && !reusable && prevOrder?.status != OrderStatus.paymentPending) {
+        if (prevOrder == null || prevOrder.status == OrderStatus.pendingPayment) await _releaseUnpaid(previous);
+        draftBookingId = null;
+        _uploadedFor = null;
+        draftRequestId = newId('draft');
+        booking['requestId'] = draftRequestId;
+      }
+      for (final o in orders.where((o) => o.status == OrderStatus.pendingPayment && o.id != draftBookingId && o.paymentStatus != 'captured').toList()) {
+        await _releaseUnpaid(o.id);
+      }
+      _draftSig = sig;
       final paid = await live!.startCheckout(
         booking: booking,
         uploads: [
@@ -1556,11 +1622,14 @@ class AppStore extends ChangeNotifier {
             (id) => live!.uploadCustomerPhoto(id, entry.key.name, entry.value),
         ],
         onBookingReady: (id) { draftBookingId = id; currentOrderId = id; },
-        onStage: _checkoutStage,
+        onStage: (stage) {
+          if (stage == CheckoutStage.opening) _uploadedFor = draftBookingId;
+          _checkoutStage(stage);
+        },
       );
       final bookingId = draftBookingId!;
       await _refreshLiveOrder(bookingId);
-      return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+      return _paidOutcome(paid);
     }
     final d = draft;
     final type = d.type, place = d.place, slot = d.slot;

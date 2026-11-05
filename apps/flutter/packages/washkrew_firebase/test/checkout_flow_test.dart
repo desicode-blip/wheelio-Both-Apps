@@ -239,4 +239,16 @@ void main() {
       ),
     );
   });
+
+  test('closing Razorpay without paying is reported as closed, a capture is not', () async {
+    for (final status in ['unpaid', 'captured']) {
+      final flow = CheckoutFlow(
+        phone: '',
+        call: (name, data) async => name == 'createCheckout' ? options : {'bookingId': id, 'status': status == 'captured' ? 'searching' : 'pendingPayment', 'paymentStatus': status},
+        open: (_, __) async => null,
+      );
+      final result = await flow.run(booking: {'requestId': 'stable'});
+      expect(result['closed'], status == 'captured' ? isNull : true);
+    }
+  });
 }

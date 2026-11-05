@@ -91,7 +91,13 @@ class CheckoutFlow {
       rethrow;
     }
     onStage?.call(CheckoutStage.confirming);
-    if (result == null) return call('checkPayment', {'bookingId': id});
+    if (result == null) {
+      // v2 CU-PAY (6 Nov): Razorpay was closed. Unless the server saw a capture,
+      // mark it so the app says "not completed" and offers an instant retry,
+      // instead of "waiting for your bank".
+      final checked = await call('checkPayment', {'bookingId': id});
+      return checked['paymentStatus'] == 'captured' ? checked : {...checked, 'closed': true};
+    }
     return call('verifyPayment', {
       'bookingId': id,
       'orderId': result['razorpay_order_id'],

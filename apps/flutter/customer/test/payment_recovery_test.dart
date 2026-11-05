@@ -56,8 +56,8 @@ void main() {
     store.customer!.freeWashes = 0;
     store.customer!.credit = 0;
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: ReviewScreen())));
-    await tester.tap(find.text('Pay via Razorpay · ₹149'));
-    await tester.tap(find.text('Pay via Razorpay · ₹149'));
+    await tester.tap(find.text('Pay now · ₹149'));
+    await tester.tap(find.text('Pay now · ₹149'));
     expect(router.last?.n, N.paying); expect(router.showPaySheet, false);
     expect(router.path.where((e) => e.route.n == N.paying).length, 1);
     expect(find.byType(PayMethodSheet), findsNothing);
@@ -85,7 +85,7 @@ void main() {
     expect(find.text('This is taking longer than expected. Please try again.'), findsOneWidget);
     expect(find.textContaining('Your bank declined'), findsNothing);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('Change method'), findsOneWidget);
+    expect(find.text('Back to Check and pay'), findsOneWidget);
     expect(router.last, isNull);
     await tester.pumpWidget(const SizedBox());
     store.dispose();
