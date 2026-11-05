@@ -74,8 +74,33 @@ class LocalFlags {
     } catch (_) {/* memory still holds it */}
   }
 
+  /// v2 CU-VEHICLE: a small binary file on this device (e.g. a vehicle photo).
+  static final Map<String, Uint8List> _bytes = {};
+  static Future<void> saveBytes(String name, Uint8List data) async {
+    _bytes[name] = data;
+    final f = await _file();
+    if (f == null) return;
+    try {
+      final out = File('${f.parent.path}/local_files/$name');
+      await out.create(recursive: true);
+      await out.writeAsBytes(data);
+    } catch (_) {/* memory still holds it */}
+  }
+
+  static Future<Uint8List?> readBytes(String name) async {
+    if (_bytes.containsKey(name)) return _bytes[name];
+    final f = await _file();
+    if (f == null) return null;
+    try {
+      final file = File('${f.parent.path}/local_files/$name');
+      if (await file.exists()) return _bytes[name] = await file.readAsBytes();
+    } catch (_) {}
+    return null;
+  }
+
   @visibleForTesting
   static void resetForTest() {
+    _bytes.clear();
     _cache = {};
     _json = {};
   }

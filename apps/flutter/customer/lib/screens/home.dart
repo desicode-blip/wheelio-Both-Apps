@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
@@ -717,7 +718,8 @@ class RepeatPhotosScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     final d = store.draft;
     final old = d.lastPhotoPaths;
-    final hasOld = old.isNotEmpty;
+    final oldBytes = d.lastPhotoBytes; // v2 CU-VEHICLE: photos saved with the vehicle
+    final hasOld = old.isNotEmpty || oldBytes.isNotEmpty;
     final icon = (d.type ?? VehicleType.all[1]).icon;
     // Book again already has its place; a saved-vehicle booking still asks where it is.
     final next = d.isRepeat && d.place != null ? N.timeSlot : d.place == null ? N.location : N.floorSlot;
@@ -736,7 +738,12 @@ class RepeatPhotosScreen extends StatelessWidget {
               onTap: () {
                 store.set(() {
                   d.photos.clear();
-                  d.reusePhotosFrom = hasOld ? d.lastPhotosOrderId : null;
+                  d.reusePhotosFrom = old.isNotEmpty && oldBytes.isEmpty ? d.lastPhotosOrderId : null;
+                  // Photos saved with the vehicle are on this phone: attach them to this booking.
+                  for (final e in oldBytes.entries) {
+                    store.draftPhotoBytes[e.key] = e.value;
+                    d.photos[e.key] = UploadState.done;
+                  }
                 });
                 router.go(next);
               },
@@ -783,7 +790,9 @@ class RepeatPhotosScreen extends StatelessWidget {
           childAspectRatio: 1.15,
           children: [
             for (final a in PhotoAngle.values)
-              DesignPhoto(path: old[a.name], height: 140, icon: icon, tag: a.label.split(' ').first, radius: 14),
+              oldBytes[a] != null
+                  ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.memory(oldBytes[a]!, fit: BoxFit.cover))
+                  : DesignPhoto(path: old[a.name], height: 140, icon: icon, tag: a.label.split(' ').first, radius: 14),
           ],
         ),
         const SizedBox(height: 16),
@@ -821,6 +830,142 @@ class _RepeatSection extends StatelessWidget {
   }
 }
 
+// MARK: C46b Edit vehicle (v2 CU-VEHICLE)
+// Type and plate (vehicles added on this phone) and the 4 photos (any saved
+// vehicle), each photo with its own change button. Stored on this phone only;
+// photos go to the Captain only when the customer uses them in a booking.
+
+class VehicleEditScreen extends StatefulWidget {
+  const VehicleEditScreen({super.key, required this.id});
+  final String id;
+  @override
+  State<VehicleEditScreen> createState() => _VehicleEditScreenState();
+}
+
+class _VehicleEditScreenState extends State<VehicleEditScreen> {
+  late final Vehicle? vehicle = context.store.myVehicles.where((v) => v.id == widget.id).firstOrNull;
+  late VehicleType type = vehicle?.type ?? VehicleType.all[1];
+  late String plate = vehicle?.plate ?? '';
+  late final Map<PhotoAngle, Uint8List> photos = Map.of(vehicle?.photos ?? const {});
+  bool saving = false;
+
+  bool get editableDetails => vehicle?.id.startsWith('local_') ?? false;
+
+  Future<void> _change(PhotoAngle a) async {
+    final store = context.store;
+    Future<void> pick(bool camera) async {
+      try {
+        final bytes = await Device.pickImage(camera: camera);
+        if (bytes != null && mounted) setState(() => photos[a] = bytes);
+      } catch (e) {
+        store.set(() => store.toast = e is MediaAccessException ? e.message : '$e');
+      }
+    }
+
+    await showWAlert(
+      context,
+      title: '${a.label} photo',
+      message: 'Keep the number plate visible if you can.',
+      actions: [
+        AlertAction('Take photo', onTap: () => pick(true)),
+        AlertAction('Choose from gallery', onTap: () => pick(false)),
+        const AlertAction('Cancel', cancel: true),
+      ],
+    );
+  }
+
+  Future<void> _save() async {
+    final store = context.store, router = context.router, v = vehicle;
+    if (v == null || saving) return;
+    setState(() => saving = true);
+    final error = await store.updateVehicle(v, type: editableDetails ? type : null, plate: editableDetails ? plate : null, photos: photos);
+    if (!mounted) return;
+    setState(() => saving = false);
+    if (error != null) {
+      store.set(() => store.toast = error);
+      return;
+    }
+    router.pop();
+    store.set(() => store.toast = 'Vehicle updated');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final router = context.router;
+    final v = vehicle;
+    return WScreen(
+      header: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: WAppBar(title: 'Edit vehicle', onLeading: router.pop, onTrailing: () => router.go(N.help)),
+      ),
+      footer: WFooterBar(showCall: false, child: WButton('Save changes', loading: saving, enabled: v != null, onTap: _save)),
+      children: [
+        if (v == null)
+          const WTitleBlock('Vehicle not found', top: 14)
+        else ...[
+          WTitleBlock(editableDetails ? 'Your vehicle' : v.plate, subtitle: 'Saved on this phone. Photos are shared only when you use them in a booking.', top: 14),
+          if (editableDetails) ...[
+            const WText('Type', WType.label),
+            const SizedBox(height: 10),
+            WFlow(children: [
+              for (final t in VehicleType.all) WChip(t.shortName, icon: t.icon, selected: type == t, onTap: () => setState(() => type = t)),
+            ]),
+            const SizedBox(height: 20),
+            WTextField(label: 'Vehicle number', value: plate, placeholder: 'TS 09 EA 4521', caps: TextCapitalization.characters, onChanged: (x) => setState(() => plate = x)),
+            const SizedBox(height: 20),
+          ],
+          const WText('Photos', WType.label),
+          const SizedBox(height: 4),
+          const WText('Tip: keep the number plate visible in at least one photo.', WType.caption),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.15,
+            children: [
+              for (final a in PhotoAngle.values)
+                Pressable(
+                  onTap: () => _change(a),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: photos[a] != null
+                            ? ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.memory(photos[a]!, fit: BoxFit.cover))
+                            : Container(
+                                decoration: outlinedDecoration(radius: 14, fill: WColor.canvas),
+                                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                  const WIconView(WIcon.camera, size: 24, color: WColor.secondary),
+                                  const SizedBox(height: 6),
+                                  WText('Add ${a.label.toLowerCase()}', WType.caption),
+                                ]),
+                              ),
+                      ),
+                      Positioned(left: 8, top: 8, child: WBadge(a.label.split(' ').first, tone: Tone.mute)),
+                      // Small change button on every photo.
+                      if (photos[a] != null)
+                        Positioned(
+                          right: 8,
+                          bottom: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: const BoxDecoration(color: WColor.white, shape: BoxShape.circle),
+                            child: const WIconView(WIcon.camera, size: 16, color: WColor.primaryStrong),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 // MARK: C46 Vehicles
 
 class VehiclesTab extends StatelessWidget {
@@ -849,7 +994,10 @@ class VehiclesTab extends StatelessWidget {
                     children: [
                       WPlate(v.plate),
                       const SizedBox(height: 6),
-                      WText('${v.type.shortName} · ${v.place?.tower ?? ''} · ${v.place?.parkingShort ?? ''}', WType.caption),
+                      WText(v.place == null ? '${v.type.shortName}${v.photos.isNotEmpty ? ' · ${v.photos.length} photos' : ''}' : '${v.type.shortName} · ${v.place?.tower ?? ''} · ${v.place?.parkingShort ?? ''}', WType.caption),
+                      // v2 CU-VEHICLE: edit type, plate and photos any time (kept on this phone).
+                      const SizedBox(height: 6),
+                      WLink(v.photos.isEmpty ? 'Edit · add photos' : 'Edit', onTap: () => router.push(R(N.vehicleEdit, id: v.id))),
                     ],
                   ),
                 ),

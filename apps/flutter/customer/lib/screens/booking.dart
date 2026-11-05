@@ -265,15 +265,13 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
     if (t.isEmpty) return;
     context.store.set(() => context.store.draft.plate = Fmt.plate(t));
     if (context.store.draft.addingVehicle) {
-      final store = context.store, router = context.router;
-      store.saveNewVehicle().then((error) {
-        if (error != null) {
-          store.set(() => store.toast = error);
-          return;
-        }
-        router.popToRoot();
-        store.set(() => store.toast = 'Vehicle saved');
-      });
+      final store = context.store;
+      if (store.plateTaken(store.draft.plate)) {
+        store.set(() => store.toast = 'This vehicle is already saved.');
+        return;
+      }
+      // Next: optional photos (add now, later, or skip).
+      context.router.go(N.photos);
       return;
     }
     if (context.store.finishRepeatEdit(RepeatEdit.vehicle)) {
@@ -290,7 +288,7 @@ class _VehicleNumberScreenState extends State<VehicleNumberScreen> {
       header: BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2, title: context.store.draft.addingVehicle ? 'Add a vehicle' : 'Book a wash', showProgress: !context.store.draft.addingVehicle),
       footer: WFooterBar(
         showCall: false,
-        child: WButton(context.store.draft.addingVehicle ? 'Save vehicle' : context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
+        child: WButton(context.store.draft.editing == RepeatEdit.vehicle ? 'Done' : 'Next', enabled: plate.trim().isNotEmpty, onTap: _next),
       ),
       children: [
         const WTitleBlock('What’s the number plate?', subtitle: 'So the captain finds the right vehicle.'),
@@ -403,18 +401,36 @@ class PhotosScreen extends StatelessWidget {
     final d = store.draft;
     // v2 CU-BOOKINGS: a Book again already has its place, so photos lead straight to the time.
     void goNext() => router.go(d.isRepeat && d.place != null ? N.timeSlot : store.draft.place == null ? N.location : N.floorSlot);
-    final title = d.photosComplete
+    // v2 CU-VEHICLE: in Add a vehicle the photos are optional: save with them, or skip and add later.
+    final adding = d.addingVehicle;
+    Future<void> finishAdding(bool withPhotos) async {
+      final error = await store.finishVehiclePhotos(withPhotos: withPhotos);
+      if (error != null) {
+        store.set(() => store.toast = error);
+        return;
+      }
+      router.popToRoot();
+      store.set(() => store.toast = withPhotos ? 'Vehicle saved with photos' : 'Vehicle saved');
+    }
+    final title = adding
+        ? WTitleBlock(d.photosDone == 0 ? 'Add photos (optional)' : '${d.photosDone} of 4 photos', subtitle: 'Tip: keep the number plate visible in at least one photo. You can also add photos later.')
+        : d.photosComplete
         ? WTitleBlock('Looking good', subtitle: '4 photos${d.videoSeconds != null ? ' and a video' : ''}. Tap any photo to retake.')
         : d.photos.isEmpty
         ? const WTitleBlock('Take 4 quick photos', subtitle: 'They help the captain find your vehicle. The captain takes the official before photos.')
         : WTitleBlock('Take 4 quick photos', subtitle: '${d.photosDone} of 4 done');
     return WScreen(
-      header: const BookingHeader(step: 2, label: 'Photos', fraction: 0.4),
+      header: BookingHeader(step: 2, label: 'Photos', fraction: 0.4, title: adding ? 'Add a vehicle' : 'Book a wash', showProgress: !adding),
       footer: WFooterBar(
         showCall: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: adding
+              ? [
+                  WButton('Save vehicle', enabled: d.photosDone > 0, onTap: () => finishAdding(true)),
+                  WLink(d.photosForVehicleId != null ? 'Not now' : 'Skip, add photos later', color: WColor.secondary, k: WType.caption, onTap: () => finishAdding(false)),
+                ]
+              : [
             WButton('Next', enabled: d.photosComplete, onTap: goNext),
             // Photos are optional for the customer: the captain takes the official before photos.
             if (!d.photosComplete)

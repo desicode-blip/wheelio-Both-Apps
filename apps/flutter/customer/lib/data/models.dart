@@ -115,6 +115,10 @@ class Vehicle {
   final String plate;
   final VehicleType type;
   Place? place;
+
+  /// v2 CU-VEHICLE: photos added with the vehicle (kept on this phone until
+  /// the server stores saved vehicles).
+  Map<PhotoAngle, Uint8List> photos = {};
 }
 
 /// Customer's identification photos. Not wash evidence.

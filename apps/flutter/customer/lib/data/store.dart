@@ -52,6 +52,7 @@ enum N {
   repeatBooking,
   repeatPhotos,
   vehiclePick,
+  vehicleEdit,
   help,
   helpCaptain,
   helpEmergency,
@@ -367,6 +368,12 @@ class BookingDraft {
 
   /// v2 CU-VEHICLE: a booking started from a saved vehicle (its id).
   String? pickedVehicleId;
+
+  /// v2 CU-VEHICLE: adding photos later to this saved vehicle (its id).
+  String? photosForVehicleId;
+
+  /// v2 CU-VEHICLE: photos saved with the vehicle, offered on the photos step.
+  Map<PhotoAngle, Uint8List> lastPhotoBytes = {};
 
   /// v2 CU-BOOKINGS: set when the customer chose "Use these photos".
   /// BACKEND (Ajay): copy that booking's customerPhotos onto the new booking.
@@ -998,7 +1005,15 @@ class AppStore extends ChangeNotifier {
   List<Order> get pastOrders => demo.emptyHistory
       ? []
       : (orders.where((o) => !o.status.isUpcoming && o.status != OrderStatus.pendingPayment).toList()..sort((a, b) => b.slot.start.compareTo(a.slot.start)));
-  List<Vehicle> get myVehicles => demo.emptyHistory ? [] : [...vehicles, for (final v in localVehicles) if (!vehicles.any((o) => o.plate == v.plate)) v];
+  List<Vehicle> get myVehicles {
+    if (demo.emptyHistory) return [];
+    // v2 CU-VEHICLE: photos/edits saved on this phone also apply to vehicles from past bookings.
+    final local = {for (final v in localVehicles) v.id: v};
+    return [
+      for (final v in vehicles) ...[if (local[v.id] != null) local[v.id]! else v],
+      for (final v in localVehicles) if (!vehicles.any((o) => o.id == v.id || o.plate == v.plate)) v,
+    ];
+  }
 
   // MARK: v2 CU-VEHICLE — vehicles added without a booking
   /// BACKEND (Ajay): store these on the account (e.g. `customers/{uid}/vehicles`
@@ -1014,7 +1029,13 @@ class AppStore extends ChangeNotifier {
       final kind = VehicleKind.values.where((k) => k.name == m['kind']).firstOrNull;
       final type = VehicleType.all.where((t) => t.kind == kind).firstOrNull;
       if (type == null) continue;
-      loaded.add(Vehicle(m['id'] as String, m['plate'] as String, type, null));
+      final v = Vehicle(m['id'] as String, m['plate'] as String, type, null);
+      for (final name in (m['photos'] as List? ?? const [])) {
+        final angle = PhotoAngle.values.where((a) => a.name == name).firstOrNull;
+        final bytes = angle == null ? null : await LocalFlags.readBytes('${v.id}_${angle.name}.jpg');
+        if (angle != null && bytes != null) v.photos[angle] = bytes;
+      }
+      loaded.add(v);
     }
     set(() => localVehicles = loaded);
   }
@@ -1028,17 +1049,71 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool plateTaken(String plate) => myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.trim().replaceAll(' ', ''));
+
   /// Saves the vehicle in the draft. Returns an error message, or null.
-  Future<String?> saveNewVehicle() async {
+  Future<String?> saveNewVehicle({bool withPhotos = false}) async {
     final type = draft.type, plate = draft.plate.trim();
     if (type == null || plate.isEmpty) return 'Choose the vehicle type and enter the number plate.';
     if (myVehicles.any((v) => v.plate.replaceAll(' ', '') == plate.replaceAll(' ', ''))) return 'This vehicle is already saved.';
     final v = Vehicle('local_${newId('veh')}', plate, type, null);
     localVehicles = [...localVehicles, v];
-    await LocalFlags.setList(_vehicleKey, [for (final x in localVehicles) {'id': x.id, 'plate': x.plate, 'kind': x.type.kind.name}]);
+    await _saveVehiclePhotos(v, withPhotos);
     draft.addingVehicle = false;
     notifyListeners();
     return null;
+  }
+
+  /// v2 CU-VEHICLE: edit a saved vehicle on this phone. Type and plate can be
+  /// changed for vehicles added here; photos for any saved vehicle. Nothing is
+  /// sent anywhere until the vehicle is used for a booking.
+  Future<String?> updateVehicle(Vehicle v, {VehicleType? type, String? plate, required Map<PhotoAngle, Uint8List> photos}) async {
+    final newPlate = Fmt.plate((plate ?? v.plate).trim());
+    if (newPlate.isEmpty) return 'Enter the number plate.';
+    final clash = myVehicles.any((x) => x.id != v.id && x.plate.replaceAll(' ', '') == newPlate.replaceAll(' ', ''));
+    if (clash) return 'Another saved vehicle has this number plate.';
+    final updated = Vehicle(v.id, newPlate, type ?? v.type, v.place)..photos = Map.of(photos);
+    localVehicles = [for (final x in localVehicles) if (x.id != v.id) x, updated];
+    for (final e in photos.entries) {
+      await LocalFlags.saveBytes('${v.id}_${e.key.name}.jpg', e.value);
+    }
+    await _saveVehiclePhotos(updated, false);
+    notifyListeners();
+    return null;
+  }
+
+  /// "Add photos" later for a saved vehicle: reuse the photos screen.
+  void startAddVehiclePhotos(Vehicle v) {
+    startNewBooking();
+    draft.addingVehicle = true;
+    draft.photosForVehicleId = v.id;
+    draft.type = v.type;
+    draft.plate = v.plate;
+    notifyListeners();
+  }
+
+  /// Finish the photos step of Add a vehicle (new vehicle or photos later).
+  Future<String?> finishVehiclePhotos({required bool withPhotos}) async {
+    final id = draft.photosForVehicleId;
+    if (id == null) return saveNewVehicle(withPhotos: withPhotos);
+    final v = localVehicles.where((x) => x.id == id).firstOrNull;
+    if (v != null) await _saveVehiclePhotos(v, withPhotos);
+    draft.addingVehicle = false;
+    draft.photosForVehicleId = null;
+    notifyListeners();
+    return null;
+  }
+
+  Future<void> _saveVehiclePhotos(Vehicle v, bool withPhotos) async {
+    if (withPhotos) {
+      for (final e in draftPhotoBytes.entries) {
+        v.photos[e.key] = e.value;
+        await LocalFlags.saveBytes('${v.id}_${e.key.name}.jpg', e.value);
+      }
+    }
+    await LocalFlags.setList(_vehicleKey, [
+      for (final x in localVehicles) {'id': x.id, 'plate': x.plate, 'kind': x.type.kind.name, 'photos': [for (final a in x.photos.keys) a.name]},
+    ]);
   }
 
   /// A new booking for a saved vehicle: type and plate are filled in, and the
@@ -1048,7 +1123,8 @@ class AppStore extends ChangeNotifier {
     draft.type = v.type;
     draft.plate = v.plate;
     draft.pickedVehicleId = v.id;
-    final last = orders.where((o) => o.vehicle.plate == v.plate && o.customerPhotoPaths.isNotEmpty).firstOrNull;
+    draft.lastPhotoBytes = Map.of(v.photos);
+    final last = v.photos.isNotEmpty ? null : orders.where((o) => o.vehicle.plate == v.plate && o.customerPhotoPaths.isNotEmpty).firstOrNull;
     if (last != null) {
       draft.lastPhotoPaths = Map.of(last.customerPhotoPaths);
       draft.lastPhotosOrderId = last.id;
@@ -1242,7 +1318,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      await live!.deleteAppAccount('customer');resetDeletedAccountData();return true;
+      await live!.deleteAppAccount('customer');await LocalFlags.setList(_vehicleKey, []);localVehicles=[];resetDeletedAccountData();return true;
     }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;
@@ -1342,12 +1418,13 @@ class AppStore extends ChangeNotifier {
   void openRepeat(String id) {
     if (draft.isRepeat && draft.repeatFrom == id) return;
     final from = order(id);
-    final v0 = from?.vehicle ?? vehicles.where((v) => v.id == id).firstOrNull ?? AppStore.car();
+    final v0 = from?.vehicle ?? myVehicles.where((v) => v.id == id).firstOrNull ?? AppStore.car();
     final place = from?.place ?? v0.place;
     final lastNote = orders.where((o) => o.vehicle.id == v0.id && !o.note.isEmpty).firstOrNull?.note ?? (isLive ? EntryNote() : EntryNote(voiceSeconds: 12));
     startRepeat(Vehicle(v0.id, v0.plate, v0.type, place), place: place, wash: from?.wash);
     draft.repeatFrom = id;
     draft.note = lastNote.copy();
+    draft.lastPhotoBytes = Map.of(v0.photos);
     final photoSource = (from != null && from.customerPhotoPaths.isNotEmpty)
         ? from
         : orders.where((o) => o.vehicle.id == v0.id && o.customerPhotoPaths.isNotEmpty).firstOrNull;
