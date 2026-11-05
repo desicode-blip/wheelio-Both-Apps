@@ -209,6 +209,7 @@ Widget _screen(R r) {
     N.booked => const ViewingOrder(child: BookedScreen()),
     N.whatsApp => const WhatsAppScreen(),
     N.notifyAsk => const NotifyAskScreen(),
+    N.notifyFirst => const NotifyFirstScreen(),
     N.live => const LiveOrderScreen(),
     N.photoCompare => const PhotoCompareScreen(),
     N.rate => const RateScreen(),

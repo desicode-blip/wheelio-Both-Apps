@@ -84,6 +84,17 @@ class CaptainHome extends StatefulWidget {
 class _CaptainHomeState extends State<CaptainHome> {
   Timer? _ring;
 
+  // v2 SH-NOTIFY: ask once after install, on top of Home.
+  bool _notifyChecked = false;
+  void _askNotificationsOnce() {
+    if (_notifyChecked) return;
+    _notifyChecked = true;
+    final store = context.store, router = context.router;
+    store.shouldAskNotificationsFirst().then((ask) {
+      if (ask && mounted && router.path.isEmpty) router.go(N.notifyFirst);
+    });
+  }
+
   String? _ringKey;
   final Set<String> _rung = {};
 
@@ -191,6 +202,7 @@ class _CaptainHomeState extends State<CaptainHome> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _askNotificationsOnce(); });
     final store = context.store, router = context.router;
     final limitReached = store.jobLimit>0 && store.jobsToday >= store.jobLimit;
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
@@ -2547,4 +2559,33 @@ class _ProfileShrinkState extends State<_ProfileShrink> with SingleTickerProvide
           ]);
         },
       );
+}
+
+
+// MARK: W03n Notifications – first open (v2 SH-NOTIFY)
+
+class NotifyFirstScreen extends StatelessWidget {
+  const NotifyFirstScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store, router = context.router;
+    return WNotifyAsk(
+      captain: true,
+      status: store.pushStatus,
+      title: store.t('Turn on job alerts', 'जॉब अलर्ट चालू करें', 'జాబ్ అలర్ట్‌లు ఆన్ చేయండి'),
+      message: store.t('New jobs ring with a sound, even when the app is closed. Without alerts you will miss jobs.', 'नए काम की आवाज़ आएगी, ऐप बंद होने पर भी। अलर्ट के बिना काम छूट जाएंगे।', 'యాప్ మూసి ఉన్నా కొత్త పనులు శబ్దంతో వస్తాయి. అలర్ట్‌లు లేకపోతే పనులు మిస్ అవుతారు.'),
+      deniedHelp: store.t('Notifications are off. In Settings, tap Notifications and turn on Allow Notifications.', 'नोटिफ़िकेशन बंद हैं। सेटिंग्स में Notifications पर टैप करें और Allow Notifications चालू करें।', 'నోటిఫికేషన్లు ఆఫ్‌లో ఉన్నాయి. సెట్టింగ్స్‌లో Notifications నొక్కి Allow Notifications ఆన్ చేయండి.'),
+      turnOnLabel: store.t('Turn on alerts', 'अलर्ट चालू करें', 'అలర్ట్‌లు ఆన్ చేయండి'),
+      openSettingsLabel: store.t('Open Settings', 'सेटिंग्स खोलें', 'సెట్టింగ్స్ తెరవండి'),
+      notNowLabel: store.t('Not now', 'अभी नहीं', 'ఇప్పుడు కాదు'),
+      onTurnOn: (denied) async {
+        await store.answerNotificationsFirst(yes: true, denied: denied);
+        router.pop();
+      },
+      onNotNow: () {
+        store.answerNotificationsFirst(yes: false);
+        router.pop();
+      },
+    );
+  }
 }

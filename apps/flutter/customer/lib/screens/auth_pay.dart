@@ -449,7 +449,8 @@ class BookedScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     final o = store.currentOrder;
     // The booking details open tracking; there's no separate "Track" button.
-    void track() => router.replace([R(store.customer?.notificationsOn == true ? N.live : N.notifyAsk)]);
+    // v2 SH-NOTIFY: no second ask after booking when the customer already answered the first one.
+    void track() => router.replace([R(store.customer?.notificationsOn == true || store.notifyAsked ? N.live : N.notifyAsk)]);
     return WScreen(
       header: const SizedBox(height: 30),
       footer: WFooterBar(
@@ -616,6 +617,33 @@ class WhatsAppScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// MARK: C49a Notifications – first open (v2 SH-NOTIFY)
+
+class NotifyFirstScreen extends StatelessWidget {
+  const NotifyFirstScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store, router = context.router;
+    return WNotifyAsk(
+      status: store.pushStatus,
+      title: 'Only what matters',
+      message: 'We’ll notify you when your vehicle is washed, or if something needs you. No ads. No offers.',
+      deniedHelp: 'Notifications are off for WashKrew. In Settings, tap Notifications and turn on Allow Notifications.',
+      turnOnLabel: 'Turn on notifications',
+      openSettingsLabel: 'Open Settings',
+      notNowLabel: 'Not now',
+      onTurnOn: (denied) async {
+        await store.answerNotificationsFirst(yes: true, denied: denied);
+        router.pop();
+      },
+      onNotNow: () {
+        store.answerNotificationsFirst(yes: false);
+        router.pop();
+      },
     );
   }
 }

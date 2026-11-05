@@ -40,6 +40,7 @@ enum N {
   booked,
   whatsApp,
   notifyAsk,
+  notifyFirst,
   live,
   photoCompare,
   rate,
@@ -1872,6 +1873,57 @@ class AppStore extends ChangeNotifier {
   }
 
   void requestSystemPermission() => Device.requestNotifications().then((p) => set(() => systemPermission = p));
+
+  // MARK: v2 SH-NOTIFY — ask once after install
+  /// True once the first-time notification screen was answered (this device).
+  bool notifyAsked = false;
+
+  Future<Permission> pushStatus() async => isLive && live!.supportsPush ? await live!.pushPermission() : Device.notificationPermission;
+
+  /// Whether to show the one-time ask now. Also saves a pending "yes" to the
+  /// account once the customer is signed in.
+  Future<bool> shouldAskNotificationsFirst() async {
+    notifyAsked = await LocalFlags.get('notifyAsked');
+    await syncWantedNotifications();
+    if (notifyAsked) return false;
+    if (await pushStatus() == Permission.allowed) {
+      notifyAsked = true;
+      await LocalFlags.set('notifyAsked', true);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> answerNotificationsFirst({required bool yes, bool denied = false}) async {
+    notifyAsked = true;
+    await LocalFlags.set('notifyAsked', true);
+    if (!yes) return;
+    if (denied) {
+      await LocalFlags.set('pushWanted', true);
+      await Device.openSettings();
+      return;
+    }
+    if (isLoggedIn) {
+      setNotifications(true);
+      return;
+    }
+    await LocalFlags.set('pushWanted', true);
+    if (isLive && live!.supportsPush) {
+      final p = await live!.requestPushPermission();
+      set(() => systemPermission = p);
+    } else {
+      requestSystemPermission();
+    }
+  }
+
+  /// A "yes" given before sign-in is saved to the account after sign-in.
+  Future<void> syncWantedNotifications() async {
+    if (!isLoggedIn || notificationsOn) return;
+    if (!await LocalFlags.get('pushWanted')) return;
+    if (await pushStatus() != Permission.allowed) return;
+    await LocalFlags.set('pushWanted', false);
+    setNotifications(true);
+  }
   void refreshSystemPermission() {if(isLive&&live!.supportsPush){live!.pushPermission().then((p)=>set(()=>systemPermission=p)).catchError((Object _){});}else{set(() => systemPermission = Device.notificationPermission);}}
   void mute(int? seconds) => set(() => notificationPrefs.mutedUntil = seconds == null ? null : DateTime.now().add(Duration(seconds: seconds)));
 

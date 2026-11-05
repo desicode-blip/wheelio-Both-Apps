@@ -8,6 +8,8 @@ export 'src/ai_photo_policy.dart';
 export 'src/map_controls.dart';
 export 'src/live_camera.dart';
 export 'src/device.dart';
+export 'src/local_flags.dart';
+export 'src/notify_ask.dart';
 export 'src/fmt.dart';
 export 'src/icons.dart';
 export 'src/nav.dart';

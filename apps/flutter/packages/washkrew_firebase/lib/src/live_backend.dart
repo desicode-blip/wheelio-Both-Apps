@@ -136,6 +136,18 @@ class LiveBackend {
     final settings=await FirebaseMessaging.instance.getNotificationSettings();
     return switch(settings.authorizationStatus){AuthorizationStatus.authorized||AuthorizationStatus.provisional=>Permission.allowed,AuthorizationStatus.denied=>Permission.denied,_=>Permission.unknown};
   }
+  /// v2 SH-NOTIFY: show the iPhone notification prompt without needing an
+  /// account yet (the server preference is saved after sign-in).
+  Future<Permission> requestPushPermission() async {
+    if (!supportsPush) return Permission.unknown;
+    final settings = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+    return switch (settings.authorizationStatus) {
+      AuthorizationStatus.authorized || AuthorizationStatus.provisional => Permission.allowed,
+      AuthorizationStatus.denied => Permission.denied,
+      _ => Permission.unknown,
+    };
+  }
+
   Future<void> enablePush(String role) async {
     if (!supportsPush)
       throw StateError(

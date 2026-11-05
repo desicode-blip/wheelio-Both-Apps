@@ -203,7 +203,7 @@ enum N {
   welcome, signUp, otp, steps, aadhaar, selfie, bank, training, video, quiz, quizResult, rules, workSetup, jobAlert, jobMissed,
   goToVehicle, gateProblem, cantFind, ownerCancelled, faceCheck, beforePhotos, camera, photoDark, washing, afterPhotos, aiCheck, uploading,
   jobDone, payoutDetail, payoutHeld, level, probationExtended, refresher, blocked, help, notifications, notificationSettings, changePhone,
-  editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery,
+  editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery, notifyFirst,
 }
 
 class R {
@@ -896,6 +896,36 @@ class CaptainStore extends ChangeNotifier {
       }); }
   void deleteNotification(String id) { if(isLive){_notificationAction([id],'delete');return;} set(() { _deletedNotifs.add(id); notifications.removeWhere((n) => n.id == id); }); }
   void clearNotifications() { if(isLive){_notificationAction(notifications.map((n)=>n.id).toList(),'delete');return;} set(() { _deletedNotifs.addAll(notifications.map((n) => n.id)); notifications = []; }); }
+
+  // MARK: v2 SH-NOTIFY — ask once after install
+  bool notifyAsked = false;
+  Future<Permission> pushStatus() async => isLive && live!.supportsPush ? await live!.pushPermission() : Device.notificationPermission;
+  Future<bool> shouldAskNotificationsFirst() async {
+    notifyAsked = await LocalFlags.get('notifyAsked');
+    if (notifyAsked) return false;
+    if (await pushStatus() == Permission.allowed) {
+      notifyAsked = true;
+      await LocalFlags.set('notifyAsked', true);
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> answerNotificationsFirst({required bool yes, bool denied = false}) async {
+    notifyAsked = true;
+    await LocalFlags.set('notifyAsked', true);
+    if (!yes) return;
+    if (denied) {
+      await Device.openSettings();
+      return;
+    }
+    if (isLive && live!.supportsPush && !signedUp) {
+      final p = await live!.requestPushPermission();
+      set(() => systemPermission = p);
+      return;
+    }
+    setNotifications(true);
+  }
 
   void setNotifications(bool on) {
     set(() => notificationsOn = on);

@@ -251,6 +251,7 @@ Widget _destination(R r) => Builder(builder:(context){
   N.blocked => const BlockedScreen(),
   N.help => const WHelpScreen(),
   N.notifications => const WNotificationsScreen(),
+  N.notifyFirst => const NotifyFirstScreen(),
   N.notificationSettings => const WNotificationSettingsScreen(),
   N.changePhone => const WChangePhoneScreen(),
   N.editUPI => const WEditUPIScreen(),

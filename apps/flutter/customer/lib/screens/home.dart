@@ -16,7 +16,13 @@ class MainTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    return Material(
+    // v2 SH-NOTIFY: ask once after install, on top of Home.
+    return OnAppear(
+      onAppear: () async {
+        if (!await store.shouldAskNotificationsFirst()) return;
+        if (router.path.isEmpty) router.go(N.notifyFirst);
+      },
+      child: Material(
       color: WColor.canvas,
       child: Column(
         children: [
@@ -40,6 +46,7 @@ class MainTabs extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
