@@ -1,5 +1,7 @@
 // Money, level and account tabs. Ported from apps/ios/Captain/Screens/MoneyScreens.swift.
 
+import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
+import '../features/preview_features.dart' show ReferralEarningsCard;
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
@@ -44,6 +46,13 @@ class _MoneyTabState extends State<MoneyTab> {
         if (!store.signedUp && !store.isLive) ...[
           GuestNotice(store.t('Example earnings. Your money shows here after your first job, and comes to your UPI every night.', 'उदाहरण कमाई। पहले काम के बाद आपके पैसे यहाँ दिखेंगे और हर रात UPI पर आएंगे।',
               'ఉదాహరణ సంపాదన. మొదటి పని తర్వాత మీ డబ్బు ఇక్కడ కనిపిస్తుంది, ప్రతి రాత్రి UPI కి వస్తుంది.')),
+          const SizedBox(height: 14),
+        ],
+        // v2 (handoff, preview): a "vehicle not found" receipt and referral bonuses,
+        // kept apart from wash earnings.
+        if (store.previewFeatures) ...[
+          if (store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recoveryEarnings)),
+          ReferralEarningsCard(repository: store.referrals, onOpen: () => router.go(N.referrals)),
           const SizedBox(height: 14),
         ],
         WSegmented(options: [store.t('Today', 'आज', 'ఈరోజు'), store.t('This week', 'इस हफ़्ते', 'ఈ వారం')], selection: range, onChanged: (i) => setState(() => range = i), height: 50),
@@ -500,7 +509,68 @@ class MeTab extends StatelessWidget {
             ],
           ]),
         ),
+        // v2 (ChatGPT handoff, 8 Nov): everything the preview adds, in one place.
+        if (store.previewFeatures) ...[
+          const SizedBox(height: 14),
+          const WText('Preview (this phone only)', WType.caption),
+          const SizedBox(height: 8),
+          WCard(
+            padding: 14,
+            child: Column(children: [
+              WListRow(icon: WIcon.gift, title: store.t('Refer a Captain', 'कैप्टन को बुलाएँ', 'కెప్టెన్‌ను ఆహ్వానించండి'), subtitle: '${store.t('Your code', 'आपका कोड', 'మీ కోడ్')}: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.rupee, title: store.t('Understand your pay', 'अपनी कमाई समझें', 'మీ ఆదాయాన్ని తెలుసుకోండి'), onTap: () => router.go(N.payGuide)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.check, title: 'Job offer pay', subtitle: 'One-time and monthly-plan visit', onTap: () => router.go(N.offerTermsPreview)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.calendar, title: 'Recurring assignment', subtitle: 'Monthly calendar and estimate', onTap: () => router.go(N.recurringAssignment)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.car, title: 'Vehicle not found', subtitle: 'Check, contact, record, send proof', onTap: () => router.go(N.recovery)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.close, title: 'Cancel a wash', subtitle: 'Reason and exact deduction before confirming', onTap: () => router.push(const R(N.recovery, flag: true))),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.sparkle, title: 'Review outcomes', subtitle: 'Approve, ask for proof, dispute, replacement', onTap: () => router.go(N.recoveryScenarios)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.star, title: 'Referral progress', subtitle: 'Try milestones', onTap: () => router.go(N.referralScenarios)),
+              const WDivider(inset: 54),
+              WListRow(icon: WIcon.shield, title: 'Admin referral view', subtitle: 'Read-only, sample data', onTap: () => router.go(N.referralAdmin)),
+            ]),
+          ),
+        ],
+        const SizedBox(height: 18),
+        const _PreviewSwitch(),
       ]),
+    );
+  }
+}
+
+/// v2: tap "WashKrew Captain" 7 times to try the handoff features on this phone.
+class _PreviewSwitch extends StatefulWidget {
+  const _PreviewSwitch();
+  @override
+  State<_PreviewSwitch> createState() => _PreviewSwitchState();
+}
+
+class _PreviewSwitchState extends State<_PreviewSwitch> {
+  int taps = 0;
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    return Center(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (++taps < 7) return;
+          taps = 0;
+          final on = !store.previewFeatures;
+          store.setPreviewFeatures(on);
+          store.set(() => store.toast = on ? 'Preview new features: on' : 'Preview new features: off');
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: WText(store.previewFeatures ? '${Brand.captainApp} · preview on' : Brand.captainApp, WType.caption),
+        ),
+      ),
     );
   }
 }

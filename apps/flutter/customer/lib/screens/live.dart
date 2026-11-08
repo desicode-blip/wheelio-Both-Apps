@@ -172,8 +172,8 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
             WText(o.slot.full, WType.section, weight: semibold),
             const SizedBox(height: 6),
             const WText('We’ll assign a captain before your slot and let you know.', WType.body),
-            const SizedBox(height: 14),
-            WBadge(o.usedFreeWash ? 'Free wash' : '${Fmt.rupees(o.price)} held safely', tone: Tone.mute, icon: o.usedFreeWash ? WIcon.gift : WIcon.shield),
+            // v2 (handoff CU-33): no "held safely" amount badge while tracking.
+            if (o.usedFreeWash) ...[const SizedBox(height: 14), const WBadge('Free wash', tone: Tone.mute, icon: WIcon.gift)],
           ]),
         ),
         const SizedBox(height: 22),
@@ -212,8 +212,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
               const WText('Finding a captain…', WType.section, weight: semibold),
               const SizedBox(height: 8),
               const WText('Usually under 5 minutes. You can leave this screen; we’ll notify you.', WType.body, align: TextAlign.center),
-              const SizedBox(height: 14),
-              WBadge('${Fmt.rupees(o.price)} held safely', tone: Tone.mute, icon: WIcon.shield),
+
             ]),
           ),
           const SizedBox(height: 28),

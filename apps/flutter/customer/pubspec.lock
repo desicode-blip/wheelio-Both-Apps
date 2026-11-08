@@ -1227,6 +1227,20 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  washkrew_referrals:
+    dependency: "direct main"
+    description:
+      path: "../packages/washkrew_referrals"
+      relative: true
+    source: path
+    version: "0.1.0"
+  washkrew_service_recovery:
+    dependency: "direct main"
+    description:
+      path: "../packages/washkrew_service_recovery"
+      relative: true
+    source: path
+    version: "0.1.0"
   washkrew_ui:
     dependency: "direct main"
     description:

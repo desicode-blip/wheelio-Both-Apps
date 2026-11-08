@@ -10,6 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart';
+import 'package:washkrew_referrals/demo_tools.dart';
+import 'package:washkrew_service_recovery/demo_tools.dart';
 import 'place_search.dart';
 
 import '../app/design_flags.dart';
@@ -65,6 +67,15 @@ enum N {
   serverError,
   sessionExpired,
   gallery,
+  // v2 CU-WASHCHOICE phases 2–4 (ChatGPT handoff, 8 Nov).
+  purchaseTime,
+  purchaseConfirmation,
+  planDetails,
+  referrals,
+  referralJoin,
+  referralScenarios,
+  recovery,
+  recoveryScenarios,
 }
 
 enum OtpStart { entering, wrong, expired }
@@ -835,6 +846,8 @@ class AppStore extends ChangeNotifier {
   @override
   void dispose() {
     _disposed=true;_liveUid='';
+    _recovery?.dispose();
+    _referrals?.dispose();
     _invalidateAvailability();
     _preferenceSave?.cancel();
     _walletSubscription?.cancel();
@@ -965,6 +978,8 @@ class AppStore extends ChangeNotifier {
   final purchase = PurchaseSelection();
   /// "Change" on Check and pay opens the wash choice and comes straight back.
   bool washChoiceFromReview = false;
+  /// "Change frequency" on the monthly days screen returns there after the choice.
+  bool purchaseReturningToSchedule = false;
   bool previewFeatures = false;
   Future<void> loadPreviewFeatures() async {
     final on = await LocalFlags.get('previewFeatures');
@@ -1001,8 +1016,45 @@ class AppStore extends ChangeNotifier {
     return null;
   }
 
+  /// Price shown on Choose your wash: the reward (free), else the server price, else —
+  /// on this phone's preview only — the handoff's draft price (marked "draft").
+  num? purchasePrice(VehicleType t, ServiceLevel level) {
+    final p = purchase;
+    if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return 0;
+    final real = p.monthly ? null : washPrice(t, level, p.coverage);
+    if (real != null) return real;
+    return previewFeatures ? p.quotePaiseFor(level) / 100 : null;
+  }
+
+  bool purchasePriceIsDraft(VehicleType t, ServiceLevel level) {
+    final p = purchase;
+    if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return false;
+    return (p.monthly || washPrice(t, level, p.coverage) == null) && previewFeatures;
+  }
+
+  // v2 phase 2 (monthly plans): the paid plan, saved next-cycle changes and an open edit.
+  // Preview only — Ajay's plan/mandate server is the real source (CU-WASHCHOICE.md).
+  PurchaseSelection? activePlan;
+  PurchaseSelection? nextCyclePlan;
+  PurchaseSelection? planEditDraft;
+
+  // v2 phases 3–4: the handoff's in-memory previews, made only when the preview opens
+  // (the recovery one checks for changes every second, so never at app start).
+  DemoReferralRepository? _referrals;
+  DemoReferralRepository get referrals => _referrals ??= (DemoReferralRepository(actorId: 'customer_ananya')..addListener(changed));
+  DemoRecoveryRepository? _recovery;
+  DemoRecoveryRepository get recovery => _recovery ??= (DemoRecoveryRepository()..addListener(changed));
+  bool get recoveryStarted => _recovery != null;
+
   /// Why this booking can't be paid yet on the live server, or null.
   String? get washChoiceBlockedReason {
+    // Monthly plans and referral rewards have no payment path yet, here or live.
+    if (purchase.chosen && purchase.monthly) {
+      return 'Preview: monthly plans need the server update (AutoPay). Nothing was charged.';
+    }
+    if (purchase.usingPremiumReward) {
+      return 'Preview: free Premium washes need the server update. Nothing was charged.';
+    }
     if (!isLive) return null;
     final s = draft.slot;
     if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive) {
@@ -1534,6 +1586,9 @@ class AppStore extends ChangeNotifier {
   }
 
   void startNewBooking() {
+    final reward = purchase.premiumRewardId;
+    if (reward != null) unawaited(referrals.releasePremiumWash(reward));
+    planEditDraft = null;
     purchase.reset();
     draftBookingId = null;
     draftRequestId = newId('draft');

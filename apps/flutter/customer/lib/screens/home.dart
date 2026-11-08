@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
+import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart' show PurchaseSummaryCard;
+import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
 
 import '../data/models.dart';
 import '../data/store.dart';
@@ -437,6 +439,27 @@ class _BookingsTabState extends State<BookingsTab> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Padding(padding: EdgeInsets.fromLTRB(WSpace.gutter, 20, WSpace.gutter, 0), child: WText('Bookings', WType.screen)),
+            // v2 phases 2 and 4 (handoff, preview): an open "vehicle not found" case and
+            // the monthly plan sit above the bookings.
+            if (store.previewFeatures && store.recoveryStarted)
+              Padding(padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter), child: RecoveryCaseCard(repository: store.recovery, onOpen: () => router.go(N.recovery))),
+            if (store.activePlan != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(WSpace.gutter, 14, WSpace.gutter, 0),
+                child: ListenableBuilder(
+                  listenable: store.activePlan!,
+                  builder: (context, _) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!store.activePlan!.autoRenew) ...[
+                        const WBadge('Subscription cancelled · Paid visits remain', icon: WIcon.calendar),
+                        const SizedBox(height: 8),
+                      ],
+                      PurchaseSummaryCard(selection: store.activePlan!, showQuoteStatus: false, onChange: () => router.go(N.planDetails)),
+                    ],
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(WSpace.gutter, 14, WSpace.gutter, 0),
               child: WTabs(options: const ['Upcoming', 'Past'], selection: tab, onChanged: (i) => setState(() => tab = i)),
@@ -1117,6 +1140,10 @@ class _ProfileTabState extends State<ProfileTab> {
               ],
               const SizedBox(height: 14),
               group([
+                if (store.previewFeatures) ...[
+                  WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: 'Your code: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
+                  const WDivider(inset: 54),
+                ],
                 WListRow(icon: WIcon.edit, title: 'Edit name', onTap: () => _editName(store)),
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.phone, title: 'Phone number', subtitle: Fmt.phone(c.phone), onTap: () => router.go(N.changePhone)),
@@ -1167,6 +1194,23 @@ class _ProfileTabState extends State<ProfileTab> {
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() {showDelete = true; deleteAgain = false; deleteError = null; deleteBlocked = false;})),
               ]),
+              // v2 (handoff): everything the preview adds, in one place.
+              if (store.previewFeatures) ...[
+                const SizedBox(height: 14),
+                const WText('Preview (this phone only)', WType.caption),
+                const SizedBox(height: 8),
+                group([
+                  WListRow(icon: WIcon.gift, title: 'Were you referred?', subtitle: 'Add a referral code', onTap: () => router.go(N.referralJoin)),
+                  const WDivider(inset: 54),
+                  WListRow(icon: WIcon.sparkle, title: 'Referral progress', subtitle: 'Try milestones and rewards', onTap: () => router.go(N.referralScenarios)),
+                  const WDivider(inset: 54),
+                  WListRow(icon: WIcon.car, title: 'Vehicle not found', subtitle: 'Owner response, dispute, replacement, make-up', onTap: () => router.go(N.recoveryScenarios)),
+                  if (store.activePlan != null) ...[
+                    const WDivider(inset: 54),
+                    WListRow(icon: WIcon.calendar, title: 'Monthly plan', subtitle: 'Manage, edit next cycle, cancel', onTap: () => router.go(N.planDetails)),
+                  ],
+                ]),
+              ],
               // v2 CU-WASHCHOICE: tap 7 times to try features that wait for the server
               // update. Nothing new can be paid for while it's only a preview.
               const SizedBox(height: 18),

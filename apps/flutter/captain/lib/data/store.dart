@@ -12,6 +12,9 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
+import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
+import 'package:washkrew_referrals/demo_tools.dart';
+import 'package:washkrew_service_recovery/demo_tools.dart';
 
 /// Captain app language. Captains pick it on the first screen (W01).
 enum Lang { en, hi, te }
@@ -77,7 +80,11 @@ class Job {
   Job copyWith({JobStatus? status, String? window, String? time, int? day}) => Job(
       id: id, plate: plate, type: type, isBike: isBike, pay: pay, tower: tower, floor: floor, slot: slot, window: window ?? this.window, time: time ?? this.time,
       distance: distance, status: status ?? this.status, reachBy: reachBy, finishBy: finishBy, owner: owner, society: society, wash: wash, area: area,
-      windows: windows, flexible: flexible, day: day ?? this.day, typedAddress: typedAddress, pincode: pincode, cancelled: cancelled, tripPaid: tripPaid);
+      windows: windows, flexible: flexible, day: day ?? this.day, typedAddress: typedAddress, pincode: pincode, cancelled: cancelled, tripPaid: tripPaid)..visitTerms = visitTerms;
+
+  /// v2 CP-OFFERS (handoff, 8 Nov): exact net pay for this visit (paise), one-time or
+  /// monthly-plan visit. Set by the server's quote once Ajay sends it; null on today's jobs.
+  VisitTerms? visitTerms;
 
   /// What the owner chose, for cards: "8–10", "10–12, 16–18" or the any-time range.
   String get whenLabel => windows.length > 1 ? windows.join(', ') : window;
@@ -204,6 +211,9 @@ enum N {
   goToVehicle, gateProblem, cantFind, ownerCancelled, faceCheck, beforePhotos, camera, photoDark, washing, afterPhotos, aiCheck, uploading,
   jobDone, payoutDetail, payoutHeld, level, probationExtended, refresher, blocked, help, notifications, notificationSettings, changePhone,
   editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery, notifyFirst,
+  // v2 (ChatGPT handoff, 8 Nov), opened from Me → Preview while previewing.
+  referrals, referralScenarios, referralAdmin, payGuide, offerTermsPreview, recurringAssignment,
+  recovery, recoveryScenarios, recoveryOwnerPreview, recoveryEarnings,
 }
 
 class R {
@@ -311,6 +321,30 @@ class CaptainStore extends ChangeNotifier {
   }
 
   Lang lang = Lang.en;
+
+  // v2 (ChatGPT handoff, 8 Nov): Captain referrals, pay terms, recurring work and
+  // "vehicle not found" — preview only (Me → tap WashKrew Captain 7 times). Real jobs and
+  // money never use these; Ajay's server replaces the in-memory previews.
+  bool previewFeatures = false;
+  Future<void> loadPreviewFeatures() async {
+    final on = await LocalFlags.get('previewFeatures');
+    if (on != previewFeatures) set(() => previewFeatures = on);
+  }
+
+  Future<void> setPreviewFeatures(bool on) async {
+    set(() => previewFeatures = on);
+    await LocalFlags.set('previewFeatures', on);
+  }
+
+  bool recurringAccepted = false;
+  /// Referral code typed at sign-up (preview: kept on this phone, linked after verification).
+  String pendingReferralCode = '';
+  DemoReferralRepository? _referrals, _customerReferralPreview;
+  DemoReferralRepository get referrals => _referrals ??= (DemoReferralRepository(actorId: 'captain_raju')..addListener(changed));
+  DemoReferralRepository get customerReferralPreview => _customerReferralPreview ??= DemoReferralRepository(actorId: 'customer_ananya');
+  DemoRecoveryRepository? _recovery;
+  DemoRecoveryRepository get recovery => _recovery ??= (DemoRecoveryRepository()..addListener(changed));
+  bool get recoveryStarted => _recovery != null;
   String phone = '9876543210';
   String name = 'Raju Yadav';
   String upi = 'raju.yadav@ybl';
@@ -1576,7 +1610,10 @@ class CaptainStore extends ChangeNotifier {
 
   @override
   void dispose() {
-    _disposed=true;liveUid='';_presence.clear();_evidenceUploads.clear();
+    _disposed=true;liveUid='';
+    _recovery?.dispose();
+    _referrals?.dispose();
+    _customerReferralPreview?.dispose();_presence.clear();_evidenceUploads.clear();
     _heartbeat?.cancel();
     _locationTimer?.cancel();
     _preferenceSave?.cancel();

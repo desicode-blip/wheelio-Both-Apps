@@ -6,6 +6,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
+import 'features/preview_features.dart';
 import 'screens/account.dart';
 import 'screens/gallery.dart';
 import 'screens/help.dart';
@@ -216,6 +217,16 @@ Widget _destination(R r) => Builder(builder:(context){
   if(!context.store.trainingEnabled && [N.training,N.video,N.quiz,N.quizResult,N.refresher].contains(r.n))return context.store.signedUp ? const MeTab() : const StepsScreen();
   return switch (r.n) {
   N.welcome => const WelcomeScreen(),
+  N.referrals => const CaptainReferralsScreen(),
+  N.referralScenarios => const CaptainReferralScenariosScreen(),
+  N.referralAdmin => const ReferralAdminPreview(),
+  N.payGuide => const PayGuidePreview(),
+  N.offerTermsPreview => const OfferTermsPreview(),
+  N.recurringAssignment => const RecurringAssignmentPreview(),
+  N.recovery => CaptainRecoveryScreen(cancel: r.flag),
+  N.recoveryScenarios => const CaptainRecoveryScenariosScreen(),
+  N.recoveryOwnerPreview => const RecoveryOwnerPreview(),
+  N.recoveryEarnings => const RecoveryEarningsPreview(),
   N.signUp => SignUpScreen(login: r.flag, verified: r.index == 1),
   N.otp => WOtpScreen(login: r.flag),
   N.steps => StepsScreen(problem: r.flag),

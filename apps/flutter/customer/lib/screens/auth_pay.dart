@@ -502,7 +502,7 @@ class BookedScreen extends StatelessWidget {
         if (store.isLive && o?.captain != null)
           WBanner(tone: Tone.info, icon: WIcon.search, text: '${o!.captain!.name} accepted your booking. Open tracking for the latest status.')
         else if (o != null && o.slotAhead)
-          WBanner(tone: Tone.info, icon: WIcon.calendar, text: store.isLive && usesCancellationQuote(o.liveCancelPolicy) ? 'We’ll assign a captain before your slot and notify you. ${cancellationPolicyText(o.liveCancelPolicy!)}' : 'We’ll assign a captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
+          WBanner(tone: Tone.info, icon: WIcon.calendar, text: store.isLive && usesCancellationQuote(o.liveCancelPolicy) ? 'We’ll assign a Captain before your slot and notify you. ${cancellationPolicyText(o.liveCancelPolicy!)}' : 'We’ll assign a Captain before your slot and notify you. Changed your mind? You can cancel in the first 15 minutes.')
         else
           const WBanner(tone: Tone.info, icon: WIcon.search, text: 'We’re finding a captain now. We’ll notify you when someone accepts.'),
       ],

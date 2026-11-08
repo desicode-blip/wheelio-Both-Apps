@@ -1,3 +1,6 @@
+import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
+import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
+import '../features/preview_features.dart' show speakTerms;
 import 'dart:async';
 import 'dart:math';
 
@@ -90,6 +93,7 @@ class _CaptainHomeState extends State<CaptainHome> {
     if (_notifyChecked) return;
     _notifyChecked = true;
     final store = context.store, router = context.router;
+    store.loadPreviewFeatures();
     store.shouldAskNotificationsFirst().then((ask) {
       if (ask && mounted && router.path.isEmpty) router.go(N.notifyFirst);
     });
@@ -1495,7 +1499,9 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         children: [
           _timeBar(o),
           const SizedBox(height: 14),
-          Row(
+          // v2 CP-OFFERS (handoff): the server's exact visit pay, when it sends one.
+          if (j.visitTerms != null) VisitTermsCard(terms: j.visitTerms!, language: CaptainLanguage.values[store.lang.index], onListen: () => speakTerms(store, j.visitTerms!))
+          else Row(
             children: [
               WIconBox(j.isBike ? WIcon.bike : WIcon.car, size: 72, radius: 16, iconSize: 32),
               const SizedBox(width: 16),
@@ -1813,7 +1819,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, loading: claiming, enabled: offers.isNotEmpty && !_topMissed && !claiming, onTap: _accept),
+                  child: WButton(store.t('Accept', 'स्वीकार करें', 'అంగీకరించండి'), icon: WIcon.check, kind: ButtonKind.success, size: ButtonSize.accept, loading: claiming, enabled: offers.isNotEmpty && !_topMissed && !claiming && (offers.first.job.visitTerms?.hasConfirmedPay ?? true), onTap: _accept),
                 ),
               ],
             ),
@@ -1909,6 +1915,13 @@ class JobsTab extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top, WSpace.gutterCaptain, 20),
         children: [
           WTitle(store.t('Today’s jobs', 'आज के काम', 'ఈరోజు పనులు'), top: 22, bottom: 16),
+          // v2 (handoff, preview): an open "vehicle not found" report and an accepted
+          // recurring assignment sit above the day's jobs.
+          if (store.previewFeatures && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),
+          if (store.previewFeatures && store.recurringAccepted) ...[
+            WCard(onTap: () => router.go(N.recurringAssignment), outlined: true, child: WText(store.t('Recurring assignment · View your calendar', 'नियमित काम · अपना कैलेंडर देखें', 'క్రమమైన పని · మీ క్యాలెండర్ చూడండి'), WType.value)),
+            const SizedBox(height: 14),
+          ],
           if (!store.signedUp && !store.isLive) ...[
             GuestNotice(
               store.t(

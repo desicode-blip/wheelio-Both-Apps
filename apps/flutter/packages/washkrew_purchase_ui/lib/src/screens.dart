@@ -12,6 +12,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
     required this.onBack,
     required this.onContinue,
     this.priceFor,
+    this.isDraftPrice,
     this.allowMonthly = true,
     this.header,
     this.continueLabel = 'Next',
@@ -23,6 +24,9 @@ class PurchaseChoiceScreen extends StatelessWidget {
   /// when that option has no approved price yet ("Coming soon"). Null function keeps
   /// the draft fixture prices (previews and tests).
   final num? Function(ServiceLevel level, WashCoverage coverage)? priceFor;
+
+  /// v2: true when the shown price is the handoff's draft (preview only), marked "draft".
+  final bool Function(ServiceLevel level)? isDraftPrice;
 
   /// v2: monthly plans ship in a later phase; the host turns the toggle on.
   final bool allowMonthly;
@@ -135,7 +139,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
                     ServiceLevel.premium => 'Extra wheel & trim care',
                     ServiceLevel.extraPremium => 'Added protective finish',
                   },
-                  trailing: price == null ? 'Coming soon' : rupees(price),
+                  trailing: price == null ? 'Coming soon' : '${rupees(price)}${isDraftPrice?.call(level) == true ? ' · draft' : ''}',
                   selected: s.level == level,
                   icon: level == ServiceLevel.basic ? WIcon.drop : WIcon.sparkle,
                   onTap: price == null ? null : () => s.update(() => s.level = level),

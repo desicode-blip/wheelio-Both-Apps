@@ -1,3 +1,4 @@
+import 'package:washkrew_referrals/washkrew_referrals.dart' show ReferralCodeField, ReferralLanguage;
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
@@ -480,6 +481,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String number = '';
   int focusNumber = 0;
   bool sending = false;
+  String? referralError;
   @override void didChangeDependencies(){
     super.didChangeDependencies();
     if(widget.verified && number.isEmpty)number=context.store.phone;
@@ -510,6 +512,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
             loading: sending,
             onTap: () async {
               final router = context.router;
+              // v2 (handoff, preview): an optional referral code is checked before the OTP.
+              if (!login && store.previewFeatures) {
+                final error = store.referrals.validateCode(store.pendingReferralCode);
+                if (error != null) {
+                  setState(() => referralError = error);
+                  return;
+                }
+              }
               store.set(() {
                 if (!login) store.name = name.trim();
                 store.phone = Validators.digitsOnly(number);
@@ -562,6 +572,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
             const SizedBox(height: 16),
           ],
           WPhoneField(number: number, large: true, autofocus: login, focusTrigger: focusNumber, onChanged: (v) => setState(() => number = v)),
+          if (!login && store.previewFeatures) ...[
+            const SizedBox(height: 20),
+            ReferralCodeField(
+              value: store.pendingReferralCode,
+              error: referralError,
+              language: ReferralLanguage.values[store.lang.index],
+              onChanged: (v) => setState(() {
+                store.pendingReferralCode = v;
+                referralError = null;
+              }),
+            ),
+          ],
           Padding(padding: const EdgeInsets.only(top: 12), child: WText(store.t('We send a code by SMS.', 'हम SMS से कोड भेजेंगे।', 'మేము SMS ద్వారా కోడ్ పంపుతాము.'), WType.caption)),
         ],
       ),

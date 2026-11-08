@@ -40,6 +40,10 @@ dependencies:
     path: ../packages/washkrew_firebase
   washkrew_purchase_ui:
     path: ../packages/washkrew_purchase_ui
+  washkrew_referrals:
+    path: ../packages/washkrew_referrals
+  washkrew_service_recovery:
+    path: ../packages/washkrew_service_recovery
 
 dev_dependencies:
   flutter_test:

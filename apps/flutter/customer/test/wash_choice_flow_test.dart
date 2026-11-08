@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:washkrew_customer/data/models.dart';
 import 'package:washkrew_customer/data/store.dart';
 import 'package:washkrew_customer/purchase/wash_choice.dart';
 import 'package:washkrew_customer/screens/booking.dart';
@@ -14,6 +15,9 @@ Widget _screen(R r) => switch (r.n) {
   N.vehicleNumber => const VehicleNumberScreen(),
   N.timeSlot => const TimeStepScreen(),
   N.review => const ReviewScreen(),
+  N.purchaseTime => const PlanTimeStepScreen(),
+  N.purchaseConfirmation => const PlanConfirmationStepScreen(),
+  N.planDetails => const PlanDetailsStepScreen(),
   _ => const SizedBox(),
 };
 
@@ -51,10 +55,11 @@ void main() {
     await tester.tap(find.text('Next'));
     await _settle(tester);
     expect(find.text('Choose your wash'), findsOneWidget);
-    expect(find.text('Monthly plan'), findsNothing, reason: 'monthly plans come in phase 2');
+    expect(find.text('Monthly plan'), findsOneWidget, reason: 'preview shows monthly plans');
     final sedan = store.draft.type!;
     expect(find.text('₹${sedan.price}'), findsOneWidget);
-    expect(find.text('Coming soon'), findsNWidgets(2));
+    // Unpriced tiers show the handoff's draft price on the preview, marked "draft".
+    expect(find.textContaining('· draft'), findsNWidgets(2));
     await tester.tap(find.text('Next'));
     await _settle(tester);
     expect(store.draft.serviceLevel, ServiceLevel.basic);
@@ -94,5 +99,56 @@ void main() {
   test('without the switch nothing changes', () {
     final store = AppStore()..signInAsSample();
     expect(store.washChoiceV2, isFalse);
+  });
+
+  test('for customers (no preview) unpriced tiers say Coming soon', () {
+    final store = AppStore()..signInAsSample();
+    final t = VehicleType.all[2];
+    expect(store.purchasePrice(t, ServiceLevel.basic), t.price);
+    expect(store.purchasePrice(t, ServiceLevel.premium), isNull);
+    store.purchase.mode = PurchaseMode.monthly;
+    expect(store.purchasePrice(t, ServiceLevel.basic), isNull);
+  });
+
+  test('monthly plans and free Premium washes cannot be paid yet', () {
+    final store = AppStore()..signInAsSample();
+    store.purchase..chosen = true..mode = PurchaseMode.monthly;
+    expect(store.washChoiceBlockedReason, contains('monthly plans'));
+    store.purchase.mode = PurchaseMode.once;
+    store.purchase.premiumRewardId = 'r1';
+    expect(store.washChoiceBlockedReason, contains('free Premium'));
+  });
+
+  testWidgets('monthly plan: days, times, Check and pay (blocked), plan screens preview', (tester) async {
+    final (store, router) = await _pump(tester, N.washType, setUp: (s) {
+      s.draftFull();
+      s.draft.slot = null;
+    });
+    await tester.tap(find.text('Monthly plan'));
+    await _settle(tester);
+    expect(find.text('Days per week'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await _settle(tester);
+    expect(store.purchase.monthly, isTrue);
+    store.washChoiceFromReview = false;
+    router.go(N.timeSlot);
+    await _settle(tester);
+    expect(find.text('Pick your 3 days'), findsOneWidget);
+    await tester.tap(find.text('Next: choose time'));
+    await _settle(tester);
+    expect(find.text('When is your vehicle free?'), findsOneWidget);
+    await tester.tap(find.text('Next: check and pay'));
+    await _settle(tester);
+    expect(find.text('Monthly plan'), findsOneWidget);
+    expect(find.text('Renews monthly'), findsOneWidget);
+    expect(find.textContaining('monthly plans need the server update'), findsOneWidget);
+    await tester.tap(find.text('See the plan screens (preview)'));
+    await _settle(tester);
+    expect(find.text('Your routine is ready'), findsOneWidget);
+    await tester.tap(find.text('View your plan'));
+    await _settle(tester);
+    expect(find.text('Cancel subscription'), findsOneWidget);
+    expect(store.activePlan, isNotNull);
+    await tester.pumpWidget(const SizedBox());
   });
 }

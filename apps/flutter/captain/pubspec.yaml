@@ -39,6 +39,12 @@ dependencies:
     path: ../packages/washkrew_ui
   washkrew_firebase:
     path: ../packages/washkrew_firebase
+  washkrew_captain_jobs:
+    path: ../packages/washkrew_captain_jobs
+  washkrew_referrals:
+    path: ../packages/washkrew_referrals
+  washkrew_service_recovery:
+    path: ../packages/washkrew_service_recovery
   speech_to_text: ^7.4.0
 
 dev_dependencies:

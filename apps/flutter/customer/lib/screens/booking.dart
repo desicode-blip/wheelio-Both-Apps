@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
-import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart' show PurchaseSummaryCard;
+import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart' show PurchaseSummaryCard, RenewalPreferencesCard, showPlanPolicyPreview, showVisitDates;
+import '../purchase/wash_choice.dart' show previewMonthlyPlan;
 
 import '../app/design_flags.dart';
 import '../data/models.dart';
@@ -2250,7 +2251,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
     final v2 = store.washChoiceV2 && d.serviceLevel != null;
     final blocked = store.washChoiceBlockedReason;
-    final label = needsTopUp
+    final label = v2 && store.purchase.usingPremiumReward
+        ? 'Use free Premium wash'
+        : v2 && store.purchase.monthly
+        ? 'Pay now · ${Fmt.rupees(d.basePrice)} / month'
+        : needsTopUp
         ? 'Top up ${Fmt.rupees(topUpPaise / 100)} and pay'
         : d.useFreeWash
         ? 'Book with free wash'
@@ -2304,7 +2309,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           PurchaseSummaryCard(
             selection: store.purchase,
             showQuoteStatus: false,
-            scheduleLabel: d.slot?.full,
+            scheduleLabel: store.purchase.monthly ? '${store.purchase.daysLabel} · ${store.purchase.windowLabel}' : d.slot?.full,
+            onDates: store.purchase.monthly ? () => showVisitDates(context, store.purchase) : null,
             onChange: () {
               store.washChoiceFromReview = true;
               router.go(N.washType);
@@ -2326,6 +2332,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 ],
               ),
             ),
+          ],
+          // v2 phase 2: renewal choice for a monthly plan, and its policy.
+          if (store.purchase.monthly) ...[
+            const SizedBox(height: 14),
+            RenewalPreferencesCard(selection: store.purchase),
+            const SizedBox(height: 16),
+            Center(child: WLink('Plan policy', onTap: () => showPlanPolicyPreview(context))),
+            if (blocked != null) ...[
+              const SizedBox(height: 12),
+              Center(child: WLink('See the plan screens (preview)', onTap: () => previewMonthlyPlan(store, router))),
+            ],
           ],
         ] else WCard(
           radius: 16,
@@ -2385,7 +2402,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           ),
         ],
-        if (policy != null && usesCancellationQuote(policy)) ...[
+        if (!(v2 && store.purchase.monthly) && policy != null && usesCancellationQuote(policy)) ...[
           const SizedBox(height: 16),
           Center(
             child: WLink(
