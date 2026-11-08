@@ -38,6 +38,8 @@ dependencies:
     path: ../packages/washkrew_ui
   washkrew_firebase:
     path: ../packages/washkrew_firebase
+  washkrew_purchase_ui:
+    path: ../packages/washkrew_purchase_ui
 
 dev_dependencies:
   flutter_test:

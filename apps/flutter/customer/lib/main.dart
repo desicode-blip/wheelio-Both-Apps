@@ -7,6 +7,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
+import 'purchase/wash_choice.dart';
 import 'screens/auth_pay.dart';
 import 'screens/booking.dart';
 import 'screens/gallery.dart';
@@ -190,7 +191,7 @@ Widget _screen(R r) {
   return switch (r.n) {
     N.welcome => const WelcomeScreen(),
     N.vehicleType => VehicleTypeScreen(large: r.large),
-    N.washType => const WashTypeScreen(),
+    N.washType => const WashStepScreen(),
     N.vehicleNumber => const VehicleNumberScreen(),
     N.photos => const PhotosScreen(),
     N.camera => CameraScreen(angle: r.angle!, forceDenied: r.denied),
@@ -199,7 +200,7 @@ Widget _screen(R r) {
     N.manualAddress => const ManualAddressScreen(),
     N.floorSlot => const FloorSlotScreen(),
     N.entryNotes => const EntryNotesScreen(),
-    N.timeSlot => const TimeSlotScreen(),
+    N.timeSlot => const TimeStepScreen(),
     N.review => const ReviewScreen(),
     N.login => LoginScreen(showError: r.error),
     N.otp => OtpScreen(start: r.otp),

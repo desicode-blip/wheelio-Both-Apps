@@ -22,6 +22,7 @@ class MainTabs extends StatelessWidget {
     return OnAppear(
       onAppear: () async {
         await store.loadLocalVehicles();
+        await store.loadPreviewFeatures();
         if (!await store.shouldAskNotificationsFirst()) return;
         if (router.path.isEmpty) router.go(N.notifyFirst);
       },
@@ -1050,6 +1051,7 @@ class _ProfileTabState extends State<ProfileTab> {
   bool deleting = false;
   bool deleteAgain = false;
   String? deleteError;
+  int _versionTaps = 0;
 
   String _notificationSummary(AppStore store) {
     if (!store.notificationsOn) return 'Off';
@@ -1165,6 +1167,25 @@ class _ProfileTabState extends State<ProfileTab> {
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() {showDelete = true; deleteAgain = false; deleteError = null; deleteBlocked = false;})),
               ]),
+              // v2 CU-WASHCHOICE: tap 7 times to try features that wait for the server
+              // update. Nothing new can be paid for while it's only a preview.
+              const SizedBox(height: 18),
+              Center(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    if (++_versionTaps < 7) return;
+                    _versionTaps = 0;
+                    final on = !store.previewFeatures;
+                    store.setPreviewFeatures(on);
+                    store.set(() => store.toast = on ? 'Preview new features: on' : 'Preview new features: off');
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: WText(store.previewFeatures ? '${Brand.name} · preview on' : Brand.name, WType.caption),
+                  ),
+                ),
+              ),
             ],
           ],
         ),

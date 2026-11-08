@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
+import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart' show PurchaseSummaryCard;
 
 import '../app/design_flags.dart';
 import '../data/models.dart';
@@ -94,7 +95,10 @@ class VehicleTypeScreen extends StatelessWidget {
     // No price on the vehicles; the chosen vehicle opens its washes, with the price,
     // right below it. Add a vehicle, Book again's "Change vehicle" and the large-text
     // layout (C52) keep the vehicle-only screen.
-    final merged = !large && !store.draft.addingVehicle && store.draft.editing != RepeatEdit.vehicle;
+    // v2 CU-WASHCHOICE (8 Nov): with the new wash choice the vehicle is asked alone
+    // (no prices; they depend on the wash) and Next opens "Choose your wash".
+    final v2 = store.washChoiceV2 && !large && !store.draft.addingVehicle && store.draft.editing != RepeatEdit.vehicle;
+    final merged = !v2 && !large && !store.draft.addingVehicle && store.draft.editing != RepeatEdit.vehicle;
     final selected = store.draft.type;
     final wash = store.draft.wash;
     final washOk = wash != null && wash.available && WashKind.options(selected?.kind).contains(wash);
@@ -106,7 +110,7 @@ class VehicleTypeScreen extends StatelessWidget {
     });
     return OnAppear(
       onAppear: () {
-        if (store.draft.type == null && !large && !merged) store.set(() => store.draft.type = VehicleType.all[1]);
+        if (store.draft.type == null && !large && !merged && !v2) store.set(() => store.draft.type = VehicleType.all[1]);
       },
       child: TextScale(
         scale: large ? 1.6 : 1,
@@ -123,8 +127,8 @@ class VehicleTypeScreen extends StatelessWidget {
               : WFooterBar(showCall: false, child: next),
           children: [
             WTitleBlock(
-              store.draft.addingVehicle ? 'What kind of vehicle?' : merged ? 'What should we wash?' : 'What are we washing?',
-              subtitle: large ? null : store.draft.addingVehicle ? 'Save it once. Book a wash for it any time.' : merged ? 'Pick your vehicle to see the washes and prices.' : 'Pick your vehicle. You choose the wash next.',
+              store.draft.addingVehicle ? 'What kind of vehicle?' : merged || v2 ? 'What should we wash?' : 'What are we washing?',
+              subtitle: large ? null : store.draft.addingVehicle ? 'Save it once. Book a wash for it any time.' : v2 ? 'Pick your vehicle. Choose the wash next.' : merged ? 'Pick your vehicle to see the washes and prices.' : 'Pick your vehicle. You choose the wash next.',
             ),
             for (final t in large ? VehicleType.all.take(2) : VehicleType.all) ...[
               if (large)
@@ -155,8 +159,8 @@ class VehicleTypeScreen extends StatelessWidget {
                   icon: t.icon,
                   title: t.name,
                   // v2 CU-VEHICLE: adding a vehicle is not a booking, so no time or price.
-                  subtitle: store.draft.addingVehicle || merged ? null : 'About ${t.minutes} min',
-                  trailing: store.draft.addingVehicle || merged ? null : Fmt.rupees(t.price),
+                  subtitle: store.draft.addingVehicle || merged || v2 ? null : 'About ${t.minutes} min',
+                  trailing: store.draft.addingVehicle || merged || v2 ? null : Fmt.rupees(t.price),
                   selected: store.draft.type == t,
                   onTap: () => merged ? pickType(t) : store.set(() => store.draft.type = t),
                 ),
@@ -2244,6 +2248,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         if (!router.isAt(N.paying)) router.push(const R(N.paying));
       } else { router.openPaySheet(true); }
     }
+    final v2 = store.washChoiceV2 && d.serviceLevel != null;
+    final blocked = store.washChoiceBlockedReason;
     final label = needsTopUp
         ? 'Top up ${Fmt.rupees(topUpPaise / 100)} and pay'
         : d.useFreeWash
@@ -2278,11 +2284,50 @@ class _ReviewScreenState extends State<ReviewScreen> {
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
         showCall: false,
-        child: WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, onTap: pay),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // v2 CU-WASHCHOICE: a preview choice the live server can't take yet.
+            if (blocked != null) ...[
+              WText(blocked, WType.caption, align: TextAlign.center),
+              const SizedBox(height: 10),
+            ],
+            WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: blocked == null, onTap: pay),
+          ],
+        ),
       ),
       children: [
         const WTitleBlock('Check and pay'),
-        WCard(
+        // v2 CU-WASHCHOICE (ChatGPT handoff, CU-15): one summary card with Change; notes
+        // and money rows only when there is something to show.
+        if (v2) ...[
+          PurchaseSummaryCard(
+            selection: store.purchase,
+            showQuoteStatus: false,
+            scheduleLabel: d.slot?.full,
+            onChange: () {
+              store.washChoiceFromReview = true;
+              router.go(N.washType);
+            },
+          ),
+          if (d.note.summary != 'None' || d.useFreeWash || d.creditApplied > 0) ...[
+            const SizedBox(height: 14),
+            WCard(
+              radius: 16,
+              child: Column(
+                children: [
+                  if (d.note.summary != 'None') row(WIcon.edit, 'Notes', d.note.summary),
+                  if (d.useFreeWash || d.creditApplied > 0) ...[
+                    money('Wash price', d.basePrice),
+                    if (d.useFreeWash) money('Free wash', d.basePrice, minus: true),
+                    if (!d.useFreeWash && d.creditApplied > 0) money('From wallet', d.creditApplied, minus: true),
+                    money('To pay', d.useFreeWash ? 0 : d.price, strong: true),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ] else WCard(
           radius: 16,
           child: Column(
             children: [

@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
+import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart';
 import 'place_search.dart';
 
 import '../app/design_flags.dart';
@@ -382,7 +383,11 @@ class BookingDraft {
   int get photosDone => photos.values.where((s) => s == UploadState.done).length;
   bool get photosComplete => PhotoAngle.values.every((a) => photos[a] == UploadState.done);
   bool get hasFailedPhoto => photos.values.contains(UploadState.failed);
-  num get basePrice => type?.price ?? 0;
+  /// v2 CU-WASHCHOICE: the chosen service, coverage and its server price.
+  ServiceLevel? serviceLevel;
+  WashCoverage? coverage;
+  num? chosenPrice;
+  num get basePrice => chosenPrice ?? type?.price ?? 0;
   int get basePricePaise => (basePrice * 100).round();
   int get pricePaise => useFreeWash ? 0 : (basePricePaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
   num get price => pricePaise / 100;
@@ -953,6 +958,62 @@ class AppStore extends ChangeNotifier {
     return r;
   }
   bool get captainAreaEnabled=>liveConfig['coveragePolicy']=='captainAreaV1';
+
+  // v2 CU-WASHCHOICE (8 Nov): ChatGPT handoff wash choice and custom time windows.
+  // Off until Ajay turns on liveConfig.washChoiceV2; "Preview new features" (tap the
+  // app version 7 times in Profile) shows it on this phone without paying.
+  final purchase = PurchaseSelection();
+  /// "Change" on Check and pay opens the wash choice and comes straight back.
+  bool washChoiceFromReview = false;
+  bool previewFeatures = false;
+  Future<void> loadPreviewFeatures() async {
+    final on = await LocalFlags.get('previewFeatures');
+    if (on != previewFeatures) set(() => previewFeatures = on);
+  }
+
+  Future<void> setPreviewFeatures(bool on) async {
+    set(() => previewFeatures = on);
+    await LocalFlags.set('previewFeatures', on);
+  }
+
+  bool get washChoiceV2 => previewFeatures || liveConfig['washChoiceV2'] == true;
+  /// The server stores exact-minute windows (liveConfig.customTimeWindows).
+  bool get customTimesLive => !isLive || liveConfig['customTimeWindows'] == true;
+  /// The server prices and records Basic/Premium/Extra Premium and interior (liveConfig.washTiers).
+  bool get washTiersLive => !isLive || liveConfig['washTiers'] == true;
+  /// Monthly plans (phase 2) stay hidden until their server work is live.
+  bool get monthlyPlansLive => liveConfig['monthlyPlans'] == true;
+
+  /// Service hours for custom windows: liveConfig.serviceHours {startMinute, endMinute},
+  /// else 4 AM – 11 PM (Aman, 8 Nov).
+  int get washDayStart => ((liveConfig['serviceHours'] as Map?)?['startMinute'] as num?)?.toInt() ?? washDayStartMinute;
+  int get washDayEnd => ((liveConfig['serviceHours'] as Map?)?['endMinute'] as num?)?.toInt() ?? washDayEndMinute;
+
+  /// Server price in rupees for a service: liveConfig.washPrices[kind][level][coverage],
+  /// else today's vehicle price for Basic exterior. Null = no approved price yet.
+  num? washPrice(VehicleType t, ServiceLevel level, WashCoverage coverage) {
+    final table = liveConfig['washPrices'];
+    if (table is Map) {
+      final v = ((table[t.kind.name] as Map?)?[level.name] as Map?)?[coverage.name];
+      if (v is num) return v;
+    }
+    if (level == ServiceLevel.basic && coverage == WashCoverage.exterior) return t.price;
+    return null;
+  }
+
+  /// Why this booking can't be paid yet on the live server, or null.
+  String? get washChoiceBlockedReason {
+    if (!isLive) return null;
+    final s = draft.slot;
+    if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive) {
+      return 'Preview: your own time windows need the server update. Nothing was charged.';
+    }
+    final level = draft.serviceLevel, coverage = draft.coverage;
+    if (level != null && coverage != null && (level != ServiceLevel.basic || coverage != WashCoverage.exterior) && !washTiersLive) {
+      return 'Preview: ${level.label} washes need the server update. Nothing was charged.';
+    }
+    return null;
+  }
   Future<Place> confirmPlace(Place p)async{
     final r=await live!.call('checkServiceAddress',{'name':p.society.name,'area':p.society.area,'city':p.society.city,'pincode':p.society.pincode,'location':{'latitude':mapCenter(p).$1,'longitude':mapCenter(p).$2}});
     final m=r['society'] as Map;
@@ -1408,6 +1469,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void startRepeat(Vehicle v, {Place? place, WashKind? wash}) {
+    purchase.reset();
     draftBookingId = null;
     draftRequestId = newId('draft');
     draftPhotoBytes.clear();
@@ -1472,6 +1534,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void startNewBooking() {
+    purchase.reset();
     draftBookingId = null;
     draftRequestId = newId('draft');
     draftPhotoBytes.clear();
@@ -1558,6 +1621,8 @@ class AppStore extends ChangeNotifier {
         return _paidOutcome(paid);
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
+      final blocked = washChoiceBlockedReason;
+      if (blocked != null) throw StateError(blocked);
       // The confirmed server location is already saved by the map flow. The
       // booking transaction still resolves it and validates the parking pin.
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){
@@ -1581,6 +1646,11 @@ class AppStore extends ChangeNotifier {
         'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
         'windows': [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) {'startHour': w.$1, 'endHour': w.$2}],
         'anyTime': s.anyTime,
+        // v2 CU-WASHCHOICE: exact windows and the chosen service, only once the server
+        // accepts them (liveConfig switches set by Ajay).
+        if (s.minuteWindows.isNotEmpty) 'minuteWindows': [for (final w in s.orderedMinuteWindows) {'startMinute': w.$1, 'endMinute': w.$2}],
+        if (washTiersLive && d.serviceLevel != null) 'serviceLevel': d.serviceLevel!.name,
+        if (washTiersLive && d.coverage != null) 'coverage': d.coverage!.name,
         'useFreeWash': d.useFreeWash,
         'useCredit': d.creditApplied > 0,
         'paymentChoice':d.walletOnly?'wallet':'razorpay',

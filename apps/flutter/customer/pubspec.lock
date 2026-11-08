@@ -1220,6 +1220,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  washkrew_purchase_ui:
+    dependency: "direct main"
+    description:
+      path: "../packages/washkrew_purchase_ui"
+      relative: true
+    source: path
+    version: "0.1.0"
   washkrew_ui:
     dependency: "direct main"
     description:

@@ -153,7 +153,7 @@ class EntryNote {
 
 /// A wash window on a given day.
 class TimeSlot {
-  const TimeSlot(this.date, this.startHour, this.endHour, {this.available = true, this.windows = const [], this.anyTime = false});
+  const TimeSlot(this.date, this.startHour, this.endHour, {this.available = true, this.windows = const [], this.anyTime = false, this.minuteWindows = const []});
   final DateTime date;
 
   /// Earliest start and latest end. With several windows these span all of them.
@@ -167,8 +167,22 @@ class TimeSlot {
   /// "Any time of the day": every open window was picked; the captain chooses when to come.
   final bool anyTime;
 
+  /// v2 CU-WASHCHOICE (8 Nov): the customer's own windows in minutes from midnight,
+  /// e.g. [(495, 645), (1140, 1380)] for 8:15–10:45 AM and 7–11 PM. When set these are
+  /// the real choice; startHour/endHour only span them.
+  final List<(int, int)> minuteWindows;
+  List<(int, int)> get orderedMinuteWindows => [...minuteWindows]..sort((a, b) => a.$1.compareTo(b.$1));
+
+  static String _clock(int minute) {
+    final h = minute ~/ 60, m = minute % 60;
+    return '${h % 12 == 0 ? 12 : h % 12}${m == 0 ? '' : ':${m.toString().padLeft(2, '0')}'} ${h < 12 ? 'AM' : 'PM'}';
+  }
+
   /// "8 – 10 AM", "10 AM – 2 PM, 4 – 6 PM" or "Any time (6 AM – 6 PM)".
   String get label {
+    if (minuteWindows.isNotEmpty) {
+      return orderedMinuteWindows.map((w) => '${_clock(w.$1)} – ${_clock(w.$2)}').join(', ');
+    }
     if (anyTime) {
       final ordered = [...windows]..sort((a,b)=>a.$1.compareTo(b.$1));
       return 'Any time (${Fmt.window(ordered.isEmpty ? startHour : ordered.first.$1, ordered.isEmpty ? endHour : ordered.last.$2)})';
@@ -190,14 +204,18 @@ class TimeSlot {
 
   /// "Today, 8 – 10 AM"
   String get full => '$dayLabel, $label';
-  DateTime get start => DateTime(date.year, date.month, date.day, startHour);
-  DateTime get end => DateTime(date.year, date.month, date.day, endHour % 24);
+  DateTime get start => minuteWindows.isEmpty
+      ? DateTime(date.year, date.month, date.day, startHour)
+      : DateTime(date.year, date.month, date.day, orderedMinuteWindows.first.$1 ~/ 60, orderedMinuteWindows.first.$1 % 60);
+  DateTime get end => minuteWindows.isEmpty
+      ? DateTime(date.year, date.month, date.day, endHour % 24)
+      : DateTime(date.year, date.month, date.day, orderedMinuteWindows.last.$2 ~/ 60, orderedMinuteWindows.last.$2 % 60);
 
   @override
   bool operator ==(Object other) =>
-      other is TimeSlot && other.date == date && other.startHour == startHour && other.endHour == endHour && other.anyTime == anyTime && other.windows.join() == windows.join();
+      other is TimeSlot && other.date == date && other.startHour == startHour && other.endHour == endHour && other.anyTime == anyTime && other.windows.join() == windows.join() && other.minuteWindows.join() == minuteWindows.join();
   @override
-  int get hashCode => Object.hash(date, startHour, endHour, anyTime, windows.join());
+  int get hashCode => Object.hash(date, startHour, endHour, anyTime, windows.join(), minuteWindows.join());
 }
 
 class Customer {

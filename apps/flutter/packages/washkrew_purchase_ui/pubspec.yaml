@@ -1,0 +1,17 @@
+name: washkrew_purchase_ui
+description: WashKrew wash choice, custom time windows and monthly plans (from the 8 Nov 2026 handoff).
+version: 0.1.0
+publish_to: none
+environment:
+  sdk: ^3.10.7
+dependencies:
+  flutter:
+    sdk: flutter
+  washkrew_ui:
+    path: ../washkrew_ui
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+flutter:
+  uses-material-design: true

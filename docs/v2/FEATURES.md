@@ -38,6 +38,7 @@ How to use this map:
 | CU-START | Splash and welcome | C01, C02 | `customer/lib/screens/start.dart` |
 | CU-HOME | Home, credit banner, book again | C40–C42 | `customer/lib/screens/home.dart` |
 | CU-VEHICLE | Vehicle type, number, saved vehicles | C05, C06, C06b, C46 | `customer/lib/screens/booking.dart`, `home.dart` (vehicles) |
+| CU-WASHCHOICE | Choose your wash (tiers, interior), own time windows, monthly plans | C05w, C12, CU-01–CU-38 (handoff) | `packages/washkrew_purchase_ui/`, `customer/lib/purchase/` |
 | CU-PHOTOS | Vehicle photos before booking | C07–C08b | `customer/lib/screens/booking.dart` (camera screen) |
 | CU-PLACE | Vehicle location, floor/slot, notes | C09–C11 | `customer/lib/screens/booking.dart`, `customer/lib/data/place_search.dart` |
 | CU-TIME | Time windows, availability, no Captain free | C12, C12b | `customer/lib/screens/booking.dart`, `customer/lib/data/booking_availability.dart`, `availability_cache.dart` |
@@ -119,3 +120,4 @@ How to use this map:
 | 6 Nov | CU-REVIEW | Simpler Check and pay: icon rows, one wallet toggle, one Pay now button, policy on tap (C13) | [CU-REVIEW.md](CU-REVIEW.md) | built, backend for part-payment |
 | 6 Nov | CU-VEHICLE | Number plate checked when typed; old bad plates fixed in one step at Pay | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
 | 6 Nov | CU-PAY | Faster Razorpay; closing it no longer blocks a new payment | [CU-PAY.md](CU-PAY.md) | built, backend speed-up |
+| 8 Nov | CU-WASHCHOICE | ChatGPT handoff phase 1: Choose your wash + own time windows (1-hour minimum, 11 PM cut-off), behind switches | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built, backend needed |
