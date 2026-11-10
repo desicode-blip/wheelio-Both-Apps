@@ -74,4 +74,15 @@ void main(){
    store.finish.complete();await tester.pump();expect(router.last?.n,N.uploading);
    await tester.pumpWidget(const SizedBox());store.dispose();router.dispose();
  });
+ for(final after in [false,true]){for(var side=0;side<4;side++){
+  testWidgets('viewfinder shows the wash phase and angle for ${after?'after':'before'} side $side',(tester)async{
+   final store=PhotoFixture(),router=WRouterC(),camera=CaptureFixture();
+   await show(tester,store,router,JobCameraScreen(after:after,side:side,cameraController:camera));
+   final sideLabel=['Front','Back','Left','Right'][side];
+   expect(find.text('${after?'After wash':'Before wash'} · $sideLabel · ${side+1}/4'),findsOneWidget);
+   expect(tester.takeException(),isNull);await tester.pumpWidget(const SizedBox());store.dispose();router.dispose();
+  });
+ }
+
+ }
 }

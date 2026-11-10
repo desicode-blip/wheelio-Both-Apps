@@ -77,12 +77,15 @@ function callable(method, payment = false, maps = false) {
 export const registerAccount = callable('register');
 export const getAvailability = callable('availability');
 export const checkServiceAddress = callable('checkAddress');
-export const createBooking = callable('createBooking');
+export const createBooking = callable('createBooking', true);
 export const createCheckout = callable('checkout', true);
 export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
+export const abandonCheckout = callable('abandonCheckout', true);
 export const getWallet = callable('getWallet');
 export const listIdentityReviews = callable('listIdentityReviews');
+export const listWashReports = callable('listWashReports');
+export const reviewWashReport = callable('reviewWashReport');
 export const reviewCaptainIdentity = callable('reviewCaptainIdentity');
 export const listDeletionRequests = callable('listDeletionRequests');
 export const reviewDeletionRequest = callable('reviewDeletionRequest');
@@ -156,6 +159,20 @@ export const captainApplicationPhoto = onRequest({invoker:'private',cors,timeout
   }catch(error){
     if(error instanceof CaptainReviewError){response.status(error.code==='not-found'?404:error.code==='invalid-argument'?400:error.code==='unauthenticated'?401:403).send(error.message);return;}
     logger.error('Captain review photo unavailable',{code:error.code??'internal'});response.status(503).send('The private photo could not be loaded. Try again.');
+  }
+});
+export const washReportPhoto = onRequest({invoker:'private',cors,timeoutSeconds:60},async(request,response)=>{
+  response.set('Cache-Control','private, no-store');response.set('X-Content-Type-Options','nosniff');response.set('Referrer-Policy','no-referrer');
+  if(request.method!=='GET'){response.status(405).send('GET required');return;}
+  try{
+    const token=request.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+    if(!token){response.status(401).send('Sign in again.');return;}
+    let decoded;try{decoded=await getAuth().verifyIdToken(token);}catch{response.status(401).send('Sign in again.');return;}
+    const backend=service(),photo=await backend.washReportEvidence({uid:decoded.uid,token:decoded},request.query);
+    response.set('Content-Type',photo.contentType);response.status(200).send(await backend.evidence.read(photo.path,photo.generation));
+  }catch(error){
+    if(error instanceof CaptainReviewError){response.status(error.code==='not-found'?404:error.code==='invalid-argument'?400:error.code==='unauthenticated'?401:403).send(error.message);return;}
+    logger.error('Wash report evidence unavailable',{code:error.code??'internal'});response.status(503).send('Evidence could not be loaded. Refresh and try again.');
   }
 });
 export const identityReviewPhoto = onRequest({invoker:'private',cors,timeoutSeconds:60},async(request,response)=>{

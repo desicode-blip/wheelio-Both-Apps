@@ -39,7 +39,7 @@ class Job {
   final String plate;
   final String type;
   final bool isBike;
-  final int pay;
+  final num pay;
   final String tower;
   final String floor;
   final String slot;
@@ -286,7 +286,7 @@ class WNotif {
   final String? jobId;
   final String? payoutId;
   final String plate;
-  final int amount;
+  final num amount;
   bool read;
 }
 
@@ -341,9 +341,9 @@ class CaptainStore extends ChangeNotifier {
   int levelDay = 2;
   int jobsToday = 6;
   int jobLimit = 8;
-  int earnedToday = 1040;
-  int approvedToday = 820;
-  int waitingToday = 220;
+  num earnedToday = 1040;
+  num approvedToday = 820;
+  num waitingToday = 220;
 
   // Demo switches (Screens gallery)
   bool lowSignal = false;
@@ -1322,7 +1322,7 @@ class CaptainStore extends ChangeNotifier {
       plate: Fmt.plate(o['plate'] as String? ?? ''),
       type: o['vehicleName'] as String? ?? '',
       isBike: o['vehicleKind'] == 'bike',
-      pay: (o['captainPayPaise'] as num? ?? 0).toInt() ~/ 100,
+      pay: (o['captainPayPaise'] as num? ?? 0) / 100,
       tower: o['tower'] as String? ?? '',
       floor: o['floor'] as String? ?? '',
       slot: o['parking'] as String? ?? '',
@@ -1386,7 +1386,7 @@ class CaptainStore extends ChangeNotifier {
   void _applyEarnings() {
     final today = startOfDay(DateTime.now());
     final todays = liveEarnings.where((e) => (e['paymentMode']??'test')==(liveCaptain['paymentMode']??'test') && !(_date(e['createdAt']) ?? _date(e['updatedAt']) ?? DateTime(2000)).isBefore(today)).toList();
-    int sum(Iterable<Map<String, dynamic>> l) => l.fold(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt() ~/ 100);
+    num sum(Iterable<Map<String, dynamic>> l) => l.fold<int>(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt()) / 100;
     earnedToday = sum(todays.where((e) => ['approved','awaitingApproval'].contains(e['status'])));
     approvedToday = sum(todays.where((e) => e['status'] == 'approved'));
     waitingToday = sum(todays.where((e) => e['status'] == 'awaitingApproval'));
@@ -1394,10 +1394,10 @@ class CaptainStore extends ChangeNotifier {
   }
 
   /// This week's earnings (live), in rupees: (total, approved, waiting).
-  (int, int, int) get weekMoney {
+  (num, num, num) get weekMoney {
     final from = startOfDay(DateTime.now()).subtract(Duration(days: DateTime.now().weekday - 1));
     final week = liveEarnings.where((e) => (e['paymentMode']??'test')==(liveCaptain['paymentMode']??'test') && !(_date(e['createdAt']) ?? _date(e['updatedAt']) ?? DateTime(2000)).isBefore(from));
-    int sum(Iterable<Map<String, dynamic>> l) => l.fold(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt() ~/ 100);
+    num sum(Iterable<Map<String, dynamic>> l) => l.fold<int>(0, (a, e) => a + (e['amount'] as num? ?? 0).toInt()) / 100;
     return (sum(week.where((e) => ['approved','awaitingApproval'].contains(e['status']))), sum(week.where((e) => e['status'] == 'approved')), sum(week.where((e) => e['status'] == 'awaitingApproval')));
   }
 
@@ -1429,7 +1429,7 @@ class CaptainStore extends ChangeNotifier {
       jobId: d['orderId'] as String?,
       payoutId: d['payoutId'] as String?,
       plate: Fmt.plate(o?['plate'] as String? ?? ''),
-      amount: (d['amount'] as num? ?? o?['captainPayPaise'] as num? ?? 0).toInt() ~/ 100,
+      amount: (d['amount'] as num? ?? o?['captainPayPaise'] as num? ?? 0) / 100,
       read: d['read'] == true,
       reviewTitle: d['kind']=='applicationReview'?d['title'] as String?:null,
       reviewBody: d['kind']=='applicationReview'?d['body'] as String?:null,
@@ -1476,8 +1476,8 @@ class CaptainStore extends ChangeNotifier {
 
   Future<void> liveRequestOtp(String number) => _call(() => live!.requestOtp(number));
   Future<bool> liveVerifyOtp(String code) async {
-    final enteredName=name.trim();
-    final result=await _call(()=>live!.verifyOtp(code,role:'captain',name:enteredName));
+    const enteredName='';
+    final result=await _call(()=>live!.verifyOtp(code,role:'captain'));
     _bindLive(live!.uid!);
     phone=live!.verifiedPhone!.replaceFirst('+91','');
     name=result['name'] as String? ?? enteredName;

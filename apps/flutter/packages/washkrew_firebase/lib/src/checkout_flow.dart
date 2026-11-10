@@ -91,7 +91,12 @@ class CheckoutFlow {
       rethrow;
     }
     onStage?.call(CheckoutStage.confirming);
-    if (result == null) return call('checkPayment', {'bookingId': id});
+    if(result?['_serverConfirmed']==true)return call('checkPayment', {'bookingId':id});
+    if (result == null) {
+      final checked = await call('checkPayment', {'bookingId': id});
+      if (checked['paymentStatus'] == 'captured') return checked;
+      return call('abandonCheckout', {'bookingId': id});
+    }
     return call('verifyPayment', {
       'bookingId': id,
       'orderId': result['razorpay_order_id'],

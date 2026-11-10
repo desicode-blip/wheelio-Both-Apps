@@ -21,7 +21,7 @@ function clearPhotos(){photoURLs.forEach(u=>URL.revokeObjectURL(u));photoURLs=[]
 function emptyDetail(){clearPhotos();selected=null;$('detail').replaceChildren(element('div','Select an application to review its submitted details.','empty'));}
 async function login(fresh=false){try{message('');const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});if(fresh&&auth.currentUser)await reauthenticateWithPopup(auth.currentUser,provider);else await signInWithPopup(auth,provider);if(fresh)message('Google session verified.');}catch(e){message(e.message||'Google sign-in did not finish.',true);}}
 $('google').onclick=()=>login();$('reauth').onclick=()=>login(true);
-$('signout').onclick=async()=>{generation++;selection++;emptyDetail();await signOut(auth);};
+$('signout').onclick=async()=>{generation++;selection++;emptyDetail();$('wash-reports-workspace').hidden=true;$('wash-reports').replaceChildren();await signOut(auth);};
 $('refresh').onclick=()=>loadList();$('status').onchange=()=>loadList();$('more').onclick=()=>loadList(true);
 async function loadList(append=false){
   const current=++generation;selection++;emptyDetail();$('refresh').disabled=true;message('Loading applications…');
@@ -108,9 +108,10 @@ function renderDetail(c){
   for(const review of c.history){const entry=element('div',undefined,'history');entry.append(element('strong',review.decision==='approve'?'Approved':'Corrections requested'),element('p',review.reason),element('small',review.reviewer+' · '+date(review.createdAt)));history.append(entry);}root.append(history);
 }
 onAuthStateChanged(auth,async user=>{
-  generation++;selection++;emptyDetail();$('email').textContent=user?.email??'';$('signout').hidden=!user;$('signin').hidden=!!user;$('workspace').hidden=true;
+  generation++;selection++;emptyDetail();$('wash-reports-workspace').hidden=true;$('wash-reports').replaceChildren();$('email').textContent=user?.email??'';$('signout').hidden=!user;$('signin').hidden=!!user;$('workspace').hidden=true;
+  reportGeneration++;reportURLs.forEach(u=>URL.revokeObjectURL(u));reportURLs=[];
   $('identity-workspace').hidden=true;$('identity-checks').replaceChildren();$('deletion-workspace').hidden=true;$('deletion-requests').replaceChildren();deletionGeneration++;
-  if(user){await loadList();if(!$('workspace').hidden){await loadDeletionRequests();await loadIdentityReviews();}}else message('');
+  if(user){await loadList();if(!$('workspace').hidden){await loadDeletionRequests();await loadIdentityReviews();await loadWashReports();}}else message('');
 });
 
 
@@ -162,4 +163,48 @@ async function loadIdentityReviews(){
     }
     if(!data.checks.length)$('identity-checks').append(element('p','No current selfies awaiting human review.','muted'));
   }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
+}
+
+let reportGeneration=0,reportURLs=[];
+$('wash-reports-refresh').onclick=()=>loadWashReports();
+async function loadWashReports(){
+ const seq=++reportGeneration,account=auth.currentUser?.uid;if(!account)return;
+ reportURLs.forEach(u=>URL.revokeObjectURL(u));reportURLs=[];$('wash-reports').replaceChildren();
+ try{
+  const data=await call('listWashReports');if(seq!==reportGeneration||auth.currentUser?.uid!==account)return;
+  $('wash-reports-workspace').hidden=false;
+  for(const item of data.reports){
+   const box=section(item.reference+' · '+item.kind+' · '+item.paymentMode),status=element('p');status.setAttribute('role','status');
+   box.append(element('p',item.note||'No description added.'),element('p','Received '+date(item.createdAt)));
+   const media=element('div',undefined,'facts'),view=element('button','Load private evidence');box.append(view,media);
+   view.onclick=async()=>{
+    view.disabled=true;media.replaceChildren();status.textContent='Loading evidence…';
+    try{
+     for(const name of item.media){
+      const token=await auth.currentUser.getIdToken(),r=await fetch(base+'washReportPhoto?'+new URLSearchParams({orderId:item.id,name}),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+      if(!r.ok)throw Error('Some evidence is unavailable. Refresh and investigate before deciding.');
+      const blob=await r.blob();if(seq!==reportGeneration||auth.currentUser?.uid!==account)return;
+      const url=URL.createObjectURL(blob);reportURLs.push(url);const label=element('figure'),m=element(name.endsWith('.m4a')?'audio':'img');
+      m.src=url;if(name.endsWith('.m4a'))m.controls=true;else{m.alt=name;m.width=240;m.style.maxWidth='100%';}
+      label.append(m,element('figcaption',name));media.append(label);
+     }
+     status.textContent=item.media.length?'Evidence loaded. Review every available angle.':'No media attached; investigate with the parties before deciding.';
+    }catch(e){status.textContent=e.message;view.disabled=false;}
+   };
+   const label=element('label','Decision note (visible to both parties)'),note=element('textarea');note.maxLength=1000;label.append(note);box.append(label);
+   const confirmed=check('I reviewed the report and available evidence and confirm this human decision.');box.append(confirmed.row);
+   const actions=element('div',undefined,'actions');let saving=false;
+   for(const [outcome,title] of [['upheld','Uphold report'],['rejected','Reject report'],['damagePriority','Escalate damage review']]){
+    const button=element('button',title);button.onclick=async()=>{
+     if(saving)return;
+     if(!confirmed.input.checked||note.value.trim().length<5){status.textContent='Confirm your review and add a clear decision note.';return;}
+     saving=true;for(const b of actions.querySelectorAll('button'))b.disabled=true;
+     try{await call('reviewWashReport',{orderId:item.id,expectedVersion:item.version,outcome,note:note.value.trim(),evidenceReviewed:true});await loadWashReports();}
+     catch(e){status.textContent=e.message;saving=false;for(const b of actions.querySelectorAll('button'))b.disabled=false;}
+    };actions.append(button);
+   }
+   box.append(actions,status);$('wash-reports').append(box);
+  }
+  if(!data.reports.length)$('wash-reports').append(element('p','No wash reports awaiting review.','muted'));
+ }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
 }

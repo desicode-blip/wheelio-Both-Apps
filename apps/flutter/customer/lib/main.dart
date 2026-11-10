@@ -36,6 +36,7 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
+    if(store.isLive)WidgetsBinding.instance.addPostFrameCallback((_) { if(mounted)requestStartupPermissions(); });
     if(store.isLive)_freshnessTimer=Timer.periodic(const Duration(seconds:30),(_){if(mounted&&Device.appIsActive)store.changed();});
     store.live?.listenPush('customer',(id){if(mounted){store.set(()=>store.currentOrderId=id);router.push(R(N.live,id:id));}});
     // On a laptop there's no phone to call from: say so instead of dialling.
@@ -183,7 +184,11 @@ class _OpenOrderState extends State<_OpenOrder> {
   }
 
   @override
-  Widget build(BuildContext context) => context.store.currentOrderId == widget.id ? widget.child : const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    final store=context.store;
+    if(store.currentOrderId!=widget.id && isTopScreen(context))WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&isTopScreen(context))store.set(()=>store.currentOrderId=widget.id);});
+    return store.currentOrderId==widget.id?widget.child:const SizedBox.shrink();
+  }
 }
 
 Widget _screen(R r) {
@@ -212,8 +217,8 @@ Widget _screen(R r) {
     N.live => const LiveOrderScreen(),
     N.photoCompare => const PhotoCompareScreen(),
     N.rate => const RateScreen(),
-    N.reportProblem => const ReportProblemScreen(),
-    N.problemPhotos => ProblemPhotosScreen(kind: r.kind!),
+    N.reportProblem => ReportProblemScreen(orderId: r.id),
+    N.problemPhotos => ProblemPhotosScreen(kind: r.kind!, orderId: r.id),
     N.disputeStatus => const DisputeStatusScreen(),
     N.refund => const RefundScreen(),
     N.bookingDetail => BookingDetailScreen(orderId: r.id!),

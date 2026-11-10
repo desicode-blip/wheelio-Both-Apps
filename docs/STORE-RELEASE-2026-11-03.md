@@ -1,5 +1,8 @@
 # Initial Android and iOS store release
 
+**10 November update:** current source is Customer **1.0.5 (10)** / Captain **1.0.6 (11)**. Read [the checkout/report handoff](CHECKOUT-AND-REPORT-FIXES-2026-11-10.md) for current fixes and the pending Razorpay wallet-fee activation. Existing designs and historical financial snapshots remain intact.
+
+
 **4 November update: read [the policy release](POLICY-RELEASE-2026-11-04.md) first. New source is Customer 1.0.4 (9) / Captain 1.0.5 (10); new cancellation credit is 98/50/0 with one-year credit expiry. Historical snapshots stay unchanged.**
 
 Current publishing starting point, 3 November 2026. Ajay reports that Aman tested

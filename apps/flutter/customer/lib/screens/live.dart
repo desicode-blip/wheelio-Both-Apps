@@ -111,7 +111,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
             primary: 'Rate ${o.captain?.name ?? 'Raju'}',
             secondary: 'Report a problem',
             onPrimary: () => router.go(N.rate),
-            onSecondary: () => router.go(N.reportProblem),
+            onSecondary: () => router.push(R(N.reportProblem, id: o.id)),
           )),
         OrderStatus.approved => _state(WFullState(icon: WIcon.sparkle, tone: Tone.ok, title: 'Wash approved', message: store.isLive ? 'Your ${Fmt.rupees(o.price)} wash payment is approved.' : '${Fmt.rupees(o.price)} released to ${o.captain?.name ?? 'Raju'}.', primary: 'Go home', onPrimary: router.popToRoot)),
         _ => const DisputeStatusScreen(),
@@ -409,7 +409,7 @@ class _CheckWashViewState extends State<CheckWashView> {
           router.replace(const [R(N.rate)]);
         }),
         const Padding(padding: EdgeInsets.only(top: 6), child: WText('Auto-approves at 12 midnight if you don’t respond', WType.small, color: WColor.muted)),
-        WButton('Something’s wrong', kind: ButtonKind.text, onTap: () => router.go(N.reportProblem)),
+        WButton('Something’s wrong', kind: ButtonKind.text, onTap: () => router.push(R(N.reportProblem, id: o.id))),
       ]),
       children: [
         Padding(
@@ -471,7 +471,7 @@ class _PhotoCompareScreenState extends State<PhotoCompareScreen> {
                 label: 'Report a problem',
                 onTap: () {
                   router.pop();
-                  router.go(N.reportProblem);
+                  router.push(R(N.reportProblem, id: o?.id));
                 },
                 child: const SizedBox(width: 48, height: 48, child: Center(child: WIconView(WIcon.flag, size: 18, color: WColor.white))),
               ),

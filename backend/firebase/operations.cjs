@@ -40,7 +40,30 @@ async function main() {
     return true;
   }
   const [command,uid,...societyIds]=process.argv.slice(2);
-  if(command==='configure-captain-coverage'){
+  if(command==='configure-checkout-fixes'||command==='enable-wallet-gateway-fees'){
+    for(const name of ['createBooking','createCheckout','abandonCheckout','createWalletTopup','washkrewRazorpayLiveWebhook','reviewWashReport']){
+      const r=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
+      if(!r.ok||(await r.json()).state!=='ACTIVE')throw Error('Deploy and verify the checkout/report functions first.');
+    }
+    const current=await api('/config/operations');
+    if(current.fields.paymentMerchant?.stringValue!=='washkrew'||current.fields.paymentMode?.stringValue!=='live')throw Error('This activation is only for the separate WashKrew live merchant.');
+    const ready=current.fields.walletTopupFeePolicy?.stringValue==='customerAtTopupV1'&&current.fields.walletFeeMerchantReady?.booleanValue===true;
+    let enable=ready;
+    if(command==='enable-wallet-gateway-fees'){
+      const {RazorpayPayments}=await import('./functions/src/payments.mjs');
+      const {customerTopupFees,confirmsCustomerFees}=await import('./functions/src/gateway-fees.mjs');
+      const provider=new RazorpayPayments({keyId:await secret('WASHKREW_RAZORPAY_LIVE_KEY_ID'),keySecret:await secret('WASHKREW_RAZORPAY_LIVE_KEY_SECRET')});
+      // An unpaid capability order, never a charge or a wallet credit. Support
+      // must enable the feature; never silently retry without the fee rules.
+      const probe=await provider.createOrder({amount:100,receipt:'fee_check_'+Date.now(),bookingId:'fee-capability-check',convenienceFeeConfig:customerTopupFees()});
+      if(!confirmsCustomerFees(probe.convenience_fee_config))throw Error('Razorpay has not confirmed all required fee rules.');
+      enable=true;
+    }
+    const patch={captainEarningsPolicy:'netGatewayV1',walletTopupFeePolicy:'customerAtTopupV1',walletFeeMerchantReady:enable};
+    const masks=Object.keys(patch).map(k=>'updateMask.fieldPaths='+k).join('&');
+    await api('/config/operations?'+masks+'&currentDocument.updateTime='+encodeURIComponent(current.updateTime),'PATCH',{fields:fields(patch)});
+    console.log(enable?'New bookings use actual net gateway earnings; top-up fees are enabled once at funding. No payment was taken.':'New bookings use actual net gateway earnings. New top-ups are paused pending Razorpay Dynamic Convenience Fees; existing credit and direct checkout remain available.');
+  } else if(command==='configure-captain-coverage'){
     for(const name of ['saveCaptainServiceArea','getAvailability','createBooking','claimJob','captainCoverageChanged']){const response=await fetch('https://cloudfunctions.googleapis.com/v2/projects/wheelio-apps/locations/asia-south1/functions/'+name,{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});if(!response.ok||(await response.json()).state!=='ACTIVE')throw Error('Deploy all coverage controllers and indexes first.');}
     const indexResponse=await fetch('https://firestore.googleapis.com/v1/projects/wheelio-apps/databases/(default)/collectionGroups/captains/indexes',{headers:{Authorization:`Bearer ${token.access_token}`},signal:AbortSignal.timeout(30000)});
     const indexes=await indexResponse.json();if(!indexResponse.ok||!indexes.indexes?.some(i=>i.state==='READY'&&i.fields?.some(f=>f.fieldPath==='approved')&&i.fields?.some(f=>f.fieldPath==='serviceArea.geohash')))throw Error('Wait for the approved Captain/geohash index to become READY.');
@@ -218,7 +241,7 @@ async function main() {
   } else if(command==='configure-api-access') {
     // Only the app callables and signed webhook are public HTTP gateways.
     // Scheduler and Firestore-trigger services retain their IAM checks.
-    const names=['listIdentityReviews','reviewCaptainIdentity','identityReviewPhoto','getWallet','accountDeletionRequest','listDeletionRequests','reviewDeletionRequest','setBookingPhotoAi','saveCaptainServiceArea','registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
+    const names=['listWashReports','reviewWashReport','washReportPhoto','listIdentityReviews','reviewCaptainIdentity','identityReviewPhoto','getWallet','accountDeletionRequest','listDeletionRequests','reviewDeletionRequest','setBookingPhotoAi','saveCaptainServiceArea','registerAccount','getAvailability','getCancellationQuote','checkServiceAddress','setCaptainPreferences','saveCaptainPayout','setCaptainPosition','matchServiceLocation','abandonCheckout','createBooking','createCheckout','verifyPayment','checkPayment','setCaptainOnline','submitCaptainApplication','startCaptainTraining','recordTrainingProgress','submitTrainingQuiz','beginCaptainIdentity','verifyCaptainIdentity','checkWashPhotos','claimJob','rejectJob','updateWashProgress','recordWashEvidence','recordCustomerPhoto','recordCustomerMedia','createSupportRequest','registerPushToken','setPushPreference','removePushToken','readNotification','saveNotificationPreferences','updateVehicleHelp','saveProfilePhoto','saveCustomerPlace','syncVerifiedPhone','deleteOwnAccount','createBookingDocument','downloadBookingDocument','recordCaptainDisputeResponse','updateCaptainLocation','approveWash','rateWash','cancelBooking','reportWashProblem','razorpayWebhook','razorpayLiveWebhook','washkrewRazorpayLiveWebhook','listCaptainApplications','getCaptainApplication','reviewCaptainApplication','captainApplicationPhoto'];
     names.push('searchPlaceSuggestions','selectPlaceSuggestion','createWalletTopup','verifyWalletTopup','checkWalletTopup');
     const request=async(url,options={})=>{
       const response=await fetch(url,{...options,headers:{Authorization:`Bearer ${token.access_token}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000)});
@@ -269,6 +292,6 @@ async function main() {
     const changes={approved:true,kycStatus:'approved',societyIds,online:false};
     await api(`/captains/${uid}?${Object.keys(changes).map(k=>`updateMask.fieldPaths=${k}`).join('&')}`,'PATCH',{fields:fields(changes)});
     console.log('Captain approved for the selected societies. They must go online to receive offers.');
-  } else throw Error('Commands: configure-cancellation-refund-wallet | configure-payment-methods | configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-storage-rules | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
+  } else throw Error('Commands: configure-checkout-fixes | enable-wallet-gateway-fees | configure-cancellation-refund-wallet | configure-payment-methods | configure-admin-approval | configure-live-no-credit CHECKOUT_CONFIG_ID | configure-captain-reviewers PRIVATE_REVIEWERS_JSON | prepare-payment-modes | check-live-webhook | configure-test | configure-storage | configure-storage-rules | configure-api-access | check-payments | check-webhook | approve-address REQUEST_ID SOCIETY_ID | approve-captain UID SOCIETY_ID [...]. Use /admin/ for human Captain application reviews.');
 }
 main().catch(e=>{console.error(e.message);process.exitCode=1;});

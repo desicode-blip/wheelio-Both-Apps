@@ -4,12 +4,14 @@
 import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart' show GetOptions, Source;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 import 'place_search.dart';
+import 'report_submission.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
@@ -547,6 +549,7 @@ class AppStore extends ChangeNotifier {
     notificationPrefs=NotificationPrefs();liveBanner=null;toast=null;
     currentOrderId=null;viewingOrderId=null;draft=BookingDraft();
     draftBookingId=null;draftRequestId=newId('draft');draftPhotoBytes.clear();draftMedia.clear();
+    _checkoutIdentity=null;checkoutCancelled=false;
     _walletFree=0;_walletCredit=0;walletCreditLots=[];_walletExpiryTimer?.cancel();_walletIdentity='';_walletSubscription?.cancel();
     _preferenceSave?.cancel();_readIds.clear();_unreadIds.clear();_deletedIds.clear();
     _invalidateAvailability();backendMessage=null;returningCustomer=false;
@@ -559,6 +562,7 @@ class AppStore extends ChangeNotifier {
     final old = _liveUid;
     _accountGeneration++;
     _accountActive = false;
+    if(uid!=old){_checkoutIdentity=null;checkoutCancelled=false;}
     if(uid.isEmpty && old.isNotEmpty) resetDeletedAccountData();
     _liveUid = uid;
     final generation = _accountGeneration;
@@ -770,6 +774,7 @@ class AppStore extends ChangeNotifier {
         outcome: DisputeOutcome.values.where((v) => v.name == d['outcome']).firstOrNull ?? DisputeOutcome.underReview,
         decisionNote: d['decisionNote'] ?? '',
         creditsAwarded: (d['creditsAwarded'] as num? ?? 0).toInt(),
+        photos: List<String>.from(d['photos'] ?? const []),
       );
     }
     if (order.refundStatus != 'none') {
@@ -1263,12 +1268,16 @@ class AppStore extends ChangeNotifier {
     if(!isLive||!isLoggedIn)throw StateError('Log in to add wallet credit.');
     final result=await live!.topUpWallet(requestId,amountPaise,onStage:_checkoutStage);
     if(result['status']=='credited'){
-      final wallet=await live!.db.doc('wallets/${live!.uid}_${testPayments?'test':'live'}').get();
-      _walletCredit=(wallet.data()?['creditPaise'] as num? ?? 0)/100;customer?.credit=_walletCredit;changed();
+      try {
+        final wallet=await live!.db.doc('wallets/${live!.uid}_${testPayments?'test':'live'}').get(const GetOptions(source:Source.server));
+        _walletCredit=(wallet.data()?['creditPaise'] as num? ?? 0)/100;customer?.credit=_walletCredit;changed();
+      } catch (_) { /* Captured credit is saved; the wallet stream refreshes it. */ }
     }
     return result;
   }
   Future<PaymentOutcome>? _checkoutFuture;
+  String? _checkoutIdentity;
+  bool checkoutCancelled = false;
 
   void prefetchPaymentResources() {
     if (live != null) unawaited(live!.preloadCheckout());
@@ -1285,6 +1294,7 @@ class AppStore extends ChangeNotifier {
 
   Future<PaymentOutcome> _createOrderAndPay() async {
     if (isLive) {
+      checkoutCancelled = false;
       _checkoutStage(CheckoutStage.preparing);
       final d=draft,s=d.slot;
       var p=d.place;
@@ -1293,7 +1303,8 @@ class AppStore extends ChangeNotifier {
       if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
         draftBookingId = pending.id;
         final paid = await live!.pay(pending.id, onStage: _checkoutStage);
-        await _refreshLiveOrder(pending.id);
+        if(paid['checkoutCancelled']==true){checkoutCancelled=true;draftBookingId=null;_checkoutIdentity=null;return PaymentOutcome.failed;}
+        try { await _refreshLiveOrder(pending.id); } catch (_) { if(paid['paymentStatus']!='captured')rethrow; }
         return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
@@ -1301,8 +1312,8 @@ class AppStore extends ChangeNotifier {
       // booking transaction still resolves it and validates the parking pin.
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
       final booking = <String,dynamic>{
-        'requestId': draftRequestId,
         'cancellationPolicyVersion':2,
+        'replaceUnpaidCheckout':true,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,
@@ -1324,6 +1335,13 @@ class AppStore extends ChangeNotifier {
         'startHour': s.startHour,
         'endHour': s.endHour,
       };
+      final identity = jsonEncode(booking);
+      if (_checkoutIdentity != identity) {
+        draftRequestId = newId('draft');
+        draftBookingId = null;
+        _checkoutIdentity = identity;
+      }
+      booking['requestId'] = draftRequestId;
       final paid = await live!.startCheckout(
         booking: booking,
         uploads: [
@@ -1336,7 +1354,15 @@ class AppStore extends ChangeNotifier {
         onStage: _checkoutStage,
       );
       final bookingId = draftBookingId!;
-      await _refreshLiveOrder(bookingId);
+      if (paid['checkoutCancelled'] == true) {
+        checkoutCancelled = true;
+        _checkoutIdentity = null;
+        draftBookingId = null;
+        draftRequestId = newId('draft');
+        return PaymentOutcome.failed;
+      }
+      try { await _refreshLiveOrder(bookingId); }
+      catch (_) { if(paid['paymentStatus']!='captured')rethrow; }
       return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }
     final d = draft;
@@ -1400,7 +1426,7 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> _refreshLiveOrder(String id) async {
-    final fresh = await live!.db.doc('orders/$id').get();
+    final fresh = await live!.db.doc('orders/$id').get(const GetOptions(source: Source.server));
     if (!fresh.exists) return;
     orders.removeWhere((o) => o.id == id);
     orders.insert(0, _liveOrder(id, fresh.data()!));
@@ -1591,9 +1617,15 @@ class AppStore extends ChangeNotifier {
   /// BACKEND: rpc report_problem.
   Future<void> reportProblem(String id, ProblemKind kind, String note, [List<Uint8List> photos = const []]) async {
     if (isLive) {
-      for (var i=0;i<photos.length;i++) { await live!.uploadProblemPhoto(id,i,photos[i]); }
-      await live!.call('reportWashProblem', {'orderId': id, 'kind': kind.name, 'note': note, 'photoCount':photos.length});
-      await _refreshLiveOrder(id);
+      final account=live!.uid;
+      if(account==null)throw StateError('Log in to report a problem.');
+      await submitProblemReport(orderId:id,ownerId:account,kind:kind.name,note:note,photos:photos,
+        load:(id)async=>(await live!.db.doc('orders/$id').get(const GetOptions(source:Source.server))).data(),
+        upload:live!.uploadProblemPhoto,
+        submit:(data)async{await live!.call('reportWashProblem',data);});
+      if(live!.uid!=account)return;
+      _update(id,(o){o.status=OrderStatus.disputed;o.dispute??=Dispute(ref:'SUP-${id.toUpperCase()}',kind:kind,note:note,createdAt:DateTime.now(),outcome:kind==ProblemKind.damage?DisputeOutcome.damagePriority:DisputeOutcome.underReview);});
+      try { await _refreshLiveOrder(id); } catch (_) { /* Server acknowledged; snapshots retry the display refresh. */ }
       return;
     }
     await _latency(900);

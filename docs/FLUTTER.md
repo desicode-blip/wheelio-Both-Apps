@@ -1,5 +1,8 @@
 # Current Flutter apps - 3 November 2026
 
+**10 November update:** current source is Customer **1.0.5 (10)** / Captain **1.0.6 (11)**. Read [the checkout/report handoff](CHECKOUT-AND-REPORT-FIXES-2026-11-10.md) for current fixes and the pending Razorpay wallet-fee activation. Existing designs and historical financial snapshots remain intact.
+
+
 Store preparation: Customer **1.0.4 (8)** / Captain **1.0.5 (9)** preserve the
 accepted app UI and functionality. Production Android builds use all three ABIs,
 R8/resource shrinking and the private existing upload key. App backup is disabled

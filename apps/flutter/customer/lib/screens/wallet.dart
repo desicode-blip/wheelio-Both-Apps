@@ -39,7 +39,7 @@ class _WalletScreenState extends State<WalletScreen> {
       if (!mounted) return;
       setState(
         () => message = result['status'] == 'credited'
-            ? '${Fmt.rupees((result['amountPaise'] as int) / 100)} added to your wallet.'
+            ? '${Fmt.rupees((result['creditedPaise'] as int? ?? result['amountPaise'] as int) / 100)} added to your wallet.'
             : result['status'] == 'refundPending'
             ? 'This payment cannot fund your wallet. A refund to the original method has been queued.'
             : 'Payment is not confirmed yet. Check the pending top-up before paying again.',
@@ -55,6 +55,8 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store, balance = store.customer?.credit ?? 0;
+    final feeAtTopup = store.liveConfig['walletTopupFeePolicy'] == 'customerAtTopupV1';
+    final topupsReady = !feeAtTopup || store.liveConfig['walletFeeMerchantReady'] == true;
     return PopScope(
       canPop: !busy,
       child: WScreen(
@@ -66,9 +68,9 @@ class _WalletScreenState extends State<WalletScreen> {
                 ? (store.checkoutStage == CheckoutStage.confirming
                       ? 'Confirming top-up…'
                       : 'Opening secure payment…')
-                : 'Top up ${paise == null ? 'wallet' : Fmt.rupees(paise! / 100)}',
+                : !topupsReady ? 'Top-up temporarily unavailable' : 'Top up ${paise == null ? 'wallet' : Fmt.rupees(paise! / 100)}${feeAtTopup ? ' + fee' : ''}',
             kind: ButtonKind.success,
-            enabled: !busy && paise != null && store.isLive,
+            enabled: !busy && paise != null && store.isLive && topupsReady,
             onTap: () => pay(),
           ),
         ),
@@ -107,7 +109,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
           const SizedBox(height: 24),
           WTextField(
-            label: 'Top-up amount (₹)',
+            label: feeAtTopup ? 'Usable credit to add (₹)' : 'Top-up amount (₹)',
             value: amount,
             placeholder: '100',
             keyboard: const TextInputType.numberWithOptions(decimal: true),
@@ -121,6 +123,9 @@ class _WalletScreenState extends State<WalletScreen> {
             },
           ),
           const SizedBox(height: 10),
+          if(feeAtTopup)Padding(padding:const EdgeInsets.only(bottom:10),child:WText(topupsReady
+            ? 'Razorpay calculates its fee for your selected payment method and shows the full charge before you pay. Only the amount above becomes wallet credit. The fee is charged once at top-up; wallet bookings have no second gateway fee.'
+            : 'Razorpay must enable gateway-fee collection before new top-ups can open. Existing wallet credit and direct booking payments still work.',WType.caption)),
           const WText(
             'Pay securely through Razorpay. Credit is added only after the server confirms payment. Credit cards, EMI and pay-later are unavailable.',
             WType.caption,
@@ -177,6 +182,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                     : 'Awaiting payment confirmation',
                                 WType.caption,
                               ),
+                              if(doc.data()['paidAmountPaise'] is num)WText('Paid ${Fmt.rupees((doc.data()['paidAmountPaise'] as num)/100)}${doc.data()['gatewayFeePaise'] is num ? ' · Gateway fee ${Fmt.rupees((doc.data()['gatewayFeePaise'] as num)/100)}' : ''}',WType.caption),
                               if (doc.data()['paymentStatus'] !=
                                   'captured') ...[
                                 WButton(

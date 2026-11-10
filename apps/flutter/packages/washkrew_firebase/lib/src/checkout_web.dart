@@ -40,7 +40,7 @@ Future<void> preloadCheckout() => _load();
 
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,
-  String phone,
+  String phone, {Future<bool> Function()? onReturn}
 ) async {
   await _load();
   final complete = Completer<Map<String, dynamic>?>();

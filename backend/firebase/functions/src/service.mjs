@@ -1,3 +1,5 @@
+import {checkoutIdentity} from './checkout-identity.mjs';
+import {listWashReports,reviewWashReport,washReportEvidence} from './wash-reports.mjs';
 import {listIdentityReviews,reviewCaptainIdentity,identityReviewEvidence} from './identity-review.mjs';
 import {listDeletionRequests,reviewDeletionRequest} from './deletion-requests.mjs';
 import {walletCredits,changeCredits} from './wallet-credits.mjs';
@@ -35,6 +37,9 @@ const hash = value => createHash('sha256').update(value).digest('hex').slice(0, 
 const capacityKey=(society,day,hour,mode)=>hash(`${mode==='live'?'live:':''}${society}:${day}:${hour}`);
 
 export class WashKrewService {
+  listWashReports(auth,data){return listWashReports(this,auth,data);}
+  reviewWashReport(auth,data){return reviewWashReport(this,auth,data);}
+  washReportEvidence(auth,data){return washReportEvidence(this,auth,data);}
   constructor({ db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now }); }
   getPayments(mode,merchant='trustkeyper') {
     merchant=merchant??'trustkeyper';
@@ -199,7 +204,7 @@ export class WashKrewService {
     const uid = this.actor(auth), requestId = id(data.requestId, 'booking request');
     // Checkout no longer grants AI permission. Only the paid-booking toggle can.
     const aiChoice={allowed:false,version:AI_PHOTO_CONSENT_VERSION,revision:0,state:'notGiven'};
-    const bookingId = hash(`${uid}:${requestId}`), ref = this.db.doc(`orders/${bookingId}`);
+    const bookingId = hash(`${uid}:${requestId}`), ref = this.db.doc(`orders/${bookingId}`), requestIdentity=checkoutIdentity(data);
     const plate = text(data.plate, 6, 15, 'vehicle number').toUpperCase().replaceAll(' ', '');
     if (!/^[A-Z0-9]{6,12}$/.test(plate)) fail('invalid-argument', 'Check the vehicle number.');
     const societyId = id(data.societyId, 'society'), vehicleKind = id(data.vehicleKind, 'vehicle type');
@@ -207,11 +212,17 @@ export class WashKrewService {
     const parking = text(data.parking ?? '', 0, 80, 'parking slot'), note = text(data.note ?? '', 0, 500, 'notes');
     if (!['dryDusting', 'wetOutside'].includes(data.washKind)) fail('invalid-argument', 'Choose an available wash.');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.day ?? '')) fail('invalid-argument', 'Choose a date.');
+    if(data.replaceUnpaidCheckout===true){
+      const pending=(await this.db.doc(`customerState/${uid}`).get()).data()?.pendingBookingId;
+      if(pending&&pending!==bookingId)await this.abandonCheckout(auth,{bookingId:pending});
+    }
     const result = await this.db.runTransaction(async tx => {
       const [existing, cfg, profile] = await Promise.all([tx.get(ref), tx.get(this.db.doc('config/operations')), tx.get(this.db.doc(`users/${uid}`))]);
       if (existing.exists) {
         const old = existing.data();
         if (old.customerId !== uid) fail('permission-denied', 'This booking is not yours.');
+        if(old.requestIdentity!==requestIdentity)fail('failed-precondition','This checkout belongs to different booking details. Review this booking and start a fresh payment.');
+        if(old.status==='cancelled')fail('failed-precondition','This checkout was cancelled. Review this booking and start a fresh payment.');
         return { bookingId, status: old.status, amount: old.pricePaise };
       }
       const config = cfg.data();
@@ -278,7 +289,7 @@ export class WashKrewService {
       if(policy.earlyCreditBps!==undefined&&data.cancellationPolicyVersion!==2)fail('failed-precondition','Update the Customer app to review the current cancellation and wallet-expiry terms before booking.');
       if(requiresCancellationQuote(policy)&&(!data.acceptedCancellationPolicy||Object.keys(policy).some(k=>data.acceptedCancellationPolicy[k]!==policy[k])))fail('failed-precondition','Reopen the latest app and review the cancellation terms before paying.');
       tx.set(ref, {
-        customerId: uid, customerFirstName: customerName.split(' ')[0], captainId: null,
+        customerId: uid, customerFirstName: customerName.split(' ')[0], captainId: null, requestIdentity,
         aiPhotoConsent:{customer:{...aiChoice,recordedAt:Timestamp.fromMillis(this.now())}},
         ref: `WH-${bookingId.slice(0, 8).toUpperCase()}`, status: 'pendingPayment', paymentStatus: 'unpaid',
         ...(areaPolicy(config)?{coveragePolicy:'captainAreaV1',coverageLocation:{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}}:{}),
@@ -291,7 +302,8 @@ export class WashKrewService {
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
         ...pricing, creditReservedLots:credits.spent, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         walletReserved: pricing.freeWashUsed || pricing.creditUsedPaise > 0, walletReleased: false,
-        captainPayPaise: type.captainPayPaise, currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
+        captainPayPaise: config.captainEarningsPolicy==='netGatewayV1'&&!pricing.freeWashUsed?type.pricePaise:type.captainPayPaise,
+        ...(config.captainEarningsPolicy==='netGatewayV1'?{captainEarningsPolicy:'netGatewayV1'}:{}), currency: 'INR', paymentMode: config.paymentMode, paymentMerchant:config.paymentMerchant??'trustkeyper',
         paymentPolicy:config.paymentPolicy??null,checkoutPresentation:config.checkoutPresentation??null,checkoutConfigId:config.checkoutPresentation==='allNonCredit'?null:config.checkoutConfigId??null,
         paymentExpiresAt: Timestamp.fromMillis(this.now() + 15 * 60000), capacityReserved: false,
         evidence: {}, createdAt: Timestamp.fromMillis(this.now()), updatedAt: stamp(),
@@ -434,11 +446,16 @@ export class WashKrewService {
         if (o.razorpayPaymentId !== payment.id) fail('already-exists', 'This booking already has a captured payment.');
         return;
       }
-      await this.settleBooking(tx, ref, o, cfg.data(), payment.id,'razorpay',acceptsFunding(payment,o.paymentPolicy)?null:'paymentMethodNotAllowed');
+      const fee=payment.fee;
+      if(o.captainEarningsPolicy==='netGatewayV1'&&acceptsFunding(payment,o.paymentPolicy)&&(!Number.isSafeInteger(fee)||fee<0||fee>o.pricePaise))fail('failed-precondition','The payment provider is still confirming its fee. Check this payment again.');
+      await this.settleBooking(tx, ref, o, cfg.data(), payment.id,'razorpay',acceptsFunding(payment,o.paymentPolicy)?null:'paymentMethodNotAllowed',fee);
     });
     // Eligible offers were committed atomically by settleBooking.
   }
-  async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay',rejectionReason=null) {
+  async settleBooking(tx, ref, o, cfg, paymentId, source = 'razorpay',rejectionReason=null, feePaise=0) {
+    const earnings=o.captainEarningsPolicy==='netGatewayV1'&&!o.freeWashUsed?{captainPayPaise:o.basePricePaise-(source==='razorpay'?feePaise:0),gatewayFeePaise:source==='razorpay'?feePaise:0}:{};
+    o={...o,...earnings};
+    const customerState=await tx.get(this.db.doc(`customerState/${o.customerId}`));
     const windows = o.requestedWindows ?? [{startHour:o.startHour,endHour:o.endHour}];
     const [slots,captains,wallet] = await Promise.all([
       Promise.all(windows.map(w=>tx.get(this.db.doc(`slotCapacity/${capacityKey(o.societyId,o.day,w.startHour,o.paymentMode)}`)))),
@@ -462,13 +479,13 @@ export class WashKrewService {
     // wait for a second cold Firestore trigger or a periodic heartbeat.
     const offerWrites=canReserve?await this.prepareOffers(tx,ref.id,{...o,...selection,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)},cfg):[];
     touchAreaLock(tx,lock);
-    tx.update(ref,{paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
+    tx.update(ref,{...earnings,paymentStatus:'captured',paymentSource:source,...(paymentId?{razorpayPaymentId:paymentId}:{}),nextPaymentCheckAt:FieldValue.delete(),
       ...(canReserve?{bookedAt:Timestamp.fromMillis(this.now())}:{}),
       status:canReserve?'searching':'cancelled',capacityReserved:canReserve,
       ...(canReserve?{...(areaChoices?{capacityCaptainId:areaChoices[selected]}:{}),...selection,slotKey:slots[selected].id,slotStart:Timestamp.fromMillis(windowTimes(o.day,selection).start),slotEnd:Timestamp.fromMillis(windowTimes(o.day,selection).end)}:
         {cancellationReason:rejectionReason??'slotUnavailable',refundStatus:cashRefund?'queued':'none',refundAmountPaise:cashRefund?o.pricePaise:0,...(benefit?{cancellationBenefit:benefit,cancellationFeePaise:0}:{}),walletReleased:!!o.walletReserved}),updatedAt:stamp()});
     tx.set(this.db.doc(`payments/${ref.id}`),{customerId:o.customerId,paymentId:paymentId??null,source,amount:o.pricePaise,currency:'INR',status:'captured',updatedAt:stamp()});
-    tx.set(this.db.doc(`customerState/${o.customerId}`),{pendingBookingId:null},{merge:true});
+    if(customerState.data()?.pendingBookingId===ref.id)tx.set(customerState.ref,{pendingBookingId:null},{merge:true});
     if(canReserve)tx.set(slots[selected].ref,{reserved:(slots[selected].data()?.reserved??0)+1},{merge:true});
     else {
       this.restoreWallet(tx,wallet,o,benefit);
@@ -868,18 +885,31 @@ export class WashKrewService {
     if(!['pendingPayment','searching','onTheWay'].includes(order.status))fail('failed-precondition','This booking can no longer be cancelled.');
     return {quote:this.cancellationQuote(orderId,order)};
   }
-  async cancel(auth,data,{expired = false, paymentExpired = false} = {}) {
+  async abandonCheckout(auth,data) {
+    const uid=this.actor(auth),pending=data.bookingId??(await this.db.doc(`customerState/${uid}`).get()).data()?.pendingBookingId;
+    if(!pending)return {checkoutCancelled:false};
+    const orderId=id(pending),ref=this.db.doc(`orders/${orderId}`),order=(await ref.get()).data();
+    if(order?.customerId!==uid)fail('permission-denied','This booking is not yours.');
+    // A closed SDK is not proof that the bank did not capture. Reconcile first;
+    // the following transaction also refuses to cancel a concurrent capture.
+    if(order.razorpayOrderId&&order.paymentStatus!=='captured')await this.checkPayment(auth,{bookingId:orderId});
+    await this.cancel(auth,{orderId},{checkoutAbandoned:true});
+    const latest=(await ref.get()).data();
+    return {bookingId:orderId,status:latest.status,paymentStatus:latest.paymentStatus,checkoutCancelled:latest.status==='cancelled'&&latest.paymentStatus!=='captured'};
+  }
+  async cancel(auth,data,{expired = false, paymentExpired = false, checkoutAbandoned=false} = {}) {
     const uid=expired||paymentExpired?auth.uid:this.actor(auth),orderId=id(data.orderId),ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
       const [s,cfg]=await Promise.all([tx.get(ref),tx.get(this.db.doc('config/operations'))]),o=s.data();
       if(!o||o.customerId!==uid)fail('permission-denied','This booking is not yours.');
       if(o.status==='cancelled')return;
+      if(checkoutAbandoned&&(o.status!=='pendingPayment'||o.paymentStatus==='captured'))return;
       if(paymentExpired && (o.status!=='pendingPayment'||dateMillis(o.paymentExpiresAt)>this.now()))return;
       if(expired && (dateMillis(o.slotEnd)>this.now() || o.arrivedAt))return;
       if(!['pendingPayment','searching','onTheWay'].includes(o.status))fail('failed-precondition','Contact support to cancel a wash that has started.');
       const cancelledAt=this.now();
-      const benefit=expired?serviceFailureBenefit(o):!paymentExpired?cancellationBenefit(o,cancelledAt):null;
-      const quote=!expired&&!paymentExpired?this.cancellationQuote(orderId,o,cancelledAt):null;
+      const benefit=expired?serviceFailureBenefit(o):!paymentExpired&&!checkoutAbandoned?cancellationBenefit(o,cancelledAt):null;
+      const quote=!expired&&!paymentExpired&&!checkoutAbandoned?this.cancellationQuote(orderId,o,cancelledAt):null;
       if(quote&&data.confirmation!==quote.confirmation)fail('failed-precondition','Cancellation terms have changed. Review the amounts and confirm again.');
       const fee=benefit?.feePaise??(!benefit&&!expired&&o.status==='onTheWay'?cfg.data()?.cancellationFeePaise:0);
       const feeLimit=benefit?.restoreReserved===false?o.pricePaise+(o.creditUsedPaise??0):o.pricePaise;
@@ -888,12 +918,14 @@ export class WashKrewService {
       const captain=o.captainId?await tx.get(this.db.doc(`captains/${o.captainId}`)):null;
       const offers=await tx.get(this.db.collection('jobOffers').where('orderId','==',orderId));
       const wallet=await tx.get(this.walletRef(uid,o.paymentMode));
+      const customerState=await tx.get(this.db.doc(`customerState/${uid}`));
       const refundAmount=o.paymentStatus==='captured'?(benefit?benefit.cashRefundPaise??0:o.pricePaise-fee):0;
       const refund=refundAmount>0;
       tx.update(ref,{status:'cancelled',cancelledAt:stamp(),capacityReserved:false,walletReleased:!!o.walletReserved,
-        ...(benefit?{cancellationBenefit:benefit}:{}),cancellationReason:paymentExpired?'paymentExpired':expired?'slotExpired':'customerCancelled',
+        ...(benefit?{cancellationBenefit:benefit}:{}),cancellationReason:checkoutAbandoned?'checkoutAbandoned':paymentExpired?'paymentExpired':expired?'slotExpired':'customerCancelled',
         refundStatus:refund?'queued':'none',refundAmountPaise:refundAmount,cancellationFeePaise:fee,updatedAt:stamp()});
       this.restoreWallet(tx,wallet,o,benefit);
+      if(customerState.data()?.pendingBookingId===orderId)tx.set(customerState.ref,{pendingBookingId:null},{merge:true});
       if(slot)tx.set(slot.ref,{reserved:Math.max(0,(slot.data()?.reserved??1)-1)},{merge:true});
       if(captain?.exists)tx.update(captain.ref,{activeJobCount:Math.max(0,(captain.data().activeJobCount??1)-1),updatedAt:stamp()});
       for(const offer of offers.docs)tx.update(offer.ref,{status:'withdrawn',closedReason:'cancelled',updatedAt:stamp()});
@@ -909,6 +941,7 @@ export class WashKrewService {
     if(!Number.isInteger(photoCount)||photoCount<0||photoCount>3)fail('invalid-argument','Add up to three problem photos.');
     const prior=(await this.db.doc(`orders/${orderId}`).get()).data();
     if(!prior||prior.customerId!==uid)fail('permission-denied','This booking is not yours.');
+    if(photoCount===0&&note.length<5)fail('invalid-argument','Describe the problem or add a clear photo before sending the report.');
     const sameReport=o=>o.dispute?.kind===kind&&o.dispute.note===note&&(o.dispute.photos??[]).length===photoCount;
     if(sameReport(prior))return {ok:true,reference:'SUP-'+orderId.toUpperCase()};
     for(let i=0;i<photoCount;i++){
@@ -1011,9 +1044,10 @@ export class WashKrewService {
     if(!['upheld','rejected','damagePriority'].includes(outcome)||!Number.isInteger(bonus)||bonus<0||bonus>10||(outcome!=='upheld'&&bonus))fail('invalid-argument','Choose an explicit review decision and bonus.');
     const ref=this.db.doc(`orders/${orderId}`);
     await this.db.runTransaction(async tx=>{
-      const o=(await tx.get(ref)).data();
+      const snapshot=await tx.get(ref),o=snapshot.data();
       if(!o?.dispute)fail('failed-precondition','This booking has no problem report.');
       if(o.dispute.outcome===outcome&&['upheld','rejected'].includes(outcome))return;
+      if(data.expectedVersion&&data.expectedVersion!==`${snapshot.updateTime.seconds}:${snapshot.updateTime.nanoseconds}`)fail('aborted','This report changed. Refresh and review the latest evidence.');
       if(o.status!=='disputed'||!['underReview','damagePriority'].includes(o.dispute.outcome))fail('failed-precondition','This report is already resolved.');
       const [captain,wallet,refund]=await Promise.all([tx.get(this.db.doc(`captains/${o.captainId}`)),tx.get(this.walletRef(o.customerId,o.paymentMode)),tx.get(this.db.doc(`refunds/${orderId}`))]);
       const benefit=outcome==='upheld'?serviceFailureBenefit(o):null;
@@ -1032,6 +1066,7 @@ export class WashKrewService {
         if(!benefit&&o.pricePaise>0&&!refund.exists)tx.set(refund.ref,{bookingId:orderId,customerId:o.customerId,paymentId:o.razorpayPaymentId,amount:o.pricePaise,paymentMode:o.paymentMode,paymentMerchant:o.paymentMerchant??'trustkeyper',status:'queued',createdAt:stamp()});
       }
       this.event(tx,ref,'disputeReviewed',{outcome});
+      if(data.reviewer)tx.create(ref.collection('reviews').doc(),{outcome,note,reviewer:data.reviewer,evidenceReviewed:true,createdAt:stamp()});
     });return {ok:true};
   }
   async recordPayout(data) {

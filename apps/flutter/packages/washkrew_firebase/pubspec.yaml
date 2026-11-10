@@ -16,6 +16,10 @@ dependencies:
   geolocator: ^14.0.2
   razorpay_flutter: ^1.4.7
   firebase_messaging: ^16.1.0
+  permission_handler: 12.0.3
+  # Keep the Flutter 3.38 / AGP 8 toolchain; newer native versions require AGP 9.
+  permission_handler_android: 13.0.1
+  path_provider: ^2.1.5
   web: ^1.1.1
   washkrew_ui:
     path: ../washkrew_ui

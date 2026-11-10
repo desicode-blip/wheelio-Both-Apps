@@ -60,11 +60,11 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       children: [
         WTitleBlock(
-          'Almost done. What’s your number?',
+          store.isLive ? 'What’s your number?' : 'Almost done. What’s your number?',
           top: 8,
-          subtitle: store.returningCustomer ? 'We’ll send a 6-digit code to find your account.' : 'We’ll send a 6-digit code. Then just your name.',
+          subtitle: store.isLive ? 'We’ll send a code, then open your account or help you sign up.' : store.returningCustomer ? 'We’ll send a 6-digit code to find your account.' : 'We’ll send a 6-digit code. Then just your name.',
         ),
-        WSegmented(
+        if(!store.isLive) WSegmented(
           options: const ['I’m new here', 'I’ve booked before'],
           selection: store.returningCustomer ? 1 : 0,
           onChanged: (i) => store.set(() => store.returningCustomer = i == 1),
@@ -364,6 +364,11 @@ class _PayingScreenState extends State<PayingScreen> {
   }
 
   bool _openResolvedBooking(AppStore store, AppRouter router, PaymentOutcome outcome) {
+    if (store.isLive && store.checkoutCancelled) {
+      store.set(() => store.toast = 'Payment cancelled. Review your booking or choose another vehicle.');
+      router.replace([R(store.draft.type!=null&&store.draft.place!=null&&store.draft.slot!=null?N.review:N.vehicleType)]);
+      return true;
+    }
     final order = store.currentOrder;
     if (store.isLive && order?.status == OrderStatus.cancelled) {
       router.replace([R(N.live, id: order!.id)]);
@@ -405,7 +410,7 @@ class _PayingScreenState extends State<PayingScreen> {
                     ? (_failureMessage ?? 'Payment could not be completed. Check its status before trying again or changing method.')
                     : 'Your bank declined it. No money was taken. Try again or use another method.',
                 primary: 'Try again',
-                secondary: 'Change method',
+                secondary: store.isLive ? 'Back to booking' : 'Change method',
                 onPrimary: () {
                   store.set(() => store.demo.payment = PaymentOutcome.success);
                   setState(() => view = PayView.processing);
@@ -413,8 +418,7 @@ class _PayingScreenState extends State<PayingScreen> {
                 },
                 onSecondary: () {
                   if (store.isLive) {
-                    setState(() => view = PayView.processing);
-                    _run();
+                    router.replace(const [R(N.review)]);
                     return;
                   }
                   router.pop();

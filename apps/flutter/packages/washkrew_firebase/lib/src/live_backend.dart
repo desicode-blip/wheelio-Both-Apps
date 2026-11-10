@@ -311,14 +311,14 @@ class LiveBackend {
     if(options['paid']==true)return call('checkWalletTopup',{'topupId':id});
     onStage?.call(CheckoutStage.opening);
     Map<String,dynamic>? result;
-    try { result=await checkout.openCheckout(options,auth.currentUser?.phoneNumber??''); }
+    try { result=await checkout.openCheckout(options,auth.currentUser?.phoneNumber??'',onReturn:() async=>(await call('checkWalletTopup',{'topupId':id}))['paymentStatus']=='captured'); }
     catch(_){
       onStage?.call(CheckoutStage.confirming);
       try { final checked=await call('checkWalletTopup',{'topupId':id});if(checked['paymentStatus']=='captured')return checked; } catch(_){ }
       rethrow;
     }
     onStage?.call(CheckoutStage.confirming);
-    return result==null?call('checkWalletTopup',{'topupId':id}):call('verifyWalletTopup',{
+    return result==null||result['_serverConfirmed']==true?call('checkWalletTopup',{'topupId':id}):call('verifyWalletTopup',{
       'topupId':id,'orderId':result['razorpay_order_id'],'paymentId':result['razorpay_payment_id'],'signature':result['razorpay_signature'],
     });
   }
@@ -332,7 +332,7 @@ class LiveBackend {
     List<CheckoutUpload> uploads = const [],
     void Function(String)? onBookingReady,
     void Function(CheckoutStage)? onStage,
-  }) => CheckoutFlow(call: (name, data) => call(name, data), open: checkout.openCheckout,
+  }) => CheckoutFlow(call: (name, data) => call(name, data), open: (options,phone)=>checkout.openCheckout(options,phone,onReturn:() async=>(await call('checkPayment',{'bookingId':options['bookingId']}))['paymentStatus']=='captured'),
       phone: auth.currentUser?.phoneNumber ?? '').run(
         bookingId: bookingId, booking: booking, uploads: uploads,
         onBookingReady: onBookingReady, onStage: onStage);

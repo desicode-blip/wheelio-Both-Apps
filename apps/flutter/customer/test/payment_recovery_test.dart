@@ -85,8 +85,10 @@ void main() {
     expect(find.text('This is taking longer than expected. Please try again.'), findsOneWidget);
     expect(find.textContaining('Your bank declined'), findsNothing);
     expect(find.text('Try again'), findsOneWidget);
-    expect(find.text('Change method'), findsOneWidget);
+    expect(find.text('Back to booking'), findsOneWidget);
     expect(router.last, isNull);
+    await tester.tap(find.text('Back to booking'));
+    expect(router.last?.n,N.review);
     await tester.pumpWidget(const SizedBox());
     store.dispose();
     router.dispose();

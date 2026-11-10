@@ -309,6 +309,7 @@ class Dispute {
     this.outcome = DisputeOutcome.underReview,
     this.decisionNote = '',
     this.creditsAwarded = 0,
+      this.photos = const [],
   });
   final String ref;
   final ProblemKind kind;
@@ -317,6 +318,7 @@ class Dispute {
   DisputeOutcome outcome;
   String decisionNote;
   int creditsAwarded;
+    final List<String> photos;
 }
 
 bool usesCancellationQuote(Map<String, dynamic>? policy) =>

@@ -239,4 +239,10 @@ void main() {
       ),
     );
   });
+ test('explicit SDK cancellation abandons only the original unpaid checkout',()async{
+  final calls=<String>[];
+  final flow=CheckoutFlow(phone:'',call:(name,data)async{calls.add(name);if(name=='createCheckout')return options;if(name=='checkPayment')return {'paymentStatus':'unpaid'};expect(name,'abandonCheckout');expect(data['bookingId'],id);return {'checkoutCancelled':true,'status':'cancelled'};},open:(_,__)async=>null);
+  expect((await flow.run(bookingId:id))['checkoutCancelled'],true);expect(calls,['createCheckout','checkPayment','abandonCheckout']);
+ });
+
 }
