@@ -39,11 +39,18 @@ for signing and device setup.
 
 ## Admin and release
 
+On 11 November, the coupon Functions, Firestore rules and indexes, and
+the private admin portal were deployed. All 27 updated Functions are
+active with zero minimum instances. Both indexes are ready, anonymous
+requests were rejected, and Hosting version `bc1ec121aa6ffc34` serves the
+verified admin assets. The live coupon switch and matching public policy
+pages are pending the Customer app rollout.
+
 Use [the private admin portal](https://wheelio-apps.web.app/admin/) with an
 approved Google account. Refresh Google verification before a decision.
-Refund requests and coupons requires a review note and confirmation.
-Vehicle prices accepts exact rupee amounts to two decimal places and
-requires a reason. Price changes are audited and apply to new bookings.
+The refund review requires a note and confirmation. Enter vehicle prices
+to two decimal places and provide a reason. Price changes are audited and
+apply to new bookings.
 
 Deploy the verified coupon Functions and Firestore rules/indexes using the
 existing `wheelio` codebase and `wheelio-apps` project. Enable authenticated
