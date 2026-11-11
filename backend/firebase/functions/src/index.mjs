@@ -28,6 +28,7 @@ import {callableRuntime} from './runtime-policy.mjs';
 import {pushResultSummary} from './push-results.mjs';
 import {WalletTopupError} from './wallet-topup.mjs';
 import {AiPhotoConsentError} from './ai-photo-consent.mjs';
+import {CouponError} from './coupon-ledger.mjs';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -68,7 +69,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof CouponError || error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -83,6 +84,12 @@ export const verifyPayment = callable('verifyPayment', true);
 export const checkPayment = callable('checkPayment', true);
 export const abandonCheckout = callable('abandonCheckout', true);
 export const getWallet = callable('getWallet');
+export const prepareMyCoupons = callable('prepareMyCoupons');
+export const previewRefundCoupon = callable('previewCoupon');
+export const getVehiclePricing = callable('getVehiclePricing');
+export const updateVehiclePricing = callable('updateVehiclePricing');
+export const listRefundRequests = callable('listRefundRequests');
+export const reviewRefundRequest = callable('reviewRefundRequest', true);
 export const listIdentityReviews = callable('listIdentityReviews');
 export const listWashReports = callable('listWashReports');
 export const reviewWashReport = callable('reviewWashReport');

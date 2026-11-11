@@ -1974,6 +1974,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   bool _freeDefaulted = false;
   bool _useCredit = true;
+  bool _couponApplying=false;
+  String? _couponError;
 
   @override
   void didChangeDependencies() {
@@ -1983,7 +1985,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _freeDefaulted = true;
     final store = context.store;
     store.prefetchPaymentResources();
-    if(store.isLive)_useCredit=false;
+    if(store.isLive){_useCredit=false;store.draft.useFreeWash=false;store.draft.creditApplied=0;return;}
     if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
@@ -2016,21 +2018,33 @@ class _ReviewScreenState extends State<ReviewScreen> {
     // Credit from a late cancellation comes off automatically (not with a free wash).
     final credit = store.customer?.credit ?? 0;
     d.applyWalletCredit(credit, enabled: _useCredit);
-    Widget livePayOptions()=>Column(mainAxisSize:MainAxisSize.min,children:[
-      WButton('Pay by wallet · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.success,onTap:(){
+    if(store.isLive){
+      d.useFreeWash=false;d.creditApplied=0;d.walletOnly=false;
+      if(d.couponVehicleKind!=d.type?.kind.name||d.couponBasePricePaise!=d.basePricePaise){d.couponAppliedPaise=0;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;}
+    }
+    Future<void> applyCoupon()async{
+      if(_couponApplying)return;
+      if(!store.isLoggedIn){router.go(N.login);return;}
+      setState((){_couponApplying=true;_couponError=null;});
+      try{await store.applyCoupon(d.couponCode);}
+      catch(e){if(mounted)setState(()=>_couponError=backendError(e));}
+      finally{if(mounted)setState(()=>_couponApplying=false);}
+    }
+    Widget livePayOptions()=>WButton(
+      d.couponAppliedPaise>0&&d.pricePaise==0?'Book with coupon':'Pay via Razorpay · ${Fmt.rupees(d.price)}',
+      kind:ButtonKind.success,
+      enabled:!_couponApplying&&(d.couponCode.trim().isEmpty||d.couponAppliedPaise>0),
+      onTap:()async{
         if(!store.isLoggedIn){router.go(N.login);return;}
-        final missing=d.basePricePaise-(credit*100).round();
-        if(missing>0){router.push(R(N.wallet,walletShortfallPaise:missing));return;}
-        setState(()=>_useCredit=true);d.walletOnly=true;d.applyWalletCredit(credit);
+        if(d.couponForfeitPaise>0&&!d.couponForfeitAccepted){
+          var accepted=false;
+          await showWAlert(context,title:'Use this coupon once?',message:'${Fmt.rupees(d.couponAppliedPaise/100)} will pay for this wash. The unused ${Fmt.rupees(d.couponForfeitPaise/100)} will be lost when payment is confirmed. A later refund considers only the value applied to this wash.',actions:[const AlertAction('Keep coupon',cancel:true),AlertAction('Use coupon',onTap:()=>accepted=true)]);
+          if(!mounted||!accepted)return;
+          d.couponForfeitAccepted=true;
+        }
         if(!router.isAt(N.paying))router.push(const R(N.paying));
-      }),
-      const SizedBox(height:10),
-      WButton('Pay via Razorpay · ${Fmt.rupees(d.basePrice)}',kind:ButtonKind.outline,onTap:(){
-        if(!store.isLoggedIn){router.go(N.login);return;}
-        setState(()=>_useCredit=false);d.walletOnly=false;d.applyWalletCredit(credit,enabled:false);
-        if(!router.isAt(N.paying))router.push(const R(N.paying));
-      }),
-    ]);
+      },
+    );
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
@@ -2100,7 +2114,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           ),
         ],
-        if (credit > 0 && !d.useFreeWash) ...[
+        if (!store.isLive && credit > 0 && !d.useFreeWash) ...[
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
@@ -2115,22 +2129,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     children: [
                       WText('${Fmt.rupees(credit)} credit', WType.bodyStrong, color: WColor.onSuccess),
                       WText(
-                        store.isLive?'Choose Pay by wallet below, or top up your balance.':_useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
+                        _useCredit ? '${Fmt.rupees(d.creditApplied)} off. You pay ${Fmt.rupees(d.price)}.' : 'From a cancelled booking. Use it here?',
                         WType.caption,
                         color: WColor.onSuccess,
                       ),
                     ],
                   ),
                 ),
-                if(!store.isLive)WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
+                WToggle(on: _useCredit, tint: WColor.success, onChanged: (v) => setState(() => _useCredit = v)),
               ],
             ),
           ),
         ],
-        if(store.isLive&&!d.useFreeWash)...[
+        if(store.isLive)...[
           const SizedBox(height:14),
-          WCard(child:Row(children:[const WIconView(WIcon.rupee,color:WColor.primary),const SizedBox(width:10),Expanded(child:WText('Wallet balance ${Fmt.rupees(credit)}',WType.bodyStrong)),
-            WLink('Top up',onTap:()=>router.push(R(N.wallet,walletShortfallPaise:(d.basePricePaise-(credit*100).round()).clamp(100,1000000))))])),
+          WCard(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const WText('Have a refund coupon?',WType.bodyStrong),const SizedBox(height:12),
+            WTextField(label:'Coupon code',value:d.couponCode,placeholder:'WK-XXXXXXXX-XXXXXXXX',caps:TextCapitalization.characters,onChanged:(value){if(!_couponApplying)store.set((){d.couponCode=value;d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;});}),
+            const SizedBox(height:10),
+            if(d.couponAppliedPaise>0)WText('Coupon applied · ${Fmt.rupees(d.couponAppliedPaise/100)}',WType.caption,color:WColor.onSuccess),
+            if(d.couponForfeitPaise>0)WBanner(tone:Tone.wait,icon:WIcon.info,text:'Single-use coupon: the unused ${Fmt.rupees(d.couponForfeitPaise/100)} will be lost when payment is confirmed.'),
+            if(_couponError!=null)WBanner(tone:Tone.error,icon:WIcon.info,text:_couponError!),
+            Row(children:[Expanded(child:WButton('Apply coupon',kind:ButtonKind.outline,loading:_couponApplying,enabled:!_couponApplying&&d.couponCode.trim().isNotEmpty,onTap:applyCoupon)),const SizedBox(width:12),WLink('Your coupons',onTap:()=>router.push(const R(N.coupons)))]),
+            if(d.couponCode.isNotEmpty)WButton('Remove coupon',kind:ButtonKind.text,enabled:!_couponApplying,onTap:()=>store.set((){d.couponCode='';d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;})),
+          ])),
         ],
         const SizedBox(height: 18),
         if (d.price > 0) HeldSafelyBanner(amount: d.price),

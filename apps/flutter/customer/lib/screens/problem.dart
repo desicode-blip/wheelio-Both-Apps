@@ -134,7 +134,8 @@ class DisputeStatusScreen extends StatelessWidget {
           header: header('Report #${d?.ref ?? 'WH-20914'}'),
           footer: WFooterBar(
             onCall: callSupport,
-            child: WButton(store.isLive && (d?.creditsAwarded ?? 0) == 0 ? 'Book again' : 'Book free wash', onTap: () {
+            child: WButton(o?.hasRefundRequest==true?(o?.refundRequestStatus=='issued'?'View coupons':'Go home'):store.isLive && (d?.creditsAwarded ?? 0) == 0 ? 'Book again' : 'Book free wash', onTap: () {
+              if(o?.hasRefundRequest==true){if(o!.refundRequestStatus=='issued'){router.go(N.coupons);}else{router.popToRoot();}return;}
               if (o != null) {
                 store.startRepeat(o.vehicle);
                 store.set(() => store.draft.useFreeWash = !store.isLive || (d?.creditsAwarded ?? 0) > 0);
@@ -153,7 +154,8 @@ class DisputeStatusScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ]),
             WKeyValueCard(rows: [
-              (o?.returnsWalletCredit == true ? 'Wallet credit' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Free wash' : 'Refund', o?.returnsWalletCredit == true ? '${Fmt.rupees(o!.returnedWalletCredit)} available for a future booking' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Your reserved free wash has been restored' : '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
+              if(o?.hasRefundRequest==true)('Refund coupon',o!.refundCouponSummary)
+              else (o?.returnsWalletCredit == true ? 'Wallet credit' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Free wash' : 'Refund', o?.returnsWalletCredit == true ? '${Fmt.rupees(o!.returnedWalletCredit)} available for a future booking' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Your reserved free wash has been restored' : '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
               if(!store.isLive || (d?.creditsAwarded ?? 0)>0)('Bonus', '${d?.creditsAwarded ?? 2} free washes added'),
             ]),
           ],
@@ -224,6 +226,7 @@ class RefundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final o = store.currentOrder;
+    if(o?.hasRefundRequest==true)return WScreen(scrolls:false,header:const PlainHeader(),children:[Expanded(child:RefundCouponState(order:o!))]);
     final r = o?.refund;
     final started = r?.startedAt ?? DateTime.now();
     final status=refundStatusText(o?.refundStatus,null);

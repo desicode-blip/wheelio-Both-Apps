@@ -109,9 +109,9 @@ function renderDetail(c){
 }
 onAuthStateChanged(auth,async user=>{
   generation++;selection++;emptyDetail();$('wash-reports-workspace').hidden=true;$('wash-reports').replaceChildren();$('email').textContent=user?.email??'';$('signout').hidden=!user;$('signin').hidden=!!user;$('workspace').hidden=true;
-  reportGeneration++;reportURLs.forEach(u=>URL.revokeObjectURL(u));reportURLs=[];
+  reportGeneration++;reportURLs.forEach(u=>URL.revokeObjectURL(u));reportURLs=[];$('refund-workspace').hidden=true;$('refund-requests').replaceChildren();$('pricing-workspace').hidden=true;$('pricing-editor').replaceChildren();refundGeneration++;pricingGeneration++;
   $('identity-workspace').hidden=true;$('identity-checks').replaceChildren();$('deletion-workspace').hidden=true;$('deletion-requests').replaceChildren();deletionGeneration++;
-  if(user){await loadList();if(!$('workspace').hidden){await loadDeletionRequests();await loadIdentityReviews();await loadWashReports();}}else message('');
+  if(user){await loadList();if(!$('workspace').hidden){await loadDeletionRequests();await loadIdentityReviews();await loadWashReports();await loadRefundRequests();await loadVehiclePricing();}}else message('');
 });
 
 
@@ -206,5 +206,64 @@ async function loadWashReports(){
    box.append(actions,status);$('wash-reports').append(box);
   }
   if(!data.reports.length)$('wash-reports').append(element('p','No wash reports awaiting review.','muted'));
+ }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
+}
+
+let refundGeneration=0,refundCursor=null,pricingGeneration=0;
+const money=paise=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR'}).format(paise/100);
+$('refund-status').onchange=()=>loadRefundRequests();$('refund-refresh').onclick=()=>loadRefundRequests();$('refund-more').onclick=()=>loadRefundRequests(true);
+async function loadRefundRequests(append=false){
+ const seq=++refundGeneration,account=auth.currentUser?.uid;if(!account)return;
+ if(!append){refundCursor=null;$('refund-requests').replaceChildren();}
+ try{
+  const data=await call('listRefundRequests',{status:$('refund-status').value,...(append&&refundCursor?{cursor:refundCursor}:{})});
+  if(seq!==refundGeneration||auth.currentUser?.uid!==account)return;
+  $('refund-workspace').hidden=false;refundCursor=data.nextCursor;$('refund-more').hidden=!refundCursor;
+  for(const item of data.requests){
+   const box=section((item.bookingRef??item.id)+' · '+item.paymentMode),facts=element('div',undefined,'facts');
+   facts.append(fact('Paid booking value',money(item.paidValuePaise)),fact('Gateway fee',item.gatewayFeePaise==null?'Historical entitlement preserved':money(item.gatewayFeePaise)),fact('Eligible coupon',money(item.amountPaise)),fact('Status',item.status),fact('Reason',({customerCancellation:'Customer cancellation',serviceUnavailable:'Service unavailable',washProblemUpheld:'Upheld wash report'})[item.reason]??item.reason),fact('Received',date(item.createdAt)));box.append(facts);
+   if(item.calculation==='savedHistoricalEntitlement')box.append(element('p','This amount preserves an earlier saved refund entitlement. It is not charged another gateway fee.','muted'));
+   if(item.note)box.append(element('p',item.note));if(item.couponCode)box.append(element('p','Issued private coupon: '+item.couponCode));
+   if(['pending','ineligible'].includes(item.status)){
+    const label=element('label','Decision note (visible to the Customer)'),note=element('textarea');note.maxLength=1000;label.append(note);box.append(label);
+    const confirmed=check('I reviewed this booking, payment and refund calculation and confirm this decision.');box.append(confirmed.row);
+    const actions=element('div',undefined,'actions'),status=element('p');status.setAttribute('role','status');let saving=false;
+    for(const [decision,title] of [['issue','Issue single-use coupon'],['decline','Decline request']]){
+     const button=element('button',title,decision==='issue'?'approve':undefined);button.disabled=decision==='issue'&&item.amountPaise<=0;
+     button.onclick=async()=>{
+      if(saving)return;if(!confirmed.input.checked||note.value.trim().length<5){status.textContent='Confirm your review and add a clear decision note.';return;}
+      saving=true;for(const b of actions.querySelectorAll('button'))b.disabled=true;
+      try{await call('reviewRefundRequest',{requestId:item.id,expectedVersion:item.version,decision,note:note.value.trim(),confirm:true});await loadRefundRequests();}
+      catch(e){status.textContent=e.message;saving=false;for(const b of actions.querySelectorAll('button'))b.disabled=b.textContent==='Issue single-use coupon'&&item.amountPaise<=0;}
+     };actions.append(button);
+    }box.append(actions,status);
+   }
+   $('refund-requests').append(box);
+  }
+  if(!append&&!data.requests.length)$('refund-requests').append(element('p','No refund requests in this status.','muted'));
+ }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
+}
+$('pricing-refresh').onclick=()=>loadVehiclePricing();
+async function loadVehiclePricing(){
+ const seq=++pricingGeneration,account=auth.currentUser?.uid;if(!account)return;
+ try{
+  const data=await call('getVehiclePricing');if(seq!==pricingGeneration||auth.currentUser?.uid!==account)return;
+  $('pricing-workspace').hidden=false;const box=$('pricing-editor');box.replaceChildren();
+  box.append(element('p','WashKrew commission: '+(data.platformFeeBps/100)+'% of wash value, in addition to actual gateway fees.','muted'));
+  const inputs=[];
+  for(const v of data.vehicleTypes){
+   const label=element('label',v.name+' (₹)'),input=element('input');input.type='text';input.inputMode='decimal';input.value=(v.pricePaise/100).toFixed(2);input.setAttribute('aria-label',v.name+' price in rupees');label.append(input);box.append(label);inputs.push({kind:v.kind,input});
+  }
+  const label=element('label','Change note'),note=element('textarea');note.maxLength=1000;label.append(note);box.append(label);
+  const confirmed=check('I confirm these customer prices for new bookings.');box.append(confirmed.row);
+  const save=element('button','Save vehicle prices','primary'),status=element('p');status.setAttribute('role','status');let saving=false;
+  save.onclick=async()=>{
+   if(saving)return;
+   const prices=inputs.map(({kind,input})=>({kind,pricePaise:/^\d{1,5}(\.\d{1,2})?$/.test(input.value.trim())?Math.round(Number(input.value)*100):null}));
+   if(!confirmed.input.checked||note.value.trim().length<5||prices.some(v=>!Number.isInteger(v.pricePaise)||v.pricePaise<100||v.pricePaise>1000000)){status.textContent='Enter prices from ₹1 to ₹10,000, a change note, and confirm them.';return;}
+   saving=true;save.disabled=true;
+   try{await call('updateVehiclePricing',{expectedVersion:data.version,prices,note:note.value.trim()});await loadVehiclePricing();message('Vehicle prices saved. Existing bookings keep their agreed prices.');}
+   catch(e){status.textContent=e.message;saving=false;save.disabled=false;}
+  };box.append(save,status);
  }catch(e){if(auth.currentUser?.uid===account)message(e.message,true);}
 }

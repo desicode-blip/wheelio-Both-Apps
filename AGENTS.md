@@ -233,3 +233,23 @@ legacy top-ups stay intact. SDK cancellation/replacement must reconcile capture
 and release only unpaid checkouts; late captures cannot clear newer pending IDs.
 Reports stay bound to their original booking, retry locked evidence safely, and
 use private human admin review. No automatic damage award or payout transfer.
+
+### Later 10 November decision — remove wallet, use refund coupons
+
+This supersedes the top-up/customer-fee-bearer proposal above. The owner explicitly
+removed the WashKrew wallet, top-ups and wallet checkout. Refund requests must
+appear privately to admins, who issue owner-bound service coupons against paid
+funds, deducting the appropriate actual Razorpay fee. Coupon-funded washes still
+pay Captain from funds already held. Do not erase historical Customer balances
+or payment/refund obligations. Preserve their value during conversion.
+Within five minutes inclusive, issue paid value minus the actual gateway fee
+even inside two hours. After five minutes and at least two hours before the
+confirmed window, issue half the paid value minus the full gateway fee,
+floored at zero. Later cancellation receives zero. Service failure and
+upheld wash problems qualify for the full net paid value. Coupons are
+single-use; a cheaper wash forfeits unused value only after confirmation.
+Successful washes earn the agreed price minus actual Razorpay fee and 3%
+WashKrew commission. Private reviewers can change the prices for new
+bookings. No Dynamic Convenience Fees activation is needed.
+Read `docs/REFUND-COUPONS-2026-11-11.md` for current Customer 1.0.6 (11)
+and Captain 1.0.7 (12) builds and rollout. Preserve unrelated authored screens.

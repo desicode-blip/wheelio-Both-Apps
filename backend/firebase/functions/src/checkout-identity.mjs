@@ -8,6 +8,7 @@ export function checkoutIdentity(data) {
   societyId:data.societyId,tower:data.tower??'',floor:data.floor,parking:data.parking??'',note:data.note??'',day:data.day,windows,
   anyTime:data.anyTime===true,useFreeWash:data.useFreeWash===true,useCredit:data.useCredit===true,paymentChoice:data.paymentChoice??null,
   expectedAmountPaise:data.expectedAmountPaise??null,addressKey:data.addressKey??null,
+  ...(data.couponCode!==undefined||data.expectedCouponPaise!==undefined?{couponCode:typeof data.couponCode==='string'?data.couponCode.trim().toUpperCase():null,expectedCouponPaise:data.expectedCouponPaise??null,acceptedCouponForfeitPaise:data.acceptedCouponForfeitPaise??0}:{}),
   vehiclePosition:data.vehiclePosition?{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}:null};
  return createHash('sha256').update(JSON.stringify(fields)).digest('hex');
 }

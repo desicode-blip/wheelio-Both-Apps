@@ -16,7 +16,7 @@ import 'screens/notifications.dart';
 import 'screens/problem.dart';
 import 'screens/start.dart';
 import 'screens/support.dart';
-import 'screens/wallet.dart';
+import 'screens/coupons.dart';
 
 Future<void> main() => launchWashKrew(captain: false, demo: const CustomerApp());
 
@@ -210,7 +210,7 @@ Widget _screen(R r) {
     N.otp => OtpScreen(start: r.otp),
     N.name => const NameScreen(),
     N.paying => PayingScreen(initial: r.pay),
-    N.wallet => WalletScreen(shortfallPaise:r.walletShortfallPaise),
+    N.coupons => const CouponsScreen(),
     N.booked => const ViewingOrder(child: BookedScreen()),
     N.whatsApp => const WhatsAppScreen(),
     N.notifyAsk => const NotifyAskScreen(),

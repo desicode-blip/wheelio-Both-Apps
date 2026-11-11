@@ -322,9 +322,10 @@ class Dispute {
 }
 
 bool usesCancellationQuote(Map<String, dynamic>? policy) =>
-    const ['refundThenCredit', 'walletByTime'].contains(policy?['kind']);
+      const ['refundThenCredit', 'walletByTime', 'couponByTime'].contains(policy?['kind']);
 
 String cancellationPolicyText(Map<String, dynamic> policy) {
+  if(policy['kind']=='couponByTime')return 'Within 5 min of confirmation: refund coupon less the actual gateway fee, even if your wash is less than 2 hours away. Later, at least 2 hours before the wash: 50% of booking value minus the gateway fee; inside 2 hours: no coupon. Admin review is required. Coupons are private, single-use and valid for one year; unused value is lost.';
   if (policy['kind'] == 'walletByTime') {
     final minutes = (policy['creditMinutes'] as num).toInt();
     final hours = (policy['cutoffMinutes'] as num) / 60;
@@ -351,6 +352,16 @@ class Order {
   int aiPhotoCheckRevision = 0;
   bool aiPhotoCheckStarted = false;
   String refundStatus = 'none';
+  String? refundRequestStatus,refundCouponId,refundDecisionNote;
+  num refundCouponAmount=0,couponApplied=0,couponForfeit=0;
+  bool couponReleased=false;
+  bool get hasRefundRequest=>refundRequestStatus!=null;
+  String get refundCouponSummary=>switch(refundRequestStatus){
+    'issued'=>'Your private, single-use ${Fmt.rupees(refundCouponAmount)} refund coupon is ready. Unused value is lost when redeemed.',
+    'ineligible'=>'No refund coupon is eligible under this booking’s saved cancellation rules.',
+    'declined'=>refundDecisionNote??'Our team reviewed your request. Contact support if you need help.',
+    _=>'Your refund request is with our team. The eligible coupon value is ${Fmt.rupees(refundCouponAmount)}. A coupon appears after admin approval.',
+  };
     String? cancellationReason;
   bool testPayment = false;
   DateTime? serverSlotStart;
@@ -364,8 +375,12 @@ class Order {
   bool get returnsWalletCredit => liveCancelPolicy?['kind'] == 'walletByTime' && cancellationOutcome?['kind'] == 'credit' && refund == null;
   String get cancellationTerms {
     final p = liveCancelPolicy;
-    if (paymentStatus != 'captured') return 'No payment has been confirmed. Any reserved free wash or credit will be restored.';
-    if (p?['kind'] == 'walletByTime') return cancellationPolicyText(p!);
+    if (paymentStatus != 'captured') {
+      return p?['kind']=='couponByTime'
+          ? 'No payment has been confirmed. Any reserved coupon will be released.'
+          : 'No payment has been confirmed. Any reserved free wash or credit will be restored.';
+    }
+    if (p?['kind'] == 'couponByTime'||p?['kind'] == 'walletByTime') return cancellationPolicyText(p!);
     if (p?['kind'] == 'refundThenCredit') return 'Within ${p?['refundMinutes']} minutes of confirmation, your payment returns to its original method and used wallet credit is restored. Later, 50% of the total booking value is a cancellation fee and 50% returns to your wallet.';
     if (price == 0) return 'Your reserved free wash or credit will be restored. No cash payment was taken.';
     if (p?['kind'] != 'wallet') return 'Eligible payment is refunded to the original payment method, less any configured cancellation fee. Reserved credit is restored.';
@@ -414,9 +429,10 @@ class Order {
   num creditUsed = 0;
 
   /// What the booking was worth: the price paid plus any credit, or the full wash price for a free wash.
-  num get value => usedFreeWash ? vehicle.type.price : price + creditUsed;
+  num get value => usedFreeWash ? vehicle.type.price : price + creditUsed + couponApplied;
 
   String? get cancellationSummary {
+    if(hasRefundRequest)return refundCouponSummary;
     final outcome = cancellationOutcome;
     if (!usesCancellationQuote(liveCancelPolicy)) return null;
     if (outcome == null) {

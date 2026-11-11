@@ -38,7 +38,7 @@ enum N {
   otp,
   name,
   paying,
-  wallet,
+  coupons,
   booked,
   whatsApp,
   notifyAsk,
@@ -94,7 +94,6 @@ class R {
     this.kind,
     this.id,
     this.topic,
-    this.walletShortfallPaise = 0,
   });
   final N n;
   final bool large;
@@ -108,7 +107,6 @@ class R {
   final ProblemKind? kind;
   final String? id;
   final HelpTopic? topic;
-  final int walletShortfallPaise;
 }
 
 class AppRouter extends WRouter<R> {
@@ -135,6 +133,8 @@ class AppRouter extends WRouter<R> {
   void finishLogin({bool directCheckout = false, bool reviewOnly = false}) {
     final address = path.lastIndexWhere((e) => e.route.n == N.manualAddress);
     final i = path.lastIndexWhere((e) => e.route.n == N.review);
+    final coupons=path.lastIndexWhere((e)=>e.route.n==N.coupons);
+    if(coupons>=0&&coupons>i&&coupons>address){keep(coupons+1);showPaySheet=false;return;}
     if (address >= 0 && address > i) { keep(address + 1); return; }
     if (i >= 0) {
       keep(i + 1);
@@ -188,6 +188,7 @@ enum NotificationKind {
   noShowRefund,
   disputeDecision,
   refundCredited,
+  refundCoupon,
   paymentPending,
   freeWash,
   offer,
@@ -195,7 +196,7 @@ enum NotificationKind {
   welcome;
 
   NotificationCategory get category => switch (this) {
-    refundCredited || paymentPending => NotificationCategory.payments,
+    refundCredited || refundCoupon || paymentPending => NotificationCategory.payments,
     freeWash || offer => NotificationCategory.offers,
     phoneChanged || welcome => NotificationCategory.account,
     _ => NotificationCategory.bookings,
@@ -214,7 +215,7 @@ enum NotificationKind {
     washStatusCheck => WIcon.search,
     noShowRefund || refundCredited => WIcon.rupee,
     disputeDecision => WIcon.flag,
-    freeWash => WIcon.gift,
+    freeWash || refundCoupon => WIcon.gift,
     offer => WIcon.megaphone,
     phoneChanged => WIcon.lock,
     welcome => WIcon.bell,
@@ -334,6 +335,12 @@ class BookingDraft {
   TimeSlot? slot;
   bool useFreeWash;
   bool walletOnly = false;
+  String couponCode='';
+  int couponAppliedPaise=0;
+  int couponForfeitPaise=0;
+  bool couponForfeitAccepted=false;
+  String? couponVehicleKind;
+  int? couponBasePricePaise;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
@@ -344,7 +351,7 @@ class BookingDraft {
   bool get hasFailedPhoto => photos.values.contains(UploadState.failed);
   num get basePrice => type?.price ?? 0;
   int get basePricePaise => (basePrice * 100).round();
-  int get pricePaise => useFreeWash ? 0 : (basePricePaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
+  int get pricePaise => useFreeWash ? 0 : (basePricePaise - couponAppliedPaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
   num get price => pricePaise / 100;
   void applyWalletCredit(num balance, {bool enabled = true}) {
     var applied = enabled && !useFreeWash ? (balance * 100).round().clamp(0, basePricePaise) : 0;
@@ -388,12 +395,7 @@ class AppStore extends ChangeNotifier {
   int accountResetRevision = 0;
   String draftRequestId = newId('draft');
   String? draftBookingId;
-  StreamSubscription<dynamic>? _walletSubscription;
-  String _walletIdentity = '';
-  int _walletFree = 0;
-  num _walletCredit = 0;
-  List<Map<String,dynamic>> walletCreditLots = [];
-  Timer? _walletExpiryTimer;
+  String _couponPreparedIdentity='';
   final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
   final Map<String, MediaClip> draftMedia = {};
   static const demoOtp = '123456';
@@ -468,7 +470,7 @@ class AppStore extends ChangeNotifier {
             Support.configure(config);
             bookingsEnabled = config['bookingsEnabled'] == true;
             testPayments = config['paymentMode'] == 'test';
-            _bindWallet();
+            _prepareCoupons();
             final types = (config['vehicleTypes'] as List? ?? []).where((v) => v['active'] == true && v['pricePaise'] is num).toList();
             if (types.isNotEmpty) {
               VehicleType.all = [
@@ -508,37 +510,12 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  void _bindWallet() {
-    final identity = _liveUid.isEmpty || !_accountActive ? '' : '${_liveUid}_${testPayments ? 'test' : 'live'}';
-    if (_walletIdentity == identity) return;
-    _walletIdentity = identity;
-    _walletSubscription?.cancel();
-    _walletFree = 0; _walletCredit = 0; walletCreditLots = []; _walletExpiryTimer?.cancel();
-    customer?.freeWashes = 0; customer?.credit = 0;
-    if (identity.isEmpty) return;
-    final generation = _accountGeneration;
-    live!.call('getWallet', {}).catchError((Object e) { if(generation==_accountGeneration && _accountActive) {backendMessage=backendError(e);changed();} return <String,dynamic>{}; });
-    _walletSubscription = live!.wallet(_liveUid, testPayments ? 'test' : 'live').listen((s) {
-      if (generation != _accountGeneration || !_accountActive || identity != _walletIdentity || s.metadata.isFromCache) return;
-      final d = s.data() ?? {};
-      _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
-      walletCreditLots = [for(final lot in d['creditLots'] as List? ?? []) Map<String,dynamic>.from(lot as Map)];
-      void applyBalance() {
-        if(generation!=_accountGeneration || !_accountActive || identity!=_walletIdentity)return;
-        final now=DateTime.now().millisecondsSinceEpoch;
-        final available=walletCreditLots.where((l)=>(l['expiresAt'] as num)>now).toList();
-        _walletCredit=d['creditLotVersion']==1 ? available.fold<num>(0,(sum,l)=>sum+(l['amountPaise'] as num))/100 : (d['creditPaise'] as num? ?? 0)/100;
-        customer?.credit=_walletCredit;
-        _walletExpiryTimer?.cancel();
-        if(available.isNotEmpty) {
-          final next=available.map((l)=>(l['expiresAt'] as num).toInt()).reduce((a,b)=>a<b?a:b);
-          _walletExpiryTimer=Timer(Duration(milliseconds:next-now+1),(){applyBalance();changed();});
-        }
-      }
-      applyBalance();
-      customer?.freeWashes = _walletFree; customer?.credit = _walletCredit;
-      changed();
-    }, onError: (Object e) { backendMessage = backendError(e); changed(); });
+  void _prepareCoupons() {
+    customer?.freeWashes=0;customer?.credit=0;
+    final identity=_accountActive&&_liveUid.isNotEmpty&&liveConfig['paymentBalanceMode']=='refundCouponsV1'?'${_liveUid}_${testPayments?'test':'live'}':'';
+    if(identity.isEmpty||identity==_couponPreparedIdentity)return;
+    _couponPreparedIdentity=identity;final generation=_accountGeneration;
+    live!.call('prepareMyCoupons',{}).catchError((Object e){if(generation==_accountGeneration){_couponPreparedIdentity='';backendMessage=backendError(e);changed();}return <String,dynamic>{};});
   }
 
   /// Clear private role state before another screen/account can observe it.
@@ -550,7 +527,7 @@ class AppStore extends ChangeNotifier {
     currentOrderId=null;viewingOrderId=null;draft=BookingDraft();
     draftBookingId=null;draftRequestId=newId('draft');draftPhotoBytes.clear();draftMedia.clear();
     _checkoutIdentity=null;checkoutCancelled=false;
-    _walletFree=0;_walletCredit=0;walletCreditLots=[];_walletExpiryTimer?.cancel();_walletIdentity='';_walletSubscription?.cancel();
+    _couponPreparedIdentity='';
     _preferenceSave?.cancel();_readIds.clear();_unreadIds.clear();_deletedIds.clear();
     _invalidateAvailability();backendMessage=null;returningCustomer=false;
     pendingPhone='';pendingNewPhone='';hasSeenWelcome=false;payMethodId='gpay';
@@ -578,7 +555,7 @@ class AppStore extends ChangeNotifier {
     savedPlaces = [];
     _preferenceSave?.cancel();
     _readIds.clear(); _unreadIds.clear(); _deletedIds.clear();
-    _bindWallet();
+    _prepareCoupons();
     orders = [];
     vehicles = [];
     notifications = [];
@@ -600,7 +577,7 @@ class AppStore extends ChangeNotifier {
                 _accountActive = false;
                 if(wasActive || (!live!.registrationInProgress && appAccountRoleState(data,'customer') != AppAccountRoleState.absent)){resetDeletedAccountData();}
                 else {customer=null;}
-                _bindWallet();
+                _prepareCoupons();
                 if(data != null && appAccountRoleState(data,'customer') != AppAccountRoleState.absent && !live!.registrationInProgress) {
                   live!.signOut().catchError((Object _){});
                 }
@@ -610,9 +587,9 @@ class AppStore extends ChangeNotifier {
               if(!_accountActive) {
                 _accountActive=true;
                 _bindCustomerData(uid,generation);
-                _bindWallet();
+                _prepareCoupons();
               }
-              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: appAccountName(data,'customer'), freeWashes: _walletFree, notificationsOn: data['customerPushEnabled'] == true)..credit = _walletCredit;
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: appAccountName(data,'customer'), freeWashes: 0, notificationsOn: data['customerPushEnabled'] == true);
               _restorePreferences(data);
               final photoPath = data['customerPhotoPath'] as String?;
               if (photoPath != _profilePhotoPath) {
@@ -687,6 +664,7 @@ class AppStore extends ChangeNotifier {
       'photosReady' => (NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve your $price wash payment, or tell us if something’s wrong.'),
       'approved' => (NotificationKind.autoApproved, 'Wash approved', 'Your $price wash payment is approved.'),
       'autoApproved' => (NotificationKind.autoApproved, 'Wash approved at midnight', 'Your $price wash payment is approved.'),
+      'refundCoupon' => (NotificationKind.refundCoupon,d['title'] as String? ?? 'Refund coupon update',d['body'] as String? ?? 'Open your coupons for the latest update.'),
       'vehicleHelp' => (NotificationKind.captainCantFind, '$name cannot find your vehicle', 'Open your booking to reply.'),
       'washStatusCheck' => (NotificationKind.washStatusCheck, 'We’re checking your wash', 'Your slot ended. Open your booking for the latest status.'),
       'disputeDecision' => (NotificationKind.disputeDecision, 'Your report has an update', o?.dispute?.decisionNote ?? 'Open your report to see the review decision.'),
@@ -759,6 +737,13 @@ class AppStore extends ChangeNotifier {
     order.aiPhotoCheckRevision=ai is Map ? (ai['revision'] as num? ?? 0).toInt() : 0;
     order.aiPhotoCheckStarted=data['photoReview']?['aiSentAt']!=null;
     order.refundStatus = data['refundStatus'] ?? 'none';
+    order.refundRequestStatus=data['refundRequestStatus'] as String?;
+    order.refundCouponId=data['refundCouponId'] as String?;
+    order.refundDecisionNote=data['refundDecisionNote'] as String?;
+    order.refundCouponAmount=(data['refundCouponAmountPaise'] as num? ?? 0)/100;
+    order.couponReleased=data['couponReleased']==true;
+    order.couponApplied=order.couponReleased?0:(data['couponReservedPaise'] as num? ?? 0)/100;
+    order.couponForfeit=order.couponReleased?0:(data['couponForfeitPaise'] as num? ?? 0)/100;
     order.cancellationReason = data['cancellationReason'] as String?;
     order.testPayment = data['paymentMode'] == 'test';
     order.evidencePaths = {for (final entry in (data['evidence'] as Map? ?? {}).entries) entry.key as String: entry.value['path'] as String};
@@ -794,8 +779,6 @@ class AppStore extends ChangeNotifier {
     _disposed=true;_liveUid='';
     _invalidateAvailability();
     _preferenceSave?.cancel();
-    _walletSubscription?.cancel();
-    _walletExpiryTimer?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
       s.cancel();
     }
@@ -1261,19 +1244,16 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
   CheckoutStage checkoutStage = CheckoutStage.preparing;
-  Future<Map<String,dynamic>>? _walletPayment;
-  Future<Map<String,dynamic>> addWalletCredit(String requestId,int amountPaise) => _walletPayment ??=
-      _addWalletCredit(requestId,amountPaise).whenComplete(()=>_walletPayment=null);
-  Future<Map<String,dynamic>> _addWalletCredit(String requestId,int amountPaise) async {
-    if(!isLive||!isLoggedIn)throw StateError('Log in to add wallet credit.');
-    final result=await live!.topUpWallet(requestId,amountPaise,onStage:_checkoutStage);
-    if(result['status']=='credited'){
-      try {
-        final wallet=await live!.db.doc('wallets/${live!.uid}_${testPayments?'test':'live'}').get(const GetOptions(source:Source.server));
-        _walletCredit=(wallet.data()?['creditPaise'] as num? ?? 0)/100;customer?.credit=_walletCredit;changed();
-      } catch (_) { /* Captured credit is saved; the wallet stream refreshes it. */ }
-    }
-    return result;
+  Future<void> applyCoupon(String code)async{
+    if(!isLive||!isLoggedIn||draft.type==null)throw StateError('Log in and choose a vehicle before applying a coupon.');
+    final current=draft,account=live!.uid,kind=draft.type!.kind.name;
+    final result=await live!.call('previewRefundCoupon',{'code':code,'vehicleKind':kind});
+    if(live!.uid!=account||!identical(current,draft)||draft.type?.kind.name!=kind)throw StateError('The booking changed. Apply your coupon again.');
+    final applied=result['appliedPaise'];
+    if(applied is! int||applied<=0||applied>draft.basePricePaise||result['basePricePaise']!=draft.basePricePaise)throw StateError('The coupon or wash price changed. Review this booking again.');
+    final forfeit=result['forfeitPaise']??0;
+    if(forfeit is! int||forfeit<0)throw StateError('The unused coupon amount could not be confirmed.');
+    draft.couponCode=result['code'] as String;draft.couponAppliedPaise=applied;draft.couponVehicleKind=kind;draft.couponBasePricePaise=draft.basePricePaise;draft.couponForfeitPaise=forfeit;draft.couponForfeitAccepted=false;changed();
   }
   Future<PaymentOutcome>? _checkoutFuture;
   String? _checkoutIdentity;
@@ -1313,6 +1293,7 @@ class AppStore extends ChangeNotifier {
       if(captainAreaEnabled&&!p.society.id.startsWith('loc_')){p=await confirmPlace(p);draft.place=p;}
       final booking = <String,dynamic>{
         'cancellationPolicyVersion':2,
+        'refundCouponPolicyVersion':1,
         'replaceUnpaidCheckout':true,
         'plate': d.plate,
         'vehicleKind': d.type!.kind.name,
@@ -1326,9 +1307,12 @@ class AppStore extends ChangeNotifier {
         'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
         'windows': [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) {'startHour': w.$1, 'endHour': w.$2}],
         'anyTime': s.anyTime,
-        'useFreeWash': d.useFreeWash,
-        'useCredit': d.creditApplied > 0,
-        'paymentChoice':d.walletOnly?'wallet':'razorpay',
+        'useFreeWash': false,
+        'useCredit': false,
+        'paymentChoice':d.couponAppliedPaise>0?'coupon':'razorpay',
+        if(d.couponAppliedPaise>0)'couponCode':d.couponCode,
+        if(d.couponAppliedPaise>0)'expectedCouponPaise':d.couponAppliedPaise,
+        if(d.couponAppliedPaise>0)'acceptedCouponForfeitPaise':d.couponForfeitAccepted?d.couponForfeitPaise:0,
         'expectedAmountPaise': d.pricePaise,
         if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,
@@ -2027,6 +2011,8 @@ String? openNotification(AppNotification n, AppStore store, AppRouter router) {
   store.markRead(n.id);
   store.set(() => store.liveBanner = null);
   switch (n.kind) {
+    case NotificationKind.refundCoupon:
+      router.go(N.coupons);return null;
     case NotificationKind.offer:
       if (n.expiresAt != null && n.expiresAt!.isBefore(DateTime.now())) return 'This offer has ended.';
       store.startNewBooking();

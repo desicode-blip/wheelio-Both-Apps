@@ -1,18 +1,13 @@
 # Checkout, permissions and wash-report fixes — 10 November 2026
 
-**Later owner direction on 10 November supersedes the wallet-fee proposal below:**
-remove the WashKrew wallet/top-ups/checkout and replace refunds with private
-admin-issued coupons funded by payments already held. Preserve existing Customer
-value during conversion. Coupon deduction and unused-value decisions were asked
-explicitly; do not activate an assumed formula. The wallet-fee section below
-records the earlier checkpoint and merchant probe, not the new target product.
+**Historical checkpoint.** The owner approved single-use refund coupons and the final fee rules. Use [the coupon release](REFUND-COUPONS-2026-11-11.md) for current builds and rollout. The earlier wallet-fee setup below is retired.
 
 Starting point: staging `e67a15e` matched origin/staging when fetched. No newer
 Aman push was present. Existing authored app layouts/assets/components remain;
 changes are handlers, state, relevant copy, camera angle guidance and the existing
 wallet/admin surfaces. No unrelated TrustKeyper app is modified.
 
-Current source: **Customer 1.0.5 (10)** and **Captain 1.0.6 (11)**. These replace
+Checkpoint source: **Customer 1.0.5 (10)** and **Captain 1.0.6 (11)**. These replace
 the earlier 9/10 source for the next build. Check the consoles before uploading:
 an occupied build code needs a higher number. Nothing here submits a store release.
 

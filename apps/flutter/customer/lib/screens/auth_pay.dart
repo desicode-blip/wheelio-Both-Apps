@@ -599,7 +599,7 @@ class WhatsAppScreen extends StatelessWidget {
                   ('Booking confirmed\n', null),
                   (o?.vehicle.plate ?? 'TS 09 EA 4521', bold),
                   (
-                    ' · ${o?.vehicle.type.shortName ?? 'Hatchback'}\n${o?.slot.full ?? 'Today, 8 – 10 AM'}\n${o?.place.title ?? 'My Home Avatar, Tower 3'}, ${o?.place.parkingShort ?? 'B2 slot 41'}\n${Fmt.rupees(o?.price ?? 149)} held safely',
+                    ' · ${o?.vehicle.type.shortName ?? 'Hatchback'}\n${o?.slot.full ?? 'Today, 8 – 10 AM'}\n${o?.place.title ?? 'My Home Avatar, Tower 3'}, ${o?.place.parkingShort ?? 'B2 slot 41'}\n${Fmt.rupees(o?.value ?? 149)} held safely',
                     null,
                   ),
                 ]),

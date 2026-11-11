@@ -18,7 +18,7 @@ async function portal(call,fetchMedia=async()=>({ok:true,blob:async()=>new Blob(
   connectAuthEmulator:()=>{},connectFunctionsEmulator:()=>{},onAuthStateChanged:(_,fn)=>{listener=fn;},httpsCallable:(_,name)=>async data=>({data:await call(name,data)}),fetch:fetchMedia,
   URL:{createObjectURL:()=>`blob:demo-${Math.random()}`,revokeObjectURL:url=>revoked.push(url)},
  });
- await vm.runInContext('(async()=>{'+source+';globalThis.qa={loadWashReports};})()',context);
+ await vm.runInContext('(async()=>{'+source+';globalThis.qa={loadWashReports,loadRefundRequests,loadVehiclePricing};})()',context);
  return {dom,auth,qa:context.qa,revoked,logout:async()=>{auth.currentUser=null;await listener(null);},close:()=>dom.window.close()};
 }
 test('actual admin DOM loads private report media; explicit confirmed decision submits once with pinned version',async()=>{
@@ -39,6 +39,30 @@ test('actual admin DOM loads private report media; explicit confirmed decision s
   assert.equal(payload.expectedVersion,'1:2');assert.equal(payload.orderId,'wash-fixture');assert.equal(payload.evidenceReviewed,true);
   resolve();await settle();assert.match(doc.getElementById('wash-reports').textContent,/No wash reports awaiting review/);
   assert.equal(p.revoked.length,3);assert.deepEqual(names,['listWashReports','reviewWashReport','listWashReports']);
+ }finally{p.close();}
+});
+test('private refund and pricing forms require confirmation and submit the displayed version and exact paise',async()=>{
+ const requests=[{id:'refund-fixture',version:'2:3',bookingRef:'WH-FIXTURE',paymentMode:'test',status:'pending',reason:'customerCancellation',paidValuePaise:10000,gatewayFeePaise:200,amountPaise:4800,createdAt:1}];
+ let reviewed=false;const writes=[];
+ const p=await portal(async(name,data)=>{
+  if(name==='listRefundRequests')return {requests:reviewed?[]:requests};
+  if(name==='getVehiclePricing')return {version:'3:4',platformFeeBps:300,vehicleTypes:[{kind:'bike',name:'Bike',pricePaise:6900}]};
+  writes.push({name,data});if(name==='reviewRefundRequest')reviewed=true;return {ok:true};
+ });
+ try{
+  await p.qa.loadRefundRequests();await p.qa.loadVehiclePricing();const doc=p.dom.window.document;
+  const refund=doc.getElementById('refund-requests'),pricing=doc.getElementById('pricing-editor');
+  assert.match(refund.textContent,/₹48\.00/);
+  const issue=[...refund.querySelectorAll('button')].find(b=>b.textContent==='Issue single-use coupon');
+  issue.click();pricing.querySelector('button').click();await settle();assert.equal(writes.length,0);
+  refund.querySelector('textarea').value='Verified captured payment and refund timing.';
+  refund.querySelector('input[type=checkbox]').checked=true;
+  issue.click();issue.click();await settle();
+  assert.equal(writes.length,1);assert.equal(writes[0].name,'reviewRefundRequest');assert.equal(writes[0].data.expectedVersion,'2:3');assert.equal(writes[0].data.confirm,true);
+  pricing.querySelector('input[type=text]').value='72.35';pricing.querySelector('textarea').value='Approved bike price change.';
+  pricing.querySelector('input[type=checkbox]').checked=true;
+  pricing.querySelector('button').click();await settle();
+  assert.equal(writes.length,2);assert.equal(writes[1].name,'updateVehiclePricing');assert.equal(writes[1].data.expectedVersion,'3:4');assert.equal(writes[1].data.prices[0].pricePaise,7235);
  }finally{p.close();}
 });
 test('sign-out discards a late private report response and failed evidence load remains retryable',async()=>{

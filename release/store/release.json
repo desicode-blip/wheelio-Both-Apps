@@ -21,8 +21,8 @@
       "captainIdDocumentsAndSelfies": "90 days after the application decision",
       "webDeletionRequestCompletion": "within 90 days"
     },
-    "customerCancellation": "Within 5 minutes of confirmation: 98% back as wallet credit (2% fee), even if the wash is under 2 hours away. After 5 minutes and at least 2 hours before the wash window: 50% back as wallet credit. After 5 minutes and under 2 hours before the window: nothing back. WashKrew-side failure or upheld wash complaint: 100% as wallet credit.",
-    "walletCreditExpiry": "12 months after the credit is added",
+    "customerCancellation": "Within 5 minutes inclusive: the paid booking value minus the actual Razorpay fee, including washes under 2 hours away. Later and at least 2 hours before the wash window: 50% of paid booking value minus the actual fee, floored at zero. Later cancellations qualify for no coupon. Service failure or an upheld wash report qualifies for paid value minus the actual fee. Approved reviewers issue single-use private coupons.",
+    "refundCouponExpiry": "12 months after issue; migrated credit retains its existing expiry",
     "aadhaarUpload": "Full or masked Aadhaar accepted; masked recommended; reviewed manually"
   },
   "approvals": {
@@ -43,7 +43,7 @@
       "category": "Lifestyle",
       "shortDescription": "Book a doorstep exterior wash and review your Captain’s before-and-after photos.",
       "subtitle": "Doorstep vehicle washes",
-      "description": "Book a doorstep exterior vehicle wash in an area covered by an approved WashKrew Captain. Add your vehicle and parking details, choose an available time window, and pay using the supported Razorpay methods or WashKrew wallet credit. Follow booking updates and review the before-and-after wash photos. Wallet credit can be used for future WashKrew bookings. Availability depends on Captain coverage, working hours and capacity."
+      "description": "Book a doorstep exterior vehicle wash in an area covered by an approved WashKrew Captain. Add your vehicle and parking details, choose an available time window, and pay with the supported Razorpay methods or apply an issued refund coupon. Follow booking updates and review the before-and-after wash photos. Availability depends on Captain coverage, working hours and capacity."
     },
     "captain": {
       "name": "WashKrew Captain",

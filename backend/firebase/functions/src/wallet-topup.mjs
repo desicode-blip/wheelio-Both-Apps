@@ -3,6 +3,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {FieldValue,Timestamp} from 'firebase-admin/firestore';
 import {acceptsFunding} from './payment-policy.mjs';
 import {walletFeePolicy,customerTopupFees,confirmsCustomerFees,topupFunding} from './gateway-fees.mjs';
+import {migrateAfterCommit} from './coupon-migration.mjs';
 
 export class WalletTopupError extends Error{constructor(code,message){super(message);this.code=code;}}
 const fail=(code,message)=>{throw new WalletTopupError(code,message);};
@@ -19,6 +20,7 @@ export async function createWalletTopup(s,auth,data){
  const order=await s.db.runTransaction(async tx=>{
   const [old,cfg,profile,state]=await Promise.all([tx.get(ref),tx.get(s.db.doc('config/operations')),tx.get(s.db.doc('users/'+uid)),tx.get(s.db.doc('customerState/'+uid))]);
   const config=cfg.data(),user=profile.data();
+  if(config?.paymentBalanceMode==='refundCouponsV1'||config?.walletTopupsEnabled===false)fail('failed-precondition','WashKrew no longer offers wallet top-ups. Check the status of any earlier payment from its booking or contact support.');
   if(!user?.name||user.roles&&!user.roles.includes('customer')||user.deletionStatus||user.deletedRoles?.customer||user.deletingRole==='customer')fail('failed-precondition','Complete your Customer account first.');
   if(!['live','test'].includes(config?.paymentMode)||config.paymentMode==='live'&&config.paymentMerchant!=='washkrew')fail('failed-precondition','Wallet payments are not configured.');
   if(old.exists){
@@ -71,6 +73,7 @@ export async function captureWalletTopup(s,payment,mapping,mode,merchant){
   tx.create(s.db.doc('payments/'+mapping.topupId),{customerId:o.customerId,source:'walletTopup',paymentId:payment.id,amount:funding.paidPaise,currency:'INR',status:'captured',updatedAt:stamp()});
   if(state.data()?.pendingTopupId===mapping.topupId)tx.set(state.ref,{pendingTopupId:null},{merge:true});
  });
+ if(mapping.customerId)await migrateAfterCommit(s,mapping.customerId,mode);
 }
 
 export async function checkWalletTopup(s,auth,data,{verify=false,reconcile=false}={}){

@@ -84,20 +84,15 @@ void main() {
     expect(o.cancellationSummary, contains('No cancellation fee'));
     s.dispose();
   });
-  testWidgets('review shows ₹74.50 wallet balance and routes insufficient wallet to top-up', (tester) async {
+  testWidgets('live review exposes coupons and never offers wallet spending or top-up', (tester) async {
     tester.view.physicalSize = const Size(430, 1100); tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize); addTearDown(tester.view.resetDevicePixelRatio);
     final s = WalletTestStore()..draftFull();
-    s.liveConfig = {'cancellationPolicy': {'kind': 'refundThenCredit', 'refundMinutes': 5, 'lateCreditBps': 5000}};
     s.customer = Customer(id: 'fixture', phone: '')..credit = 74.5;
     final r = AppRouter();
     await tester.pumpWidget(AppScope(store: s, router: r, child: const MaterialApp(home: ReviewScreen())));
-    expect(find.text('₹74.50 credit'), findsOneWidget);
-    expect(find.text('Choose Pay by wallet below, or top up your balance.'), findsOneWidget);
-    expect(find.text('Full refund within 5 minutes of confirmation. Later: 50% fee, 50% to your wallet.'), findsOneWidget);
-    await tester.tap(find.text('Pay by wallet · ₹149'));await tester.pump();
-    expect(r.last?.n,N.wallet);expect(r.last?.walletShortfallPaise,7450);
-    expect(s.draft.pricePaise, 14900);
+    expect(find.textContaining('Pay by wallet'), findsNothing);expect(find.text('Top up'), findsNothing);
+    expect(find.text('Have a refund coupon?'), findsOneWidget);expect(s.draft.pricePaise,14900);
     await tester.pumpWidget(const SizedBox()); s.dispose(); r.dispose();
   });
   testWidgets('the existing payment sheet exposes all supported non-credit groups', (tester) async {

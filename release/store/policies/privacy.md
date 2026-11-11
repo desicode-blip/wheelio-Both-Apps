@@ -25,7 +25,7 @@ Email info@washkrew.com or call +91 80885 16875 (24 hours a day, every day). Our
 - **Location:** your saved address, parking details and the spot you pin on the map. The app asks before using your device location, and only while you are using it.
 - **Bookings:** wash type, time window, price, status, your ratings and feedback.
 - **Photos, videos and voice notes** you choose to add, for example to show where your vehicle is parked.
-- **Payments:** payment status and reference numbers from Razorpay, your WashKrew wallet balance and history. We never see or store your card number, CVV, UPI PIN or net banking password.
+- **Payments:** payment status and reference numbers from Razorpay, your WashKrew refund requests and coupon activity. We never see or store your card number, CVV, UPI PIN or net banking password.
 - **Support:** messages and details you send us when you ask for help.
 
 ## What we collect from captains
@@ -52,7 +52,7 @@ washkrew.com does not use tracking or advertising cookies. To show whether WashK
 
 - **To provide the service:** match your booking with a captain, show each side the details needed for the job, share wash photos and handle your confirmation and rating.
 - **To verify captains:** our team reviews ID documents, selfies and payout details. Automated checks help them spot unclear photos and compare the selfie with the ID photo, but a person always makes the approval decision.
-- **For payments:** to take payments, manage wallet credit, pay captains, issue invoices and meet tax and accounting laws.
+- **For payments:** to take payments, manage refund requests and coupons, pay captains, issue invoices and meet tax and accounting laws.
 - **For support and safety:** to answer questions, resolve complaints and disputes, and prevent fraud and misuse.
 - **For notifications:** to send booking and job updates. We will not send promotional messages unless you agree to receive them, and you can stop them at any time.
 - **To keep the service working:** to find and fix errors and protect our systems.
@@ -95,7 +95,7 @@ Your data is stored mainly on Google Cloud servers in Mumbai, India. Some provid
 | Captain ID documents and selfies | Up to 90 days after we approve or decline the application. Deleted straight away if you delete your account. We keep a record that verification was done. |
 | Captain payout details | While the captain account is open. |
 | Captain job locations | 90 days after the wash. |
-| Payment, invoice, wallet, earnings and payout records | 8 years, as Indian tax and accounting laws require. |
+| Payment, invoice, refund, coupon, earnings and payout records | 8 years, as Indian tax and accounting laws require. |
 | Support messages and complaints | 1 year after the issue is closed. |
 | Account deletion requests | 3 years, as a record that we completed your request. |
 | Application/server logs and error reports | Up to 90 days (currently 30 days for application logs). Google-required security/audit logs have a provider-locked 400-day retention period and cannot be deleted earlier. |

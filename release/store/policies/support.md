@@ -19,15 +19,15 @@ Never share your one-time code, UPI PIN, card details or passwords with anyone, 
 
 ### How do I cancel a booking?
 
-Open the booking in the app and choose cancel. The app shows what you will get back before you confirm. Cancel within 5 minutes of booking and you get 98% back as wallet credit. After that, you get 50% back if you cancel at least 2 hours before your wash window starts, and nothing if you cancel later. The full rules are in our [terms of use](/terms#cancellation-and-refunds).
+Open the booking in the app and choose cancel. The app shows what you will get back before you confirm. Cancel within 5 minutes of confirmation and you can receive a coupon for the paid booking value minus the actual Razorpay fee. After that, cancel at least 2 hours before your wash window starts to qualify for 50% of the paid value minus that fee. No coupon is due for a later cancellation. The full rules are in our [terms of use](/terms#cancellation-and-refunds).
 
 ### Where does my money go if a booking is cancelled?
 
-Refunds for cancelled bookings go to your WashKrew wallet, and you can use the credit on your next wash. If we cancel or your captain does not arrive, you get 100% back as wallet credit. Wallet credit expires one year after it is added.
+Our team reviews eligible refund requests and issues private, single-use coupons. Find them under Coupons in the app. New coupons expire one year after issue. If we cancel or your captain does not arrive, the eligible amount is the paid booking value minus the actual Razorpay fee.
 
 ### I'm not happy with my wash. What can I do?
 
-Check the before and after photos, and report the problem in the app instead of confirming the job, or contact us within 24 hours. Our team reviews it and, if we agree there was a problem, returns 100% of what you paid as wallet credit.
+Check the before and after photos, and report the problem in the app instead of confirming the job, or contact us within 24 hours. Our team reviews it and, if we agree there was a problem, reviews a refund coupon for the paid booking value minus the actual Razorpay fee.
 
 ### I think my vehicle was damaged.
 

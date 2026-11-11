@@ -1,6 +1,6 @@
 # Current project status - 3 November 2026
 
-**10 November update:** current source is Customer **1.0.5 (10)** / Captain **1.0.6 (11)**. Read [the checkout/report handoff](CHECKOUT-AND-REPORT-FIXES-2026-11-10.md) for current fixes and the pending Razorpay wallet-fee activation. Existing designs and historical financial snapshots remain intact.
+**11 November update:** Customer **1.0.6 (11)** and Captain **1.0.7 (12)** implement the approved refund coupons, successful-wash commission and admin price editing. Read [the coupon release](REFUND-COUPONS-2026-11-11.md) for the current rules and rollout. The wallet descriptions below record earlier releases.
 
 
 **4 November implementation update:** the owner-approved policy backend, website deletion review and public pages are now deployed. Read [the current release record](POLICY-RELEASE-2026-11-04.md) and its deployment evidence; the earlier pending implementation checklist below is historical. Store reviewer access/screenshots/metadata and signed Mac/device acceptance remain open.
