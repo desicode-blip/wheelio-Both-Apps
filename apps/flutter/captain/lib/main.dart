@@ -7,6 +7,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
 import 'features/monthly_jobs.dart';
+import 'features/recurring_assignments.dart';
 import 'features/preview_features.dart';
 import 'screens/account.dart';
 import 'screens/gallery.dart';
@@ -229,7 +230,8 @@ Widget _destination(R r) => Builder(builder:(context){
   N.referralAdmin => const ReferralAdminPreview(),
   N.payGuide => const PayGuidePreview(),
   N.offerTermsPreview => const OfferTermsPreview(),
-  N.recurringAssignment => const RecurringAssignmentPreview(),
+  N.recurringAssignment => const AssignmentDetailScreen(),
+  N.recurringList => const RecurringListScreen(),
   N.monthlyAlert => const MonthlyJobAlertScreen(),
   N.openJobs => OpenJobsScreen(monthly: r.flag),
   N.recovery => CaptainRecoveryScreen(cancel: r.flag),

@@ -529,7 +529,7 @@ class MeTab extends StatelessWidget {
               const WDivider(inset: 54),
               WListRow(icon: WIcon.rupee, title: store.t('Understand your pay', 'अपनी कमाई समझें', 'మీ ఆదాయాన్ని తెలుసుకోండి'), onTap: () => router.go(N.payGuide)),
               const WDivider(inset: 54),
-              WListRow(icon: WIcon.calendar, title: store.t('Recurring assignment', 'नियमित काम', 'క్రమమైన పని'), subtitle: store.t('Monthly calendar and estimate', 'महीने का कैलेंडर और अनुमान', 'నెలవారీ క్యాలెండర్, అంచనా'), onTap: () => router.go(N.recurringAssignment)),
+              WListRow(icon: WIcon.calendar, title: store.t('Recurring assignments', 'नियमित काम', 'క్రమమైన పనులు'), subtitle: store.recurringAccepted ? store.t('${store.myAssignments.length} active', '${store.myAssignments.length} चालू', '${store.myAssignments.length} చురుకుగా') : store.t('Your monthly jobs', 'आपके मासिक काम', 'మీ నెలవారీ పనులు'), onTap: () => router.go(N.recurringList)),
             ]),
           ),
         ],

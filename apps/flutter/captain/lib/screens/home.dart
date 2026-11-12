@@ -1,5 +1,6 @@
 import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
 import '../features/monthly_jobs.dart';
+import '../features/recurring_assignments.dart';
 import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
 import '../features/preview_features.dart' show speakTerms;
 import 'dart:async';
@@ -726,8 +727,10 @@ class _DayPlanState extends State<DayPlan> {
     final store = context.store;
     final isNow = j.status == JobStatus.now && !j.cancelled, done = j.status == JobStatus.done;
     if (j.cancelled) return _cancelledCard(j);
-    final edge = ph.level == 3 ? WColor.destructive : (ph.level == 2 ? _amber : (isNow ? WColor.primary : WColor.border));
-    final fill = ph.level == 3 ? WColor.errorTint : (ph.level == 2 ? WColor.waitTint : (isNow ? WColor.primaryTint : (done ? WColor.canvas : WColor.white)));
+    // v2 (13 Nov): recurring (monthly) visits are gold, unless a warning colour applies.
+    final gilded = j.extras.monthly && ph.level < 2 && !done;
+    final edge = ph.level == 3 ? WColor.destructive : (ph.level == 2 ? _amber : (gilded ? (isNow ? gold : goldBorder) : (isNow ? WColor.primary : WColor.border)));
+    final fill = ph.level == 3 ? WColor.errorTint : (ph.level == 2 ? WColor.waitTint : (gilded ? goldTint : (isNow ? WColor.primaryTint : (done ? WColor.canvas : WColor.white))));
     final w = window(j, now);
     return Pressable(
       onTap: () => _open(j),
@@ -749,6 +752,7 @@ class _DayPlanState extends State<DayPlan> {
                     WIconView(WIcon.location, size: 13, color: done ? WColor.muted : WColor.primaryStrong),
                     const SizedBox(width: 6),
                     Expanded(child: WText(j.society, WType.title, size: 16, maxLines: 1, color: done ? WColor.secondary : WColor.heading)),
+                    if (j.extras.monthly && !done) ...[const RecurringTag(), const SizedBox(width: 8)],
                     WText(Fmt.rupees(j.pay), WType.title, size: 16, mono: true, color: done ? WColor.secondary : WColor.heading),
                   ],
                 ),
@@ -1922,8 +1926,28 @@ class JobsTab extends StatelessWidget {
           // v2 (handoff, preview): an open "vehicle not found" report and an accepted
           // recurring assignment sit above the day's jobs.
           if (store.v2Features && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),
+          // v2 (13 Nov): every accepted monthly job, gold like a golden ticket.
           if (store.v2Features && store.recurringAccepted) ...[
-            WCard(onTap: () => router.go(N.recurringAssignment), outlined: true, child: WText(store.t('Recurring assignment · View your calendar', 'नियमित काम · अपना कैलेंडर देखें', 'క్రమమైన పని · మీ క్యాలెండర్ చూడండి'), WType.value)),
+            Pressable(
+              label: 'Recurring assignments',
+              onTap: () => router.go(N.recurringList),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFFFF8E6), Color(0xFFFFE7A6)]), borderRadius: BorderRadius.circular(16), border: Border.all(color: goldBorder)),
+                child: Row(children: [
+                  const WIconView(WIcon.calendar, size: 20, color: gold),
+                  const SizedBox(width: 10),
+                  Expanded(child: WText(store.t('Recurring assignments', 'नियमित काम', 'క్రమమైన పనులు'), WType.title)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                    decoration: BoxDecoration(color: gold, borderRadius: BorderRadius.circular(12)),
+                    child: WText('${store.myAssignments.length}', WType.label, color: WColor.white),
+                  ),
+                  const SizedBox(width: 8),
+                  const WIconView(WIcon.chevron, size: 13, color: goldDeep),
+                ]),
+              ),
+            ),
             const SizedBox(height: 14),
           ],
           if (!store.signedUp && !store.isLive) ...[
@@ -1937,7 +1961,8 @@ class JobsTab extends StatelessWidget {
             const SizedBox(height: 12),
           ],
           for (final j in store.todayJobs..sort((a, b) => _minutes(a.time).compareTo(_minutes(b.time)))) ...[
-            WCard(
+            _JobTint(
+              recurring: j.extras.monthly,
               onTap: () {
                 if (j.status == JobStatus.now && !j.cancelled && store.signedUp) {if(store.isLive){store.resumeWork(router,orderId:j.id);}else{router.go(N.goToVehicle);}}
               },
@@ -1955,9 +1980,10 @@ class JobsTab extends StatelessWidget {
                         const SizedBox(height: 6),
                         WText(j.spot, WType.caption),
                         const SizedBox(height: 6),
-                        Wrap(spacing: 6, runSpacing: 6, children: [
+                        Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
                           if (j.cancelled) WBadge(store.t('Cancelled', 'रद्द', 'రద్దు'), tone: Tone.mute, icon: WIcon.close) else status(j.status),
                           if (j.flexible && !j.cancelled) _FlexTag(),
+                          if (store.v2Features) j.extras.monthly ? const RecurringTag() : const OneTimeTag(),
                         ]),
                       ],
                     ),
@@ -1972,7 +1998,8 @@ class JobsTab extends StatelessWidget {
           if (store.laterJobs.isNotEmpty) ...[
             WTitle(store.t('Coming up', 'आने वाले', 'రాబోయేవి'), top: 14, bottom: 12),
             for (final j in store.laterJobs) ...[
-              WCard(
+              _JobTint(
+                recurring: j.extras.monthly,
                 child: Row(
                   children: [
                     SizedBox(
@@ -1990,6 +2017,7 @@ class JobsTab extends StatelessWidget {
                         WText(j.society, WType.title, size: 16),
                         const SizedBox(height: 4),
                         WText(j.spot, WType.caption),
+                        if (store.v2Features) ...[const SizedBox(height: 6), j.extras.monthly ? const RecurringTag() : const OneTimeTag()],
                       ]),
                     ),
                     WText(Fmt.rupees(j.pay), WType.section, weight: semibold, mono: true),
@@ -2605,4 +2633,23 @@ class NotifyFirstScreen extends StatelessWidget {
       },
     );
   }
+}
+
+/// v2 (13 Nov): a Jobs-tab card, gold for recurring (monthly) visits.
+class _JobTint extends StatelessWidget {
+  const _JobTint({required this.recurring, required this.child, this.onTap});
+  final bool recurring;
+  final Widget child;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => recurring
+      ? Pressable(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFFFF8E6), Color(0xFFFFEDBE)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(WRadius.card), border: Border.all(color: goldBorder)),
+            child: child,
+          ),
+        )
+      : WCard(onTap: onTap, child: child);
 }

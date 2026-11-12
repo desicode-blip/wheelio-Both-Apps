@@ -7,6 +7,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import '../data/store.dart';
 import '../screens/parts.dart';
 import 'preview_features.dart' show sampleRecurringAssignment;
+import 'v2_job.dart';
 
 // v2 (13 Nov 2026, Aman): a monthly recurring job rings like a one-time job, but on its
 // own gold screen so a Captain sees at once that it is regular work for a month. The Jobs
@@ -28,12 +29,67 @@ class MonthlyOffer {
   final String id;
   final RecurringAssignment assignment;
 
-  /// The live offer behind it; null for the sample.
+  /// The offer's job (live), or the sample's template job.
   final Job? job;
+
+  /// "8–10 AM"
+  String get window => job == null ? '' : timeRange(job!.extras.exactWindows.isNotEmpty ? job!.extras.exactWindows.first : job!.window);
 
   int get perVisitPaise => assignment.terms.netPayPaise ?? 0;
   int get visits => assignment.dates.isNotEmpty ? assignment.dates.length : (assignment.terms.totalVisits ?? 0);
   int get estimatePaise => perVisitPaise * visits;
+}
+
+/// "8–10" → "8–10 AM"; labels that already say AM/PM stay as they are.
+String timeRange(String w) {
+  if (w.contains('AM') || w.contains('PM')) return w;
+  final parts = w.split('–');
+  if (parts.length != 2) return w;
+  final a = int.tryParse(parts[0]), b = int.tryParse(parts[1]);
+  if (a == null || b == null) return w;
+  String h(int x) => '${x % 12 == 0 ? 12 : x % 12}';
+  String ap(int x) => x < 12 ? 'AM' : 'PM';
+  return ap(a) == ap(b) ? '${h(a)}–${h(b)} ${ap(b)}' : '${h(a)} ${ap(a)}–${h(b)} ${ap(b)}';
+}
+
+/// Sample monthly jobs (sample builds): a car on Mon/Wed/Fri and a scooter on Tue/Thu/Sat.
+List<MonthlyOffer> sampleMonthlyOffers() {
+  final car = sampleRecurringAssignment();
+  final now = DateTime.now(), start = DateTime(now.year, now.month, now.day);
+  final end = DateTime(now.year, now.month + 1, now.day);
+  final scooterDates = [
+    for (var d = start; d.isBefore(end); d = DateTime(d.year, d.month, d.day + 1))
+      if ([2, 4, 6].contains(d.weekday)) d,
+  ];
+  return [
+    MonthlyOffer(
+      id: car.id,
+      assignment: car,
+      job: Job(id: car.id, plate: 'TS 09 EA 4521', type: 'Hatchback', isBike: false, pay: 35, tower: 'Tower 3', floor: 'B2', slot: '41', window: '14–16', time: '14:30'),
+    ),
+    MonthlyOffer(
+      id: 'preview-recurring-2',
+      assignment: RecurringAssignment(
+        id: 'preview-recurring-2',
+        terms: VisitTerms(
+          quoteId: 'preview-recurring-2',
+          policyVersion: 'illustrative-not-approved',
+          kind: VisitBookingKind.monthlyPlan,
+          service: 'Basic',
+          coverage: 'Exterior only',
+          estimatedMinutes: 15,
+          netPayPaise: 2500,
+          visitNumber: 1,
+          totalVisits: scooterDates.length,
+          illustrative: true,
+        ),
+        dates: scooterDates,
+        vehicle: 'AP 28 BQ 9911 · Scooter',
+        place: 'Lanco Hills · Tower 1 · Open parking',
+      ),
+      job: Job(id: 'preview-recurring-2', plate: 'AP 28 BQ 9911', type: 'Scooter', isBike: true, pay: 25, tower: 'Tower 1', floor: 'Open', slot: '', window: '16–18', time: '16:30', society: 'Lanco Hills', area: 'Manikonda', wash: WashType.dryDusting),
+    ),
+  ];
 }
 
 String _rupees(int paise) => '₹${(paise / 100).toStringAsFixed(paise % 100 == 0 ? 0 : 2)}';
@@ -76,9 +132,57 @@ extension MonthlyJobsStore on CaptainStore {
   /// Monthly jobs open to this Captain now.
   List<MonthlyOffer> get monthlyOffers {
     if (isLive) return [for (final j in liveOffers) if (_isMonthly(j)) _fromJob(j)];
-    final a = sampleRecurringAssignment();
-    return recurringAccepted || declinedMonthly.contains(a.id) ? const [] : [MonthlyOffer(id: a.id, assignment: a)];
+    return [
+      for (final o in sampleMonthlyOffers())
+        if (!declinedMonthly.contains(o.id) && !myAssignments.any((m) => m.id == o.id)) o,
+    ];
   }
+
+  /// Accept a monthly job: it joins My recurring assignments, and (sample) its visits for
+  /// the coming week join the plan, today's on Home. Live visits come from the server.
+  void acceptAssignment(MonthlyOffer o) {
+    if (myAssignments.any((m) => m.id == o.id)) return;
+    myAssignments = [...myAssignments, o];
+    final t = o.job;
+    if (!isLive && t != null) {
+      final now = DateTime.now(), today = DateTime(now.year, now.month, now.day);
+      for (final (i, d) in o.assignment.dates.indexed) {
+        final day = d.difference(today).inDays;
+        if (day < 0 || day > 6 || queue.any((q) => q.id == '${o.id}-$i')) continue;
+        final visit = Job(
+          id: '${o.id}-$i', plate: t.plate, type: t.type, isBike: t.isBike, pay: o.perVisitPaise / 100, tower: t.tower, floor: t.floor, slot: t.slot,
+          window: t.window, time: t.time, society: o.assignment.place.split(' · ').first, area: t.area, wash: t.wash, day: day, status: JobStatus.next,
+        )..extras = JobExtras(serviceLevel: o.assignment.terms.service, planVisit: i + 1, planVisits: o.visits);
+        final at = queue.lastIndexWhere((x) => x.status != JobStatus.done) + 1;
+        queue.insert(at, visit);
+      }
+    }
+    changed();
+  }
+
+  /// Visits of [o] within the next 2 days stay with the Captain after cancelling.
+  List<DateTime> keptAfterCancel(MonthlyOffer o) {
+    final now = DateTime.now(), today = DateTime(now.year, now.month, now.day);
+    return [for (final d in o.assignment.dates) if (!d.isBefore(today) && d.difference(today).inDays < 2) d];
+  }
+
+  /// Cancel an accepted assignment with 2 days' notice: visits from the 3rd day on go back
+  /// to other Captains. BACKEND (Ajay): `cancelRecurringAssignment({assignmentId})`.
+  Future<String?> cancelAssignment(MonthlyOffer o) async {
+    if (isLive) {
+      try {
+        await live!.call('cancelRecurringAssignment', {'assignmentId': o.id});
+      } catch (e) {
+        return t('Couldn’t cancel right now. Try again or ask Help.', 'अभी रद्द नहीं हो सका। फिर कोशिश करें या मदद लें।', 'ఇప్పుడు రద్దు కాలేదు. మళ్లీ ప్రయత్నించండి లేదా సహాయం అడగండి.');
+      }
+    }
+    myAssignments = [for (final m in myAssignments) if (m.id != o.id) m];
+    queue.removeWhere((q) => q.id.startsWith('${o.id}-') && q.day >= 2 && q.status != JobStatus.done);
+    changed();
+    return null;
+  }
+
+  MonthlyOffer? get openAssignment => myAssignments.where((m) => m.id == openAssignmentId).firstOrNull ?? myAssignments.firstOrNull;
 
   /// One-time jobs open to this Captain now (live: the ringing offers; sample: nearby jobs).
   List<Job> get oneTimeOffers => isLive
@@ -135,8 +239,8 @@ class _MonthlyJobAlertScreenState extends State<MonthlyJobAlertScreen> {
       if (mounted) setState(() => busy = false);
       return;
     }
+    store.acceptAssignment(o);
     store.set(() {
-      store.recurringAccepted = true;
       store.toast = store.t('Monthly job added to your calendar', 'मासिक काम आपके कैलेंडर में जोड़ा गया', 'నెలవారీ పని మీ క్యాలెండర్‌లో చేర్చబడింది');
     });
     router.home();
@@ -173,7 +277,7 @@ class _MonthlyJobAlertScreenState extends State<MonthlyJobAlertScreen> {
     final a = o.assignment, dates = a.dates;
     final expiry = o.job == null ? null : store.offerExpiry[o.id];
     final left = expiry?.difference(DateTime.now()).inSeconds;
-    final window = o.job?.whenLabel ?? '6–8 AM';
+    final window = o.window.isEmpty ? '—' : o.window;
     return Container(
       decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: _goldSky)),
       child: WScreen(

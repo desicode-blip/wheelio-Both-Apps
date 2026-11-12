@@ -43,3 +43,27 @@
 - `captain/lib/data/store.dart`: routes, notification tap.
 - Gallery entries W22r and W25a.
 - Test: `captain/test/monthly_jobs_test.dart`.
+
+## 13 Nov (later): accepted monthly jobs (Aman)
+
+- **Gold everywhere:** recurring visits look like a golden ticket on Home → Today's plan (gold card
+  with a **Recurring** tag) and in Jobs (gold card). Jobs cards carry **Recurring** or
+  **One-time**. Warnings (30 min left, late) still use amber and red.
+- **Accepting** adds the job to *Recurring assignments*. In sample builds its visits for the coming
+  week join the plan, so today's visit shows on Home. Live visits come from the server as orders
+  that carry `plan`.
+- **Jobs tab** shows a gold **Recurring assignments (n)** button (it replaces "Recurring
+  assignment · View your calendar"). **Me → Recurring assignments** opens the same list.
+- **List:** one gold card per job, with the place, vehicle, M–S weekday circles (visit days filled),
+  the next visit and the monthly total.
+- **Detail** (redesigned, less text):
+  - the monthly package (₹ total) and the visits this month;
+  - weekday circles and time;
+  - the place and vehicle, then the visit dates (today highlighted);
+  - two short notes;
+  - **See today's jobs** goes to Home, which lists one-time and recurring visits together.
+  - "₹35 per completed visit" and the long paragraphs are gone.
+- **Cancel this recurring job:** this must be done at least 2 days ahead. Visits in the next 2 days
+  stay with the Captain; later visits go back to other Captains. The confirmation lists both.
+  BACKEND (Ajay): `cancelRecurringAssignment({assignmentId})` with that rule, and a list of a
+  Captain's accepted assignments, so the list survives a restart (today it is kept in memory).

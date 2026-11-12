@@ -225,7 +225,7 @@ enum N {
   // v2 (ChatGPT handoff, 8 Nov), opened from Me → Preview while previewing.
   referrals, referralScenarios, referralAdmin, payGuide, offerTermsPreview, recurringAssignment,
   // v2 (13 Nov): monthly recurring job alert, and the Find jobs lists (flag = monthly).
-  monthlyAlert, openJobs,
+  monthlyAlert, openJobs, recurringList,
   recovery, recoveryScenarios, recoveryOwnerPreview, recoveryEarnings,
 }
 
@@ -352,10 +352,18 @@ class CaptainStore extends ChangeNotifier {
     await LocalFlags.set('previewFeatures', on);
   }
 
-  bool recurringAccepted = false;
+  /// v2 (13 Nov): monthly recurring jobs this Captain has accepted.
+  List<MonthlyOffer> myAssignments = [];
+  bool get recurringAccepted => myAssignments.isNotEmpty;
+  set recurringAccepted(bool v) {
+    if (!v) myAssignments = [];
+  }
 
   /// v2 (13 Nov): the monthly job open on the gold alert, and sample ones turned down.
   String? openMonthlyId;
+
+  /// v2 (13 Nov): the accepted assignment open on its detail screen.
+  String? openAssignmentId;
   final Set<String> declinedMonthly = {};
   /// Referral code typed at sign-up (preview: kept on this phone, linked after verification).
   String pendingReferralCode = '';

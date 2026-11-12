@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:washkrew_captain/data/store.dart';
 import 'package:washkrew_captain/features/monthly_jobs.dart';
+import 'package:washkrew_captain/features/recurring_assignments.dart';
 import 'package:washkrew_captain/features/v2_job.dart';
 import 'package:washkrew_captain/screens/home.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
@@ -25,6 +26,8 @@ Future<void> _shot(WidgetTester t, String name) async {
 
 Widget _screen(R r) => switch (r.n) {
   N.monthlyAlert => const MonthlyJobAlertScreen(),
+  N.recurringList => const RecurringListScreen(),
+  N.recurringAssignment => const AssignmentDetailScreen(),
   N.openJobs => OpenJobsScreen(monthly: r.flag),
   _ => WText('route:${r.n.name}', WType.body),
 };
@@ -88,7 +91,35 @@ void main() {
     await t.tap(find.text('Accept monthly job'));
     await t.pump(const Duration(milliseconds: 500));
     expect(s.recurringAccepted, isTrue);
-    expect(s.monthlyOffers, isEmpty);
+    expect(s.monthlyOffers.length, 1); // the other sample is still open
+    // Today's visit (when today is a visit day) joins Today's plan as a recurring job.
+    final today = DateTime.now();
+    final visitsToday = s.myAssignments.first.assignment.dates.any((d) => d.year == today.year && d.month == today.month && d.day == today.day);
+    expect(s.todayJobs.any((j) => j.extras.monthly), visitsToday);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Recurring assignments: list → detail (package, weekday circles) → cancel', (t) async {
+    final (s, r) = await pump(t, const SizedBox(), path: const [R(N.recurringList)]);
+    for (final o in s.monthlyOffers) {
+      s.acceptAssignment(o);
+    }
+    await t.pumpAndSettle();
+    expect(s.myAssignments.length, 2);
+    expect(find.byType(WeekdayCircles), findsNWidgets(2));
+    await _shot(t, 'recurring-list');
+    await t.tap(find.text(s.myAssignments.first.assignment.place));
+    await t.pumpAndSettle();
+    expect(find.text('Monthly package'), findsOneWidget);
+    expect(find.textContaining('per completed visit'), findsNothing);
+    await _shot(t, 'recurring-detail');
+    await t.tap(find.text('Cancel this recurring job'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Cancel at least 2 days ahead'), findsOneWidget);
+    await t.tap(find.text('Cancel job'));
+    await t.pumpAndSettle();
+    expect(s.myAssignments.length, 1);
+    expect(s.queue.where((q) => q.id.startsWith('preview-recurring-') && q.day >= 2 && !q.id.startsWith('preview-recurring-2')), isEmpty);
     await t.pumpWidget(const SizedBox());
   });
 
