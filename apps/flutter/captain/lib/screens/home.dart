@@ -1,4 +1,5 @@
 import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
+import '../features/monthly_jobs.dart';
 import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
 import '../features/preview_features.dart' show speakTerms;
 import 'dart:async';
@@ -1283,12 +1284,13 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
 
   void _runLive() {
     final store = context.store, router = context.router;
-    if (store.liveOffers.isEmpty) {
+    if (store.oneTimeOffers.isEmpty) {
       handled = true;
       router.pop();
       return;
     }
-    setState(() => offers.addAll(store.liveOffers.map(_liveOffer)));
+    // v2 (13 Nov): monthly jobs ring on their own gold screen, not here.
+    setState(() => offers.addAll(store.oneTimeOffers.map(_liveOffer)));
     _nudge();
     _tick = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (handled || claiming || !mounted) return;
@@ -1298,7 +1300,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         final expiry=store.offerExpiry[offer.job.id];
         if(store.offerOutcomes[offer.job.id]=='pending'&&expiry!=null)offer.arrived=expiry.subtract(const Duration(seconds:_offerSeconds));
       }
-      final fresh = store.liveOffers.where((j) => !offers.any((o) => o.job.id == j.id)).toList();
+      final fresh = store.oneTimeOffers.where((j) => !offers.any((o) => o.job.id == j.id)).toList();
       if (fresh.isNotEmpty) {
         setState(() {
           offers.addAll(fresh.map(_liveOffer));
@@ -1915,6 +1917,8 @@ class JobsTab extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top, WSpace.gutterCaptain, 20),
         children: [
           WTitle(store.t('Today’s jobs', 'आज के काम', 'ఈరోజు పనులు'), top: 22, bottom: 16),
+          // v2 (13 Nov): two ways in to open jobs, including ones the Captain missed.
+          if (store.v2Features) const FindJobsTiles(),
           // v2 (handoff, preview): an open "vehicle not found" report and an accepted
           // recurring assignment sit above the day's jobs.
           if (store.v2Features && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),

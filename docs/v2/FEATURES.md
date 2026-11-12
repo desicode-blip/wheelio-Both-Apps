@@ -123,6 +123,7 @@ How to use this map:
 | 12 Nov | SH-NOTIFY | Customer no longer asks camera, microphone, location and notifications at launch; only the "only what matters" notification screen. Camera, mic and location are asked by iOS when first used (Captain unchanged) | `customer/lib/main.dart` | built |
 | 12 Nov | CA-JOURNEY | Captain My level: wash milestones 50/100/500/1000/2000 after the first 3 days; 100 = surprise merchandise; rating stars match the rating | [CA-JOURNEY.md](CA-JOURNEY.md) | built |
 | 12 Nov | CU-CARE | After photos: AI "Is this your vehicle?" (make, colour, glossy/matte), optional details form, 2–3 step care routine; Captain job shows it | [CU-CARE.md](CU-CARE.md) | built; AI callable + booking fields for Ajay |
+| 13 Nov | CA-MONTHLY-JOBS | Captain: monthly recurring jobs ring on their own gold screen; Jobs tab has One-time jobs / Monthly jobs (incl. missed) | [CA-MONTHLY-JOBS.md](CA-MONTHLY-JOBS.md) | built; monthly offers + push kind for Ajay |
 | 6 Nov | CU-VEHICLE | Number plate checked when typed; old bad plates fixed in one step at Pay | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
 | 6 Nov | CU-PAY | Faster Razorpay; closing it no longer blocks a new payment | [CU-PAY.md](CU-PAY.md) | built, backend speed-up |
 | 8 Nov | CU-WASHCHOICE | ChatGPT handoff phase 1: Choose your wash + own time windows (1-hour minimum, 11 PM cut-off), behind switches | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built, backend needed |

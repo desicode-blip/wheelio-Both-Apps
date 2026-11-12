@@ -4,7 +4,7 @@
 //   minuteWindows: [{startMinute, endMinute}]   the owner's exact time windows
 //   serviceLevel:  basic | premium | extraPremium
 //   coverage:      exterior | exteriorInterior
-//   plan:          {visitNumber, totalVisits}    a visit of a monthly plan
+//   plan:          {visitNumber, totalVisits, dates: ['YYYY-MM-DD']}  a monthly plan (visit or whole offer)
 //   gatePassPath:  Storage path of the gate pass image
 //   vehicleProfile: {make, model, color, finish, seats, source}  (v2 CU-CARE, 12 Nov)
 //   careRoutine:   [{title, detail}]              2–3 care adjustments for this vehicle
@@ -19,7 +19,10 @@ String _clock(int minute) {
 }
 
 class JobExtras {
-  const JobExtras({this.exactWindows = const [], this.serviceLevel, this.planVisit, this.planVisits, this.vehicleName, this.care = const []});
+  const JobExtras({this.exactWindows = const [], this.serviceLevel, this.planVisit, this.planVisits, this.vehicleName, this.care = const [], this.planDates = const []});
+
+  /// Every planned visit date of a monthly plan (sent with a monthly job offer).
+  final List<DateTime> planDates;
 
   /// "Hyundai Creta · White · Matte paint", or null when the owner didn't say.
   final String? vehicleName;
@@ -55,7 +58,13 @@ class JobExtras {
       final parts = [if (name.isNotEmpty) name, if (v['color'] is String && (v['color'] as String).trim().isNotEmpty) v['color'] as String, ?finish, ?seats];
       vehicleName = parts.isEmpty ? null : parts.join(' · ');
     }
+    final dates = [
+      if (plan is Map)
+        for (final d in plan['dates'] as List? ?? const [])
+          if (d is String && DateTime.tryParse(d) != null) DateTime.parse(d),
+    ]..sort();
     return JobExtras(
+      planDates: dates,
       vehicleName: vehicleName,
       care: [
         for (final c in o['careRoutine'] as List? ?? const [])

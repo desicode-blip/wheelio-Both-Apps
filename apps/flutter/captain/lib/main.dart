@@ -6,6 +6,7 @@ import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
+import 'features/monthly_jobs.dart';
 import 'features/preview_features.dart';
 import 'screens/account.dart';
 import 'screens/gallery.dart';
@@ -39,8 +40,13 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       if(!mounted||!Device.appIsActive||!store.online||store.liveOffers.isEmpty)return;
       WidgetsBinding.instance.addPostFrameCallback((_){
         if(mounted&&store.liveOffers.isNotEmpty){
-          if(router.isAt(N.jobMissed)){router.swapTop(const R(N.jobAlert));}
-          else if(router.path.isEmpty){router.push(const R(N.jobAlert));}
+          // v2 (13 Nov): a monthly recurring job rings on its own gold screen.
+          final monthly=store.monthlyOffers.where((o)=>!store.declinedMonthly.contains(o.id)).firstOrNull;
+          final alert=monthly!=null?const R(N.monthlyAlert):store.oneTimeOffers.isNotEmpty?const R(N.jobAlert):null;
+          if(alert==null||router.isAt(N.monthlyAlert))return;
+          if(monthly!=null)store.openMonthlyId=monthly.id;
+          if(router.isAt(N.jobMissed)){router.swapTop(alert);}
+          else if(router.path.isEmpty){router.push(alert);}
         }
       });
     };
@@ -224,6 +230,8 @@ Widget _destination(R r) => Builder(builder:(context){
   N.payGuide => const PayGuidePreview(),
   N.offerTermsPreview => const OfferTermsPreview(),
   N.recurringAssignment => const RecurringAssignmentPreview(),
+  N.monthlyAlert => const MonthlyJobAlertScreen(),
+  N.openJobs => OpenJobsScreen(monthly: r.flag),
   N.recovery => CaptainRecoveryScreen(cancel: r.flag),
   N.recoveryScenarios => const CaptainRecoveryScenariosScreen(),
   N.recoveryOwnerPreview => const RecoveryOwnerPreview(),

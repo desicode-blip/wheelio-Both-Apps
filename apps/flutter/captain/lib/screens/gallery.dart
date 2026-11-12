@@ -56,6 +56,8 @@ final gallerySections = <(String, List<GalleryEntry>)>[
     const _E('W22', 'New job alert', routes: [R(N.jobAlert)]),
     _E('W22m', kIsWeb ? 'Many jobs: 3 ring, stacked (See next job)' : 'Many jobs: 3 ring, stacked (swipe left to skip)', routes: const [R(N.jobAlert)]),
     _E('W22s', 'Single job (no others ring)', prep: (s) => s.extraOffers = 0, routes: const [R(N.jobAlert)]),
+    _E('W22r', 'Monthly recurring job alert (gold)', prep: (s) => s..recurringAccepted = false..declinedMonthly.clear(), routes: const [R(N.monthlyAlert)]),
+    _E('W25a', 'Find jobs: one-time / monthly', routes: const [R(N.openJobs), R(N.openJobs, flag: true)]),
     const _E('W57', 'Where I work (societies, distance, place)', routes: [R(N.workArea)]),
     _E('W22o', 'Job alert – only My Home Avatar', prep: (s) => s..workMode = WorkMode.societies..chosenSocieties = {'My Home Avatar'}, routes: const [R(N.jobAlert)]),
     const _E('W22b', 'New job alert – batched', routes: [R(N.jobAlert, flag: true)]),

@@ -1,0 +1,117 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:washkrew_captain/data/store.dart';
+import 'package:washkrew_captain/features/monthly_jobs.dart';
+import 'package:washkrew_captain/features/v2_job.dart';
+import 'package:washkrew_captain/screens/home.dart';
+import 'package:washkrew_ui/washkrew_ui.dart';
+
+// v2 (13 Nov): monthly jobs ring on a gold screen; Jobs has One-time / Monthly ways in.
+final _key = GlobalKey();
+const _dir = String.fromEnvironment('MONTHLY_CAPTURE_DIR');
+Future<void> _shot(WidgetTester t, String name) async {
+  if (_dir.isEmpty) return;
+  await t.runAsync(() async {
+    final b = _key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final img = await b.toImage(pixelRatio: 1.5);
+    final d = await img.toByteData(format: ui.ImageByteFormat.png);
+    File('$_dir/$name.png').writeAsBytesSync(d!.buffer.asUint8List());
+  });
+}
+
+Widget _screen(R r) => switch (r.n) {
+  N.monthlyAlert => const MonthlyJobAlertScreen(),
+  N.openJobs => OpenJobsScreen(monthly: r.flag),
+  _ => WText('route:${r.n.name}', WType.body),
+};
+
+class LiveOffers extends CaptainStore {
+  @override
+  bool get isLive => true;
+}
+
+Job _job(String id, {JobExtras extras = JobExtras.none}) =>
+    Job(id: id, plate: 'TS 09 AB 1234', type: 'Sedan', isBike: false, pay: 35, tower: 'Tower 1', floor: 'B1', slot: '4', window: '6–8', time: '6:00')..extras = extras;
+
+void main() {
+  setUpAll(() async {
+    if (_dir.isEmpty) return;
+    final l = FontLoader('packages/washkrew_ui/Roboto');
+    for (final n in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
+      l.addFont(rootBundle.load('packages/washkrew_ui/lib/fonts/Roboto-$n.ttf'));
+    }
+    await l.load();
+    await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+  });
+
+  test('live offers split into one-time and monthly', () {
+    final s = LiveOffers()
+      ..liveOffers = [
+        _job('a'),
+        _job('m', extras: JobExtras(planVisits: 13, planDates: [DateTime(2026, 11, 16), DateTime(2026, 11, 18), DateTime(2026, 11, 20)])),
+      ];
+    expect(s.oneTimeOffers.map((j) => j.id), ['a']);
+    expect(s.monthlyOffers.map((o) => o.id), ['m']);
+    expect(s.monthlyOffers.first.visits, 3);
+    expect(s.monthlyOffers.first.perVisitPaise, 3500);
+    expect(weekdaysOf(s.monthlyOffers.first.assignment.dates), 'Mon, Wed, Fri');
+  });
+
+  Future<(CaptainStore, WRouterC)> pump(WidgetTester t, Widget home, {List<R> path = const []}) async {
+    t.view.physicalSize = const Size(780, 1688);
+    t.view.devicePixelRatio = 2;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    final s = CaptainStore()..signedUp = true;
+    final r = WRouterC();
+    for (final p in path) {
+      r.push(p);
+    }
+    await t.pumpWidget(RepaintBoundary(
+      key: _key,
+      child: CaptainScope(store: s, router: r, child: MaterialApp(debugShowCheckedModeBanner: false, home: Material(child: ListenableBuilder(listenable: Listenable.merge([r, s]), builder: (_, _) => WNavStack<R>(router: r, root: home, builder: _screen))))),
+    ));
+    await t.pump(const Duration(milliseconds: 500));
+    return (s, r);
+  }
+
+  testWidgets('gold alert: pay per visit, visits, Accept adds it to the calendar', (t) async {
+    final (s, r) = await pump(t, const SizedBox(), path: const [R(N.monthlyAlert)]);
+    expect(find.text('MONTHLY · RECURRING'), findsOneWidget);
+    expect(find.text('₹35'), findsOneWidget);
+    expect(find.text('Accept monthly job'), findsOneWidget);
+    await _shot(t, 'monthly-alert');
+    await t.tap(find.text('Accept monthly job'));
+    await t.pump(const Duration(milliseconds: 500));
+    expect(s.recurringAccepted, isTrue);
+    expect(s.monthlyOffers, isEmpty);
+    await t.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Jobs tab: One-time jobs and Monthly jobs, each opens its list', (t) async {
+    final (s, r) = await pump(t, const JobsTab());
+    expect(find.text('Find new jobs'), findsOneWidget);
+    expect(find.text('One-time jobs'), findsOneWidget);
+    expect(find.text('Monthly jobs'), findsOneWidget);
+    await _shot(t, 'jobs-tab');
+    await t.tap(find.text('Monthly jobs'));
+    await t.pump(const Duration(milliseconds: 500));
+    expect(r.last?.n, N.openJobs);
+    await _shot(t, 'monthly-list');
+    r.pop();
+    await t.pumpAndSettle();
+    r.push(const R(N.openJobs));
+    await t.pumpAndSettle();
+    expect(find.text('Accept'), findsWidgets);
+    await _shot(t, 'onetime-list');
+    final before = s.oneTimeOffers.length;
+    await t.tap(find.text('Accept').first);
+    await t.pump(const Duration(milliseconds: 500));
+    expect(s.oneTimeOffers.length, before - 1);
+    await t.pumpWidget(const SizedBox());
+  });
+}

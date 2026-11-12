@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
+import '../features/monthly_jobs.dart';
 import '../features/v2_job.dart';
 import 'package:washkrew_referrals/demo_tools.dart';
 import 'package:washkrew_service_recovery/demo_tools.dart';
@@ -223,6 +224,8 @@ enum N {
   editUPI, noShowCancelled, workArea, ownerNote, helpFlow, gallery, notifyFirst,
   // v2 (ChatGPT handoff, 8 Nov), opened from Me → Preview while previewing.
   referrals, referralScenarios, referralAdmin, payGuide, offerTermsPreview, recurringAssignment,
+  // v2 (13 Nov): monthly recurring job alert, and the Find jobs lists (flag = monthly).
+  monthlyAlert, openJobs,
   recovery, recoveryScenarios, recoveryOwnerPreview, recoveryEarnings,
 }
 
@@ -350,6 +353,10 @@ class CaptainStore extends ChangeNotifier {
   }
 
   bool recurringAccepted = false;
+
+  /// v2 (13 Nov): the monthly job open on the gold alert, and sample ones turned down.
+  String? openMonthlyId;
+  final Set<String> declinedMonthly = {};
   /// Referral code typed at sign-up (preview: kept on this phone, linked after verification).
   String pendingReferralCode = '';
   DemoReferralRepository? _referrals, _customerReferralPreview;
@@ -1665,6 +1672,8 @@ String? openWNotif(WNotif n, CaptainStore store, WRouterC router) {
       if(store.isLive&&n.jobId!=null){
         if(store.liveOrders.containsKey(n.jobId)){
           if(store.resumeWork(router,orderId:n.jobId))return null;
+        }else if(store.online&&store.monthlyOffers.any((o)=>o.id==n.jobId)){
+          store.openMonthlyId=n.jobId;router.push(const R(N.monthlyAlert));return null;
         }else if(store.online&&store.liveOffers.any((j)=>j.id==n.jobId)){
           router.push(const R(N.jobAlert));return null;
         }
