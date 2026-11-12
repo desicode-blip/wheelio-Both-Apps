@@ -45,6 +45,7 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       });
     };
     store.refreshSystemPermission();
+    if(widget.store==null&&store.isLive)WidgetsBinding.instance.addPostFrameCallback((_) { if(mounted)requestStartupPermissions(); });
     store.live?.listenPush('captain',(id){
       if(!mounted)return;
       final notice=store.notifications.where((n)=>n.jobId==id).firstOrNull;

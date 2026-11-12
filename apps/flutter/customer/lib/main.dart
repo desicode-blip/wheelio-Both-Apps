@@ -19,7 +19,7 @@ import 'screens/notifications.dart';
 import 'screens/problem.dart';
 import 'screens/start.dart';
 import 'screens/support.dart';
-import 'screens/wallet.dart';
+import 'screens/coupons.dart';
 
 Future<void> main() => launchWashKrew(captain: false, demo: const CustomerApp());
 
@@ -39,6 +39,7 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
+    if(store.isLive)WidgetsBinding.instance.addPostFrameCallback((_) { if(mounted)requestStartupPermissions(); });
     if(store.isLive)_freshnessTimer=Timer.periodic(const Duration(seconds:30),(_){if(mounted&&Device.appIsActive)store.changed();});
     store.live?.listenPush('customer',(id){if(mounted){store.set(()=>store.currentOrderId=id);router.push(R(N.live,id:id));}});
     // On a laptop there's no phone to call from: say so instead of dialling.
@@ -186,7 +187,11 @@ class _OpenOrderState extends State<_OpenOrder> {
   }
 
   @override
-  Widget build(BuildContext context) => context.store.currentOrderId == widget.id ? widget.child : const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    final store=context.store;
+    if(store.currentOrderId!=widget.id && isTopScreen(context))WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&isTopScreen(context))store.set(()=>store.currentOrderId=widget.id);});
+    return store.currentOrderId==widget.id?widget.child:const SizedBox.shrink();
+  }
 }
 
 Widget _screen(R r) {
@@ -208,7 +213,7 @@ Widget _screen(R r) {
     N.otp => OtpScreen(start: r.otp),
     N.name => const NameScreen(),
     N.paying => PayingScreen(initial: r.pay),
-    N.wallet => WalletScreen(shortfallPaise:r.walletShortfallPaise),
+    N.coupons => const CouponsScreen(),
     N.booked => const ViewingOrder(child: BookedScreen()),
     N.whatsApp => const WhatsAppScreen(),
     N.notifyAsk => const NotifyAskScreen(),
@@ -216,8 +221,8 @@ Widget _screen(R r) {
     N.live => const LiveOrderScreen(),
     N.photoCompare => const PhotoCompareScreen(),
     N.rate => const RateScreen(),
-    N.reportProblem => const ReportProblemScreen(),
-    N.problemPhotos => ProblemPhotosScreen(kind: r.kind!),
+    N.reportProblem => ReportProblemScreen(orderId: r.id),
+    N.problemPhotos => ProblemPhotosScreen(kind: r.kind!, orderId: r.id),
     N.disputeStatus => const DisputeStatusScreen(),
     N.refund => const RefundScreen(),
     N.bookingDetail => BookingDetailScreen(orderId: r.id!),

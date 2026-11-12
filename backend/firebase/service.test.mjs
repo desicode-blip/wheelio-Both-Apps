@@ -1324,3 +1324,72 @@ test('whole booking window is rechecked at claim after a Captain edits working h
  await service.claim(auth('captain1'),{orderId:booking.bookingId});
  assert.equal((await db.doc('orders/'+booking.bookingId).get()).data().captainId,'captain1');
 });
+
+
+test('checkout retry cannot switch a vehicle or turn an old wallet payment into a new free booking',async()=>{
+ const payload=input('identity-locked');const b=await service.createBooking(customer,payload);
+ assert.deepEqual(await service.createBooking(customer,payload),b);
+ for(const patch of [{plate:'TS09XY5678'},{paymentChoice:'wallet',useCredit:true,expectedAmountPaise:0},{vehicleKind:'bike'}])await assert.rejects(service.createBooking(customer,{...payload,...patch}),{code:'failed-precondition'});
+ assert.equal((await db.collection('orders').get()).size,1);
+});
+test('abandon unpaid checkout releases reserved credit once and permits another vehicle immediately',async()=>{
+ await db.doc('wallets/customer_test').set({creditPaise:5000,freeWashes:0});
+ const b=await service.createBooking(customer,{...input('abandon-first'),useCredit:true});await service.checkout(customer,b);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,0);
+ const result=await service.abandonCheckout(customer,b);assert.equal(result.checkoutCancelled,true);
+ await service.abandonCheckout(customer,b);assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,5000);
+ assert.equal((await db.doc('customerState/customer').get()).data().pendingBookingId,null);
+ const next=await service.createBooking(customer,{...input('abandon-second'),plate:'TS09XY5678'});assert.notEqual(next.bookingId,b.bookingId);
+ await assert.rejects(service.abandonCheckout(auth('other'),next),{code:'permission-denied'});
+});
+test('abandon reconciles a captured payment and never cancels or fees a paid wash',async()=>{
+ const b=await service.createBooking(customer,input('capture-before-close')),checkout=await service.checkout(customer,b);
+ provider.payments.set('pay_after_return',{id:'pay_after_return',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+ const r=await service.abandonCheckout(customer,b);assert.equal(r.paymentStatus,'captured');assert.equal(r.checkoutCancelled,false);assert.equal(r.status,'searching');
+ assert.equal((await db.collection('refunds').get()).size,0);
+});
+test('late capture of an abandoned checkout cannot clear a newer pending checkout',async()=>{
+ const b=await service.createBooking(customer,input('late-old')),checkout=await service.checkout(customer,b);await service.abandonCheckout(customer,b);
+ const next=await service.createBooking(customer,input('late-new'));
+ await service.capturePayment({id:'pay_late_old',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'});
+ assert.equal((await db.doc('customerState/customer').get()).data().pendingBookingId,next.bookingId);
+ assert.equal((await db.doc('orders/'+b.bookingId).get()).data().status,'cancelled');
+});
+test('new Captain policy deducts only actual provider fee including GST and wallet washes pay full value',async()=>{
+ await db.doc('config/operations').update({captainEarningsPolicy:'netGatewayV1'});
+ const b=await service.createBooking(customer,input('net-fee')),checkout=await service.checkout(customer,b);
+ await assert.rejects(service.capturePayment({id:'pay_net',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured'}),{code:'failed-precondition'});
+ await service.capturePayment({id:'pay_net',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured',fee:352,tax:54});
+ assert.equal((await db.doc('orders/'+b.bookingId).get()).data().captainPayPaise,14900-352);
+ const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();assert.ok(offers.docs.every(o=>o.data().captainPayPaise===14548));
+ await db.doc('wallets/customer_test').set({creditPaise:20000,freeWashes:0});
+ const wallet=await service.checkout(customer,{booking:{...input('net-wallet'),vehicleKind:'bike',useCredit:true,paymentChoice:'wallet',expectedAmountPaise:0}});
+ assert.equal((await db.doc('orders/'+wallet.bookingId).get()).data().captainPayPaise,6900);assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,13100);
+});
+test('dynamic top-up credits net amount once; source refund includes the captured fee and old top-ups retain original math',async()=>{
+ await db.doc('config/operations').update({walletTopupFeePolicy:'customerAtTopupV1',walletFeeMerchantReady:false});
+ await assert.rejects(service.createWalletTopup(customer,{requestId:'new-fee',amountPaise:10000}),{code:'failed-precondition'});
+ await db.doc('config/operations').update({walletFeeMerchantReady:true});
+ provider.createOrder=async({amount,convenienceFeeConfig})=>({id:`order_${++counter}`,amount,currency:'INR',convenience_fee_config:convenienceFeeConfig});
+ const topup=await service.createWalletTopup(customer,{requestId:'new-fee',amountPaise:10000});
+ const payment={id:'pay_topup_fee',order_id:topup.orderId,amount:10200,fee:200,tax:31,currency:'INR',status:'captured',method:'upi'};
+ await service.capturePayment(payment);await service.capturePayment(payment);
+ assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,10000);
+ const saved=(await db.doc('walletTopups/'+topup.topupId).get()).data();assert.equal(saved.paidAmountPaise,10200);assert.equal(saved.gatewayFeePaise,200);
+ const forbidden=await service.createWalletTopup(customer,{requestId:'banned-fee',amountPaise:10000});
+ await service.capturePayment({...payment,id:'pay_forbidden_fee',order_id:forbidden.orderId,method:'card',card:{type:'credit'}});
+ assert.equal((await db.doc('refunds/'+forbidden.topupId).get()).data().amount,10200);assert.equal((await db.doc('wallets/customer_test').get()).data().creditPaise,10000);
+});
+
+test('replacement checkout reconciles and releases an old vehicle in one server request',async()=>{
+ const first=await service.createBooking(customer,input('one-vehicle'));await service.checkout(customer,first);
+ const next=await service.checkout(customer,{booking:{...input('other-vehicle'),plate:'TS09XY5678',replaceUnpaidCheckout:true}});
+ assert.notEqual(next.bookingId,first.bookingId);assert.equal((await db.doc('orders/'+first.bookingId).get()).data().status,'cancelled');
+ assert.equal((await db.doc('customerState/customer').get()).data().pendingBookingId,next.bookingId);
+});
+test('a prohibited payment is refunded even while its gateway fee is unavailable',async()=>{
+ await db.doc('config/operations').update({captainEarningsPolicy:'netGatewayV1',paymentPolicy:'no-credit-card-checkout'});
+ const b=await service.createBooking(customer,input('prohibited-net')),checkout=await service.checkout(customer,b);
+ await service.capturePayment({id:'pay_prohibited_net',order_id:checkout.orderId,amount:checkout.amount,currency:'INR',status:'captured',method:'card',card:{type:'credit'}});
+ assert.equal((await db.doc('orders/'+b.bookingId).get()).data().status,'cancelled');assert.equal((await db.doc('refunds/'+b.bookingId).get()).data().amount,14900);
+});

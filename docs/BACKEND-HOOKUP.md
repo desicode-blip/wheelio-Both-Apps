@@ -1,5 +1,12 @@
 # Current backend hookup rules - 3 November 2026
 
+10 November: checkout identities/replacement, actual net gateway Captain earnings,
+conditional old-checkout cleanup and private wash-report review use the same
+Firebase/Razorpay services. No fake payment, selfie, approval or wallet credit
+was added. New top-ups require Razorpay Dynamic Convenience Fees; the merchant
+currently rejects that feature, so do not bypass the paused/unsupported state.
+See [the current handoff](CHECKOUT-AND-REPORT-FIXES-2026-11-10.md).
+
 Read this before connecting another service. WashKrew uses the existing Firebase
 project **wheelio-apps**, current Cloud Functions/Firestore/Storage, Google Maps,
 the separate WashKrew Razorpay merchant, Firebase messaging and the private photo

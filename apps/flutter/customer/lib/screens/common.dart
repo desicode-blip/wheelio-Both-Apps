@@ -181,14 +181,20 @@ class HeldSafelyBanner extends StatelessWidget {
 
 /// Status badge for an order (icon + word).
 class StatusBadge extends StatelessWidget {
-  const StatusBadge(this.status, {super.key, this.slotAhead = false, this.walletCredit = false});
+  const StatusBadge(this.status, {super.key, this.slotAhead = false, this.walletCredit = false, this.refundRequestStatus});
   final OrderStatus status;
   final bool walletCredit;
+  final String? refundRequestStatus;
 
   /// Booked for a later slot: shows "Booked" instead of "Searching".
   final bool slotAhead;
   @override
-  Widget build(BuildContext context) => switch (status) {
+  Widget build(BuildContext context) => switch (refundRequestStatus) {
+    'issued' => const WBadge('Coupon ready', tone: Tone.ok, icon: WIcon.gift),
+    'pending' => const WBadge('Refund review', tone: Tone.wait, icon: WIcon.eye),
+    'declined' => const WBadge('Refund declined', tone: Tone.error, icon: WIcon.close),
+    'ineligible' => const WBadge('No refund coupon', tone: Tone.mute, icon: WIcon.close),
+    _ => switch (status) {
     OrderStatus.searching when slotAhead => const WBadge('Booked', tone: Tone.info, icon: WIcon.calendar),
     OrderStatus.searching => const WBadge('Searching', tone: Tone.mute, icon: WIcon.search),
     OrderStatus.onTheWay => const WBadge('On the way', tone: Tone.info, icon: WIcon.check),
@@ -200,20 +206,33 @@ class StatusBadge extends StatelessWidget {
     OrderStatus.disputed => const WBadge('Under review', tone: Tone.wait, icon: WIcon.eye),
     OrderStatus.paymentPending => const WBadge('Payment pending', tone: Tone.wait, icon: WIcon.clock),
     OrderStatus.pendingPayment => const WBadge('Not paid', tone: Tone.mute, icon: WIcon.clock),
+    },
   };
 }
 
 /// Bell with unread count, for the Home header.
-class WalletButton extends StatelessWidget {
-  const WalletButton({super.key});
+class CouponsButton extends StatelessWidget {
+  const CouponsButton({super.key});
   @override
   Widget build(BuildContext context)=>Pressable(
-    label:'Wallet, ${Fmt.rupees(context.store.customer?.credit??0)} available',
-    onTap:()=>context.router.go(context.store.isLoggedIn?N.wallet:N.login),
+    label:'Your coupons',
+    onTap:()=>context.router.go(N.coupons),
     child:Container(constraints:const BoxConstraints(minWidth:48,minHeight:48),padding:const EdgeInsets.symmetric(horizontal:10),
       decoration:BoxDecoration(color:WColor.primaryTint,borderRadius:BorderRadius.circular(14)),
-      child:Row(mainAxisSize:MainAxisSize.min,children:[const WIconView(WIcon.wallet,size:18,color:WColor.primary),const SizedBox(width:4),WText(Fmt.rupees(context.store.customer?.credit??0),WType.caption,color:WColor.primary)])),
+      child:const Row(mainAxisSize:MainAxisSize.min,children:[WIconView(WIcon.gift,size:18,color:WColor.primary),SizedBox(width:4),WText('Coupons',WType.caption,color:WColor.primary)])),
   );
+}
+
+class RefundCouponState extends StatelessWidget {
+ const RefundCouponState({super.key,required this.order});
+ final Order order;
+ @override Widget build(BuildContext context){
+  final issued=order.refundRequestStatus=='issued',pending=order.refundRequestStatus=='pending';
+  return WFullState(icon:issued?WIcon.gift:pending?WIcon.clock:WIcon.info,tone:issued?Tone.ok:Tone.wait,
+    title:issued?'Refund coupon ready':pending?'Refund request sent':order.refundRequestStatus=='ineligible'?'No refund coupon is eligible':'Refund request reviewed',
+    message:order.refundCouponSummary,primary:issued?'View coupons':'Go home',secondary:'Contact support',
+    onPrimary:()=>issued?context.router.go(N.coupons):context.router.popToRoot(),onSecondary:callSupport);
+ }
 }
 
 class NotificationBell extends StatelessWidget {
@@ -377,7 +396,7 @@ class _CancelSheetState extends State<CancelSheet> {
     try {
       final quote = await store.cancellationQuote(id);
       if (quote == null || quote['orderId'] != id || quote['currency'] != 'INR' || quote['confirmation'] is! String ||
-          ['cashRefundPaise', 'walletCreditPaise', 'feePaise', 'freeWashesRestored'].any((k) => quote[k] is! int || (quote[k] as int) < 0)) {
+          ['cashRefundPaise', 'walletCreditPaise', 'feePaise', 'freeWashesRestored',if(quote['kind']=='couponRequest')...['couponPaise','gatewayFeePaise']].any((k) => quote[k] is! int || (quote[k] as int) < 0)) {
         throw StateError('Cancellation terms could not be confirmed. Please retry.');
       }
       if (mounted && revision == _quoteRevision && _quoteOrderId == id) setState(() => _quote = quote);
@@ -393,6 +412,7 @@ class _CancelSheetState extends State<CancelSheet> {
     if (_checkingTerms) return 'Checking cancellation terms…';
     if (q == null) return 'Confirm the cancellation amounts before cancelling.';
     final cash = (q['cashRefundPaise'] as int) / 100, wallet = (q['walletCreditPaise'] as int) / 100, fee = (q['feePaise'] as int) / 100;
+    if(q['kind']=='couponRequest')return '${Fmt.rupees((q['couponPaise'] as num)/100)} is eligible for an admin-reviewed, single-use refund coupon. ${q['historicalEntitlement']==true?'Your earlier saved refund terms are preserved; no extra gateway fee is deducted.':'Gateway fee: ${Fmt.rupees((q['gatewayFeePaise'] as num)/100)}. Cancellation deduction: ${Fmt.rupees(fee)}.'} No WashKrew commission is charged for this cancelled wash. No bank refund. Unused coupon value is lost when redeemed.';
     if (q['freeWashesRestored'] > 0) return 'Your reserved free wash will be restored. No cash refund.';
     if (context.store.currentOrder?.liveCancelPolicy?['kind'] == 'walletByTime') {
       final full = q['phase'] == 'fullCredit';
@@ -435,7 +455,7 @@ class _CancelSheetState extends State<CancelSheet> {
         const SizedBox(height: 14),
         // Say exactly what they get back before they confirm.
         if (quoted)
-          WBanner(tone: _quote?['phase'] == 'noCredit' ? Tone.wait : Tone.ok, icon: WIcon.rupee, text: _quoteText)
+          WBanner(tone: ['noCredit','noCoupon'].contains(_quote?['phase']) ? Tone.wait : Tone.ok, icon: WIcon.rupee, text: _quoteText)
         else if (!wallet)
           WBanner(tone: Tone.ok, icon: WIcon.rupee, text: o.cancellationTerms)
         else if (early)

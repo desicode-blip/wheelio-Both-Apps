@@ -12,19 +12,21 @@ import 'common.dart';
 // MARK: C31 Report a problem
 
 class ReportProblemScreen extends StatefulWidget {
-  const ReportProblemScreen({super.key});
+  const ReportProblemScreen({super.key, this.orderId});
+  final String? orderId;
   @override
   State<ReportProblemScreen> createState() => _ReportProblemScreenState();
 }
 
 class _ReportProblemScreenState extends State<ReportProblemScreen> {
   ProblemKind kind = ProblemKind.notClean;
+  late final orderId = widget.orderId ?? context.store.currentOrderId;
   @override
   Widget build(BuildContext context) => StepTotal(
         total: 2,
         child: WScreen(
           header: const BookingHeader(step: 1, label: 'What happened', title: 'Report a problem', fraction: 0.5),
-          footer: WFooterBar(onCall: callSupport, child: WButton('Next', onTap: () => context.router.push(R(N.problemPhotos, kind: kind)))),
+          footer: WFooterBar(onCall: callSupport, child: WButton('Next', enabled: !context.store.isLive || orderId != null, onTap: () => context.router.push(R(N.problemPhotos, kind: kind, id: orderId)))),
           children: [
             const WTitleBlock('What went wrong?', subtitle: 'Payment stays on hold while we check.'),
             // We still compare the captain's before/after photos; we just can't promise an outcome.
@@ -45,8 +47,9 @@ class _ReportProblemScreenState extends State<ReportProblemScreen> {
 // MARK: C32 Show us the problem
 
 class ProblemPhotosScreen extends StatefulWidget {
-  const ProblemPhotosScreen({super.key, required this.kind});
+  const ProblemPhotosScreen({super.key, required this.kind, this.orderId});
   final ProblemKind kind;
+  final String? orderId;
   @override
   State<ProblemPhotosScreen> createState() => _ProblemPhotosScreenState();
 }
@@ -54,49 +57,54 @@ class ProblemPhotosScreen extends StatefulWidget {
 class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
   late String note = context.store.isLive ? '' : 'Water streaks on the bonnet and the left mirror wasn’t wiped.';
   late int photos = context.store.isLive ? 0 : 2;
-  bool sending = false;
-  // Photos the customer adds. Kept on the phone: uploading them is on the P0 backend list.
+  bool sending = false, picking = false;
+  late final orderId = widget.orderId ?? context.store.currentOrderId;
   final List<Uint8List> picked = [];
 
-  Future<void> _add() async {
+  Future<void> _add([int? replace]) async {
+    if (sending || picking || replace == null && photos >= 3) return;
     if (!context.store.isLive) {
       setState(() => photos++);
       return;
     }
-    try { final bytes = await Device.pickImage(camera: true);
-      if (bytes != null && mounted) setState(() { picked.add(bytes); photos = picked.length; });
+    setState(() => picking = true);
+    try { final bytes = await Device.chooseImage(context);
+      if (bytes != null && mounted) setState(() { if(replace != null) { picked[replace] = bytes; } else { picked.add(bytes); } photos = picked.length; });
     } catch (e) { if(mounted)context.store.set(()=>context.store.toast=e is MediaAccessException?e.message:backendError(e)); }
+    finally { if(mounted)setState(() => picking = false); }
   }
 
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    return StepTotal(
+    final needsPhoto = widget.kind == ProblemKind.notClean || widget.kind == ProblemKind.damage;
+    return PopScope(canPop: !sending, child: StepTotal(
       total: 2,
       child: WScreen(
         header: const BookingHeader(step: 2, label: 'Show us', title: 'Report a problem', fraction: 1),
         footer: WFooterBar(
           onCall: callSupport,
-          child: WButton('Send report', enabled: photos > 0, loading: sending, onTap: () async {
-            final id = store.currentOrderId;
+          child: WButton('Send report', enabled: !picking && (needsPhoto ? photos > 0 : photos > 0 || note.trim().length >= 5), loading: sending, onTap: () async {
+            if(sending || picking) return;
+            final id = orderId;
             if (id == null) return;
             setState(() => sending = true);
             try {
-              await store.reportProblem(id, widget.kind, note, picked);
+              await store.reportProblem(id, widget.kind, note.trim(), List.of(picked));
             } catch (e) { store.set(()=>store.toast=backendError(e)); if(mounted)setState(()=>sending=false); return; }
             if (!mounted) return;
-            router.replace(const [R(N.disputeStatus)]);
+            router.replace([R(N.disputeStatus, id: id)]);
           }),
         ),
         children: [
-          const WTitleBlock('Show us the problem', subtitle: 'Take photos from the same angles as the captain’s. We compare all three.'),
+          WTitleBlock('Show us the problem', subtitle: needsPhoto ? 'Add up to three clear photos. Our team reviews them with the captain’s before and after photos.' : 'Describe what happened. Add a photo if you have one.'),
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             for (var i = 0; i < 3; i++) ...[
               if (i > 0) const SizedBox(width: 10),
               Expanded(
                 child: i < photos
-                    ? WPhotoSlot(label: i == 0 ? 'Front' : 'Close-up', state: PhotoState.done, height: 94, icon: i == 0 ? WIcon.car : WIcon.zoom, image: i < picked.length ? picked[i] : null)
-                    : WPhotoSlot(label: 'Add', height: 94, onTap: _add),
+                    ? WPhotoSlot(label: i == 0 ? 'Front' : 'Close-up', state: PhotoState.done, height: 94, icon: i == 0 ? WIcon.car : WIcon.zoom, image: i < picked.length ? picked[i] : null, onTap: sending || picking ? null : () => _add(i))
+                    : WPhotoSlot(label: 'Add', height: 94, onTap: sending || picking ? null : _add),
               ),
             ],
           ]),
@@ -104,7 +112,7 @@ class _ProblemPhotosScreenState extends State<ProblemPhotosScreen> {
           WTextArea(value: note, placeholder: 'Tell us what you see', height: 96, onChanged: (v) => note = v),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -118,6 +126,7 @@ class DisputeStatusScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     final o = store.currentOrder;
     final d = o?.dispute;
+    if(store.isLive && d==null)return WScreen(header:const PlainHeader(),children:[WFullState(icon:WIcon.info,title:'Report unavailable',message:'Open this wash from Bookings to view its latest report.',primary:'Go home',onPrimary:router.popToRoot)]);
     Widget header(String title) => Padding(padding: const EdgeInsets.only(top: 4), child: WAppBar(title: title, onLeading: router.popToRoot, onTrailing: () => router.go(N.help)));
     switch (d?.outcome ?? DisputeOutcome.underReview) {
       case DisputeOutcome.upheld:
@@ -125,7 +134,8 @@ class DisputeStatusScreen extends StatelessWidget {
           header: header('Report #${d?.ref ?? 'WH-20914'}'),
           footer: WFooterBar(
             onCall: callSupport,
-            child: WButton(store.isLive && (d?.creditsAwarded ?? 0) == 0 ? 'Book again' : 'Book free wash', onTap: () {
+            child: WButton(o?.hasRefundRequest==true?(o?.refundRequestStatus=='issued'?'View coupons':'Go home'):store.isLive && (d?.creditsAwarded ?? 0) == 0 ? 'Book again' : 'Book free wash', onTap: () {
+              if(o?.hasRefundRequest==true){if(o!.refundRequestStatus=='issued'){router.go(N.coupons);}else{router.popToRoot();}return;}
               if (o != null) {
                 store.startRepeat(o.vehicle);
                 store.set(() => store.draft.useFreeWash = !store.isLive || (d?.creditsAwarded ?? 0) > 0);
@@ -144,8 +154,9 @@ class DisputeStatusScreen extends StatelessWidget {
               const SizedBox(height: 24),
             ]),
             WKeyValueCard(rows: [
-              (o?.returnsWalletCredit == true ? 'Wallet credit' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Free wash' : 'Refund', o?.returnsWalletCredit == true ? '${Fmt.rupees(o!.returnedWalletCredit)} available for a future booking' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Your reserved free wash has been restored' : '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
-              ('Bonus', '${d?.creditsAwarded ?? (store.isLive?0:2)} free washes added'),
+              if(o?.hasRefundRequest==true)('Refund coupon',o!.refundCouponSummary)
+              else (o?.returnsWalletCredit == true ? 'Wallet credit' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Free wash' : 'Refund', o?.returnsWalletCredit == true ? '${Fmt.rupees(o!.returnedWalletCredit)} available for a future booking' : o?.usedFreeWash == true && o?.walletReleased == true ? 'Your reserved free wash has been restored' : '${Fmt.rupees(o?.refund?.amount ?? o?.price ?? (store.isLive?0:149))} to ${store.isLive?'your original payment method':'your UPI'}'),
+              if(!store.isLive || (d?.creditsAwarded ?? 0)>0)('Bonus', '${d?.creditsAwarded ?? 2} free washes added'),
             ]),
           ],
         );
@@ -154,18 +165,18 @@ class DisputeStatusScreen extends StatelessWidget {
           header: header('Report #${d?.ref ?? 'WH-20914'}'),
           footer: WStackedFooter(children: [WButton('Okay', onTap: router.popToRoot), WButton('Talk to a person', kind: ButtonKind.text, onTap: callSupport)]),
           children: [
-            const WTitleBlock('The wash looks complete', subtitle: 'We compared your photos with the captain’s. The marks were there before the wash.', top: 14),
+            WTitleBlock('The wash looks complete', subtitle: store.isLive ? 'Our team reviewed your report and the available evidence. See the decision below.' : 'We compared your photos with the captain’s. The marks were there before the wash.', top: 14),
             Row(children: [
               Expanded(child: DesignPhoto(path: o?.evidence('before', 0), height: 90, icon: WIcon.car, tag: 'Before')),
               const SizedBox(width: 8),
               Expanded(child: DesignPhoto(path: o?.evidence('after', 0), height: 90, icon: WIcon.sparkle, tag: 'After', tagTone: Tone.ok)),
               const SizedBox(width: 8),
-              const Expanded(child: WPhotoPlaceholder(height: 90, icon: WIcon.image, caption: 'Yours')),
+              Expanded(child: DesignPhoto(path: d?.photos.firstOrNull, height: 90, icon: WIcon.image, tag: 'Yours')),
             ]),
             const SizedBox(height: 16),
             WBanner(tone: Tone.info, icon: WIcon.info, text: d?.decisionNote ?? ''),
             const SizedBox(height: 16),
-            WText('${Fmt.rupees(o?.price ?? 149)} has been released to the captain.', WType.caption),
+            WText(store.isLive ? 'The wash payment has been approved following human review.' : '${Fmt.rupees(o?.price ?? 149)} has been released to the captain.', WType.caption),
           ],
         );
       case DisputeOutcome.damagePriority:
@@ -175,15 +186,15 @@ class DisputeStatusScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 14),
             Row(children: [const WBadge('Priority', tone: Tone.wait, icon: WIcon.eye), const SizedBox(width: 12), WText('Ref #${d?.ref ?? 'WH-20915'}', WType.caption)]),
-            const WTitleBlock('We’ll call you within 1 hour', subtitle: 'A real person from our team will go through this with you.', top: 16),
+            WTitleBlock(store.isLive ? 'Your damage report is prioritised' : 'We’ll call you within 1 hour', subtitle: 'A real person from our team will go through this with you.', top: 16),
             WCard(
               outlined: true,
               child: Column(children: [
-                WListRow(icon: WIcon.shield, title: '${o?.captain?.name ?? 'Raju'} is paused from new jobs', chevron: false),
+                WListRow(icon: WIcon.shield, title: store.isLive ? 'This wash payment is on hold for review' : '${o?.captain?.name ?? 'Raju'} is paused from new jobs', chevron: false),
                 const WDivider(),
-                const WListRow(icon: WIcon.doc, title: 'Evidence pack ready', subtitle: 'Time-stamped photos, location and call log', chevron: false),
+                const WListRow(icon: WIcon.doc, title: 'Evidence pack ready', subtitle: 'Available wash photos and booking details', chevron: false),
                 const WDivider(),
-                const WListRow(icon: WIcon.rupee, title: 'We help with the claim', subtitle: 'Small damage paid from our protection fund', chevron: false),
+                const WListRow(icon: WIcon.rupee, title: 'We help with the claim', subtitle: 'Our team reviews the evidence and explains the decision', chevron: false),
               ]),
             ),
           ],
@@ -195,11 +206,11 @@ class DisputeStatusScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 14),
             Row(children: [const WBadge('Under review', tone: Tone.wait, icon: WIcon.eye), const SizedBox(width: 12), WText('Ref #${d?.ref ?? 'WH-20914'}', WType.caption)]),
-            WTitleBlock('We’re checking the photos', subtitle: '${Fmt.rupees(o?.price ?? 149)} stays on hold. You’ll hear from us within 24 hours.', top: 16),
+            WTitleBlock('We’re checking the photos', subtitle: store.isLive ? 'Your report has reached our team. Any unpaid wash earnings stay on hold during review.' : '${Fmt.rupees(o?.price ?? 149)} stays on hold. You’ll hear from us within 24 hours.', top: 16),
             WStatusSteps(spacing: 22, current: 1, steps: [
               ('Report received', Fmt.time(d?.createdAt ?? DateTime.now())),
-              ('Comparing photos', 'Your photos vs the captain’s before and after'),
-              ('Decision', 'By 9:00 AM tomorrow'),
+              (store.isLive ? 'Human review' : 'Comparing photos', 'Your photos vs the captain’s before and after'),
+              ('Decision', store.isLive ? 'Your result appears here after review' : 'By 9:00 AM tomorrow'),
             ]),
           ],
         );
@@ -215,6 +226,7 @@ class RefundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
     final o = store.currentOrder;
+    if(o?.hasRefundRequest==true)return WScreen(scrolls:false,header:const PlainHeader(),children:[Expanded(child:RefundCouponState(order:o!))]);
     final r = o?.refund;
     final started = r?.startedAt ?? DateTime.now();
     final status=refundStatusText(o?.refundStatus,null);

@@ -22,11 +22,11 @@ Availability depends on captains covering your area at the time you choose. A bo
 - Your booking is confirmed when your payment succeeds and the app shows it as booked.
 - If we cannot find a captain for your booking, we cancel it and return the full amount as described in section 5.
 
-## 4. Payments and wallet credit
+## 4. Payments and refund coupons
 
 - Payments are processed by Razorpay using the methods shown at checkout. Direct credit card payments, EMI and pay later are not offered.
-- WashKrew wallet credit can only be used for WashKrew bookings. It cannot be transferred, withdrawn as cash or used anywhere else, and it does not earn interest.
-- Wallet credit expires one year after it is added to your wallet. Credit that has not been used by then is removed and cannot be restored.
+- Refund coupons are private to the Customer account that receives them. Each coupon can be used on one WashKrew booking. Pay any difference through Razorpay. If the wash costs less than the coupon, the app shows how much unused value will be lost and asks you to confirm.
+- New refund coupons expire one year after they are issued. Existing prepaid credits convert to coupons at their remaining value and keep their existing expiry dates.
 - Free washes and offers have the conditions shown with them in the app. They cannot be exchanged for money.
 
 ## 5. Cancellation and refunds
@@ -35,22 +35,22 @@ Availability depends on captains covering your area at the time you choose. A bo
 
 | When you cancel | What you get back |
 | --- | --- |
-| Within 5 minutes of your booking being confirmed | 98% of what you paid, as wallet credit. The other 2% is the cancellation fee. This applies even if the wash is less than 2 hours away. |
-| After 5 minutes, and at least 2 hours before your wash window starts | 50% of what you paid, as wallet credit. The other 50% is the cancellation fee. |
-| After 5 minutes, and less than 2 hours before your wash window starts | Nothing is returned. The full amount is the cancellation fee. |
+| Within 5 minutes of your booking being confirmed | A coupon for the paid booking value minus the actual Razorpay fee. This applies even if the wash is less than 2 hours away. |
+| After 5 minutes, and at least 2 hours before your wash window starts | A coupon for 50% of the paid booking value minus the actual Razorpay fee, with a minimum of zero. |
+| After 5 minutes, and less than 2 hours before your wash window starts | No coupon is due. |
 | After the captain has started washing | You can no longer cancel. |
 
-"What you paid" includes both the money you paid and any wallet credit you used. The 5 minutes are counted from the time the app confirms your booking, and the 2 hours from the start of your wash window. The app shows what you will get back before you confirm a cancellation.
+The paid booking value includes the cash payment and the coupon value applied to the wash. It excludes any unused value forfeited on redemption. The 5 minutes are counted from the time the app confirms your booking, and the 2 hours from the start of your wash window. The app shows the eligible coupon amount before you confirm a cancellation. Our team reviews the request and issues the coupon in the app.
 
 **If we cannot complete your wash**
 
-If we cancel, no captain is available, or the captain does not arrive, you get 100% of what you paid back as wallet credit, with no fee.
+If we cancel, no captain is available, or the captain does not arrive, our team reviews a refund request for the paid booking value minus the actual Razorpay fee.
 
 **If you are not happy with the wash**
 
-See section 6. If our team agrees there was a problem with the wash, you get 100% of what you paid back as wallet credit.
+See section 6. If our team agrees there was a problem with the wash, our team reviews a refund request for the paid booking value minus the actual Razorpay fee.
 
-**Older bookings** keep the cancellation and refund terms saved with them when they were booked, including any refund to the original payment method.
+**Older bookings** keep the cancellation and refund terms saved with them when they were booked, including any refund to the original payment method. A saved credit entitlement can be fulfilled as a coupon for that amount.
 
 ## 6. Wash quality, damage and complaints
 
@@ -84,7 +84,7 @@ You keep ownership of the photos, videos and notes you add. You allow us to use 
 
 ## 11. Closing or suspending accounts
 
-- You can delete your account at any time in the app, or request it at [washkrew.com/delete-account](/delete-account). Open jobs, pending payments and wallet issues need to be settled first, and we will help you with this.
+- You can delete your account at any time in the app, or request it at [washkrew.com/delete-account](/delete-account). Open jobs, pending payments, refund requests and unused coupons need to be settled first, and we will help you with this.
 - We may suspend or close an account that breaks these terms, puts others at risk, or where the law requires it. Where we can, we will tell you first and explain why.
 
 ## 12. Our responsibility

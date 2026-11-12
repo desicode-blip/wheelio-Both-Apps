@@ -490,7 +490,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.store;
-    final login = widget.login;
+    final login = store.isLive ? !widget.verified : widget.login;
     final valid = Validators.isValidMobile(number) && (login || Validators.isValidName(name));
     return OnAppear(
       onAppear: () {
@@ -503,7 +503,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       },
       child: WScreen(
         gutter: WSpace.gutterCaptain,
-        header: WHeader(title: login ? store.t('Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
+        header: WHeader(title: login ? store.t(store.isLive?'Log in or sign up':'Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
         footer: WFooter(
           child: WButton(
             widget.verified ? store.t('Continue','आगे बढ़ें','కొనసాగించు') : store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
@@ -521,7 +521,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 }
               }
               store.set(() {
-                if (!login) store.name = name.trim();
+                if (!login && !store.isLive) store.name = name.trim();
                 store.phone = Validators.digitsOnly(number);
               });
               if (store.isLive) {
@@ -544,7 +544,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
         children: [
-          WTitle(login ? store.t('Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
+          WTitle(login ? store.t(store.isLive?'What’s your number?':'Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
           WBody(
             login
                 ? store.t('Enter your number. We send a code by SMS.', 'अपना नंबर डालें। हम SMS से कोड भेजेंगे।', 'మీ నంబర్ ఇవ్వండి. SMS ద్వారా కోడ్ పంపుతాము.')

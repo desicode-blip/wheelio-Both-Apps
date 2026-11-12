@@ -85,3 +85,22 @@ test('private evidence accepts only fixed KYC kinds for approved reviewers',asyn
  await assert.rejects(service.captainReviewEvidence(reviewer(),{captainId:'applicant',kind:'../../secret'}),{code:'invalid-argument'});
  metadata=null;await assert.rejects(service.captainReviewEvidence(reviewer(),{captainId:'applicant',kind:'selfie'}),{code:'not-found'});
 });
+
+test('wash report portal requires approved fresh reviewers, pinned versions and explicit evidence review',async()=>{
+ await db.doc('orders/report').set({customerId:'owner',captainId:'applicant',ref:'WH-REPORT',status:'disputed',paymentStatus:'captured',paymentMode:'test',pricePaise:10000,basePricePaise:10000,creditUsedPaise:0,captainPayPaise:9764,cancellationPolicy:{kind:'walletByTime',creditMinutes:5,cutoffMinutes:120,lateCreditBps:5000,earlyCreditBps:9800},dispute:{kind:'notClean',note:'Rear window not cleaned',outcome:'underReview',photos:['orders/report/problems/owner_0.jpg'],createdAt:Timestamp.fromMillis(clock)}});
+ await db.doc('earnings/report').set({captainId:'applicant',orderId:'report',paymentMode:'test',amount:9764,status:'onHold'});
+ await assert.rejects(service.listWashReports({uid:'phone',token:{phone_number:'+919000000001'}},{}),{code:'permission-denied'});
+ const item=(await service.listWashReports(reviewer(),{})).reports[0];assert.equal(item.id,'report');assert.deepEqual(item.media,['problem/1.jpg']);
+ const photo=await service.washReportEvidence(reviewer(),{orderId:'report',name:'problem/1.jpg'});assert.equal(photo.path,'orders/report/problems/owner_0.jpg');
+ await assert.rejects(service.washReportEvidence(reviewer(),{orderId:'report',name:'../../kyc/aadhaar.jpg'}),{code:'not-found'});
+ const decision={orderId:'report',expectedVersion:item.version,outcome:'upheld',note:'Clear remaining dirt visible in the submitted photos.',evidenceReviewed:true};
+ await assert.rejects(service.reviewWashReport(reviewer(),{...decision,evidenceReviewed:false}),{code:'failed-precondition'});
+ await assert.rejects(service.reviewWashReport({...reviewer(),uid:'owner'},decision),{code:'permission-denied'});
+ await db.doc('orders/report').update({'dispute.captainResponse':{path:'orders/report/dispute_response/applicant.m4a',seconds:8}});
+ await assert.rejects(service.reviewWashReport(reviewer(),decision),{code:'aborted'});
+ decision.expectedVersion=(await service.listWashReports(reviewer(),{})).reports[0].version;
+ await service.reviewWashReport(reviewer(),decision);await service.reviewWashReport(reviewer(),decision);
+ assert.equal((await db.doc('orders/report').get()).data().status,'disputeUpheld');assert.equal((await db.doc('wallets/owner_test').get()).data().creditPaise,10000);
+ assert.equal((await db.doc('earnings/report').get()).data().status,'voided');assert.equal((await db.collection('orders/report/reviews').get()).size,1);
+ assert.equal((await service.listWashReports(reviewer(),{})).reports.length,0);
+});

@@ -60,6 +60,8 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
     Widget body;
     if (o == null) {
       body = WScreen(scrolls: false, header: const PlainHeader(), children: [Expanded(child: WFullState(icon: WIcon.calendar, title: 'No active booking', primary: 'Go home', onPrimary: router.popToRoot))]);
+    } else if(o.hasRefundRequest&&[OrderStatus.cancelled,OrderStatus.noCaptain,OrderStatus.captainNoShow,OrderStatus.disputeUpheld].contains(o.status)){
+      body=_state(RefundCouponState(order:o));
     } else {
       body = switch (o.status) {
         OrderStatus.searching when o.slotAhead => _booked(o),
@@ -72,6 +74,16 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.onTheWay => o.captainCantFind ? _cantFind(o) : _onTheWay(o),
         OrderStatus.washing => _washing(o),
         OrderStatus.photosReady => CheckWashView(order: o),
+        OrderStatus.cancelled when store.isLive && o.paymentStatus!='captured' && o.refund==null && o.refundStatus=='none' => _state(WFullState(
+            icon: WIcon.check,
+            tone: Tone.wait,
+            title: 'Booking cancelled',
+            message: o.couponReleased ? 'No payment was confirmed. Your coupon is available until its original expiry.' : o.cancellationSummary ?? 'No payment was confirmed for this booking.',
+            primary: 'Book another time',
+            secondary: 'Go home',
+            onPrimary: () => _again(o),
+            onSecondary: router.popToRoot,
+          )),
         OrderStatus.cancelled when o.creditGiven > 0 || (o.cancellationSummary != null && o.refund == null) => _state(WFullState(
             icon: WIcon.rupee,
             tone: o.cancellationOutcome?['phase'] == 'noCredit' ? Tone.wait : Tone.ok,
@@ -98,7 +110,7 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
                 tone: Tone.ok,
                 title: 'Booking cancelled',
                 message: store.isLive
-                    ? '${o.cancellationSummary ?? (o.cancellationReason == 'paymentMethodNotAllowed' ? 'Use UPI, a debit card, netbanking or a supported wallet. Credit-card checkout is not accepted. ' : '')} ${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}'
+                    ? '${o.cancellationSummary ?? (o.cancellationReason == 'paymentMethodNotAllowed' ? 'Use UPI, a debit card, netbanking or a supported wallet. Credit-card checkout is not accepted. ' : '')} ${Fmt.rupees(o.refund?.amount ?? o.price)} · ${refundStatusText(o.refundStatus,null).detail}${o.couponReleased ? ' Your coupon was released.' : ''}'
                     : '${Fmt.rupees(o.refund?.amount ?? o.price)} is on its way back to your UPI. It usually takes 2 to 3 working days.',
                 primary: 'Book another time',
                 secondary: 'Track refund',
@@ -108,13 +120,13 @@ class _LiveOrderScreenState extends State<LiveOrderScreen> {
         OrderStatus.autoApproved => _state(WFullState(
             icon: WIcon.clock,
             title: 'Approved automatically',
-            message: 'We didn’t hear from you by midnight, so the wash was approved and ${Fmt.rupees(o.price)} went to ${o.captain?.name ?? 'Raju'}. Something wrong? You can still report it until midnight tomorrow.',
+            message: 'We didn’t hear from you by midnight, so the wash was approved and ${Fmt.rupees(o.value)} went to ${o.captain?.name ?? 'Raju'}. Something wrong? You can still report it until midnight tomorrow.',
             primary: 'Rate ${o.captain?.name ?? 'Raju'}',
             secondary: 'Report a problem',
             onPrimary: () => router.go(N.rate),
-            onSecondary: () => router.go(N.reportProblem),
+            onSecondary: () => router.push(R(N.reportProblem, id: o.id)),
           )),
-        OrderStatus.approved => _state(WFullState(icon: WIcon.sparkle, tone: Tone.ok, title: 'Wash approved', message: store.isLive ? 'Your ${Fmt.rupees(o.price)} wash payment is approved.' : '${Fmt.rupees(o.price)} released to ${o.captain?.name ?? 'Raju'}.', primary: 'Go home', onPrimary: router.popToRoot)),
+        OrderStatus.approved => _state(WFullState(icon: WIcon.sparkle, tone: Tone.ok, title: 'Wash approved', message: store.isLive ? 'Your ${Fmt.rupees(o.value)} wash payment is approved.' : '${Fmt.rupees(o.value)} released to ${o.captain?.name ?? 'Raju'}.', primary: 'Go home', onPrimary: router.popToRoot)),
         _ => const DisputeStatusScreen(),
       };
     }
@@ -409,7 +421,7 @@ class _CheckWashViewState extends State<CheckWashView> {
           router.replace(const [R(N.rate)]);
         }),
         const Padding(padding: EdgeInsets.only(top: 6), child: WText('Auto-approves at 12 midnight if you don’t respond', WType.small, color: WColor.muted)),
-        WButton('Something’s wrong', kind: ButtonKind.text, onTap: () => router.go(N.reportProblem)),
+        WButton('Something’s wrong', kind: ButtonKind.text, onTap: () => router.push(R(N.reportProblem, id: o.id))),
       ]),
       children: [
         Padding(
@@ -417,7 +429,7 @@ class _CheckWashViewState extends State<CheckWashView> {
           child: Row(children: [
             const WIconBox(WIcon.sparkle, size: 48, tone: Tone.ok, radius: 24),
             const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const WText('Shine restored', WType.section, weight: semibold), WText(store.isLive ? 'Approve your ${Fmt.rupees(o.price)} wash payment' : 'Approve to release ${Fmt.rupees(o.price)} to $name', WType.caption)])),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const WText('Shine restored', WType.section, weight: semibold), WText(store.isLive ? 'Approve your ${Fmt.rupees(o.value)} wash payment' : 'Approve to release ${Fmt.rupees(o.value)} to $name', WType.caption)])),
           ]),
         ),
         _pair('Front', 0),
@@ -471,7 +483,7 @@ class _PhotoCompareScreenState extends State<PhotoCompareScreen> {
                 label: 'Report a problem',
                 onTap: () {
                   router.pop();
-                  router.go(N.reportProblem);
+                  router.push(R(N.reportProblem, id: o?.id));
                 },
                 child: const SizedBox(width: 48, height: 48, child: Center(child: WIconView(WIcon.flag, size: 18, color: WColor.white))),
               ),
@@ -567,7 +579,7 @@ class _RateScreenState extends State<RateScreen> {
           const SizedBox(height: 18),
           WText('How did $name do?', WType.screen),
           const SizedBox(height: 8),
-          WText(store.isLive ? 'Your ${Fmt.rupees(o?.price ?? 0)} wash payment is approved. Thank you.' : '${Fmt.rupees(o?.price ?? 149)} released to $name. Thanks for approving.', WType.body, align: TextAlign.center),
+          WText(store.isLive ? 'Your ${Fmt.rupees(o?.value ?? 0)} wash payment is approved. Thank you.' : '${Fmt.rupees(o?.price ?? 149)} released to $name. Thanks for approving.', WType.body, align: TextAlign.center),
           const SizedBox(height: 26),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             for (var i = 1; i <= 5; i++) ...[

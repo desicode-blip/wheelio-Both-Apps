@@ -79,11 +79,11 @@ class _MoneyTabState extends State<MoneyTab> {
             child: Column(children: [
               for (final (i, e) in store.heldEarnings.indexed) ...[
                 if (i > 0) const WDivider(inset: 54),
-                WListRow(icon: WIcon.lock, tone: Tone.wait, title: '${store.t('On hold', 'रोका गया', 'నిలిపివేయబడింది')} · ${Fmt.rupees((e['amount'] as num? ?? 0).toInt() ~/ 100)}', subtitle: store.t('Owner reported a problem', 'मालिक ने शिकायत की', 'యజమాని సమస్య చెప్పారు'), onTap: () {store.selectedHeldOrderId=e['orderId'];router.go(N.payoutHeld);} ),
+                WListRow(icon: WIcon.lock, tone: Tone.wait, title: '${store.t('On hold', 'रोका गया', 'నిలిపివేయబడింది')} · ${Fmt.rupees((e['amount'] as num? ?? 0) / 100)}', subtitle: store.t('Owner reported a problem', 'मालिक ने शिकायत की', 'యజమాని సమస్య చెప్పారు'), onTap: () {store.selectedHeldOrderId=e['orderId'];router.go(N.payoutHeld);} ),
               ],
             ]),
           ),
-        if(store.isLive&&store.payouts.isNotEmpty)WCard(padding:14,child:Column(children:[for(final (i,p) in store.payouts.indexed)...[if(i>0)const WDivider(inset:54),WListRow(icon:WIcon.receipt,title:'${Fmt.date(p['paidAt'].toDate())} · ${Fmt.rupees((p['amount'] as num).toInt()~/100)}',subtitle:'$paid ${Fmt.time(p['paidAt'].toDate())} · ${p['destination']}',onTap:(){store.selectedPayoutId=p['id'];router.go(N.payoutDetail);})]])),
+        if(store.isLive&&store.payouts.isNotEmpty)WCard(padding:14,child:Column(children:[for(final (i,p) in store.payouts.indexed)...[if(i>0)const WDivider(inset:54),WListRow(icon:WIcon.receipt,title:'${Fmt.date(p['paidAt'].toDate())} · ${Fmt.rupees((p['amount'] as num) / 100)}',subtitle:'$paid ${Fmt.time(p['paidAt'].toDate())} · ${p['destination']}',onTap:(){store.selectedPayoutId=p['id'];router.go(N.payoutDetail);})]])),
         if (!store.isLive) WCard(
           padding: 14,
           child: Column(children: [
@@ -125,7 +125,7 @@ class PayoutDetailScreen extends StatelessWidget {
         const SizedBox(height: 14),
         WText('${store.t('Sent to', 'भेजा गया', 'పంపబడింది')} ${store.isLive?payout!['destination']:store.upi}', WType.caption),
         const SizedBox(height: 4),
-        WText(store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100):'₹1,262', WType.bigMoney, mono: true),
+        WText(store.isLive?Fmt.rupees((payout!['amount'] as num) / 100):'₹1,262', WType.bigMoney, mono: true),
         Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 18),
           child: Container(
@@ -136,9 +136,9 @@ class PayoutDetailScreen extends StatelessWidget {
           ),
         ),
         WKeyValueCard(rows: [
-          (store.isLive?'${(payout!['earningIds'] as List).length} ${store.t('jobs','काम','పనులు')}':store.t('9 jobs', '9 काम', '9 పనులు'), store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100):'₹1,290'),
+          (store.isLive?'${(payout!['earningIds'] as List).length} ${store.t('jobs','काम','పనులు')}':store.t('9 jobs', '9 काम', '9 పనులు'), store.isLive?Fmt.rupees((payout!['amount'] as num) / 100):'₹1,290'),
           (store.isLive?store.t('Late (0 jobs)','देरी (0 काम)','ఆలస్యం (0 పనులు)'):store.t('Late (2 jobs)', 'देरी (2 काम)', 'ఆలస్యం (2 పనులు)'), store.isLive?'₹0':'−₹28'),
-          (store.t('Total', 'कुल', 'మొత్తం'),store.isLive?Fmt.rupees((payout!['amount'] as num).toInt()~/100): '₹1,262'),
+          (store.t('Total', 'कुल', 'మొత్తం'),store.isLive?Fmt.rupees((payout!['amount'] as num) / 100): '₹1,262'),
         ], boldLast: true),
         const SizedBox(height: 18),
         WText(store.isLive?'${payout!['reference']}':'UPI ref 4410 2219 8830', WType.caption),
@@ -156,7 +156,7 @@ class PayoutHeldScreen extends StatelessWidget {
     final store = context.store;
     final order=store.selectedHeldOrder;
     if(store.isLive&&order==null)return const MoneyTab();
-    final amount=store.isLive?Fmt.rupees((order!['captainPayPaise'] as num? ?? 0).toInt()~/100):'₹116';
+    final amount=store.isLive?Fmt.rupees((order!['captainPayPaise'] as num? ?? 0) / 100):'₹116';
     final reason=(order?['dispute'] as Map?)?['note'] as String? ?? '';
     return WScreen(
       gutter: WSpace.gutterCaptain,

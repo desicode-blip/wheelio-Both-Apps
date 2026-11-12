@@ -213,7 +213,7 @@ class _HomeTabState extends State<HomeTab> {
       children: [
         Padding(
           padding: const EdgeInsets.only(top: 14),
-          child: Row(children: [const BrandMark(), const Spacer(), if(store.isLive)...[const WalletButton(),const SizedBox(width:4)],const NotificationBell()]),
+          child: Row(children: [const BrandMark(), const Spacer(), if(store.isLive)...[const CouponsButton(),const SizedBox(width:4)],const NotificationBell()]),
         ),
         if (loading)
           _skeleton()
@@ -319,7 +319,7 @@ class _HomeTabState extends State<HomeTab> {
                             children: [
                               WText('${a.slot.dayLabel} · ${a.slot.label}', WType.label, color: WColor.heading),
                               const Spacer(),
-                              StatusBadge(a.status, slotAhead: a.slotAhead, walletCredit: a.returnsWalletCredit),
+                              StatusBadge(a.status, slotAhead: a.slotAhead, walletCredit: a.returnsWalletCredit, refundRequestStatus: a.refundRequestStatus),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -418,12 +418,20 @@ class _BookingsTabState extends State<BookingsTab> {
 
   String _subtitle(Order o) {
     final t = o.vehicle.type.shortName;
+    if (o.hasRefundRequest) {
+      return switch (o.refundRequestStatus) {
+        'issued' => '$t · Refund coupon issued',
+        'ineligible' => '$t · No refund coupon due',
+        'declined' => '$t · Refund request declined',
+        _ => '$t · Refund request under review',
+      };
+    }
     return switch (o.status) {
       OrderStatus.pendingPayment || OrderStatus.paymentPending => '$t · payment not confirmed',
       OrderStatus.cancelled => '$t · cancelled',
-      OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => o.returnsWalletCredit ? '$t · ${Fmt.rupees(o.returnedWalletCredit)} wallet credit' : '$t · ${Fmt.rupees(o.price)} refunded',
-      OrderStatus.approved || OrderStatus.autoApproved || OrderStatus.disputeRejected => '$t · ${Fmt.rupees(o.price)} paid',
-      _ => '$t · ${Fmt.rupees(o.price)} held',
+      OrderStatus.noCaptain || OrderStatus.disputeUpheld || OrderStatus.captainNoShow => o.returnsWalletCredit ? '$t · ${Fmt.rupees(o.returnedWalletCredit)} wallet credit' : '$t · ${Fmt.rupees(o.value)} refunded',
+      OrderStatus.approved || OrderStatus.autoApproved || OrderStatus.disputeRejected => '$t · ${Fmt.rupees(o.value)} paid',
+      _ => '$t · ${Fmt.rupees(o.value)} held',
     };
   }
 
@@ -502,7 +510,7 @@ class _BookingsTabState extends State<BookingsTab> {
                                     color: WColor.heading,
                                   ),
                                   const Spacer(),
-                                  StatusBadge(o.status, slotAhead: o.slotAhead, walletCredit: o.returnsWalletCredit),
+                                  StatusBadge(o.status, slotAhead: o.slotAhead, walletCredit: o.returnsWalletCredit, refundRequestStatus: o.refundRequestStatus),
                                 ],
                               ),
                               const SizedBox(height: 12),
@@ -564,8 +572,8 @@ class BookingDetailScreen extends StatelessWidget {
         const SizedBox(height: 14),
         Row(
           children: [
-            StatusBadge(o.status, walletCredit: o.returnsWalletCredit),
-            if (o.status == OrderStatus.approved) ...[const SizedBox(width: 8), WBadge('${Fmt.rupees(o.price)} paid', tone: Tone.ok, icon: WIcon.check)],
+            StatusBadge(o.status, walletCredit: o.returnsWalletCredit, refundRequestStatus: o.refundRequestStatus),
+            if (o.status == OrderStatus.approved) ...[const SizedBox(width: 8), WBadge('${Fmt.rupees(o.value)} paid', tone: Tone.ok, icon: WIcon.check)],
           ],
         ),
         if (o.status != OrderStatus.cancelled) ...[
@@ -593,13 +601,14 @@ class BookingDetailScreen extends StatelessWidget {
             ('Vehicle', o.vehicle.plate),
             ('Captain', o.captain == null ? '—' : '${o.captain!.name}${o.rating != null ? ' · you rated ${o.rating}' : ''}'),
             ('Time', '${Fmt.time(o.startedAt ?? o.slot.start)} – ${Fmt.time(o.finishedAt ?? o.slot.start)}'),
-            (o.returnsWalletCredit ? 'Wallet credit' : o.refund != null ? 'Refunded' : 'Paid', o.returnsWalletCredit ? '${Fmt.rupees(o.returnedWalletCredit)} for a future booking' : '${Fmt.rupees(o.price)} · ${o.paidWith?.title ?? 'UPI'}'),
+            if (o.hasRefundRequest) ('Refund coupon', Fmt.rupees(o.refundCouponAmount))
+            else (o.returnsWalletCredit ? 'Wallet credit' : o.refund != null ? 'Refunded' : 'Paid', o.returnsWalletCredit ? '${Fmt.rupees(o.returnedWalletCredit)} for a future booking' : '${Fmt.rupees(o.value)} · ${o.paidWith?.title ?? 'UPI'}'),
           ],
         ),
         const SizedBox(height: 16),
         WListRow(icon: WIcon.receipt, title: 'Download receipt', onTap:()=>store.downloadBookingDocument(o.id,'receipt')),
         const WDivider(),
-        if (o.refund != null)
+        if (o.refund != null || o.hasRefundRequest)
           WListRow(icon: WIcon.rupee, title: 'Track refund', onTap: () => router.go(N.refund))
         else
           WListRow(
@@ -1262,7 +1271,7 @@ class _ProfileTabState extends State<ProfileTab> {
                             WText(
                               store.isLive
                                   ? finalDeletion
-                                      ? 'Your Customer profile, vehicles, saved places and wallet credits will be removed. This cannot be undone. Payment records are kept separately. Your Captain account stays.'
+                                      ? 'Your Customer profile, vehicles, saved places will be removed. Remaining coupons and pending refunds must be resolved first. This cannot be undone. Payment records are kept separately. Your Captain account stays.'
                                       : 'Are you sure you want to delete your Customer account? Open washes and pending payments must be resolved first.'
                                   : deleteBlocked
                                   ? 'You can’t do this while a wash is in progress. Try again after it’s approved.'

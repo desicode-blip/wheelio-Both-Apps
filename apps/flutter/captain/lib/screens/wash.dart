@@ -410,6 +410,7 @@ class _JobCameraScreenState extends State<JobCameraScreen> with WidgetsBindingOb
                   // Dotted guide matches the side: front and back views, or the side profile.
                   Center(child: CustomPaint(size: sideView ? const Size(270, 100) : const Size(240, 180), painter: CarShapePainter(side, dashed: true))),
                   Positioned(top: 12, left: 12, child: WBadge(store.t('At the vehicle', 'गाड़ी के पास', 'వాహనం దగ్గర'), tone: Tone.ok, icon: WIcon.location)),
+                  Positioned(bottom:16,left:12,right:12,child:IgnorePointer(child:WText('${after?store.t('After wash','धुलाई के बाद','వాష్ తర్వాత'):store.t('Before wash','धुलाई से पहले','వాష్ ముందు')} · ${sideName(store,side)} · ${side+1}/4',WType.title,color:WColor.white,align:TextAlign.center))),
                 ]),
               ),
             ),

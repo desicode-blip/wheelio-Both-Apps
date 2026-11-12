@@ -2174,6 +2174,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   bool _freeDefaulted = false;
   bool _useCredit = true;
+  // Refund coupons (Ajay, 11 Nov) replace wallet credit on the live server.
+  bool _couponApplying = false;
+  String? _couponError;
 
   @override
   void didChangeDependencies() {
@@ -2183,10 +2186,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
     _freeDefaulted = true;
     final store = context.store;
     store.prefetchPaymentResources();
-    // v2 CU-REVIEW: the wallet is switched on when it pays for the whole wash.
-    final c = store.customer?.credit ?? 0;
-    final split = !store.isLive || store.liveConfig['walletSplitPayments'] == true;
-    _useCredit = c > 0 && (split || (c * 100).round() >= store.draft.basePricePaise);
+    if(store.isLive){_useCredit=false;store.draft.useFreeWash=false;store.draft.creditApplied=0;return;}
+    // v2 CU-REVIEW: sample builds keep the wallet toggle, on when there is credit.
+    _useCredit = (store.customer?.credit ?? 0) > 0;
     if ((store.customer?.freeWashes ?? 0) > 0) store.draft.useFreeWash = true;
   }
 
@@ -2217,18 +2219,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final d = store.draft;
     final free = store.customer?.freeWashes ?? 0;
     final credit = store.customer?.credit ?? 0;
-    // v2 CU-REVIEW (5 Nov, Aman): one wallet toggle and one "Pay now" button.
-    // The live server takes either the full price from the wallet or the full price
-    // through Razorpay. Paying part from the wallet needs Ajay's backend change and is
-    // switched on by liveConfig.walletSplitPayments; until then a wallet that does not
-    // cover the total offers a top-up of the difference.
-    final splitOk = !store.isLive || store.liveConfig['walletSplitPayments'] == true;
-    final showWallet = credit > 0 && !d.useFreeWash;
-    final covers = (credit * 100).round() >= d.basePricePaise;
-    final topUpPaise = (d.basePricePaise - (credit * 100).round()).clamp(100, 1000000);
-    final useWallet = showWallet && _useCredit;
-    final needsTopUp = useWallet && !covers && !splitOk;
-    d.applyWalletCredit(credit, enabled: useWallet && !needsTopUp);
+    // v2 CU-REVIEW (5 Nov, Aman): one "Pay now" button. Live: refund coupons (Ajay,
+    // 11 Nov) — no wallet or free wash. Sample builds keep the wallet toggle.
+    final showWallet = !store.isLive && credit > 0 && !d.useFreeWash;
+    d.applyWalletCredit(credit, enabled: showWallet && _useCredit);
+    if(store.isLive){
+      d.useFreeWash=false;d.creditApplied=0;d.walletOnly=false;
+      if(d.couponVehicleKind!=d.type?.kind.name||d.couponBasePricePaise!=d.basePricePaise){d.couponAppliedPaise=0;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;}
+    }
+    Future<void> applyCoupon()async{
+      if(_couponApplying)return;
+      if(!store.isLoggedIn){router.go(N.login);return;}
+      setState((){_couponApplying=true;_couponError=null;});
+      try{await store.applyCoupon(d.couponCode);}
+      catch(e){if(mounted)setState(()=>_couponError=backendError(e));}
+      finally{if(mounted)setState(()=>_couponApplying=false);}
+    }
+    final couponPays = store.isLive && d.couponAppliedPaise > 0;
+    // A typed coupon must be applied (or removed) before paying.
+    final couponReady = !_couponApplying && (!store.isLive || d.couponCode.trim().isEmpty || d.couponAppliedPaise > 0);
     final policy = store.liveConfig['cancellationPolicy'] is Map ? Map<String, dynamic>.from(store.liveConfig['cancellationPolicy']) : null;
     Future<void> pay() async {
       if (!store.isLoggedIn) { router.go(N.login); return; }
@@ -2240,9 +2249,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
       // v2: sample (non-live) builds finish a monthly plan with sample data.
       if (!store.isLive && store.washChoiceV2 && store.purchase.monthly && d.serviceLevel != null) { previewMonthlyPlan(store, router); return; }
-      if (needsTopUp) { router.push(R(N.wallet, walletShortfallPaise: topUpPaise)); return; }
-      if (store.isLive && !d.useFreeWash) {
-        d.walletOnly = useWallet && d.pricePaise == 0;
+      if (store.isLive) {
+        // Ajay, 11 Nov: a coupon worth more than the wash loses the rest; confirm once.
+        if(d.couponForfeitPaise>0&&!d.couponForfeitAccepted){
+          var accepted=false;
+          await showWAlert(context,title:'Use this coupon once?',message:'${Fmt.rupees(d.couponAppliedPaise/100)} will pay for this wash. The unused ${Fmt.rupees(d.couponForfeitPaise/100)} will be lost when payment is confirmed. A later refund considers only the value applied to this wash.',actions:[const AlertAction('Keep coupon',cancel:true),AlertAction('Use coupon',onTap:()=>accepted=true)]);
+          if(!mounted||!accepted)return;
+          d.couponForfeitAccepted=true;
+        }
         if (!router.isAt(N.paying)) router.push(const R(N.paying));
         return;
       }
@@ -2257,8 +2271,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ? 'Use free Premium wash'
         : v2 && store.purchase.monthly
         ? 'Pay now · ${Fmt.rupees(d.basePrice)} / month'
-        : needsTopUp
-        ? 'Top up ${Fmt.rupees(topUpPaise / 100)} and pay'
+        : couponPays && d.pricePaise == 0
+        ? 'Book with coupon'
         : d.useFreeWash
         ? 'Book with free wash'
         : 'Pay now · ${Fmt.rupees(d.price)}';
@@ -2299,7 +2313,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               WText(blocked, WType.caption, align: TextAlign.center),
               const SizedBox(height: 10),
             ],
-            WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: blocked == null, onTap: pay),
+            WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: blocked == null && couponReady, onTap: pay),
           ],
         ),
       ),
@@ -2318,17 +2332,18 @@ class _ReviewScreenState extends State<ReviewScreen> {
               router.go(N.washType);
             },
           ),
-          if (d.note.summary != 'None' || d.useFreeWash || d.creditApplied > 0) ...[
+          if (d.note.summary != 'None' || d.useFreeWash || d.creditApplied > 0 || couponPays) ...[
             const SizedBox(height: 14),
             WCard(
               radius: 16,
               child: Column(
                 children: [
                   if (d.note.summary != 'None') row(WIcon.edit, 'Notes', d.note.summary),
-                  if (d.useFreeWash || d.creditApplied > 0) ...[
+                  if (d.useFreeWash || d.creditApplied > 0 || couponPays) ...[
                     money('Wash price', d.basePrice),
                     if (d.useFreeWash) money('Free wash', d.basePrice, minus: true),
                     if (!d.useFreeWash && d.creditApplied > 0) money('From wallet', d.creditApplied, minus: true),
+                    if (couponPays) money('Coupon', d.couponAppliedPaise / 100, minus: true),
                     money('To pay', d.useFreeWash ? 0 : d.price, strong: true),
                   ],
                 ],
@@ -2357,6 +2372,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               money('Wash price', d.basePrice),
               if (d.useFreeWash) money('Free wash', d.basePrice, minus: true),
               if (!d.useFreeWash && d.creditApplied > 0) money('From wallet', d.creditApplied, minus: true),
+                    if (couponPays) money('Coupon', d.couponAppliedPaise / 100, minus: true),
               money('To pay', d.useFreeWash ? 0 : d.price, strong: true),
             ],
           ),
@@ -2396,13 +2412,23 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     WToggle(on: _useCredit, onChanged: (v) => setState(() => _useCredit = v)),
                   ],
                 ),
-                if (needsTopUp) ...[
-                  const SizedBox(height: 10),
-                  WText('Add ${Fmt.rupees(topUpPaise / 100)} to pay the full amount from your wallet.', WType.caption),
-                ],
               ],
             ),
           ),
+        ],
+        // Refund coupons (Ajay, 11 Nov). Not for monthly plans.
+        if(store.isLive&&!(v2&&store.purchase.monthly))...[
+          const SizedBox(height:14),
+          WCard(radius:16,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            const WText('Have a refund coupon?',WType.bodyStrong),const SizedBox(height:12),
+            WTextField(label:'Coupon code',value:d.couponCode,placeholder:'WK-XXXXXXXX-XXXXXXXX',caps:TextCapitalization.characters,onChanged:(value){if(!_couponApplying)store.set((){d.couponCode=value;d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;});}),
+            const SizedBox(height:10),
+            if(d.couponAppliedPaise>0)WText('Coupon applied · ${Fmt.rupees(d.couponAppliedPaise/100)}',WType.caption,color:WColor.onSuccess),
+            if(d.couponForfeitPaise>0)WBanner(tone:Tone.wait,icon:WIcon.info,text:'Single-use coupon: the unused ${Fmt.rupees(d.couponForfeitPaise/100)} will be lost when payment is confirmed.'),
+            if(_couponError!=null)WBanner(tone:Tone.error,icon:WIcon.info,text:_couponError!),
+            Row(children:[Expanded(child:WButton('Apply coupon',kind:ButtonKind.outline,loading:_couponApplying,enabled:!_couponApplying&&d.couponCode.trim().isNotEmpty,onTap:applyCoupon)),const SizedBox(width:12),WLink('Your coupons',onTap:()=>router.push(const R(N.coupons)))]),
+            if(d.couponCode.isNotEmpty)WButton('Remove coupon',kind:ButtonKind.text,enabled:!_couponApplying,onTap:()=>store.set((){d.couponCode='';d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;})),
+          ])),
         ],
         if (!(v2 && store.purchase.monthly) && policy != null && usesCancellationQuote(policy)) ...[
           const SizedBox(height: 16),

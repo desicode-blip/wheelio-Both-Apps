@@ -20,6 +20,21 @@ test('wallet top-ups are readable only by their owner and never client writable'
  await assertFails(setDoc(doc(user(),'walletTopups/forged'),{customerId:'alice',status:'credited',amountPaise:10000}));
  await assertFails(updateDoc(doc(user(),'walletTopups/topup'),{status:'credited',amountPaise:100000}));
 });
+test('refund coupons are private to their owner and the admin refund queue is server-only',async()=>{
+ await env.withSecurityRulesDisabled(async c=>{
+  const db=c.firestore();
+  await setDoc(doc(db,'coupons/issued'),{customerId:'alice',paymentMode:'test',availablePaise:4800,issuedAt:new Date()});
+  await setDoc(doc(db,'refundRequests/pending'),{customerId:'alice',status:'pending',amountPaise:4800});
+ });
+ const alice=user(),bob=user('bob');
+ await assertSucceeds(getDoc(doc(alice,'coupons/issued')));
+ await assertSucceeds(getDocs(query(collection(alice,'coupons'),where('customerId','==','alice'),where('paymentMode','==','test'),orderBy('issuedAt','desc'))));
+ await assertFails(getDocs(collection(alice,'coupons')));
+ await assertFails(getDoc(doc(bob,'coupons/issued')));
+ await assertFails(updateDoc(doc(alice,'coupons/issued'),{availablePaise:480000}));
+ await assertFails(getDoc(doc(alice,'refundRequests/pending')));
+ await assertFails(setDoc(doc(alice,'refundRequests/forged'),{customerId:'alice',status:'pending',amountPaise:4800}));
+});
 const profile = (uid = 'alice') => ({ name: '', email: `${uid}@example.test`, phone: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
 const request = (uid = 'alice') => ({ customerId: uid, vehicleType: 'hatchback', registration: 'TS09AB1234', society: 'Test society', parking: 'B1, 42',
   washType: 'wetOutside', preferredDate: '2026-10-25', timeWindow: '8–10 AM', notes: '', status: 'requested', createdAt: serverTimestamp(), updatedAt: serverTimestamp() });

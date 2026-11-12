@@ -217,3 +217,39 @@ existing protected role-scoped cleanup. Scheduled retention must preserve open
 disputes and honest manual selfie review when the old KYC reference is purged.
 Current source: Customer 1.0.4 (9), Captain 1.0.5 (10). Do not forward older 8/9
 artifacts as this release. Aman's website changes remain intact.
+
+## Owner decisions — 10 November 2026
+
+Read `docs/CHECKOUT-AND-REPORT-FIXES-2026-11-10.md` for current fixes and gates.
+Customer is now 1.0.5 (10), Captain 1.0.6 (11). Phone entry determines the role
+after real OTP. Native first-launch feature permissions are sequential and
+optional. Preserve the authored screens. New Captain earnings use wash value
+minus actual captured Razorpay fee, which includes GST; never deduct tax again.
+The owner confirmed gateway fees are charged once at wallet top-up: usable credit
+plus provider-calculated fee, then full wash value to Captain for wallet bookings.
+The merchant must enable Dynamic Convenience Fees before new top-ups can open;
+never guess a rate or silently omit the configured fee. Historical snapshots and
+legacy top-ups stay intact. SDK cancellation/replacement must reconcile capture
+and release only unpaid checkouts; late captures cannot clear newer pending IDs.
+Reports stay bound to their original booking, retry locked evidence safely, and
+use private human admin review. No automatic damage award or payout transfer.
+
+### Later 10 November decision — remove wallet, use refund coupons
+
+This supersedes the top-up/customer-fee-bearer proposal above. The owner explicitly
+removed the WashKrew wallet, top-ups and wallet checkout. Refund requests must
+appear privately to admins, who issue owner-bound service coupons against paid
+funds, deducting the appropriate actual Razorpay fee. Coupon-funded washes still
+pay Captain from funds already held. Do not erase historical Customer balances
+or payment/refund obligations. Preserve their value during conversion.
+Within five minutes inclusive, issue paid value minus the actual gateway fee
+even inside two hours. After five minutes and at least two hours before the
+confirmed window, issue half the paid value minus the full gateway fee,
+floored at zero. Later cancellation receives zero. Service failure and
+upheld wash problems qualify for the full net paid value. Coupons are
+single-use; a cheaper wash forfeits unused value only after confirmation.
+Successful washes earn the agreed price minus actual Razorpay fee and 3%
+WashKrew commission. Private reviewers can change the prices for new
+bookings. No Dynamic Convenience Fees activation is needed.
+Read `docs/REFUND-COUPONS-2026-11-11.md` for current Customer 1.0.6 (11)
+and Captain 1.0.7 (12) builds and rollout. Preserve unrelated authored screens.

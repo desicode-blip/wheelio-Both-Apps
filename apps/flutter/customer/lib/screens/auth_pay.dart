@@ -61,11 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       children: [
         WTitleBlock(
-          'Almost done. What’s your number?',
+          store.isLive ? 'What’s your number?' : 'Almost done. What’s your number?',
           top: 8,
-          subtitle: store.returningCustomer ? 'We’ll send a 6-digit code to find your account.' : 'We’ll send a 6-digit code. Then just your name.',
+          subtitle: store.isLive ? 'We’ll send a code, then open your account or help you sign up.' : store.returningCustomer ? 'We’ll send a 6-digit code to find your account.' : 'We’ll send a 6-digit code. Then just your name.',
         ),
-        WSegmented(
+        if(!store.isLive) WSegmented(
           options: const ['I’m new here', 'I’ve booked before'],
           selection: store.returningCustomer ? 1 : 0,
           onChanged: (i) => store.set(() => store.returningCustomer = i == 1),
@@ -335,10 +335,7 @@ class _PayingScreenState extends State<PayingScreen> {
     _failureMessage = null;
     PaymentOutcome outcome;
     try {
-      store.paymentClosed = false;
       outcome = await store.createOrderAndPay();
-      // v2 CU-PAY: Razorpay closed without paying. Plain message, quick retry.
-      if (store.paymentClosed) _failureMessage = 'You closed the payment. No money was taken.';
     } catch (e) {
       _failureMessage = backendError(e);
       store.set(() => store.toast = _failureMessage);
@@ -368,6 +365,11 @@ class _PayingScreenState extends State<PayingScreen> {
   }
 
   bool _openResolvedBooking(AppStore store, AppRouter router, PaymentOutcome outcome) {
+    if (store.isLive && store.checkoutCancelled) {
+      store.set(() => store.toast = 'Payment cancelled. Review your booking or choose another vehicle.');
+      router.replace([R(store.draft.type!=null&&store.draft.place!=null&&store.draft.slot!=null?N.review:N.vehicleType)]);
+      return true;
+    }
     final order = store.currentOrder;
     if (store.isLive && order?.status == OrderStatus.cancelled) {
       router.replace([R(N.live, id: order!.id)]);
@@ -404,12 +406,12 @@ class _PayingScreenState extends State<PayingScreen> {
               PayView.failed => WFullState(
                 icon: WIcon.receipt,
                 tone: Tone.error,
-                title: store.isLive && store.paymentClosed ? 'Payment not completed' : 'Payment didn’t go through',
+                title: 'Payment didn’t go through',
                 message: store.isLive
                     ? (_failureMessage ?? 'Payment could not be completed. Check its status before trying again or changing method.')
                     : 'Your bank declined it. No money was taken. Try again or use another method.',
-                primary: store.isLive && store.paymentClosed ? 'Pay now' : 'Try again',
-                secondary: store.isLive ? 'Back to Check and pay' : 'Change method',
+                primary: 'Try again',
+                secondary: store.isLive ? 'Back to booking' : 'Change method',
                 onPrimary: () {
                   store.set(() => store.demo.payment = PaymentOutcome.success);
                   setState(() => view = PayView.processing);
@@ -417,8 +419,7 @@ class _PayingScreenState extends State<PayingScreen> {
                 },
                 onSecondary: () {
                   if (store.isLive) {
-                    // v2 CU-PAY: back to Check and pay to change wallet or details.
-                    router.pop();
+                    router.replace(const [R(N.review)]);
                     return;
                   }
                   router.pop();
@@ -578,7 +579,7 @@ class WhatsAppScreen extends StatelessWidget {
                   ('Booking confirmed\n', null),
                   (o?.vehicle.plate ?? 'TS 09 EA 4521', bold),
                   (
-                    ' · ${o?.vehicle.type.shortName ?? 'Hatchback'}\n${o?.slot.full ?? 'Today, 8 – 10 AM'}\n${o?.place.title ?? 'My Home Avatar, Tower 3'}, ${o?.place.parkingShort ?? 'B2 slot 41'}\n${Fmt.rupees(o?.price ?? 149)} held safely',
+                    ' · ${o?.vehicle.type.shortName ?? 'Hatchback'}\n${o?.slot.full ?? 'Today, 8 – 10 AM'}\n${o?.place.title ?? 'My Home Avatar, Tower 3'}, ${o?.place.parkingShort ?? 'B2 slot 41'}\n${Fmt.rupees(o?.value ?? 149)} held safely',
                     null,
                   ),
                 ]),

@@ -1,5 +1,8 @@
 # Current Flutter apps - 3 November 2026
 
+**11 November update:** Customer **1.0.6 (11)** and Captain **1.0.7 (12)** implement the approved refund coupons, successful-wash commission and admin price editing. Read [the coupon release](REFUND-COUPONS-2026-11-11.md) for the current rules and rollout. The wallet descriptions below record earlier releases.
+
+
 Store preparation: Customer **1.0.4 (8)** / Captain **1.0.5 (9)** preserve the
 accepted app UI and functionality. Production Android builds use all three ABIs,
 R8/resource shrinking and the private existing upload key. App backup is disabled

@@ -1,5 +1,6 @@
 // Server-only booking arithmetic, in integer paise. Existing orders retain
 // their original cancellation policy when an operator changes the catalog.
+import {couponPolicy,couponRefundAmount} from './coupon-policy.mjs';
 export function walletPrice(basePrice, wallet, { useFreeWash = false, useCredit = false } = {}) {
   const free = Number.isSafeInteger(wallet?.freeWashes) ? Math.max(0, wallet.freeWashes) : 0;
   const balance = Number.isSafeInteger(wallet?.creditPaise) ? Math.max(0, wallet.creditPaise) : 0;
@@ -12,6 +13,7 @@ export function walletPrice(basePrice, wallet, { useFreeWash = false, useCredit 
 
 export function cancellationPolicy(config) {
   const p = config?.cancellationPolicy;
+  if(p?.kind==='couponByTime')return couponPolicy(p);
   if (p?.kind === 'walletByTime') {
     if (!Number.isSafeInteger(p.creditMinutes) || p.creditMinutes < 0 || p.creditMinutes > 60 ||
         !Number.isSafeInteger(p.cutoffMinutes) || p.cutoffMinutes < 0 || p.cutoffMinutes > 1440 ||
@@ -37,7 +39,7 @@ export function cancellationPolicy(config) {
 }
 
 export function requiresCancellationQuote(policy) {
-  return ['refundThenCredit','walletByTime'].includes(policy?.kind);
+  return ['refundThenCredit','walletByTime','couponByTime'].includes(policy?.kind);
 }
 
 function walletBenefit(order, returned, phase, total = order.pricePaise + (order.creditUsedPaise ?? 0)) {
@@ -48,6 +50,7 @@ function walletBenefit(order, returned, phase, total = order.pricePaise + (order
 // Previously released credit (e.g. cancelled unpaid checkout, then late capture)
 // must not be returned a second time.
 export function serviceFailureBenefit(order) {
+  if(order.cancellationPolicy?.kind==='couponByTime'&&order.paymentStatus==='captured')return couponRefundAmount(order,0,{serviceFailure:true});
   if (order.cancellationPolicy?.kind !== 'walletByTime' || order.paymentStatus !== 'captured') return null;
   if (order.freeWashUsed) return {kind:'walletRestored',phase:'serviceFailure',freeWashes:0,creditPaise:0,cashRefundPaise:0,feePaise:0};
   const total=order.pricePaise+(order.walletReleased?0:order.creditUsedPaise??0);
@@ -56,6 +59,7 @@ export function serviceFailureBenefit(order) {
 
 export function cancellationBenefit(order, now) {
   const p = order.cancellationPolicy ?? { kind: 'refund' };
+  if(p.kind==='couponByTime'&&order.paymentStatus==='captured')return couponRefundAmount(order,now);
   if (p.kind === 'walletByTime' && order.paymentStatus === 'captured') {
     if (order.freeWashUsed) return {kind:'walletRestored',freeWashes:0,creditPaise:0,cashRefundPaise:0,feePaise:0};
     const confirmed=order.bookedAt?.toMillis?.(),start=order.slotStart?.toMillis?.();

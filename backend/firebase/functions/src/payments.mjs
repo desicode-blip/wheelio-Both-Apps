@@ -31,8 +31,8 @@ export class RazorpayPayments {
     if (!result.ok || !data) throw new PaymentProviderError(result.ok ? 502 : result.status, data?.error?.code);
     return data;
   }
-  createOrder({ amount, receipt, bookingId, checkoutConfigId }) {
-    return this.request('/orders', 'POST', { amount, currency: 'INR', receipt, ...(checkoutConfigId?{checkout_config_id:checkoutConfigId}:{}), notes: { wheelioBookingId: bookingId } });
+  createOrder({ amount, receipt, bookingId, checkoutConfigId, convenienceFeeConfig }) {
+    return this.request('/orders', 'POST', { amount, currency: 'INR', receipt, ...(checkoutConfigId?{checkout_config_id:checkoutConfigId}:{}), ...(convenienceFeeConfig?{convenience_fee_config:convenienceFeeConfig}:{}), notes: { wheelioBookingId: bookingId } });
   }
   async payment(id) {
     const payment=await this.request(`/payments/${encodeURIComponent(id)}`);

@@ -4,6 +4,7 @@
 import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart' show GetOptions, Source;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart';
 import 'package:washkrew_referrals/demo_tools.dart';
 import 'package:washkrew_service_recovery/demo_tools.dart';
 import 'place_search.dart';
+import 'report_submission.dart';
 
 import '../app/design_flags.dart';
 import 'models.dart';
@@ -39,7 +41,7 @@ enum N {
   otp,
   name,
   paying,
-  wallet,
+  coupons,
   booked,
   whatsApp,
   notifyAsk,
@@ -109,7 +111,6 @@ class R {
     this.kind,
     this.id,
     this.topic,
-    this.walletShortfallPaise = 0,
   });
   final N n;
   final bool large;
@@ -123,7 +124,6 @@ class R {
   final ProblemKind? kind;
   final String? id;
   final HelpTopic? topic;
-  final int walletShortfallPaise;
 }
 
 class AppRouter extends WRouter<R> {
@@ -158,6 +158,8 @@ class AppRouter extends WRouter<R> {
   void finishLogin({bool directCheckout = false, bool reviewOnly = false}) {
     final address = path.lastIndexWhere((e) => e.route.n == N.manualAddress);
     final i = path.lastIndexWhere((e) => e.route.n == N.review);
+    final coupons=path.lastIndexWhere((e)=>e.route.n==N.coupons);
+    if(coupons>=0&&coupons>i&&coupons>address){keep(coupons+1);showPaySheet=false;return;}
     if (address >= 0 && address > i) { keep(address + 1); return; }
     if (i >= 0) {
       keep(i + 1);
@@ -211,6 +213,7 @@ enum NotificationKind {
   noShowRefund,
   disputeDecision,
   refundCredited,
+  refundCoupon,
   paymentPending,
   freeWash,
   offer,
@@ -218,7 +221,7 @@ enum NotificationKind {
   welcome;
 
   NotificationCategory get category => switch (this) {
-    refundCredited || paymentPending => NotificationCategory.payments,
+    refundCredited || refundCoupon || paymentPending => NotificationCategory.payments,
     freeWash || offer => NotificationCategory.offers,
     phoneChanged || welcome => NotificationCategory.account,
     _ => NotificationCategory.bookings,
@@ -237,7 +240,7 @@ enum NotificationKind {
     washStatusCheck => WIcon.search,
     noShowRefund || refundCredited => WIcon.rupee,
     disputeDecision => WIcon.flag,
-    freeWash => WIcon.gift,
+    freeWash || refundCoupon => WIcon.gift,
     offer => WIcon.megaphone,
     phoneChanged => WIcon.lock,
     welcome => WIcon.bell,
@@ -360,6 +363,12 @@ class BookingDraft {
   TimeSlot? slot;
   bool useFreeWash;
   bool walletOnly = false;
+  String couponCode='';
+  int couponAppliedPaise=0;
+  int couponForfeitPaise=0;
+  bool couponForfeitAccepted=false;
+  String? couponVehicleKind;
+  int? couponBasePricePaise;
 
   /// Rupees of the customer's credit taken off this booking (set on Check and pay).
   num creditApplied;
@@ -401,7 +410,7 @@ class BookingDraft {
   num? chosenPrice;
   num get basePrice => chosenPrice ?? type?.price ?? 0;
   int get basePricePaise => (basePrice * 100).round();
-  int get pricePaise => useFreeWash ? 0 : (basePricePaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
+  int get pricePaise => useFreeWash ? 0 : (basePricePaise - couponAppliedPaise - (creditApplied * 100).round()).clamp(0, basePricePaise);
   num get price => pricePaise / 100;
   void applyWalletCredit(num balance, {bool enabled = true}) {
     var applied = enabled && !useFreeWash ? (balance * 100).round().clamp(0, basePricePaise) : 0;
@@ -445,12 +454,7 @@ class AppStore extends ChangeNotifier {
   int accountResetRevision = 0;
   String draftRequestId = newId('draft');
   String? draftBookingId;
-  StreamSubscription<dynamic>? _walletSubscription;
-  String _walletIdentity = '';
-  int _walletFree = 0;
-  num _walletCredit = 0;
-  List<Map<String,dynamic>> walletCreditLots = [];
-  Timer? _walletExpiryTimer;
+  String _couponPreparedIdentity='';
   final Map<PhotoAngle, Uint8List> draftPhotoBytes = {};
   final Map<String, MediaClip> draftMedia = {};
   static const demoOtp = '123456';
@@ -525,7 +529,7 @@ class AppStore extends ChangeNotifier {
             Support.configure(config);
             bookingsEnabled = config['bookingsEnabled'] == true;
             testPayments = config['paymentMode'] == 'test';
-            _bindWallet();
+            _prepareCoupons();
             final types = (config['vehicleTypes'] as List? ?? []).where((v) => v['active'] == true && v['pricePaise'] is num).toList();
             if (types.isNotEmpty) {
               VehicleType.all = [
@@ -565,37 +569,12 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  void _bindWallet() {
-    final identity = _liveUid.isEmpty || !_accountActive ? '' : '${_liveUid}_${testPayments ? 'test' : 'live'}';
-    if (_walletIdentity == identity) return;
-    _walletIdentity = identity;
-    _walletSubscription?.cancel();
-    _walletFree = 0; _walletCredit = 0; walletCreditLots = []; _walletExpiryTimer?.cancel();
-    customer?.freeWashes = 0; customer?.credit = 0;
-    if (identity.isEmpty) return;
-    final generation = _accountGeneration;
-    live!.call('getWallet', {}).catchError((Object e) { if(generation==_accountGeneration && _accountActive) {backendMessage=backendError(e);changed();} return <String,dynamic>{}; });
-    _walletSubscription = live!.wallet(_liveUid, testPayments ? 'test' : 'live').listen((s) {
-      if (generation != _accountGeneration || !_accountActive || identity != _walletIdentity || s.metadata.isFromCache) return;
-      final d = s.data() ?? {};
-      _walletFree = (d['freeWashes'] as num? ?? 0).toInt();
-      walletCreditLots = [for(final lot in d['creditLots'] as List? ?? []) Map<String,dynamic>.from(lot as Map)];
-      void applyBalance() {
-        if(generation!=_accountGeneration || !_accountActive || identity!=_walletIdentity)return;
-        final now=DateTime.now().millisecondsSinceEpoch;
-        final available=walletCreditLots.where((l)=>(l['expiresAt'] as num)>now).toList();
-        _walletCredit=d['creditLotVersion']==1 ? available.fold<num>(0,(sum,l)=>sum+(l['amountPaise'] as num))/100 : (d['creditPaise'] as num? ?? 0)/100;
-        customer?.credit=_walletCredit;
-        _walletExpiryTimer?.cancel();
-        if(available.isNotEmpty) {
-          final next=available.map((l)=>(l['expiresAt'] as num).toInt()).reduce((a,b)=>a<b?a:b);
-          _walletExpiryTimer=Timer(Duration(milliseconds:next-now+1),(){applyBalance();changed();});
-        }
-      }
-      applyBalance();
-      customer?.freeWashes = _walletFree; customer?.credit = _walletCredit;
-      changed();
-    }, onError: (Object e) { backendMessage = backendError(e); changed(); });
+  void _prepareCoupons() {
+    customer?.freeWashes=0;customer?.credit=0;
+    final identity=_accountActive&&_liveUid.isNotEmpty&&liveConfig['paymentBalanceMode']=='refundCouponsV1'?'${_liveUid}_${testPayments?'test':'live'}':'';
+    if(identity.isEmpty||identity==_couponPreparedIdentity)return;
+    _couponPreparedIdentity=identity;final generation=_accountGeneration;
+    live!.call('prepareMyCoupons',{}).catchError((Object e){if(generation==_accountGeneration){_couponPreparedIdentity='';backendMessage=backendError(e);changed();}return <String,dynamic>{};});
   }
 
   /// Clear private role state before another screen/account can observe it.
@@ -606,7 +585,8 @@ class AppStore extends ChangeNotifier {
     notificationPrefs=NotificationPrefs();liveBanner=null;toast=null;
     currentOrderId=null;viewingOrderId=null;draft=BookingDraft();
     draftBookingId=null;draftRequestId=newId('draft');draftPhotoBytes.clear();draftMedia.clear();
-    _walletFree=0;_walletCredit=0;walletCreditLots=[];_walletExpiryTimer?.cancel();_walletIdentity='';_walletSubscription?.cancel();
+    _checkoutIdentity=null;checkoutCancelled=false;
+    _couponPreparedIdentity='';
     _preferenceSave?.cancel();_readIds.clear();_unreadIds.clear();_deletedIds.clear();
     _invalidateAvailability();backendMessage=null;returningCustomer=false;
     pendingPhone='';pendingNewPhone='';hasSeenWelcome=false;payMethodId='gpay';
@@ -618,6 +598,7 @@ class AppStore extends ChangeNotifier {
     final old = _liveUid;
     _accountGeneration++;
     _accountActive = false;
+    if(uid!=old){_checkoutIdentity=null;checkoutCancelled=false;}
     if(uid.isEmpty && old.isNotEmpty) resetDeletedAccountData();
     _liveUid = uid;
     final generation = _accountGeneration;
@@ -633,7 +614,7 @@ class AppStore extends ChangeNotifier {
     savedPlaces = [];
     _preferenceSave?.cancel();
     _readIds.clear(); _unreadIds.clear(); _deletedIds.clear();
-    _bindWallet();
+    _prepareCoupons();
     orders = [];
     vehicles = [];
     notifications = [];
@@ -655,7 +636,7 @@ class AppStore extends ChangeNotifier {
                 _accountActive = false;
                 if(wasActive || (!live!.registrationInProgress && appAccountRoleState(data,'customer') != AppAccountRoleState.absent)){resetDeletedAccountData();}
                 else {customer=null;}
-                _bindWallet();
+                _prepareCoupons();
                 if(data != null && appAccountRoleState(data,'customer') != AppAccountRoleState.absent && !live!.registrationInProgress) {
                   live!.signOut().catchError((Object _){});
                 }
@@ -665,9 +646,9 @@ class AppStore extends ChangeNotifier {
               if(!_accountActive) {
                 _accountActive=true;
                 _bindCustomerData(uid,generation);
-                _bindWallet();
+                _prepareCoupons();
               }
-              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: appAccountName(data,'customer'), freeWashes: _walletFree, notificationsOn: data['customerPushEnabled'] == true)..credit = _walletCredit;
+              customer = Customer(id: uid, phone: (data['phone'] as String? ?? '').replaceFirst('+91', ''), name: appAccountName(data,'customer'), freeWashes: 0, notificationsOn: data['customerPushEnabled'] == true);
               _restorePreferences(data);
               final photoPath = data['customerPhotoPath'] as String?;
               if (photoPath != _profilePhotoPath) {
@@ -742,6 +723,7 @@ class AppStore extends ChangeNotifier {
       'photosReady' => (NotificationKind.photosReady, 'Check the wash', 'Photos are ready. Approve your $price wash payment, or tell us if something’s wrong.'),
       'approved' => (NotificationKind.autoApproved, 'Wash approved', 'Your $price wash payment is approved.'),
       'autoApproved' => (NotificationKind.autoApproved, 'Wash approved at midnight', 'Your $price wash payment is approved.'),
+      'refundCoupon' => (NotificationKind.refundCoupon,d['title'] as String? ?? 'Refund coupon update',d['body'] as String? ?? 'Open your coupons for the latest update.'),
       'vehicleHelp' => (NotificationKind.captainCantFind, '$name cannot find your vehicle', 'Open your booking to reply.'),
       'washStatusCheck' => (NotificationKind.washStatusCheck, 'We’re checking your wash', 'Your slot ended. Open your booking for the latest status.'),
       'disputeDecision' => (NotificationKind.disputeDecision, 'Your report has an update', o?.dispute?.decisionNote ?? 'Open your report to see the review decision.'),
@@ -815,6 +797,13 @@ class AppStore extends ChangeNotifier {
     order.aiPhotoCheckRevision=ai is Map ? (ai['revision'] as num? ?? 0).toInt() : 0;
     order.aiPhotoCheckStarted=data['photoReview']?['aiSentAt']!=null;
     order.refundStatus = data['refundStatus'] ?? 'none';
+    order.refundRequestStatus=data['refundRequestStatus'] as String?;
+    order.refundCouponId=data['refundCouponId'] as String?;
+    order.refundDecisionNote=data['refundDecisionNote'] as String?;
+    order.refundCouponAmount=(data['refundCouponAmountPaise'] as num? ?? 0)/100;
+    order.couponReleased=data['couponReleased']==true;
+    order.couponApplied=order.couponReleased?0:(data['couponReservedPaise'] as num? ?? 0)/100;
+    order.couponForfeit=order.couponReleased?0:(data['couponForfeitPaise'] as num? ?? 0)/100;
     order.cancellationReason = data['cancellationReason'] as String?;
     order.testPayment = data['paymentMode'] == 'test';
     order.evidencePaths = {for (final entry in (data['evidence'] as Map? ?? {}).entries) entry.key as String: entry.value['path'] as String};
@@ -830,6 +819,7 @@ class AppStore extends ChangeNotifier {
         outcome: DisputeOutcome.values.where((v) => v.name == d['outcome']).firstOrNull ?? DisputeOutcome.underReview,
         decisionNote: d['decisionNote'] ?? '',
         creditsAwarded: (d['creditsAwarded'] as num? ?? 0).toInt(),
+        photos: List<String>.from(d['photos'] ?? const []),
       );
     }
     if (order.refundStatus != 'none') {
@@ -851,8 +841,6 @@ class AppStore extends ChangeNotifier {
     _referrals?.dispose();
     _invalidateAvailability();
     _preferenceSave?.cancel();
-    _walletSubscription?.cancel();
-    _walletExpiryTimer?.cancel();
     for (final s in [..._liveSubscriptions, ..._accountSubscriptions]) {
       s.cancel();
     }
@@ -1668,19 +1656,20 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
   CheckoutStage checkoutStage = CheckoutStage.preparing;
-  Future<Map<String,dynamic>>? _walletPayment;
-  Future<Map<String,dynamic>> addWalletCredit(String requestId,int amountPaise) => _walletPayment ??=
-      _addWalletCredit(requestId,amountPaise).whenComplete(()=>_walletPayment=null);
-  Future<Map<String,dynamic>> _addWalletCredit(String requestId,int amountPaise) async {
-    if(!isLive||!isLoggedIn)throw StateError('Log in to add wallet credit.');
-    final result=await live!.topUpWallet(requestId,amountPaise,onStage:_checkoutStage);
-    if(result['status']=='credited'){
-      final wallet=await live!.db.doc('wallets/${live!.uid}_${testPayments?'test':'live'}').get();
-      _walletCredit=(wallet.data()?['creditPaise'] as num? ?? 0)/100;customer?.credit=_walletCredit;changed();
-    }
-    return result;
+  Future<void> applyCoupon(String code)async{
+    if(!isLive||!isLoggedIn||draft.type==null)throw StateError('Log in and choose a vehicle before applying a coupon.');
+    final current=draft,account=live!.uid,kind=draft.type!.kind.name;
+    final result=await live!.call('previewRefundCoupon',{'code':code,'vehicleKind':kind});
+    if(live!.uid!=account||!identical(current,draft)||draft.type?.kind.name!=kind)throw StateError('The booking changed. Apply your coupon again.');
+    final applied=result['appliedPaise'];
+    if(applied is! int||applied<=0||applied>draft.basePricePaise||result['basePricePaise']!=draft.basePricePaise)throw StateError('The coupon or wash price changed. Review this booking again.');
+    final forfeit=result['forfeitPaise']??0;
+    if(forfeit is! int||forfeit<0)throw StateError('The unused coupon amount could not be confirmed.');
+    draft.couponCode=result['code'] as String;draft.couponAppliedPaise=applied;draft.couponVehicleKind=kind;draft.couponBasePricePaise=draft.basePricePaise;draft.couponForfeitPaise=forfeit;draft.couponForfeitAccepted=false;changed();
   }
   Future<PaymentOutcome>? _checkoutFuture;
+  String? _checkoutIdentity;
+  bool checkoutCancelled = false;
 
   void prefetchPaymentResources() {
     if (live != null) unawaited(live!.preloadCheckout());
@@ -1692,33 +1681,7 @@ class AppStore extends ChangeNotifier {
     }
   }
 
-  /// v2 CU-PAY: true when the last checkout ended because Razorpay was closed.
-  bool paymentClosed = false;
-  PaymentOutcome _paidOutcome(Map<String, dynamic> paid) {
-    paymentClosed = paid['closed'] == true;
-    if (paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled') return PaymentOutcome.success;
-    return paymentClosed ? PaymentOutcome.failed : PaymentOutcome.pending;
-  }
   (Place, Future<Place>)? _placeCheck;
-  // v2 CU-PAY: the details the current unpaid booking was made with, and whether its
-  // photos and notes are already saved (they are before Razorpay ever opens).
-  String? _draftSig;
-  String? _uploadedFor;
-
-  /// v2 CU-PAY (6 Nov): closing Razorpay leaves the booking waiting for payment, and
-  /// the server refuses a new booking while one waits. Release an unpaid one first.
-  /// Never touches a booking that has been paid.
-  Future<void> _releaseUnpaid(String id) async {
-    try {
-      final c = await live!.call('checkPayment', {'bookingId': id});
-      if (c['paymentStatus'] == 'captured' || c['status'] != 'pendingPayment') return;
-      final q = await cancellationQuote(id);
-      await live!.call('cancelBooking', {'orderId': id, if (q?['confirmation'] != null) 'confirmation': q!['confirmation']});
-      await _refreshLiveOrder(id);
-    } catch (_) {
-      // Best effort: the server also expires unpaid bookings; booking reports any block.
-    }
-  }
 
   void _checkoutStage(CheckoutStage stage) {
     if (_disposed) return;
@@ -1731,6 +1694,7 @@ class AppStore extends ChangeNotifier {
 
   Future<PaymentOutcome> _createOrderAndPay() async {
     if (isLive) {
+      checkoutCancelled = false;
       _checkoutStage(CheckoutStage.preparing);
       final d=draft,s=d.slot;
       var p=d.place;
@@ -1739,8 +1703,9 @@ class AppStore extends ChangeNotifier {
       if ((d.type == null || p == null || s == null) && pending != null && (pending.status == OrderStatus.pendingPayment || pending.status == OrderStatus.paymentPending)) {
         draftBookingId = pending.id;
         final paid = await live!.pay(pending.id, onStage: _checkoutStage);
-        await _refreshLiveOrder(pending.id);
-        return _paidOutcome(paid);
+        if(paid['checkoutCancelled']==true){checkoutCancelled=true;draftBookingId=null;_checkoutIdentity=null;return PaymentOutcome.failed;}
+        try { await _refreshLiveOrder(pending.id); } catch (_) { if(paid['paymentStatus']!='captured')rethrow; }
+        return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
       }
       if (d.type == null || p == null || s == null) throw StateError('Complete the vehicle, parking and time details first.');
       final blocked = washChoiceBlockedReason;
@@ -1754,9 +1719,10 @@ class AppStore extends ChangeNotifier {
         p=done??await confirmPlace(p);draft.place=p;
       }
       final booking = <String,dynamic>{
-        'requestId': draftRequestId,
         'cancellationPolicyVersion':2,
-        'plate': plateKey(d.plate),
+        'refundCouponPolicyVersion':1,
+        'replaceUnpaidCheckout':true,
+        'plate': plateKey(d.plate), // v2 CU-VEHICLE: letters and digits, as the server stores it
         'vehicleKind': d.type!.kind.name,
         'washKind': (d.wash ?? WashKind.wetOutside).wireName,
         'societyId': p.society.id,
@@ -1773,39 +1739,26 @@ class AppStore extends ChangeNotifier {
         if (s.minuteWindows.isNotEmpty) 'minuteWindows': [for (final w in s.orderedMinuteWindows) {'startMinute': w.$1, 'endMinute': w.$2}],
         if (washTiersLive && d.serviceLevel != null) 'serviceLevel': d.serviceLevel!.name,
         if (washTiersLive && d.coverage != null) 'coverage': d.coverage!.name,
-        'useFreeWash': d.useFreeWash,
-        'useCredit': d.creditApplied > 0,
-        'paymentChoice':d.walletOnly?'wallet':'razorpay',
+        'useFreeWash': false,
+        'useCredit': false,
+        'paymentChoice':d.couponAppliedPaise>0?'coupon':'razorpay',
+        if(d.couponAppliedPaise>0)'couponCode':d.couponCode,
+        if(d.couponAppliedPaise>0)'expectedCouponPaise':d.couponAppliedPaise,
+        if(d.couponAppliedPaise>0)'acceptedCouponForfeitPaise':d.couponForfeitAccepted?d.couponForfeitPaise:0,
         'expectedAmountPaise': d.pricePaise,
         if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
         'endHour': s.endHour,
       };
-      // v2 CU-PAY (6 Nov): retrying after closing Razorpay reuses the same unpaid
-      // booking (photos already saved, Razorpay order already made), so Razorpay opens
-      // at once. Changed details or another waiting booking are released first.
-      final sig = jsonEncode({for (final e in booking.entries) if (e.key != 'requestId') e.key: e.value});
-      final previous = draftBookingId;
-      final prevOrder = previous == null ? null : orders.where((o) => o.id == previous).firstOrNull;
-      final reusable = prevOrder != null && prevOrder.status == OrderStatus.pendingPayment && _draftSig == sig;
-      if (previous != null && reusable && _uploadedFor == previous) {
-        final paid = await live!.pay(previous, onStage: _checkoutStage);
-        await _refreshLiveOrder(previous);
-        return _paidOutcome(paid);
-      }
-      if (previous != null && !reusable && prevOrder?.status != OrderStatus.paymentPending) {
-        if (prevOrder == null || prevOrder.status == OrderStatus.pendingPayment) await _releaseUnpaid(previous);
-        draftBookingId = null;
-        _uploadedFor = null;
+      final identity = jsonEncode(booking);
+      if (_checkoutIdentity != identity) {
         draftRequestId = newId('draft');
-        booking['requestId'] = draftRequestId;
+        draftBookingId = null;
+        _checkoutIdentity = identity;
       }
-      for (final o in orders.where((o) => o.status == OrderStatus.pendingPayment && o.id != draftBookingId && o.paymentStatus != 'captured').toList()) {
-        await _releaseUnpaid(o.id);
-      }
-      _draftSig = sig;
-      unawaited(_restoreVehicle(d.plate));
+      booking['requestId'] = draftRequestId;
+      unawaited(_restoreVehicle(d.plate)); // v2 CU-VEHICLE: a deleted vehicle that is booked again comes back
       final paid = await live!.startCheckout(
         booking: booking,
         uploads: [
@@ -1815,14 +1768,19 @@ class AppStore extends ChangeNotifier {
             (id) => live!.uploadCustomerPhoto(id, entry.key.name, entry.value),
         ],
         onBookingReady: (id) { draftBookingId = id; currentOrderId = id; },
-        onStage: (stage) {
-          if (stage == CheckoutStage.opening) _uploadedFor = draftBookingId;
-          _checkoutStage(stage);
-        },
+        onStage: _checkoutStage,
       );
       final bookingId = draftBookingId!;
-      await _refreshLiveOrder(bookingId);
-      return _paidOutcome(paid);
+      if (paid['checkoutCancelled'] == true) {
+        checkoutCancelled = true;
+        _checkoutIdentity = null;
+        draftBookingId = null;
+        draftRequestId = newId('draft');
+        return PaymentOutcome.failed;
+      }
+      try { await _refreshLiveOrder(bookingId); }
+      catch (_) { if(paid['paymentStatus']!='captured')rethrow; }
+      return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
     }
     final d = draft;
     final type = d.type, place = d.place, slot = d.slot;
@@ -1885,7 +1843,7 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> _refreshLiveOrder(String id) async {
-    final fresh = await live!.db.doc('orders/$id').get();
+    final fresh = await live!.db.doc('orders/$id').get(const GetOptions(source: Source.server));
     if (!fresh.exists) return;
     orders.removeWhere((o) => o.id == id);
     orders.insert(0, _liveOrder(id, fresh.data()!));
@@ -2076,9 +2034,15 @@ class AppStore extends ChangeNotifier {
   /// BACKEND: rpc report_problem.
   Future<void> reportProblem(String id, ProblemKind kind, String note, [List<Uint8List> photos = const []]) async {
     if (isLive) {
-      for (var i=0;i<photos.length;i++) { await live!.uploadProblemPhoto(id,i,photos[i]); }
-      await live!.call('reportWashProblem', {'orderId': id, 'kind': kind.name, 'note': note, 'photoCount':photos.length});
-      await _refreshLiveOrder(id);
+      final account=live!.uid;
+      if(account==null)throw StateError('Log in to report a problem.');
+      await submitProblemReport(orderId:id,ownerId:account,kind:kind.name,note:note,photos:photos,
+        load:(id)async=>(await live!.db.doc('orders/$id').get(const GetOptions(source:Source.server))).data(),
+        upload:live!.uploadProblemPhoto,
+        submit:(data)async{await live!.call('reportWashProblem',data);});
+      if(live!.uid!=account)return;
+      _update(id,(o){o.status=OrderStatus.disputed;o.dispute??=Dispute(ref:'SUP-${id.toUpperCase()}',kind:kind,note:note,createdAt:DateTime.now(),outcome:kind==ProblemKind.damage?DisputeOutcome.damagePriority:DisputeOutcome.underReview);});
+      try { await _refreshLiveOrder(id); } catch (_) { /* Server acknowledged; snapshots retry the display refresh. */ }
       return;
     }
     await _latency(900);
@@ -2531,6 +2495,8 @@ String? openNotification(AppNotification n, AppStore store, AppRouter router) {
   store.markRead(n.id);
   store.set(() => store.liveBanner = null);
   switch (n.kind) {
+    case NotificationKind.refundCoupon:
+      router.go(N.coupons);return null;
     case NotificationKind.offer:
       if (n.expiresAt != null && n.expiresAt!.isBefore(DateTime.now())) return 'This offer has ended.';
       store.startNewBooking();

@@ -6,6 +6,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:washkrew_ui/washkrew_ui.dart' show Brand;
 
 import 'checkout_options.dart';
+import 'payment_return_recovery.dart';
 
 bool _open = false;
 
@@ -17,7 +18,7 @@ Future<void> preloadCheckout() async {
 
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,
-  String phone,
+  String phone, {Future<bool> Function()? onReturn}
 ) async {
   if (defaultTargetPlatform != TargetPlatform.iOS &&
       defaultTargetPlatform != TargetPlatform.android) {
@@ -31,6 +32,9 @@ Future<Map<String, dynamic>?> openCheckout(
   _open = true;
   final razorpay = Razorpay();
   final result = Completer<Map<String, dynamic>?>();
+  final recovery = onReturn == null ? null : PaymentReturnRecovery(check:onReturn, onCaptured:() {
+    if(!result.isCompleted)result.complete({'_serverConfirmed':true});
+  });
   try {
     razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (
       PaymentSuccessResponse response,
@@ -81,6 +85,7 @@ Future<Map<String, dynamic>?> openCheckout(
       ),
     );
   } finally {
+    recovery?.dispose();
     razorpay.clear();
     _open = false;
   }

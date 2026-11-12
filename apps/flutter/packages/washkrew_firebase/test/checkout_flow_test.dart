@@ -239,16 +239,10 @@ void main() {
       ),
     );
   });
+ test('explicit SDK cancellation abandons only the original unpaid checkout',()async{
+  final calls=<String>[];
+  final flow=CheckoutFlow(phone:'',call:(name,data)async{calls.add(name);if(name=='createCheckout')return options;if(name=='checkPayment')return {'paymentStatus':'unpaid'};expect(name,'abandonCheckout');expect(data['bookingId'],id);return {'checkoutCancelled':true,'status':'cancelled'};},open:(_,__)async=>null);
+  expect((await flow.run(bookingId:id))['checkoutCancelled'],true);expect(calls,['createCheckout','checkPayment','abandonCheckout']);
+ });
 
-  test('closing Razorpay without paying is reported as closed, a capture is not', () async {
-    for (final status in ['unpaid', 'captured']) {
-      final flow = CheckoutFlow(
-        phone: '',
-        call: (name, data) async => name == 'createCheckout' ? options : {'bookingId': id, 'status': status == 'captured' ? 'searching' : 'pendingPayment', 'paymentStatus': status},
-        open: (_, __) async => null,
-      );
-      final result = await flow.run(booking: {'requestId': 'stable'});
-      expect(result['closed'], status == 'captured' ? isNull : true);
-    }
-  });
 }

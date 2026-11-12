@@ -36,7 +36,7 @@ export async function maintainRetention(s) {
   const now=s.now();
   await page(s,'orders',async doc=>{
     const o=doc.data(),end=ms(o.slotEnd)||ms(o.cancelledAt)||ms(o.createdAt);
-    if(terminal.has(o.status)&&now>=yearsAfter(ms(o.createdAt)||end||ms(doc.createTime),8)){await s.db.recursiveDelete(doc.ref);return;}
+    if(terminal.has(o.status)&&o.refundRequestStatus!=='pending'&&now>=yearsAfter(ms(o.createdAt)||end||ms(doc.createTime),8)){await s.db.recursiveDelete(doc.ref);return;}
     if(!terminal.has(o.status)||!end||now-end<90*DAY||o.mediaPurgedAt)return;
     // Lock report creation before deleting. Unresolved disputes are excluded.
     const locked=await s.db.runTransaction(async tx=>{const current=(await tx.get(doc.ref)).data();if(!terminal.has(current?.status)||current.mediaPurgedAt)return false;tx.update(doc.ref,{mediaRetentionStatus:'purging'});return true;});
@@ -65,5 +65,13 @@ export async function maintainRetention(s) {
   await page(s,'accountDeletionRequests',async doc=>{const t=doc.data();if(['completed','declined'].includes(t.status)&&ms(t.closedAt)>0&&now>=yearsAfter(ms(t.closedAt),3))await s.db.recursiveDelete(doc.ref);});
   await page(s,'wallets',async doc=>{await s.db.runTransaction(async tx=>{const d=(await tx.get(doc.ref)).data();if(d)tx.set(doc.ref,{...walletCredits(d,now),updatedAt:Timestamp.fromMillis(now)},{merge:true});});});
   // Financial records are retained for eight years; unresolved obligations stay.
-  for(const collection of ['payments','paymentOrders','refunds','walletTopups','earnings','payoutRecords'])await page(s,collection,async doc=>{const d=doc.data(),at=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt)||ms(doc.createTime);if(at&&now>=yearsAfter(at,8)&&(collection==='paymentOrders'||['captured','processed','credited','approved','paid','voided','recorded'].includes(d.status))){const order=(await s.db.doc('orders/'+(d.bookingId??d.orderId??doc.id)).get()).data();if(order&&!terminal.has(order.status))return;await s.db.recursiveDelete(doc.ref);}});
+  for(const collection of ['payments','paymentOrders','refunds','walletTopups','earnings','payoutRecords'])await page(s,collection,async doc=>{const d=doc.data(),at=ms(d.createdAt)||ms(d.capturedAt)||ms(d.updatedAt)||ms(doc.createTime);if(at&&now>=yearsAfter(at,8)&&(collection==='paymentOrders'||['captured','processed','credited','approved','paid','voided','recorded'].includes(d.status))){const order=(await s.db.doc('orders/'+(d.bookingId??d.orderId??doc.id)).get()).data();if(order&&(!terminal.has(order.status)||order.refundRequestStatus==='pending'))return;await s.db.recursiveDelete(doc.ref);}});
+  for(const collection of ['refundRequests','coupons','couponReservations','couponMigrations'])await page(s,collection,async doc=>{
+    const d=doc.data(),at=ms(d.createdAt)||ms(d.issuedAt)||ms(doc.createTime);
+    if(!at||now<yearsAfter(at,8))return;
+    if(collection==='refundRequests'&&d.status==='pending')return;
+    if(collection==='coupons'&&(d.reservedPaise>0||d.availablePaise>0&&ms(d.expiresAt)>now))return;
+    if(collection==='couponReservations'&&d.status==='reserved')return;
+    await s.db.recursiveDelete(doc.ref);
+  });
 }
