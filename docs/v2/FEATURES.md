@@ -121,6 +121,7 @@ How to use this map:
 | 12 Nov | CU-REVIEW | Coupons up front with Apply/tick/Remove; 3+ in a Discount coupons sheet; quiet policy line above the footer | [CU-REVIEW.md](CU-REVIEW.md) | built |
 | 12 Nov | CU-REFER | Referrals: 3-step rule (Share → 5 washes → 1 free Premium wash), progress cards with "1 more wash / to win a free Premium wash" and 5 blocks; "Want more?" referral entry at the end of Coupons | `washkrew_referrals/lib/src/screens.dart`, `customer/lib/screens/coupons.dart` | built |
 | 12 Nov | SH-NOTIFY | Customer no longer asks camera, microphone, location and notifications at launch; only the "only what matters" notification screen. Camera, mic and location are asked by iOS when first used (Captain unchanged) | `customer/lib/main.dart` | built |
+| 12 Nov | CA-JOURNEY | Captain My level: wash milestones 50/100/500/1000/2000 after the first 3 days; 100 = surprise merchandise; rating stars match the rating | [CA-JOURNEY.md](CA-JOURNEY.md) | built |
 | 6 Nov | CU-VEHICLE | Number plate checked when typed; old bad plates fixed in one step at Pay | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
 | 6 Nov | CU-PAY | Faster Razorpay; closing it no longer blocks a new payment | [CU-PAY.md](CU-PAY.md) | built, backend speed-up |
 | 8 Nov | CU-WASHCHOICE | ChatGPT handoff phase 1: Choose your wash + own time windows (1-hour minimum, 11 PM cut-off), behind switches | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built, backend needed |

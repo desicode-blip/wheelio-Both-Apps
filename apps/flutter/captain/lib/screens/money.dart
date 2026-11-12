@@ -2,6 +2,7 @@
 
 import 'package:washkrew_service_recovery/washkrew_service_recovery.dart' show RecoveryCaseCard;
 import '../features/preview_features.dart' show ReferralEarningsCard;
+import '../features/wash_journey.dart';
 import 'package:flutter/material.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
@@ -219,6 +220,11 @@ class LevelScreen extends StatelessWidget {
       header: WHeader(title: store.t('My level', 'मेरा लेवल', 'నా స్థాయి')),
       children: [
         const SizedBox(height: 10),
+        // v2 CA-JOURNEY: where they are by washes, then the first 3 days (only while
+        // they last), the rating and the whole milestone path.
+        const WashJourneyCard(),
+        const SizedBox(height: 14),
+        if (store.inFirstDays) ...[
         WCard(
           padding: 18,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -228,6 +234,7 @@ class LevelScreen extends StatelessWidget {
           ]),
         ),
         const SizedBox(height: 14),
+        ],
         WCard(
           padding: 18,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -236,12 +243,15 @@ class LevelScreen extends StatelessWidget {
             Row(children: [
               WText(store.rating.toStringAsFixed(1), WType.bigMoney),
               const SizedBox(width: 10),
-              for (var i = 0; i < 5; i++) const Padding(padding: EdgeInsets.only(right: 4), child: WIconView(WIcon.starFill, size: 20, color: WColor.star)),
+              for (var i = 0; i < 5; i++) Padding(padding: const EdgeInsets.only(right: 4), child: WIconView(i < store.rating.round() ? WIcon.starFill : WIcon.star, size: 20, color: i < store.rating.round() ? WColor.star : WColor.track)),
             ]),
             const SizedBox(height: 8),
             WText(store.isLive?'From ${store.liveCaptain['ratingCount']??0} rated washes':store.t('From 6 washes · keep every wash at 4★ or more', '6 धुलाई से · हर धुलाई 4★ या ज़्यादा रखें', '6 వాష్‌ల నుండి · ప్రతి వాష్ 4★ లేదా ఎక్కువ ఉంచండి'), WType.caption),
           ]),
         ),
+        const SizedBox(height: 14),
+        const WashJourneyPath(),
+        const SizedBox(height: 24),
       ],
     );
   }
@@ -447,7 +457,7 @@ class MeTab extends StatelessWidget {
               const WDivider(inset: 54),
               WListRow(icon: WIcon.rupee, title: store.t('Payout UPI', 'पेमेंट UPI', 'చెల్లింపు UPI'), subtitle: store.upi, onTap: () => router.go(N.editUPI)),
               const WDivider(inset: 54),
-              WListRow(icon: WIcon.star, title: store.t('My level', 'मेरा लेवल', 'నా స్థాయి'), subtitle: store.t('Day ${store.levelDay} of 3', 'दिन ${store.levelDay} / 3', 'రోజు ${store.levelDay} / 3'), onTap: () => router.go(N.level)),
+              WListRow(icon: WIcon.star, title: store.t('My level', 'मेरा लेवल', 'నా స్థాయి'), subtitle: store.levelSummary, onTap: () => router.go(N.level)),
             ],
             if(store.trainingEnabled) ...[
               const WDivider(inset: 54),
