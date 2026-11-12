@@ -232,7 +232,7 @@ class _AssignmentDetailScreenState extends State<AssignmentDetailScreen> {
             Row(children: [
               const WIconView(WIcon.clock, size: 15, color: goldDeep),
               const SizedBox(width: 6),
-              WText('${o.window.isEmpty ? '' : '${o.window} · '}${store.t('about ${a.terms.estimatedMinutes} min each', 'हर बार लगभग ${a.terms.estimatedMinutes} मिनट', 'ఒక్కోసారి సుమారు ${a.terms.estimatedMinutes} నిమి')}', WType.caption, color: WColor.heading),
+              Expanded(child: WText('${o.window.isEmpty ? '' : '${o.window} · '}${store.t('about ${a.terms.estimatedMinutes} min each', 'हर बार लगभग ${a.terms.estimatedMinutes} मिनट', 'ఒక్కోసారి సుమారు ${a.terms.estimatedMinutes} నిమి')}', WType.caption, color: WColor.heading)),
             ]),
           ]),
         ),
