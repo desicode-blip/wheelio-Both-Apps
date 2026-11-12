@@ -51,9 +51,9 @@ this:
 | CU-REVIEW | Check and pay: your refund coupons shown up front (Apply / tick / Remove, 3+ in a sheet), no typed code; quiet cancellation-policy line; "Log in to pay" first; blocked choices get Change wash / Change time | CU-REVIEW.md |
 | CU-REFER | Referral screen simplified (Share → 5 washes → 1 free Premium wash), progress blocks, copy toasts; entry from Coupons; full rules in website terms §9 | V2-FEATURES.md (Referral rule) |
 | CU-START | Logged out → Welcome slides; logged-in launch unchanged | — |
-| SH-NOTIFY | Customer asks only for notifications at launch; camera/mic/location at first use. Both apps: no Clear all / Delete on notifications, only **Mark all as read** | SH-NOTIFY.md |
+| SH-NOTIFY | Customer and Captain ask only for notifications at launch; camera/mic/location at first use. Both apps: no Clear all / Delete on notifications, only **Mark all as read** | SH-NOTIFY.md |
 | CA-JOURNEY | Captain My level: wash milestones 50 / 100 / 500 / 1000 / 2000 after the first 3 days (100 = surprise merchandise); stars match the rating | CA-JOURNEY.md |
-| CA-MONTHLY-JOBS | Monthly jobs ring on a gold full-screen alert; Jobs tab: One-time jobs / Monthly jobs (incl. missed); Recurring assignments list + detail (monthly package, M–S circles, cancel ≥2 days ahead); recurring visits gold in Today's plan | CA-MONTHLY-JOBS.md |
+| CA-MONTHLY-JOBS | Monthly jobs ring on a gold full-screen alert; Jobs tab: one **Find new jobs** banner → every open job (gold monthly cards, normal one-time cards, no timer); Recurring assignments list + detail (monthly package, M–S circles, cancel ≥2 days ahead); recurring visits gold in Today's plan | CA-MONTHLY-JOBS.md |
 | CP-OFFERS / CP-MONEY | Visit pay terms on offers, pay guide (handoff) | CU-WASHCHOICE.md |
 | Recovery | Vehicle not found / Captain cancellation / replacement / make-up — every screen, sample data | V2-FEATURES.md |
 | Tools | Xcode **Play** on Customer also installs Captain afterwards; `run-ios.sh` forces a UTF-8 locale (CocoaPods crashed without one when started from Xcode) | §6 |

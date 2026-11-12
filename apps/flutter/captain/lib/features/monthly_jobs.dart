@@ -5,7 +5,8 @@ import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 
 import '../data/store.dart';
-import '../screens/parts.dart';
+import '../screens/home.dart' show JobOfferDetails;
+import '../screens/parts.dart' show WFooter, WBody;
 import 'preview_features.dart' show sampleRecurringAssignment;
 import 'v2_job.dart';
 
@@ -197,7 +198,10 @@ extension MonthlyJobsStore on CaptainStore {
 
 /// The gold full-screen alert for a monthly recurring job.
 class MonthlyJobAlertScreen extends StatefulWidget {
-  const MonthlyJobAlertScreen({super.key});
+  const MonthlyJobAlertScreen({super.key, this.fromList = false});
+
+  /// Opened from Find new jobs: no ring and no timer; Back just goes back.
+  final bool fromList;
   @override
   State<MonthlyJobAlertScreen> createState() => _MonthlyJobAlertScreenState();
 }
@@ -213,6 +217,7 @@ class _MonthlyJobAlertScreenState extends State<MonthlyJobAlertScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (offer == null) return context.router.pop();
+      if (widget.fromList) return;
       Device.ding();
       Device.buzz(true);
       _tick = Timer.periodic(const Duration(seconds: 1), (_) => mounted ? setState(() {}) : null);
@@ -276,14 +281,14 @@ class _MonthlyJobAlertScreenState extends State<MonthlyJobAlertScreen> {
     if (o == null) return const ColoredBox(color: WColor.white);
     final a = o.assignment, dates = a.dates;
     final expiry = o.job == null ? null : store.offerExpiry[o.id];
-    final left = expiry?.difference(DateTime.now()).inSeconds;
+    final left = widget.fromList ? null : expiry?.difference(DateTime.now()).inSeconds;
     final window = o.window.isEmpty ? '—' : o.window;
     return Container(
       decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: _goldSky)),
       child: WScreen(
         background: Colors.transparent,
         gutter: WSpace.gutterCaptain,
-        header: WAppBar(title: store.t('New monthly job', 'नया मासिक काम', 'కొత్త నెలవారీ పని'), onLeading: _notNow, padding: const EdgeInsets.fromLTRB(4, 4, 4, 0)),
+        header: WAppBar(title: store.t('New monthly job', 'नया मासिक काम', 'కొత్త నెలవారీ పని'), onLeading: widget.fromList ? context.router.pop : _notNow, padding: const EdgeInsets.fromLTRB(4, 4, 4, 0)),
         footer: Container(
           color: WColor.white,
           child: Column(
@@ -389,72 +394,64 @@ class _MonthlyJobAlertScreenState extends State<MonthlyJobAlertScreen> {
   }
 }
 
-/// Jobs tab → Find new jobs: One-time jobs and Monthly jobs side by side.
-class FindJobsTiles extends StatelessWidget {
-  const FindJobsTiles({super.key});
+/// Jobs tab: one banner, "Find new jobs", above Today's jobs (13 Nov, Aman).
+class FindJobsBanner extends StatelessWidget {
+  const FindJobsBanner({super.key});
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
-    final oneTime = store.oneTimeOffers.length, monthly = store.monthlyOffers.length;
-    Widget tile({required bool isMonthly, required int count}) => Expanded(
+    final count = store.oneTimeOffers.length + store.monthlyOffers.length;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
       child: Pressable(
-        label: isMonthly ? 'Monthly jobs' : 'One-time jobs',
-        onTap: () => router.push(R(N.openJobs, flag: isMonthly)),
+        label: 'Find new jobs',
+        onTap: () => router.push(const R(N.openJobs)),
         child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: isMonthly ? const LinearGradient(colors: _goldSky, begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
-            color: isMonthly ? null : WColor.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: isMonthly ? goldBorder : WColor.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                WIconBox(isMonthly ? WIcon.calendar : WIcon.drop, size: 40, tone: Tone.info),
-                const Spacer(),
-                if (count > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                    decoration: BoxDecoration(color: isMonthly ? gold : WColor.primary, borderRadius: BorderRadius.circular(12)),
-                    child: WText('$count', WType.label, color: WColor.white),
-                  ),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: WColor.primary, borderRadius: BorderRadius.circular(18)),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: WColor.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(12)),
+              alignment: Alignment.center,
+              child: const WIconView(WIcon.search, size: 22, color: WColor.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                WText(store.t('Find new jobs', 'नए काम खोजें', 'కొత్త పనులు చూడండి'), WType.title, color: WColor.white),
+                const SizedBox(height: 2),
+                WText(
+                  count == 0
+                      ? store.t('None open right now', 'अभी कोई खुला नहीं', 'ఇప్పుడు ఏవీ లేవు')
+                      : store.t('$count open near you, including missed ones', 'पास में $count खुले, छूटे हुए भी', 'దగ్గర్లో $count, తప్పిన వాటితో సహా'),
+                  WType.caption,
+                  color: WColor.white.withValues(alpha: 0.9),
+                ),
               ]),
-              const SizedBox(height: 12),
-              WText(isMonthly ? store.t('Monthly jobs', 'मासिक काम', 'నెలవారీ పనులు') : store.t('One-time jobs', 'एक बार के काम', 'ఒక్కసారి పనులు'), WType.title),
-              const SizedBox(height: 2),
-              WText(
-                count == 0
-                    ? store.t('None open now', 'अभी कोई नहीं', 'ఇప్పుడు లేవు')
-                    : isMonthly
-                    ? store.t('$count open · same car, all month', '$count खुले · पूरे महीने', '$count ఉన్నాయి · నెలంతా')
-                    : store.t('$count open near you', 'पास में $count खुले', 'దగ్గర్లో $count ఉన్నాయి'),
-                WType.caption,
-                color: isMonthly ? goldDeep : null,
+            ),
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(12)),
+                child: WText('$count', WType.label, color: WColor.primary),
               ),
-            ],
-          ),
+            const SizedBox(width: 8),
+            const WIconView(WIcon.chevron, size: 13, color: WColor.white),
+          ]),
         ),
       ),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        WText(store.t('Find new jobs', 'नए काम खोजें', 'కొత్త పనులు చూడండి'), WType.label, color: WColor.muted),
-        const SizedBox(height: 10),
-        IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [tile(isMonthly: false, count: oneTime), const SizedBox(width: 10), tile(isMonthly: true, count: monthly)]),
-        ),
-        const SizedBox(height: 18),
-      ],
     );
   }
 }
 
-/// The open jobs of one kind. [monthly]: gold cards that open the monthly alert.
+/// Find new jobs: every open job in one list, the same cards as the job alert but without
+/// a timer. Monthly jobs are gold; one-time jobs use the normal card.
 class OpenJobsScreen extends StatefulWidget {
-  const OpenJobsScreen({super.key, required this.monthly});
+  const OpenJobsScreen({super.key, this.monthly = false});
+
+  /// Kept for older links; the list always shows both kinds.
   final bool monthly;
   @override
   State<OpenJobsScreen> createState() => _OpenJobsScreenState();
@@ -477,7 +474,7 @@ class _OpenJobsScreenState extends State<OpenJobsScreen> {
       } else {
         store.acceptOffer(j);
       }
-      store.set(() => store.toast = store.t('Added to your jobs', 'आपके कामों में जोड़ा गया', 'మీ పనుల్లో చేర్చబడింది'));
+      store.set(() => store.toast = store.t('Added to Today’s jobs', 'आज के कामों में जोड़ा गया', 'ఈరోజు పనుల్లో చేర్చబడింది'));
     } catch (_) {
       // The claim error shows as the app's usual message.
     } finally {
@@ -485,87 +482,87 @@ class _OpenJobsScreenState extends State<OpenJobsScreen> {
     }
   }
 
+  Widget _monthlyCard(MonthlyOffer o) {
+    final store = context.store, router = context.router;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(gradient: const LinearGradient(colors: _goldSky, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(22), border: Border.all(color: goldBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: gold, borderRadius: BorderRadius.circular(16)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const WIconView(WIcon.calendar, size: 13, color: WColor.white),
+            const SizedBox(width: 6),
+            WText(store.t('MONTHLY · RECURRING', 'मासिक · नियमित', 'నెలవారీ · క్రమమైన'), WType.small, color: WColor.white, weight: FontWeight.w600),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          WText(_rupees(o.estimatePaise), WType.bigMoney, mono: true),
+          const SizedBox(width: 8),
+          Expanded(child: Padding(padding: const EdgeInsets.only(bottom: 8), child: WText(store.t('${o.visits} visits this month', 'इस महीने ${o.visits} विज़िट', 'ఈ నెల ${o.visits} విజిట్లు'), WType.caption, color: goldDeep))),
+        ]),
+        const SizedBox(height: 12),
+        Row(children: [
+          const WIconView(WIcon.location, size: 16, color: gold),
+          const SizedBox(width: 8),
+          Expanded(child: WText(o.assignment.place, WType.title, maxLines: 2)),
+        ]),
+        const SizedBox(height: 6),
+        WText('${o.assignment.vehicle}${o.window.isEmpty ? '' : ' · ${o.window}'} · ${weekdaysOf(o.assignment.dates)}', WType.caption, color: WColor.heading),
+        const SizedBox(height: 14),
+        WButton(
+          store.t('See monthly job', 'मासिक काम देखें', 'నెలవారీ పని చూడండి'),
+          size: ButtonSize.captain,
+          kind: ButtonKind.outline,
+          onTap: () {
+            store.set(() => store.openMonthlyId = o.id);
+            router.push(const R(N.monthlyAlert, flag: true));
+          },
+        ),
+      ]),
+    );
+  }
+
+  Widget _oneTimeCard(Job j) {
+    final store = context.store;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(22), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 12, offset: const Offset(0, 4))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        JobOfferDetails(job: j),
+        const SizedBox(height: 14),
+        WButton(store.t('Accept', 'लें', 'తీసుకోండి'), kind: ButtonKind.success, size: ButtonSize.captain, loading: claiming == j.id, enabled: claiming == null, onTap: () => _take(j)),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final store = context.store, router = context.router, monthly = widget.monthly;
-    final oneTime = store.oneTimeOffers, months = store.monthlyOffers;
-    final empty = monthly ? months.isEmpty : oneTime.isEmpty;
+    final store = context.store, router = context.router;
+    final months = store.monthlyOffers, oneTime = store.oneTimeOffers;
     return WScreen(
       canvas: true,
       gutter: WSpace.gutterCaptain,
-      header: WAppBar(title: monthly ? store.t('Monthly jobs', 'मासिक काम', 'నెలవారీ పనులు') : store.t('One-time jobs', 'एक बार के काम', 'ఒక్కసారి పనులు'), onLeading: router.pop, padding: const EdgeInsets.fromLTRB(4, 4, 4, 0)),
+      header: WAppBar(title: store.t('Find new jobs', 'नए काम खोजें', 'కొత్త పనులు చూడండి'), onLeading: router.pop, padding: const EdgeInsets.fromLTRB(4, 4, 4, 0)),
       children: [
         const SizedBox(height: 6),
-        WText(
-          monthly
-              ? store.t('Same vehicle, planned visits all month. Open ones, including any you missed.', 'एक ही गाड़ी, पूरे महीने तय विज़िट। खुले काम, छूटे हुए भी।', 'అదే వాహనం, నెలంతా విజిట్లు. తప్పిన వాటితో సహా.')
-              : store.t('Single washes near you that are still open, including any you missed.', 'पास के खुले काम, छूटे हुए भी।', 'దగ్గర్లో ఇంకా ఉన్న పనులు, తప్పిన వాటితో సహా.'),
-          WType.body,
-        ),
+        WText(store.t('Still open near you, including ones you missed. No timer here.', 'पास के खुले काम, छूटे हुए भी। यहाँ टाइमर नहीं।', 'దగ్గర్లో ఇంకా ఉన్నవి, తప్పినవి కూడా. ఇక్కడ టైమర్ లేదు.'), WType.body),
         const SizedBox(height: 16),
-        if (empty)
+        if (months.isEmpty && oneTime.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 30),
             child: Column(children: [
-              WStateCircle(monthly ? WIcon.calendar : WIcon.drop, size: 80),
+              const WStateCircle(WIcon.search, size: 80),
               const SizedBox(height: 12),
               WText(store.t('No open jobs right now', 'अभी कोई खुला काम नहीं', 'ఇప్పుడు పనులు లేవు'), WType.section, weight: FontWeight.w600),
               const SizedBox(height: 8),
               WBody(store.online ? store.t('New ones ring as soon as they are posted.', 'नए काम आते ही बजेंगे।', 'కొత్తవి రాగానే మోగుతాయి.') : store.t('Go Online to get new jobs.', 'नए काम के लिए ऑनलाइन हों।', 'కొత్త పనుల కోసం ఆన్‌లైన్ అవ్వండి.'), center: true),
             ]),
-          )
-        else if (monthly)
-          for (final o in months) ...[
-            Pressable(
-              label: 'Monthly job ${o.assignment.place}',
-              onTap: () {
-                store.set(() => store.openMonthlyId = o.id);
-                router.push(const R(N.monthlyAlert));
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(gradient: const LinearGradient(colors: _goldSky, begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(18), border: Border.all(color: goldBorder)),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      WText(o.assignment.place, WType.title),
-                      const SizedBox(height: 4),
-                      WText('${o.visits} ${store.t('visits', 'विज़िट', 'విజిట్లు')} · ${weekdaysOf(o.assignment.dates)}', WType.caption, color: goldDeep),
-                    ]),
-                  ),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    WText(_rupees(o.perVisitPaise), WType.section, weight: FontWeight.w600, mono: true),
-                    WText(store.t('per visit', 'हर विज़िट', 'ఒక్కో విజిట్'), WType.small, color: goldDeep),
-                  ]),
-                  const SizedBox(width: 8),
-                  const WIconView(WIcon.chevron, size: 13, color: goldDeep),
-                ]),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ]
-        else
-          for (final j in oneTime) ...[
-            WCard(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      WText(j.society, WType.title),
-                      const SizedBox(height: 4),
-                      WText('${j.day == 1 ? store.t('Tomorrow', 'कल', 'రేపు') : store.t('Today', 'आज', 'ఈరోజు')} · ${j.flexible ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా') : j.whenLabel} · ${j.distance}', WType.caption),
-                    ]),
-                  ),
-                  WText(Fmt.rupees(j.pay), WType.section, weight: FontWeight.w600, mono: true),
-                ]),
-                const SizedBox(height: 10),
-                BookingChip(job: j),
-                const SizedBox(height: 12),
-                WButton(store.t('Accept', 'लें', 'తీసుకోండి'), kind: ButtonKind.success, size: ButtonSize.captain, loading: claiming == j.id, enabled: claiming == null, onTap: () => _take(j)),
-              ]),
-            ),
-            const SizedBox(height: 12),
-          ],
+          ),
+        for (final o in months) ...[_monthlyCard(o), const SizedBox(height: 14)],
+        for (final j in oneTime) ...[_oneTimeCard(j), const SizedBox(height: 14)],
       ],
     );
   }

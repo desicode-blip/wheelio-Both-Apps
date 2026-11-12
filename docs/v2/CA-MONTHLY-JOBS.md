@@ -67,3 +67,14 @@
   stay with the Captain; later visits go back to other Captains. The confirmation lists both.
   BACKEND (Ajay): `cancelRecurringAssignment({assignmentId})` with that rule, and a list of a
   Captain's accepted assignments, so the list survives a restart (today it is kept in memory).
+
+## 13 Nov (01:50): one "Find new jobs" (Aman)
+
+- The two tiles (One-time jobs / Monthly jobs) are replaced by **one blue "Find new jobs" banner** at
+  the top of the Jobs tab, with a count. "Today's jobs" follows below it, listing the jobs the
+  Captain has taken: monthly ones gold, one-time ones normal.
+- **Find new jobs** lists every open job in one list. Monthly jobs come first as **gold cards**
+  (monthly package, visits, place, days, "See monthly job"). One-time jobs use the **same card as the
+  job alert** (`JobOfferDetails`, shared with the alert) with **Accept**, and **no timer** because
+  the ringing time has passed. A monthly job opened from here doesn't ring or count down, and Back
+  just goes back.

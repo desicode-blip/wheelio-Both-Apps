@@ -25,7 +25,7 @@ Future<void> _shot(WidgetTester t, String name) async {
 }
 
 Widget _screen(R r) => switch (r.n) {
-  N.monthlyAlert => const MonthlyJobAlertScreen(),
+  N.monthlyAlert => MonthlyJobAlertScreen(fromList: r.flag),
   N.recurringList => const RecurringListScreen(),
   N.recurringAssignment => const AssignmentDetailScreen(),
   N.openJobs => OpenJobsScreen(monthly: r.flag),
@@ -123,26 +123,30 @@ void main() {
     await t.pumpWidget(const SizedBox());
   });
 
-  testWidgets('Jobs tab: One-time jobs and Monthly jobs, each opens its list', (t) async {
+  testWidgets('Jobs tab: one Find new jobs banner; the list has gold monthly and normal one-time cards, no timer', (t) async {
     final (s, r) = await pump(t, const JobsTab());
     expect(find.text('Find new jobs'), findsOneWidget);
-    expect(find.text('One-time jobs'), findsOneWidget);
-    expect(find.text('Monthly jobs'), findsOneWidget);
+    expect(find.text('One-time jobs'), findsNothing);
+    expect(find.text('Today’s jobs'), findsOneWidget);
+    expect(t.getTopLeft(find.text('Find new jobs')).dy, lessThan(t.getTopLeft(find.text('Today’s jobs')).dy));
     await _shot(t, 'jobs-tab');
-    await t.tap(find.text('Monthly jobs'));
-    await t.pump(const Duration(milliseconds: 500));
-    expect(r.last?.n, N.openJobs);
-    await _shot(t, 'monthly-list');
-    r.pop();
-    await t.pumpAndSettle();
     r.push(const R(N.openJobs));
     await t.pumpAndSettle();
+    expect(find.text('MONTHLY · RECURRING'), findsWidgets);
     expect(find.text('Accept'), findsWidgets);
-    await _shot(t, 'onetime-list');
+    expect(find.text('Decide in'), findsNothing); // no timer here
+    await _shot(t, 'find-jobs');
     final before = s.oneTimeOffers.length;
+    await t.ensureVisible(find.text('Accept').first);
     await t.tap(find.text('Accept').first);
     await t.pump(const Duration(milliseconds: 500));
     expect(s.oneTimeOffers.length, before - 1);
+    await t.ensureVisible(find.text('See monthly job').first);
+    await t.pumpAndSettle();
+    await t.tap(find.text('See monthly job').first);
+    await t.pumpAndSettle();
+    expect(r.last?.n, N.monthlyAlert);
+    expect(r.last?.flag, isTrue); // opened from the list: no ring, no timer
     await t.pumpWidget(const SizedBox());
   });
 }

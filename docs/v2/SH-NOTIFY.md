@@ -58,5 +58,6 @@ Built; analyze clean; Customer 85/85, Captain 40/40, shared UI 9/9 tests pass. i
 - Camera: asked by iOS when the customer first takes a photo or video (image_picker).
 - Microphone: asked when they first record a voice note (`recorder.hasPermission()`).
 - Location: asked when they first tap "Use my location" (Geolocator).
-- The Captain app keeps its start-up sequence for now (it needs camera and location for
-  every job); say if it should change too.
+- **Captain too (13 Nov, Aman):** no start-up permission burst either. Only the notification
+  screen at first open; camera, microphone and location are asked when first used (taking photos,
+  recording, going online or arriving).

@@ -52,7 +52,8 @@ class _CaptainAppState extends State<CaptainApp> with WidgetsBindingObserver {
       });
     };
     store.refreshSystemPermission();
-    if(widget.store==null&&store.isLive)WidgetsBinding.instance.addPostFrameCallback((_) { if(mounted)requestStartupPermissions(); });
+    // v2 (13 Nov, Aman): no permission burst at launch. Notifications are asked on the
+    // "only what matters" screen; camera, microphone and location when first used.
     store.live?.listenPush('captain',(id){
       if(!mounted)return;
       final notice=store.notifications.where((n)=>n.jobId==id).firstOrNull;
@@ -232,7 +233,7 @@ Widget _destination(R r) => Builder(builder:(context){
   N.offerTermsPreview => const OfferTermsPreview(),
   N.recurringAssignment => const AssignmentDetailScreen(),
   N.recurringList => const RecurringListScreen(),
-  N.monthlyAlert => const MonthlyJobAlertScreen(),
+  N.monthlyAlert => MonthlyJobAlertScreen(fromList: r.flag),
   N.openJobs => OpenJobsScreen(monthly: r.flag),
   N.recovery => CaptainRecoveryScreen(cancel: r.flag),
   N.recoveryScenarios => const CaptainRecoveryScenariosScreen(),

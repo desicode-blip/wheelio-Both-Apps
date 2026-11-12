@@ -1465,23 +1465,6 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
     }
   }
 
-  Widget _fact(WIcon icon, String big, String small) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: WColor.primaryTint, borderRadius: BorderRadius.circular(14)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          WIconView(icon, size: 20, color: WColor.primaryStrong),
-          const SizedBox(height: 4),
-          WText(big, WType.section, weight: semibold, maxLines: 1),
-          const SizedBox(height: 4),
-          WText(small, WType.caption, color: WColor.heading),
-        ],
-      ),
-    ),
-  );
-
   Widget _card(_Offer o, int i) {
     final store = context.store;
     final j = o.job;
@@ -1505,68 +1488,7 @@ class _JobAlertScreenState extends State<JobAlertScreen> {
         children: [
           _timeBar(o),
           const SizedBox(height: 14),
-          // v2 CP-OFFERS (handoff): the server's exact visit pay, when it sends one.
-          if (j.visitTerms != null) VisitTermsCard(terms: j.visitTerms!, language: CaptainLanguage.values[store.lang.index], onListen: () => speakTerms(store, j.visitTerms!))
-          else Row(
-            children: [
-              WIconBox(j.isBike ? WIcon.bike : WIcon.car, size: 72, radius: 16, iconSize: 32),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [WText(store.t('Your pay', 'आपकी कमाई', 'మీ సంపాదన'), WType.body), WText(Fmt.rupees(j.pay), WType.bigMoney, mono: true)],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _fact(WIcon.location, j.distance, store.t('away', 'दूर', 'దూరం')),
-              const SizedBox(width: 8),
-              _fact(WIcon.layers, j.floor, store.t('Floor', 'फ्लोर', 'ఫ్లోర్')),
-              const SizedBox(width: 8),
-              _fact(
-                WIcon.clock,
-                j.flexible ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా') : j.whenLabel,
-                [
-                  if (j.day == 1) store.t('Tomorrow', 'कल', 'రేపు') else store.t('Today', 'आज', 'ఈరోజు'),
-                  if (j.flexible) store.t('Flexible', 'लचीला', 'వీలుగా'),
-                ].join(' · '),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Where the job is: society first, then the full address.
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 2),
-                  child: WIconView(WIcon.location, size: 18, color: WColor.primaryStrong),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      WText(j.society, WType.title, size: 17.5),
-                      const SizedBox(height: 3),
-                      WText(j.fullAddress, WType.caption, size: 14),
-                      if (j.typedAddress) ...[const SizedBox(height: 8), _NewAddressTag()],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(children: [WPlate(j.plate), const SizedBox(width: 10), WText(j.type, WType.caption)]),
-          const SizedBox(height: 14),
-          BookingChip(job: j),
+          JobOfferDetails(job: j),
           if (widget.batched && isTop && offers.length == 1) ...[
             const SizedBox(height: 14),
             Container(
@@ -1920,9 +1842,9 @@ class JobsTab extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(WSpace.gutterCaptain, MediaQuery.paddingOf(context).top, WSpace.gutterCaptain, 20),
         children: [
+          // v2 (13 Nov, Aman): one way in to open jobs (incl. missed ones), then Today's jobs.
+          if (store.v2Features) ...[const SizedBox(height: 22), const FindJobsBanner()],
           WTitle(store.t('Today’s jobs', 'आज के काम', 'ఈరోజు పనులు'), top: 22, bottom: 16),
-          // v2 (13 Nov): two ways in to open jobs, including ones the Captain missed.
-          if (store.v2Features) const FindJobsTiles(),
           // v2 (handoff, preview): an open "vehicle not found" report and an accepted
           // recurring assignment sit above the day's jobs.
           if (store.v2Features && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),
@@ -2652,4 +2574,100 @@ class _JobTint extends StatelessWidget {
           ),
         )
       : WCard(onTap: onTap, child: child);
+}
+
+/// The job details shown on an offer: pay, distance, floor, time, place, plate and wash.
+/// Used by the ringing job alert and by Find new jobs (13 Nov: same card, no timer).
+class JobOfferDetails extends StatelessWidget {
+  const JobOfferDetails({super.key, required this.job});
+  final Job job;
+
+  static Widget _fact(WIcon icon, String big, String small) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: WColor.primaryTint, borderRadius: BorderRadius.circular(14)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          WIconView(icon, size: 20, color: WColor.primaryStrong),
+          const SizedBox(height: 4),
+          WText(big, WType.section, weight: semibold, maxLines: 1),
+          const SizedBox(height: 4),
+          WText(small, WType.caption, color: WColor.heading),
+        ],
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store, j = job;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          // v2 CP-OFFERS (handoff): the server's exact visit pay, when it sends one.
+          if (j.visitTerms != null) VisitTermsCard(terms: j.visitTerms!, language: CaptainLanguage.values[store.lang.index], onListen: () => speakTerms(store, j.visitTerms!))
+          else Row(
+            children: [
+              WIconBox(j.isBike ? WIcon.bike : WIcon.car, size: 72, radius: 16, iconSize: 32),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [WText(store.t('Your pay', 'आपकी कमाई', 'మీ సంపాదన'), WType.body), WText(Fmt.rupees(j.pay), WType.bigMoney, mono: true)],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _fact(WIcon.location, j.distance, store.t('away', 'दूर', 'దూరం')),
+              const SizedBox(width: 8),
+              _fact(WIcon.layers, j.floor, store.t('Floor', 'फ्लोर', 'ఫ్లోర్')),
+              const SizedBox(width: 8),
+              _fact(
+                WIcon.clock,
+                j.flexible ? store.t('Any time', 'कभी भी', 'ఎప్పుడైనా') : j.whenLabel,
+                [
+                  if (j.day == 1) store.t('Tomorrow', 'कल', 'రేపు') else store.t('Today', 'आज', 'ఈరోజు'),
+                  if (j.flexible) store.t('Flexible', 'लचीला', 'వీలుగా'),
+                ].join(' · '),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // Where the job is: society first, then the full address.
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(14)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: WIconView(WIcon.location, size: 18, color: WColor.primaryStrong),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      WText(j.society, WType.title, size: 17.5),
+                      const SizedBox(height: 3),
+                      WText(j.fullAddress, WType.caption, size: 14),
+                      if (j.typedAddress) ...[const SizedBox(height: 8), _NewAddressTag()],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(children: [WPlate(j.plate), const SizedBox(width: 10), WText(j.type, WType.caption)]),
+          const SizedBox(height: 14),
+          BookingChip(job: j),
+      ],
+    );
+  }
 }
