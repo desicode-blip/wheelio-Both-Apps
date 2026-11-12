@@ -35,3 +35,29 @@ Feature map: [FEATURES.md](FEATURES.md). Screen: C13.
 - **How to test on the phone:** book a wash → Check and pay: icon rows, one wallet toggle,
   one Pay now button; tap *Cancellation policy* to read it.
 - **Status:** built; Customer tests pass. iPhone check pending.
+
+## 12 Nov 2026 — coupons up front (Aman)
+
+- **No typing a code.** The customer's refund coupons (Ajay's `coupons` collection:
+  active, not expired, value left) show on Check and pay as cards: amount, "valid until",
+  and a small **Apply** button.
+- **Applied:** the card animates to green with a tick that pops in at its top-right
+  corner, says "Applied to this wash", and offers **Remove**. One coupon per wash;
+  applying uses Ajay's `store.applyCoupon` (`previewRefundCoupon`), Remove clears the
+  draft coupon fields as before. The forfeit warning and the "Use this coupon once?"
+  confirmation are unchanged.
+- **3 or more coupons:** one **Discount coupons · N available · up to ₹X off** button
+  opens a sheet on the same screen with every coupon; applying closes it, and the
+  applied coupon shows on the page with "See all N coupons".
+- **Removed:** the code field, "Apply coupon" and the "Your coupons" link (the
+  Coupons screen stays reachable from Home).
+- **Cancellation policy:** a quiet grey line with an info icon, no underline, at the
+  bottom right above the footer line; tapping still opens the policy.
+- **Review tools on, no real coupons:** three sample coupons show the look only; the
+  price is not changed.
+- **Files:** `customer/lib/screens/coupon_picker.dart` (new), `booking.dart`
+  (ReviewScreen), `store.dart` (`refundCouponDocs`); tests `coupons_screen_test.dart`,
+  `wallet_cancellation_test.dart`, `wallet_by_time_test.dart`.
+- **Also fixed:** the "booking works with these times" message now writes each end
+  with its own AM/PM ("10 AM–12 PM").
+- **Backend:** none — uses Ajay's existing coupon query and callable.

@@ -13,6 +13,7 @@ import '../data/booking_availability.dart';
 import '../data/place_search.dart';
 import '../data/store.dart';
 import 'sticky_list.dart';
+import 'coupon_picker.dart';
 import 'common.dart';
 
 // MARK: C05 Vehicle type (C52: 200% text)
@@ -2176,7 +2177,6 @@ class _ReviewScreenState extends State<ReviewScreen> {
   bool _useCredit = true;
   // Refund coupons (Ajay, 11 Nov) replace wallet credit on the live server.
   bool _couponApplying = false;
-  String? _couponError;
 
   @override
   void didChangeDependencies() {
@@ -2227,17 +2227,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
       d.useFreeWash=false;d.creditApplied=0;d.walletOnly=false;
       if(d.couponVehicleKind!=d.type?.kind.name||d.couponBasePricePaise!=d.basePricePaise){d.couponAppliedPaise=0;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;}
     }
-    Future<void> applyCoupon()async{
-      if(_couponApplying)return;
-      if(!store.isLoggedIn){router.go(N.login);return;}
-      setState((){_couponApplying=true;_couponError=null;});
-      try{await store.applyCoupon(d.couponCode);}
-      catch(e){if(mounted)setState(()=>_couponError=backendError(e));}
-      finally{if(mounted)setState(()=>_couponApplying=false);}
-    }
     final couponPays = store.isLive && d.couponAppliedPaise > 0;
-    // A typed coupon must be applied (or removed) before paying.
-    final couponReady = !_couponApplying && (!store.isLive || d.couponCode.trim().isEmpty || d.couponAppliedPaise > 0);
+    // Pay waits while a coupon is being checked.
+    final couponReady = !_couponApplying;
     final policy = store.liveConfig['cancellationPolicy'] is Map ? Map<String, dynamic>.from(store.liveConfig['cancellationPolicy']) : null;
     Future<void> pay() async {
       if (!store.isLoggedIn) { router.go(N.login); return; }
@@ -2301,6 +2293,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         ],
       ),
     );
+    // v2 CU-REVIEW (12 Nov, Aman): the cancellation policy is a quiet line at the bottom,
+    // right above the footer line, not an underlined link in the content.
+    final showPolicy = !(v2 && store.purchase.monthly) && policy != null && usesCancellationQuote(policy);
     return WScreen(
       header: const BookingHeader(step: 5, label: 'Pay', fraction: 1),
       footer: WFooterBar(
@@ -2317,7 +2312,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
           ],
         ),
       ),
+      scrolls: false,
       children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
         const WTitleBlock('Check and pay'),
         // v2 CU-WASHCHOICE (ChatGPT handoff, CU-15): one summary card with Change; notes
         // and money rows only when there is something to show.
@@ -2416,29 +2418,29 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           ),
         ],
-        // Refund coupons (Ajay, 11 Nov). Not for monthly plans.
-        if(store.isLive&&!(v2&&store.purchase.monthly))...[
-          const SizedBox(height:14),
-          WCard(radius:16,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            const WText('Have a refund coupon?',WType.bodyStrong),const SizedBox(height:12),
-            WTextField(label:'Coupon code',value:d.couponCode,placeholder:'WK-XXXXXXXX-XXXXXXXX',caps:TextCapitalization.characters,onChanged:(value){if(!_couponApplying)store.set((){d.couponCode=value;d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;});}),
-            const SizedBox(height:10),
-            if(d.couponAppliedPaise>0)WText('Coupon applied · ${Fmt.rupees(d.couponAppliedPaise/100)}',WType.caption,color:WColor.onSuccess),
-            if(d.couponForfeitPaise>0)WBanner(tone:Tone.wait,icon:WIcon.info,text:'Single-use coupon: the unused ${Fmt.rupees(d.couponForfeitPaise/100)} will be lost when payment is confirmed.'),
-            if(_couponError!=null)WBanner(tone:Tone.error,icon:WIcon.info,text:_couponError!),
-            Row(children:[Expanded(child:WButton('Apply coupon',kind:ButtonKind.outline,loading:_couponApplying,enabled:!_couponApplying&&d.couponCode.trim().isNotEmpty,onTap:applyCoupon)),const SizedBox(width:12),WLink('Your coupons',onTap:()=>router.push(const R(N.coupons)))]),
-            if(d.couponCode.isNotEmpty)WButton('Remove coupon',kind:ButtonKind.text,enabled:!_couponApplying,onTap:()=>store.set((){d.couponCode='';d.couponAppliedPaise=0;d.couponVehicleKind=null;d.couponBasePricePaise=null;d.couponForfeitPaise=0;d.couponForfeitAccepted=false;})),
-          ])),
-        ],
-        if (!(v2 && store.purchase.monthly) && policy != null && usesCancellationQuote(policy)) ...[
-          const SizedBox(height: 16),
-          Center(
-            child: WLink(
-              'Cancellation policy',
-              onTap: () => showWAlert(context, title: 'Cancellation policy', message: cancellationPolicyText(policy)),
+        // Refund coupons (Ajay, 11 Nov), shown up front (v2 CU-REVIEW, 12 Nov). Not for monthly plans.
+        if ((store.isLive || store.previewFeatures) && !(v2 && store.purchase.monthly))
+          CouponPicker(onBusy: (busy) => setState(() => _couponApplying = busy)),
+              ],
             ),
           ),
-        ],
+        ),
+        if (showPolicy)
+          Pressable(
+            label: 'Cancellation policy',
+            onTap: () => showWAlert(context, title: 'Cancellation policy', message: cancellationPolicyText(policy)),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  WIconView(WIcon.info, size: 14, color: WColor.secondary),
+                  SizedBox(width: 6),
+                  WText('Cancellation policy', WType.caption),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }

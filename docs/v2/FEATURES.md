@@ -118,6 +118,7 @@ How to use this map:
 | 5 Nov | CU-VEHICLE | Vehicle + wash on one screen; washes and prices expand under the chosen vehicle (C05) | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
 | 5 Nov | CU-PHOTOS | Side name (FRONT/BACK/LEFT/RIGHT) above the camera outline (C08) | [CU-PHOTOS.md](CU-PHOTOS.md) | built |
 | 6 Nov | CU-REVIEW | Simpler Check and pay: icon rows, one wallet toggle, one Pay now button, policy on tap (C13) | [CU-REVIEW.md](CU-REVIEW.md) | built, backend for part-payment |
+| 12 Nov | CU-REVIEW | Coupons up front with Apply/tick/Remove; 3+ in a Discount coupons sheet; quiet policy line above the footer | [CU-REVIEW.md](CU-REVIEW.md) | built |
 | 6 Nov | CU-VEHICLE | Number plate checked when typed; old bad plates fixed in one step at Pay | [CU-VEHICLE.md](CU-VEHICLE.md) | built |
 | 6 Nov | CU-PAY | Faster Razorpay; closing it no longer blocks a new payment | [CU-PAY.md](CU-PAY.md) | built, backend speed-up |
 | 8 Nov | CU-WASHCHOICE | ChatGPT handoff phase 1: Choose your wash + own time windows (1-hour minimum, 11 PM cut-off), behind switches | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built, backend needed |

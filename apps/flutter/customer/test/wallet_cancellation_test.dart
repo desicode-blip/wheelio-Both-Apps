@@ -92,7 +92,7 @@ void main() {
     final r = AppRouter();
     await tester.pumpWidget(AppScope(store: s, router: r, child: const MaterialApp(home: ReviewScreen())));
     expect(find.textContaining('Pay by wallet'), findsNothing);expect(find.text('Top up'), findsNothing);
-    expect(find.text('Have a refund coupon?'), findsOneWidget);expect(s.draft.pricePaise,14900);
+    expect(find.byType(TextField), findsNothing);expect(s.draft.pricePaise,14900);
     await tester.pumpWidget(const SizedBox()); s.dispose(); r.dispose();
   });
   testWidgets('the existing payment sheet exposes all supported non-credit groups', (tester) async {

@@ -1073,7 +1073,10 @@ class AppStore extends ChangeNotifier {
     }
     final s = draft.slot;
     if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive && serverWindowsFor(s) == null) {
-      final slots = [for (final w in liveWindows) '${w.$1 % 12 == 0 ? 12 : w.$1 % 12}–${w.$2 % 12 == 0 ? 12 : w.$2 % 12} ${w.$2 < 12 ? 'AM' : 'PM'}'].join(', ');
+      // Each end keeps its own AM/PM: "10 AM–12 PM", "6–8 AM".
+      String h(int x) => '${x % 12 == 0 ? 12 : x % 12}';
+      String ap(int x) => x < 12 || x == 24 ? 'AM' : 'PM';
+      final slots = [for (final w in liveWindows) ap(w.$1) == ap(w.$2) ? '${h(w.$1)}–${h(w.$2)} ${ap(w.$2)}' : '${h(w.$1)} ${ap(w.$1)}–${h(w.$2)} ${ap(w.$2)}'].join(', ');
       return 'For now, booking works with these times: $slots. Exact times open soon. Nothing was charged.';
     }
     final level = draft.serviceLevel, coverage = draft.coverage;
@@ -1656,6 +1659,20 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc create_order, then Razorpay checkout.
   CheckoutStage checkoutStage = CheckoutStage.preparing;
+  /// The signed-in customer's refund coupons in this payment mode, newest first (raw
+  /// Firestore fields: code, availablePaise, status, expiresAt). Empty when signed out.
+  Stream<List<Map<String, dynamic>>> refundCouponDocs() {
+    if (!isLive || !isLoggedIn || live == null) return Stream.value(const []);
+    return live!.db
+        .collection('coupons')
+        .where('customerId', isEqualTo: live!.uid)
+        .where('paymentMode', isEqualTo: testPayments ? 'test' : 'live')
+        .orderBy('issuedAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .map((q) => [for (final d in q.docs) d.data()]);
+  }
+
   Future<void> applyCoupon(String code)async{
     if(!isLive||!isLoggedIn||draft.type==null)throw StateError('Log in and choose a vehicle before applying a coupon.');
     final current=draft,account=live!.uid,kind=draft.type!.kind.name;
