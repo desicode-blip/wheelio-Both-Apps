@@ -27,27 +27,19 @@ class ReferralHomeScreen extends StatelessWidget {
         footer: WFooterBar(
           captain: captain,
           showCall: false,
-          child: WButton(
-            copy.copyLink,
-            icon: WIcon.gift,
-            size: captain ? ButtonSize.captain : ButtonSize.regular,
-            onTap: () async {
-              await Clipboard.setData(
-                ClipboardData(text: repository.inviteUrl),
-              );
-              if (context.mounted)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      copy.t(
-                        'Demo invite link copied',
-                        'डेमो लिंक कॉपी हुआ',
-                        'డెమో లింక్ కాపీ అయింది',
-                      ),
-                    ),
-                  ),
-                );
-            },
+          // 13 Nov (Aman): a toast just above this button confirms the copy.
+          child: Builder(
+            builder: (buttonContext) => WButton(
+              copy.copyLink,
+              icon: WIcon.gift,
+              size: captain ? ButtonSize.captain : ButtonSize.regular,
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: repository.inviteUrl));
+                if (buttonContext.mounted) {
+                  showWToast(buttonContext, copy.t('Invite link copied', 'इनवाइट लिंक कॉपी हुआ', 'ఆహ్వాన లింక్ కాపీ అయింది'), above: buttonContext);
+                }
+              },
+            ),
           ),
         ),
         children: [
@@ -209,7 +201,7 @@ class ReferralHomeScreen extends StatelessWidget {
               ),
               message: captain
                   ? 'Only completed, verified washes count. Cancelled, disputed or unfinished jobs do not count. Bonuses are separate from wash earnings; earned does not mean paid out.'
-                  : 'Each referred friend must complete 5 paid washes. Cancelled, refunded or free reward washes do not count. Subscription visits count when completed, not when the plan is purchased. Each successful referral earns one Premium wash.',
+                  : 'Any 5 completed washes by your friend count: one-time or monthly plan visits, any wash.\n\nYou get 1 free Premium wash for any car, bike or scooter.\n\nCancelled or refunded washes don’t count. Full terms: washkrew.com/terms',
             ),
           ),
         ],
@@ -240,10 +232,8 @@ class ReferralCodeCard extends StatelessWidget {
           'Copy',
           onTap: () async {
             await Clipboard.setData(ClipboardData(text: code));
-            if (context.mounted)
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Code copied')));
+            // 13 Nov (Aman): a toast at the top of the screen confirms the copy.
+            if (context.mounted) showWToast(context, 'Referral code copied');
           },
         ),
       ],

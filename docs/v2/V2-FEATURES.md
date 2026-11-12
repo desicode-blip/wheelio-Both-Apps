@@ -55,3 +55,14 @@ cases can be seen on a live build (items 5, 7, 8) — or set `v2Features: false`
 
 See [CU-CARE.md](CU-CARE.md). Server: `identifyVehicle` callable + `config/operations.vehicleAi`,
 and copy `vehicleProfile` / `careRoutine` from `createBooking` onto the order and Captain job.
+
+## Referral rule (13 Nov, Aman)
+
+- A referred friend's **any 5 completed washes** count: one-time washes of any level (Basic,
+  Premium, Extra Premium, with or without interior) and each completed monthly-plan visit, on any
+  of their vehicles. Cancelled, refunded and free reward washes don't count.
+- Reward: **1 free Premium exterior wash** to the person who shared the code, usable on **any
+  vehicle** (car, SUV, bike, scooter). No referral limit. Extras such as interior are paid.
+- App copy stays short ("5 washes by your friend → 1 free Premium wash"); full rules are in
+  `apps/website/public/terms.html` §9 (dated 13 Nov). **Deploy the website only when the server
+  referral programme is live**, so the terms never describe something customers can't use yet.
