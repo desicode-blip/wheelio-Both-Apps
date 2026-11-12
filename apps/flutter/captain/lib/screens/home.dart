@@ -2664,7 +2664,7 @@ class JobOfferDetails extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Row(children: [WPlate(j.plate), const SizedBox(width: 10), WText(j.type, WType.caption)]),
+          Row(children: [WPlate(j.plate), const SizedBox(width: 10), Flexible(child: WText(j.type, WType.caption, maxLines: 1))]),
           const SizedBox(height: 14),
           BookingChip(job: j),
       ],
