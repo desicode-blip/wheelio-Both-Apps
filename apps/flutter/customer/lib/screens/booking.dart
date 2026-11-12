@@ -2305,12 +2305,24 @@ class _ReviewScreenState extends State<ReviewScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // v2 CU-WASHCHOICE: a preview choice the live server can't take yet.
-            if (blocked != null) ...[
+            // v2 CU-WASHCHOICE: a choice the live server can't take yet. 13 Nov (Aman): log in
+            // comes first; then, instead of a dead grey button, one clear way to fix it.
+            if (blocked != null && store.isLoggedIn) ...[
               WText(blocked, WType.caption, align: TextAlign.center),
               const SizedBox(height: 10),
-            ],
-            WButton(label, kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: blocked == null && couponReady, onTap: pay),
+              WButton(
+                store.washChoiceBlockedByTime ? 'Change time' : 'Change wash',
+                onTap: () {
+                  if (store.washChoiceBlockedByTime) {
+                    router.go(N.timeSlot);
+                  } else {
+                    store.washChoiceFromReview = true;
+                    router.go(N.washType);
+                  }
+                },
+              ),
+            ] else
+              WButton(store.isLoggedIn ? label : 'Log in to pay', kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: !store.isLoggedIn || couponReady, onTap: pay),
           ],
         ),
       ),

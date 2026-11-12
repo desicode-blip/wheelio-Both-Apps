@@ -1070,13 +1070,19 @@ class AppStore extends ChangeNotifier {
 
   /// Why this booking can't be paid yet on the live server, or null. Sample (non-live)
   /// builds complete everything with sample data.
+  /// 13 Nov: what fixes the block — the time step for times, the wash step otherwise.
+  bool get washChoiceBlockedByTime {
+    final s = draft.slot;
+    return isLive && !(purchase.chosen && purchase.monthly) && !purchase.usingPremiumReward && s != null && s.minuteWindows.isNotEmpty && !customTimesLive && serverWindowsFor(s) == null;
+  }
+
   String? get washChoiceBlockedReason {
     if (!isLive) return null;
     if (purchase.chosen && purchase.monthly) {
-      return 'Monthly plans open for payment soon. Nothing was charged.';
+      return 'Monthly plans open for payment soon. A one-time wash can be booked today.';
     }
     if (purchase.usingPremiumReward) {
-      return 'Free Premium washes open soon. Nothing was charged.';
+      return 'Free Premium washes open soon. You can book a paid wash today.';
     }
     final s = draft.slot;
     if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive && serverWindowsFor(s) == null) {
@@ -1084,11 +1090,11 @@ class AppStore extends ChangeNotifier {
       String h(int x) => '${x % 12 == 0 ? 12 : x % 12}';
       String ap(int x) => x < 12 || x == 24 ? 'AM' : 'PM';
       final slots = [for (final w in liveWindows) ap(w.$1) == ap(w.$2) ? '${h(w.$1)}–${h(w.$2)} ${ap(w.$2)}' : '${h(w.$1)} ${ap(w.$1)}–${h(w.$2)} ${ap(w.$2)}'].join(', ');
-      return 'For now, booking works with these times: $slots. Exact times open soon. Nothing was charged.';
+      return 'Exact times open soon. For now, pick one of these: $slots.';
     }
     final level = draft.serviceLevel, coverage = draft.coverage;
     if (level != null && coverage != null && (level != ServiceLevel.basic || coverage != WashCoverage.exterior) && !washTiersLive) {
-      return '${level.label}${coverage == WashCoverage.exteriorInterior ? ' with interior' : ''} opens for booking soon. Nothing was charged.';
+      return '${level.label}${coverage == WashCoverage.exteriorInterior ? ' with interior' : ''} opens for booking soon. Basic, outside only, can be booked today.';
     }
     return null;
   }
