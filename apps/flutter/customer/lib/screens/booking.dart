@@ -2238,6 +2238,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
         final ok = await showWSheet<bool>(context, height: 380, builder: (_) => AppScope(store: store, router: router, child: const PlateFixSheet()));
         if (ok != true || !mounted) return;
       }
+      // v2: sample (non-live) builds finish a monthly plan with sample data.
+      if (!store.isLive && store.washChoiceV2 && store.purchase.monthly && d.serviceLevel != null) { previewMonthlyPlan(store, router); return; }
       if (needsTopUp) { router.push(R(N.wallet, walletShortfallPaise: topUpPaise)); return; }
       if (store.isLive && !d.useFreeWash) {
         d.walletOnly = useWallet && d.pricePaise == 0;
@@ -2341,7 +2343,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
             Center(child: WLink('Plan policy', onTap: () => showPlanPolicyPreview(context))),
             if (blocked != null) ...[
               const SizedBox(height: 12),
-              Center(child: WLink('See the plan screens (preview)', onTap: () => previewMonthlyPlan(store, router))),
+              Center(child: WLink('See how your plan will look', onTap: () => previewMonthlyPlan(store, router))),
             ],
           ],
         ] else WCard(

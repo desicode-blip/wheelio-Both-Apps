@@ -1917,8 +1917,8 @@ class JobsTab extends StatelessWidget {
           WTitle(store.t('Today’s jobs', 'आज के काम', 'ఈరోజు పనులు'), top: 22, bottom: 16),
           // v2 (handoff, preview): an open "vehicle not found" report and an accepted
           // recurring assignment sit above the day's jobs.
-          if (store.previewFeatures && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),
-          if (store.previewFeatures && store.recurringAccepted) ...[
+          if (store.v2Features && store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recovery)),
+          if (store.v2Features && store.recurringAccepted) ...[
             WCard(onTap: () => router.go(N.recurringAssignment), outlined: true, child: WText(store.t('Recurring assignment · View your calendar', 'नियमित काम · अपना कैलेंडर देखें', 'క్రమమైన పని · మీ క్యాలెండర్ చూడండి'), WType.value)),
             const SizedBox(height: 14),
           ],

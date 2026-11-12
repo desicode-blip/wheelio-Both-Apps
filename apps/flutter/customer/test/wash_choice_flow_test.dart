@@ -58,8 +58,8 @@ void main() {
     expect(find.text('Monthly plan'), findsOneWidget, reason: 'preview shows monthly plans');
     final sedan = store.draft.type!;
     expect(find.text('₹${sedan.price}'), findsOneWidget);
-    // Unpriced tiers show the handoff's draft price on the preview, marked "draft".
-    expect(find.textContaining('· draft'), findsNWidgets(2));
+    // Tiers the server has no price for show the sample price.
+    expect(find.text('Coming soon'), findsNothing);
     await tester.tap(find.text('Next'));
     await _settle(tester);
     expect(store.draft.serviceLevel, ServiceLevel.basic);
@@ -96,27 +96,36 @@ void main() {
     expect(slot.endHour, 23);
   });
 
-  test('without the switch nothing changes', () {
+  test('v2 is standard; the server can switch it off', () {
     final store = AppStore()..signInAsSample();
+    expect(store.washChoiceV2, isTrue);
+    store.liveConfig['v2Features'] = false;
     expect(store.washChoiceV2, isFalse);
   });
 
-  test('for customers (no preview) unpriced tiers say Coming soon', () {
+  test('own windows that line up with server slots can be booked today', () {
+    final store = AppStore()..signInAsSample();
+    store.liveWindows = [(6, 8), (8, 10), (10, 12), (16, 18)];
+    final day = DateTime(2026, 11, 13);
+    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 480, endMinute: 600)])), [(8, 10)]);
+    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 480, endMinute: 720), WashTimeWindow(startMinute: 960, endMinute: 1080)])), [(8, 10), (10, 12), (16, 18)]);
+    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 495, endMinute: 645)])), isNull);
+    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 720, endMinute: 840)])), isNull);
+  });
+
+  test('Basic exterior uses the server price; other tiers a sample price until the server has one', () {
     final store = AppStore()..signInAsSample();
     final t = VehicleType.all[2];
     expect(store.purchasePrice(t, ServiceLevel.basic), t.price);
-    expect(store.purchasePrice(t, ServiceLevel.premium), isNull);
-    store.purchase.mode = PurchaseMode.monthly;
-    expect(store.purchasePrice(t, ServiceLevel.basic), isNull);
+    expect(store.purchasePrice(t, ServiceLevel.premium), isNotNull);
+    store.liveConfig['washPrices'] = {t.kind.name: {'premium': {'exterior': 249}}};
+    expect(store.purchasePrice(t, ServiceLevel.premium), 249);
   });
 
-  test('monthly plans and free Premium washes cannot be paid yet', () {
+  test('sample builds are never blocked', () {
     final store = AppStore()..signInAsSample();
     store.purchase..chosen = true..mode = PurchaseMode.monthly;
-    expect(store.washChoiceBlockedReason, contains('monthly plans'));
-    store.purchase.mode = PurchaseMode.once;
-    store.purchase.premiumRewardId = 'r1';
-    expect(store.washChoiceBlockedReason, contains('free Premium'));
+    expect(store.washChoiceBlockedReason, isNull);
   });
 
   testWidgets('monthly plan: days, times, Check and pay (blocked), plan screens preview', (tester) async {
@@ -141,8 +150,7 @@ void main() {
     await _settle(tester);
     expect(find.text('Monthly plan'), findsOneWidget);
     expect(find.text('Renews monthly'), findsOneWidget);
-    expect(find.textContaining('monthly plans need the server update'), findsOneWidget);
-    await tester.tap(find.text('See the plan screens (preview)'));
+    await tester.tap(find.textContaining('Pay now'));
     await _settle(tester);
     expect(find.text('Your routine is ready'), findsOneWidget);
     await tester.tap(find.text('View your plan'));

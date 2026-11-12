@@ -57,6 +57,16 @@ class WBody extends StatelessWidget {
 
 String sideName(CaptainStore s, int i) => [s.t('Front', 'आगे', 'ముందు భాగం'), s.t('Back', 'पीछे', 'వెనుక భాగం'), s.t('Left', 'बायाँ', 'ఎడమ'), s.t('Right', 'दायाँ', 'కుడి')][i];
 
+/// v2: "Premium · Monthly plan · Visit 3 of 13", or null on today's jobs.
+String? jobExtrasLine(Job job, CaptainStore s) {
+  final e = job.extras;
+  final parts = [
+    if (e.serviceLevel != null) e.serviceLevel!,
+    if (e.monthly) '${s.t('Monthly plan', 'मासिक प्लान', 'నెలవారీ ప్లాన్')} · ${s.t('Visit', 'विज़िट', 'విజిట్')} ${e.planVisit} / ${e.planVisits}',
+  ];
+  return parts.isEmpty ? null : parts.join(' · ');
+}
+
 String washName(WashType w, CaptainStore s) => switch (w) {
       WashType.dryDusting => s.t('Dry dusting', 'सूखी सफ़ाई', 'పొడి దుమ్ము తుడుపు'),
       WashType.wetOutside => s.t('Water wash', 'पानी से धुलाई', 'నీటి వాష్'),
@@ -138,6 +148,8 @@ class BookingVisual extends StatelessWidget {
               WText(store.t('Owner booked', 'मालिक ने बुक किया', 'యజమాని బుక్ చేశారు'), WType.small),
               const SizedBox(height: 4),
               WText(washName(job.wash, store), WType.section, weight: semibold),
+              // v2: service level and monthly-plan visit, when the booking has them.
+              if (jobExtrasLine(job, store) != null) ...[const SizedBox(height: 4), WText(jobExtrasLine(job, store)!, WType.caption)],
             ]),
           ),
         ]),
@@ -170,7 +182,7 @@ class BookingChip extends StatelessWidget {
             child: WIconView(_washIcon(job.wash), size: 15, color: WColor.white, weight: semibold),
           ),
           const SizedBox(width: 10),
-          WText(washName(job.wash, context.store), WType.title, size: 16),
+          Flexible(child: WText(job.extras.serviceLevel == null ? washName(job.wash, context.store) : '${job.extras.serviceLevel} · ${washName(job.wash, context.store)}', WType.title, size: 16, maxLines: 1)),
           if (job.wash.inside) ...[const SizedBox(width: 10), const WIconView(WIcon.seat, size: 15, color: WColor.primaryStrong)],
         ]),
       );

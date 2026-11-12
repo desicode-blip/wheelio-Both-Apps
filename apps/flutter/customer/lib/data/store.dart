@@ -991,7 +991,11 @@ class AppStore extends ChangeNotifier {
     await LocalFlags.set('previewFeatures', on);
   }
 
-  bool get washChoiceV2 => previewFeatures || liveConfig['washChoiceV2'] == true;
+  /// v2 (12 Nov, Aman): the handoff features are a standard part of the app. The server
+  /// can still turn them off with liveConfig.v2Features = false. `previewFeatures`
+  /// (7 taps in Profile) now only shows the review tools.
+  bool get v2Features => liveConfig['v2Features'] != false;
+  bool get washChoiceV2 => v2Features;
   /// The server stores exact-minute windows (liveConfig.customTimeWindows).
   bool get customTimesLive => !isLive || liveConfig['customTimeWindows'] == true;
   /// The server prices and records Basic/Premium/Extra Premium and interior (liveConfig.washTiers).
@@ -1023,13 +1027,14 @@ class AppStore extends ChangeNotifier {
     if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return 0;
     final real = p.monthly ? null : washPrice(t, level, p.coverage);
     if (real != null) return real;
-    return previewFeatures ? p.quotePaiseFor(level) / 100 : null;
+    // Sample price until the server sends liveConfig.washPrices (see V2-FEATURES.md).
+    return v2Features ? p.quotePaiseFor(level) / 100 : null;
   }
 
   bool purchasePriceIsDraft(VehicleType t, ServiceLevel level) {
     final p = purchase;
     if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return false;
-    return (p.monthly || washPrice(t, level, p.coverage) == null) && previewFeatures;
+    return (p.monthly || washPrice(t, level, p.coverage) == null) && v2Features;
   }
 
   // v2 phase 2 (monthly plans): the paid plan, saved next-cycle changes and an open edit.
@@ -1047,22 +1052,44 @@ class AppStore extends ChangeNotifier {
   bool get recoveryStarted => _recovery != null;
 
   /// Why this booking can't be paid yet on the live server, or null.
+  /// v2: the server's fixed slots that exactly make up the customer's own windows
+  /// (e.g. 8–10 AM, or 8 AM–12 PM = 8–10 + 10–12), or null when they don't line up.
+  /// Lets today's server take the booking until it stores exact minutes.
+  List<(int, int)>? serverWindowsFor(TimeSlot s) {
+    if (s.minuteWindows.isEmpty) return null;
+    final out = <(int, int)>[];
+    for (final w in s.orderedMinuteWindows) {
+      if (w.$1 % 60 != 0 || w.$2 % 60 != 0) return null;
+      var at = w.$1 ~/ 60;
+      final end = w.$2 ~/ 60;
+      while (at < end) {
+        final next = liveWindows.where((x) => x.$1 == at && x.$2 <= end).firstOrNull;
+        if (next == null) return null;
+        out.add(next);
+        at = next.$2;
+      }
+    }
+    return out.isEmpty ? null : out;
+  }
+
+  /// Why this booking can't be paid yet on the live server, or null. Sample (non-live)
+  /// builds complete everything with sample data.
   String? get washChoiceBlockedReason {
-    // Monthly plans and referral rewards have no payment path yet, here or live.
+    if (!isLive) return null;
     if (purchase.chosen && purchase.monthly) {
-      return 'Preview: monthly plans need the server update (AutoPay). Nothing was charged.';
+      return 'Monthly plans open for payment soon. Nothing was charged.';
     }
     if (purchase.usingPremiumReward) {
-      return 'Preview: free Premium washes need the server update. Nothing was charged.';
+      return 'Free Premium washes open soon. Nothing was charged.';
     }
-    if (!isLive) return null;
     final s = draft.slot;
-    if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive) {
-      return 'Preview: your own time windows need the server update. Nothing was charged.';
+    if (s != null && s.minuteWindows.isNotEmpty && !customTimesLive && serverWindowsFor(s) == null) {
+      final slots = [for (final w in liveWindows) '${w.$1 % 12 == 0 ? 12 : w.$1 % 12}–${w.$2 % 12 == 0 ? 12 : w.$2 % 12} ${w.$2 < 12 ? 'AM' : 'PM'}'].join(', ');
+      return 'For now, booking works with these times: $slots. Exact times open soon. Nothing was charged.';
     }
     final level = draft.serviceLevel, coverage = draft.coverage;
     if (level != null && coverage != null && (level != ServiceLevel.basic || coverage != WashCoverage.exterior) && !washTiersLive) {
-      return 'Preview: ${level.label} washes need the server update. Nothing was charged.';
+      return '${level.label}${coverage == WashCoverage.exteriorInterior ? ' with interior' : ''} opens for booking soon. Nothing was charged.';
     }
     return null;
   }
@@ -1699,7 +1726,7 @@ class AppStore extends ChangeNotifier {
         'note': d.note.text,
         if(p.latitude!=null&&p.longitude!=null)'vehiclePosition':{'latitude':p.latitude,'longitude':p.longitude},
         'day': '${s.date.year}-${s.date.month.toString().padLeft(2, '0')}-${s.date.day.toString().padLeft(2, '0')}',
-        'windows': [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) {'startHour': w.$1, 'endHour': w.$2}],
+        'windows': [for (final w in serverWindowsFor(s) ?? (s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows)) {'startHour': w.$1, 'endHour': w.$2}],
         'anyTime': s.anyTime,
         // v2 CU-WASHCHOICE: exact windows and the chosen service, only once the server
         // accepts them (liveConfig switches set by Ajay).

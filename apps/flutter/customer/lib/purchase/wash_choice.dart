@@ -26,9 +26,8 @@ class WashStepScreen extends StatelessWidget {
     final editing = store.draft.editing == RepeatEdit.wash || store.washChoiceFromReview;
     return PurchaseChoiceScreen(
       selection: p,
-      allowMonthly: store.monthlyPlansLive || store.previewFeatures,
+      allowMonthly: true,
       priceFor: (level, coverage) => store.purchasePrice(t, level),
-      isDraftPrice: (level) => store.purchasePriceIsDraft(t, level),
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
       continueLabel: editing ? 'Done' : 'Next',
       onBack: router.pop,
@@ -111,7 +110,7 @@ class TimeStepScreen extends StatelessWidget {
           : s.minuteWindows.isNotEmpty
           ? [for (final w in s.orderedMinuteWindows) WashTimeWindow(startMinute: w.$1, endMinute: w.$2)]
           : [for (final w in s.windows.isEmpty ? [(s.startHour, s.endHour)] : s.windows) WashTimeWindow(startMinute: w.$1 * 60, endMinute: w.$2 * 60)],
-      footnote: store.isLive && !store.customTimesLive ? 'Preview: booking with your own times needs the server update. You can look around; nothing will be charged.' : null,
+      footnote: null,
       onContinue: (date, windows) {
         store.set(() => store.draft.slot = customSlot(date, windows));
         router.go(N.review);

@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 import 'package:washkrew_firebase/washkrew_firebase.dart';
 import 'package:washkrew_captain_jobs/washkrew_captain_jobs.dart';
+import '../features/v2_job.dart';
 import 'package:washkrew_referrals/demo_tools.dart';
 import 'package:washkrew_service_recovery/demo_tools.dart';
 
@@ -80,14 +81,18 @@ class Job {
   Job copyWith({JobStatus? status, String? window, String? time, int? day}) => Job(
       id: id, plate: plate, type: type, isBike: isBike, pay: pay, tower: tower, floor: floor, slot: slot, window: window ?? this.window, time: time ?? this.time,
       distance: distance, status: status ?? this.status, reachBy: reachBy, finishBy: finishBy, owner: owner, society: society, wash: wash, area: area,
-      windows: windows, flexible: flexible, day: day ?? this.day, typedAddress: typedAddress, pincode: pincode, cancelled: cancelled, tripPaid: tripPaid)..visitTerms = visitTerms;
+      windows: windows, flexible: flexible, day: day ?? this.day, typedAddress: typedAddress, pincode: pincode, cancelled: cancelled, tripPaid: tripPaid)..visitTerms = visitTerms..extras = extras;
 
   /// v2 CP-OFFERS (handoff, 8 Nov): exact net pay for this visit (paise), one-time or
   /// monthly-plan visit. Set by the server's quote once Ajay sends it; null on today's jobs.
   VisitTerms? visitTerms;
 
-  /// What the owner chose, for cards: "8–10", "10–12, 16–18" or the any-time range.
-  String get whenLabel => windows.length > 1 ? windows.join(', ') : window;
+  /// v2: the owner's exact windows, service level and plan visit (features/v2_job.dart).
+  JobExtras extras = JobExtras.none;
+
+  /// What the owner chose, for cards: exact windows when given, else "8–10",
+  /// "10–12, 16–18" or the any-time range.
+  String get whenLabel => extras.exactWindows.isNotEmpty ? extras.exactWindows.join(', ') : windows.length > 1 ? windows.join(', ') : window;
 
   /// "Tower 3 · Floor B2 · Slot 41"
   String get spot => [tower, 'Floor $floor', if (slot.isNotEmpty) 'Slot $slot'].join(' · ');
@@ -140,6 +145,11 @@ List<Job> sampleQueue() => [
       Job(id: 'j6', plate: 'TS 09 KL 7788', type: 'Hatchback', isBike: false, pay: 116, tower: 'Tower 3', floor: 'B2', slot: '18', window: '12–14', time: '12:00', flexible: true),
       // Tomorrow: shows in the Jobs tab only, until tomorrow starts.
       Job(id: 'j7', plate: 'TS 09 MN 4410', type: 'SUV', isBike: false, pay: 140, tower: 'Tower 2', floor: 'B1', slot: '7', window: '8–10', time: '8:00', day: 1, windows: ['8–10', '16–18']),
+      // v2 samples: the owner's exact windows and a Premium wash; a monthly-plan visit.
+      Job(id: 'j8', plate: 'TS 08 EX 2210', type: 'Sedan', isBike: false, pay: 160, tower: 'Tower 1', floor: 'B1', slot: '12', window: '8–11', time: '8:15', day: 1, wash: WashType.wetOutsideDryInside)
+        ..extras = const JobExtras(exactWindows: ['8:15 AM – 10:45 AM', '7 PM – 11 PM'], serviceLevel: 'Premium'),
+      Job(id: 'j9', plate: 'TS 09 PL 3003', type: 'Hatchback', isBike: false, pay: 35, tower: 'Tower 3', floor: 'B2', slot: '22', window: '6–8', time: '6:30', day: 1)
+        ..extras = const JobExtras(exactWindows: ['6:30 AM – 8 AM'], serviceLevel: 'Basic', planVisit: 3, planVisits: 13),
     ];
 
 /// Other jobs that can ring while an alert is already open (demo).
@@ -325,6 +335,9 @@ class CaptainStore extends ChangeNotifier {
   // v2 (ChatGPT handoff, 8 Nov): Captain referrals, pay terms, recurring work and
   // "vehicle not found" — preview only (Me → tap WashKrew Captain 7 times). Real jobs and
   // money never use these; Ajay's server replaces the in-memory previews.
+  /// v2 (12 Nov, Aman): the handoff features are standard. `previewFeatures` (7 taps on
+  /// Me) now only shows the review tools.
+  bool get v2Features => liveConfig['v2Features'] != false;
   bool previewFeatures = false;
   Future<void> loadPreviewFeatures() async {
     final on = await LocalFlags.get('previewFeatures');
@@ -1406,7 +1419,7 @@ class CaptainStore extends ChangeNotifier {
       typedAddress: o['manualAddress'] == true,
       pincode: o['pincode'] as String? ?? '',
       cancelled: o['status'] == 'cancelled',
-    );
+    )..extras = JobExtras.fromOrder(o);
   }
 
   // Offers hide plate, tower and parking until accepted (P0: confirm with the design), so they show a dash.

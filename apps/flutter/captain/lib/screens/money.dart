@@ -50,7 +50,7 @@ class _MoneyTabState extends State<MoneyTab> {
         ],
         // v2 (handoff, preview): a "vehicle not found" receipt and referral bonuses,
         // kept apart from wash earnings.
-        if (store.previewFeatures) ...[
+        if (store.v2Features) ...[
           if (store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recoveryEarnings)),
           ReferralEarningsCard(repository: store.referrals, onOpen: () => router.go(N.referrals)),
           const SizedBox(height: 14),
@@ -509,11 +509,9 @@ class MeTab extends StatelessWidget {
             ],
           ]),
         ),
-        // v2 (ChatGPT handoff, 8 Nov): everything the preview adds, in one place.
-        if (store.previewFeatures) ...[
+        // v2 (12 Nov): standard features. Sample data until the server parts are live.
+        if (store.v2Features) ...[
           const SizedBox(height: 14),
-          const WText('Preview (this phone only)', WType.caption),
-          const SizedBox(height: 8),
           WCard(
             padding: 14,
             child: Column(children: [
@@ -521,9 +519,19 @@ class MeTab extends StatelessWidget {
               const WDivider(inset: 54),
               WListRow(icon: WIcon.rupee, title: store.t('Understand your pay', 'अपनी कमाई समझें', 'మీ ఆదాయాన్ని తెలుసుకోండి'), onTap: () => router.go(N.payGuide)),
               const WDivider(inset: 54),
+              WListRow(icon: WIcon.calendar, title: store.t('Recurring assignment', 'नियमित काम', 'క్రమమైన పని'), subtitle: store.t('Monthly calendar and estimate', 'महीने का कैलेंडर और अनुमान', 'నెలవారీ క్యాలెండర్, అంచనా'), onTap: () => router.go(N.recurringAssignment)),
+            ]),
+          ),
+        ],
+        // Review tools only (7 taps on the name below): sample outcomes for checking screens.
+        if (store.previewFeatures) ...[
+          const SizedBox(height: 14),
+          const WText('Review tools', WType.caption),
+          const SizedBox(height: 8),
+          WCard(
+            padding: 14,
+            child: Column(children: [
               WListRow(icon: WIcon.check, title: 'Job offer pay', subtitle: 'One-time and monthly-plan visit', onTap: () => router.go(N.offerTermsPreview)),
-              const WDivider(inset: 54),
-              WListRow(icon: WIcon.calendar, title: 'Recurring assignment', subtitle: 'Monthly calendar and estimate', onTap: () => router.go(N.recurringAssignment)),
               const WDivider(inset: 54),
               WListRow(icon: WIcon.car, title: 'Vehicle not found', subtitle: 'Check, contact, record, send proof', onTap: () => router.go(N.recovery)),
               const WDivider(inset: 54),
@@ -564,11 +572,11 @@ class _PreviewSwitchState extends State<_PreviewSwitch> {
           taps = 0;
           final on = !store.previewFeatures;
           store.setPreviewFeatures(on);
-          store.set(() => store.toast = on ? 'Preview new features: on' : 'Preview new features: off');
+          store.set(() => store.toast = on ? 'Review tools: on' : 'Review tools: off');
         },
         child: Padding(
           padding: const EdgeInsets.all(8),
-          child: WText(store.previewFeatures ? '${Brand.captainApp} · preview on' : Brand.captainApp, WType.caption),
+          child: WText(store.previewFeatures ? '${Brand.captainApp} · review tools on' : Brand.captainApp, WType.caption),
         ),
       ),
     );

@@ -29,6 +29,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final store = AppStore()..signInAsSample();
     store.startNewBooking();
+    store.liveConfig['v2Features'] = false; // the earlier merged screen, kept for when v2 is switched off
     final router = AppRouter()..go(N.vehicleType);
     await tester.pumpWidget(AppScope(store: store, router: router, child: MaterialApp(home: Material(child: ListenableBuilder(listenable: Listenable.merge([router, store]), builder: (_, _) => WNavStack<R>(router: router, root: const SizedBox(), builder: _screen))))));
     await _settle(tester);

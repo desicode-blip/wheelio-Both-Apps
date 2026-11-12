@@ -441,7 +441,7 @@ class _BookingsTabState extends State<BookingsTab> {
             const Padding(padding: EdgeInsets.fromLTRB(WSpace.gutter, 20, WSpace.gutter, 0), child: WText('Bookings', WType.screen)),
             // v2 phases 2 and 4 (handoff, preview): an open "vehicle not found" case and
             // the monthly plan sit above the bookings.
-            if (store.previewFeatures && store.recoveryStarted)
+            if (store.v2Features && store.recoveryStarted)
               Padding(padding: const EdgeInsets.symmetric(horizontal: WSpace.gutter), child: RecoveryCaseCard(repository: store.recovery, onOpen: () => router.go(N.recovery))),
             if (store.activePlan != null)
               Padding(
@@ -1140,9 +1140,15 @@ class _ProfileTabState extends State<ProfileTab> {
               ],
               const SizedBox(height: 14),
               group([
-                if (store.previewFeatures) ...[
+                if (store.v2Features) ...[
                   WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: 'Your code: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
                   const WDivider(inset: 54),
+                  WListRow(icon: WIcon.star, title: 'Were you referred?', subtitle: 'Add a referral code', onTap: () => router.go(N.referralJoin)),
+                  const WDivider(inset: 54),
+                  if (store.activePlan != null) ...[
+                    WListRow(icon: WIcon.calendar, title: 'Monthly plan', subtitle: 'Manage, edit next cycle, cancel', onTap: () => router.go(N.planDetails)),
+                    const WDivider(inset: 54),
+                  ],
                 ],
                 WListRow(icon: WIcon.edit, title: 'Edit name', onTap: () => _editName(store)),
                 const WDivider(inset: 54),
@@ -1194,21 +1200,16 @@ class _ProfileTabState extends State<ProfileTab> {
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() {showDelete = true; deleteAgain = false; deleteError = null; deleteBlocked = false;})),
               ]),
-              // v2 (handoff): everything the preview adds, in one place.
+              // v2 (12 Nov): review tools only (7 taps on the name below). They set sample
+              // outcomes so every screen can be checked; they are not customer features.
               if (store.previewFeatures) ...[
                 const SizedBox(height: 14),
-                const WText('Preview (this phone only)', WType.caption),
+                const WText('Review tools', WType.caption),
                 const SizedBox(height: 8),
                 group([
-                  WListRow(icon: WIcon.gift, title: 'Were you referred?', subtitle: 'Add a referral code', onTap: () => router.go(N.referralJoin)),
-                  const WDivider(inset: 54),
                   WListRow(icon: WIcon.sparkle, title: 'Referral progress', subtitle: 'Try milestones and rewards', onTap: () => router.go(N.referralScenarios)),
                   const WDivider(inset: 54),
                   WListRow(icon: WIcon.car, title: 'Vehicle not found', subtitle: 'Owner response, dispute, replacement, make-up', onTap: () => router.go(N.recoveryScenarios)),
-                  if (store.activePlan != null) ...[
-                    const WDivider(inset: 54),
-                    WListRow(icon: WIcon.calendar, title: 'Monthly plan', subtitle: 'Manage, edit next cycle, cancel', onTap: () => router.go(N.planDetails)),
-                  ],
                 ]),
               ],
               // v2 CU-WASHCHOICE: tap 7 times to try features that wait for the server
@@ -1222,11 +1223,11 @@ class _ProfileTabState extends State<ProfileTab> {
                     _versionTaps = 0;
                     final on = !store.previewFeatures;
                     store.setPreviewFeatures(on);
-                    store.set(() => store.toast = on ? 'Preview new features: on' : 'Preview new features: off');
+                    store.set(() => store.toast = on ? 'Review tools: on' : 'Review tools: off');
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(8),
-                    child: WText(store.previewFeatures ? '${Brand.name} · preview on' : Brand.name, WType.caption),
+                    child: WText(store.previewFeatures ? '${Brand.name} · review tools on' : Brand.name, WType.caption),
                   ),
                 ),
               ),
