@@ -1448,6 +1448,8 @@ class AppStore extends ChangeNotifier {
     vehicles = [];
     notifications = [];
     liveBanner = null;
+    // 13 Nov (Aman): logged out → back to the Welcome slides, like a fresh start.
+    hasSeenWelcome = false;
     notifyListeners();
   }
 

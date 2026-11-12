@@ -1200,9 +1200,9 @@ class _ProfileTabState extends State<ProfileTab> {
                   icon: WIcon.logout,
                   title: 'Log out',
                   onTap: () {
+                    // 13 Nov (Aman): after logging out, start again from the Welcome slides.
                     store.signOut();
-                    store.set(() => store.hasSeenWelcome = true);
-                    router.tab = 0;
+                    router..resetAccountNavigation()..popToRoot();
                   },
                 ),
                 const WDivider(inset: 54),
