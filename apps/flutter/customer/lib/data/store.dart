@@ -56,6 +56,7 @@ enum N {
   repeatPhotos,
   vehiclePick,
   vehicleEdit,
+  vehicleDetail,
   help,
   helpCaptain,
   helpEmergency,
@@ -1152,7 +1153,41 @@ class AppStore extends ChangeNotifier {
     return [
       for (final v in vehicles) ...[if (local[v.id] != null) local[v.id]! else v],
       for (final v in localVehicles) if (!vehicles.any((o) => o.id == v.id || o.plate == v.plate)) v,
-    ];
+    ].where((v) => !_deletedVehicles.contains(v.id) && !(v.plate.isNotEmpty && _deletedVehicles.contains(plateKey(v.plate)))).toList();
+  }
+
+  // v2 CU-VEHICLE (12 Nov): delete a saved vehicle. Vehicles from past bookings can't be
+  // removed on the server yet, so deleted ones are remembered on this phone and hidden.
+  // BACKEND (Ajay): a `deleteCustomerVehicle` callable when saved vehicles move to the account.
+  Set<String> _deletedVehicles = {};
+  String get _deletedVehiclesKey => 'vehiclesDeleted:${customer?.id ?? 'guest'}';
+
+  /// Bookings of this vehicle, newest first.
+  List<Order> washesFor(Vehicle v) => orders.where((o) => o.status != OrderStatus.pendingPayment && (o.vehicle.id == v.id || (v.plate.isNotEmpty && plateKey(o.vehicle.plate) == plateKey(v.plate)))).toList()
+    ..sort((a, b) => b.slot.start.compareTo(a.slot.start));
+
+  /// Why this vehicle can't be deleted now, or null.
+  String? vehicleDeleteBlocked(Vehicle v) => washesFor(v).any((o) => o.status.isUpcoming)
+      ? 'This vehicle has a wash booked. You can delete it after the wash is done or cancelled.'
+      : null;
+
+  Future<void> deleteVehicle(Vehicle v) async {
+    if (vehicleDeleteBlocked(v) != null) return;
+    _deletedVehicles = {..._deletedVehicles, v.id, if (v.plate.isNotEmpty) plateKey(v.plate)};
+    localVehicles = [for (final x in localVehicles) if (x.id != v.id) x];
+    notifyListeners();
+    await LocalFlags.setList(_deletedVehiclesKey, [for (final k in _deletedVehicles) {'key': k}]);
+    await LocalFlags.setList(_vehicleKey, [
+      for (final x in localVehicles) {'id': x.id, 'plate': x.plate, 'kind': x.type.kind.name, 'photos': [for (final a in x.photos.keys) a.name]},
+    ]);
+  }
+
+  /// A vehicle that is added or booked again comes back to the list.
+  Future<void> _restoreVehicle(String plate) async {
+    final k = plateKey(plate);
+    if (k.isEmpty || !_deletedVehicles.contains(k)) return;
+    _deletedVehicles = {for (final x in _deletedVehicles) if (x != k && !vehicles.any((v) => v.id == x && plateKey(v.plate) == k)) x};
+    await LocalFlags.setList(_deletedVehiclesKey, [for (final x in _deletedVehicles) {'key': x}]);
   }
 
   // MARK: v2 CU-VEHICLE — vehicles added without a booking
@@ -1177,7 +1212,11 @@ class AppStore extends ChangeNotifier {
       }
       loaded.add(v);
     }
-    set(() => localVehicles = loaded);
+    final deleted = {for (final m in await LocalFlags.getList(_deletedVehiclesKey)) if (m['key'] is String) m['key'] as String};
+    set(() {
+      localVehicles = loaded;
+      _deletedVehicles = deleted;
+    });
   }
 
   /// The first booking screen: pick a saved vehicle, or start from the type.
@@ -1198,6 +1237,7 @@ class AppStore extends ChangeNotifier {
     // The plate may be skipped and added later (Edit vehicle, or when booking).
     if (plate.isNotEmpty && plateTaken(plate)) return 'This vehicle is already saved.';
     final v = Vehicle('local_${newId('veh')}', plate, type, null);
+    await _restoreVehicle(v.plate);
     localVehicles = [...localVehicles, v];
     await _saveVehiclePhotos(v, withPhotos);
     draft.addingVehicle = false;
@@ -1463,7 +1503,7 @@ class AppStore extends ChangeNotifier {
   /// Returns false while a wash is in progress.
   Future<bool> deleteAccount() async {
     if (isLive) {
-      await live!.deleteAppAccount('customer');await LocalFlags.setList(_vehicleKey, []);localVehicles=[];resetDeletedAccountData();return true;
+      await live!.deleteAppAccount('customer');await LocalFlags.setList(_vehicleKey, []);await LocalFlags.setList(_deletedVehiclesKey, []);localVehicles=[];_deletedVehicles={};resetDeletedAccountData();return true;
     }
     await _latency();
     if (orders.any((o) => o.status == OrderStatus.washing)) return false;
@@ -1765,6 +1805,7 @@ class AppStore extends ChangeNotifier {
         await _releaseUnpaid(o.id);
       }
       _draftSig = sig;
+      unawaited(_restoreVehicle(d.plate));
       final paid = await live!.startCheckout(
         booking: booking,
         uploads: [

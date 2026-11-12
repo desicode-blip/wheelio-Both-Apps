@@ -15,7 +15,7 @@ Branch `v2/cu-bookings-rebook`, based on staging `e67a15e` (+ the App Store comm
 | `apps/flutter/packages/washkrew_ui/lib/src/local_flags.dart`, `notify_ask.dart` | On-device flags/files; notification first-ask |
 | `customer/lib/purchase/wash_choice.dart` | Booking steps for wash choice, time, monthly plan |
 | `customer/lib/features/preview_features.dart` | Referral and vehicle-not-found screens (sample repositories) |
-| `customer/lib/screens/gate_pass.dart`, `sticky_list.dart` | Gate pass card; sticky "Add new vehicle" list |
+| `customer/lib/screens/gate_pass.dart`, `sticky_list.dart`, `vehicle_detail.dart` | Gate pass card; sticky "Add new vehicle" list; Your vehicle screen |
 | `captain/lib/features/v2_job.dart` | `JobExtras`: exact windows, service level, plan visit read from a job |
 | `captain/lib/features/preview_features.dart` | Captain referral, pay, recurring, vehicle-not-found screens |
 | all `test/*` files added by v2 | |
@@ -67,4 +67,4 @@ cd apps/flutter/customer && flutter pub get && flutter analyze lib test && flutt
 cd ../captain && flutter pub get && flutter analyze lib test && flutter test
 ```
 
-Expected results before the merge: Customer 113 tests, Captain 48, packages 58 — all pass.
+Expected results before the merge: Customer 115 tests, Captain 48, packages 58 — all pass.

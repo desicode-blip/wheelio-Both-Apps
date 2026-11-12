@@ -122,3 +122,5 @@ How to use this map:
 | 6 Nov | CU-PAY | Faster Razorpay; closing it no longer blocks a new payment | [CU-PAY.md](CU-PAY.md) | built, backend speed-up |
 | 8 Nov | CU-WASHCHOICE | ChatGPT handoff phase 1: Choose your wash + own time windows (1-hour minimum, 11 PM cut-off), behind switches | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built, backend needed |
 | 8 Nov | CU-WASHCHOICE, CU-BOOKINGS, CP-OFFERS, CP-MONEY | ChatGPT handoff phases 2–5 (preview): monthly plans, referrals, vehicle not found / replacement / make-up, Captain visit pay, recurring work, cancel deductions | [CU-WASHCHOICE.md](CU-WASHCHOICE.md) | built (preview), backend needed |
+| 12 Nov | all v2 | v2 features standard in both apps (no hidden switch); Captain shows exact windows, service level, plan visit; merge guide | [V2-FEATURES.md](V2-FEATURES.md), [MERGE-GUIDE.md](MERGE-GUIDE.md) | built, backend needed |
+| 12 Nov | CU-VEHICLE | Your vehicle screen: view, edit, delete, then Book a wash (C46c) | [CU-VEHICLE.md](CU-VEHICLE.md) | built |

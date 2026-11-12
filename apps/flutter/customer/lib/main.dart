@@ -8,6 +8,7 @@ import 'package:washkrew_firebase/washkrew_firebase.dart';
 
 import 'data/store.dart';
 import 'purchase/wash_choice.dart';
+import 'screens/vehicle_detail.dart';
 import 'features/preview_features.dart';
 import 'screens/auth_pay.dart';
 import 'screens/booking.dart';
@@ -232,6 +233,7 @@ Widget _screen(R r) {
     N.recoveryScenarios => const CustomerRecoveryScenariosScreen(),
     N.vehiclePick => const VehiclePickScreen(),
     N.vehicleEdit => VehicleEditScreen(id: r.id!),
+    N.vehicleDetail => VehicleDetailScreen(id: r.id!),
     N.help => const HelpScreen(),
     N.helpCaptain => HelpCaptainScreen(topic: r.topic!),
     N.helpEmergency => const EmergencyHelpScreen(),

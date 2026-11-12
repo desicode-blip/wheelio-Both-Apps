@@ -1018,14 +1018,16 @@ class VehiclesTab extends StatelessWidget {
             const SizedBox(height: 20),
             const WText('Your vehicles', WType.screen),
             const SizedBox(height: 12),
-            WText('${store.myVehicles.length} saved · tap one to book', WType.caption),
+            WText('${store.myVehicles.length} saved · tap one to view or book', WType.caption),
             const SizedBox(height: 18),
           ],
           items: [
         for (final v in store.myVehicles) ...[
           WCard(
             radius: 16,
-            onTap: () { store.openRepeat(v.id); router.push(R(N.repeatBooking, id: v.id)); },
+            // v2 CU-VEHICLE (12 Nov): a vehicle opens its own screen first (details, edit,
+            // delete), which then offers Book a wash.
+            onTap: () => router.push(R(N.vehicleDetail, id: v.id)),
             child: Row(
               children: [
                 WIconBox(v.type.icon, size: 48),
@@ -1037,9 +1039,6 @@ class VehiclesTab extends StatelessWidget {
                       VehiclePlate(v.plate),
                       const SizedBox(height: 6),
                       WText(v.place == null ? '${v.type.shortName}${v.photos.isNotEmpty ? ' · ${v.photos.length} photos' : ''}' : '${v.type.shortName} · ${v.place?.tower ?? ''} · ${v.place?.parkingShort ?? ''}', WType.caption),
-                      // v2 CU-VEHICLE: edit type, plate and photos any time (kept on this phone).
-                      const SizedBox(height: 6),
-                      WLink(v.photos.isEmpty ? 'Edit · add photos' : 'Edit', onTap: () => router.push(R(N.vehicleEdit, id: v.id))),
                     ],
                   ),
                 ),

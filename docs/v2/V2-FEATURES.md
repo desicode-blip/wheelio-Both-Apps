@@ -42,5 +42,11 @@ Sample data lives in: `DemoReferralRepository`, `DemoRecoveryRepository` (in-mem
    human review in admin, ledger entries.
 8. **Monthly plans and AutoPay; referrals** — see CU-WASHCHOICE.md "Backend needed".
 
+**Prices (Aman, 12 Nov): the handoff numbers are the real prices.** One-time car
+₹292 / ₹392 / ₹492 (Basic / Premium / Extra Premium), +₹80 with interior; bike ₹149 / ₹199 /
+₹249; monthly = formulas in `PurchaseSelection.quotePaiseFor` (car Basic 3 days/week ₹517).
+Set them in `washPrices` and the plan tariff; today's server still charges its current
+Basic price, so the app shows the server price for Basic exterior and these for the rest.
+
 Release gates: no customer release while sample prices, sample referral codes or sample
 cases can be seen on a live build (items 5, 7, 8) — or set `v2Features: false`.

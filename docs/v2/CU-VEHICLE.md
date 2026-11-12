@@ -125,3 +125,24 @@ Built; analyze clean; Customer 95/95 tests pass (incl. tap-through of the add fl
   relax the plate check in `createBooking` (`service.mjs`).
 - **Status:** built; tests pass.
 
+## 12 Nov 2026 — "Your vehicle" screen (C46c): view, edit, delete, then book
+
+- **Why (Aman):** tapping a saved vehicle should first show the vehicle (details, edit,
+  delete), then offer to repeat a wash — not jump straight into Book again.
+- **Screens:** new C46c `VehicleDetailScreen` (route `N.vehicleDetail`); C46 list cards
+  open it (the "Edit · add photos" link on cards is removed).
+- **What the customer sees:** plate, type, last parking place; photos (Add/Change);
+  **Edit details** (existing Edit vehicle); **Delete vehicle** (red, confirm: "It is
+  removed from your saved vehicles. Your past bookings stay as they are."); the last three
+  washes (open the booking); one button **Book a wash for this vehicle** (existing Book again).
+- **Delete rules:** blocked while the vehicle has a wash booked or in progress. Deleted
+  vehicles are remembered on this phone (id + plate) and hidden; past bookings are
+  untouched. Adding or booking the same plate again brings it back.
+- **Files:** `customer/lib/screens/vehicle_detail.dart` (new), `store.dart`
+  (`washesFor`, `vehicleDeleteBlocked`, `deleteVehicle`, `_restoreVehicle`), `home.dart`
+  (list tap), `main.dart`, `test/vehicle_detail_test.dart` (new).
+- **Captain app:** nothing needed; saved vehicles never leave the customer's phone.
+- **Backend needed (Ajay):** none now. When saved vehicles move to the account, add
+  `deleteCustomerVehicle` and drop the on-phone hidden list.
+- **Status:** built; Customer tests 115/115.
+
