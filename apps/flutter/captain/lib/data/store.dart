@@ -147,7 +147,7 @@ List<Job> sampleQueue() => [
       Job(id: 'j7', plate: 'TS 09 MN 4410', type: 'SUV', isBike: false, pay: 140, tower: 'Tower 2', floor: 'B1', slot: '7', window: '8–10', time: '8:00', day: 1, windows: ['8–10', '16–18']),
       // v2 samples: the owner's exact windows and a Premium wash; a monthly-plan visit.
       Job(id: 'j8', plate: 'TS 08 EX 2210', type: 'Sedan', isBike: false, pay: 160, tower: 'Tower 1', floor: 'B1', slot: '12', window: '8–11', time: '8:15', day: 1, wash: WashType.wetOutsideDryInside)
-        ..extras = const JobExtras(exactWindows: ['8:15 AM – 10:45 AM', '7 PM – 11 PM'], serviceLevel: 'Premium'),
+        ..extras = const JobExtras(exactWindows: ['8:15 AM – 10:45 AM', '7 PM – 11 PM'], serviceLevel: 'Premium', vehicleName: 'Hyundai Creta · White · Matte paint', care: [('Matte-safe wash', 'Mild shampoo, no wax or polish. Patted dry, never rubbed.'), ('Edges and lower panels', 'Light paint shows mud: extra care on door edges.'), ('Spot-free finish', 'Final wipe so no water marks dry on the glass.')]),
       Job(id: 'j9', plate: 'TS 09 PL 3003', type: 'Hatchback', isBike: false, pay: 35, tower: 'Tower 3', floor: 'B2', slot: '22', window: '6–8', time: '6:30', day: 1)
         ..extras = const JobExtras(exactWindows: ['6:30 AM – 8 AM'], serviceLevel: 'Basic', planVisit: 3, planVisits: 13),
     ];

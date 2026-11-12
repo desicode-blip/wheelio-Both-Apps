@@ -14,6 +14,7 @@ import '../data/place_search.dart';
 import '../data/store.dart';
 import 'sticky_list.dart';
 import 'coupon_picker.dart';
+import '../features/vehicle_care_screens.dart' show routeFromPhotos;
 import 'common.dart';
 
 // MARK: C05 Vehicle type (C52: 200% text)
@@ -482,7 +483,8 @@ class PhotosScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     final d = store.draft;
     // v2 CU-BOOKINGS: a Book again already has its place, so photos lead straight to the time.
-    void goNext() => router.go(d.isRepeat && d.place != null ? N.timeSlot : store.draft.place == null ? N.location : N.floorSlot);
+    // v2 CU-CARE: with photos, the vehicle check and care routine come next.
+    void goNext() => router.go(routeFromPhotos(store));
     // v2 CU-VEHICLE: in Add a vehicle the photos are optional: save with them, or skip and add later.
     final adding = d.addingVehicle;
     Future<void> finishAdding(bool withPhotos) async {

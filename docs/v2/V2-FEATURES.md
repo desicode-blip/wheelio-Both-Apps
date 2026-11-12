@@ -50,3 +50,8 @@ Basic price, so the app shows the server price for Basic exterior and these for 
 
 Release gates: no customer release while sample prices, sample referral codes or sample
 cases can be seen on a live build (items 5, 7, 8) — or set `v2Features: false`.
+
+## CU-CARE — vehicle check and care routine (12 Nov)
+
+See [CU-CARE.md](CU-CARE.md). Server: `identifyVehicle` callable + `config/operations.vehicleAi`,
+and copy `vehicleProfile` / `careRoutine` from `createBooking` onto the order and Captain job.

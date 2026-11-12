@@ -160,6 +160,22 @@ class BookingVisual extends StatelessWidget {
           _tile(WIcon.dropFill, store.t('Water', 'पानी', 'నీళ్ళు'), job.wash.water),
           if (!job.isBike) ...[const SizedBox(width: 10), _tile(WIcon.seat, store.t('Inside', 'अंदर', 'లోపల'), job.wash.inside)],
         ]),
+        // v2 CU-CARE: what the owner told us about the vehicle, and how to care for it.
+        if (job.extras.vehicleName != null || job.extras.care.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: WColor.divider),
+          const SizedBox(height: 14),
+          Align(alignment: Alignment.centerLeft, child: WText(store.t('Care for this vehicle', 'इस गाड़ी की देखभाल', 'ఈ వాహనం జాగ్రత్త'), WType.title)),
+          if (job.extras.vehicleName != null) ...[const SizedBox(height: 4), Align(alignment: Alignment.centerLeft, child: WText(job.extras.vehicleName!, WType.caption))],
+          for (final (title, detail) in job.extras.care) ...[
+            const SizedBox(height: 12),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(padding: EdgeInsets.only(top: 2), child: WIconView(WIcon.checkCircle, size: 18, color: WColor.primary)),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [WText(title, WType.bodyStrong, weight: semibold), if (detail.isNotEmpty) WText(detail, WType.caption)])),
+            ]),
+          ],
+        ],
       ]),
     );
   }

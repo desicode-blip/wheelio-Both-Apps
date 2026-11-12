@@ -59,6 +59,8 @@ enum N {
   vehiclePick,
   vehicleEdit,
   vehicleDetail,
+  vehicleCheck,
+  careRoutine,
   help,
   helpCaptain,
   helpEmergency,
@@ -384,6 +386,11 @@ class BookingDraft {
   /// started from (angle name -> storage path). Empty when there are none.
   Map<String, String> lastPhotoPaths = {};
   String? lastPhotosOrderId;
+
+  /// v2 CU-CARE: what the customer confirmed about the vehicle (make, model, colour,
+  /// paint, seats, source) and the care routine built from it. Sent with the booking.
+  Map<String, dynamic>? vehicleProfile;
+  List<Map<String, String>> careRoutine = const [];
 
   /// v2 CU-VEHICLE: this draft only adds a vehicle to the list (no booking).
   bool addingVehicle = false;
@@ -1755,6 +1762,9 @@ class AppStore extends ChangeNotifier {
         // accepts them (liveConfig switches set by Ajay).
         if (s.minuteWindows.isNotEmpty) 'minuteWindows': [for (final w in s.orderedMinuteWindows) {'startMinute': w.$1, 'endMinute': w.$2}],
         if (washTiersLive && d.serviceLevel != null) 'serviceLevel': d.serviceLevel!.name,
+        // v2 CU-CARE: the Captain's job shows these (server copies them onto the job).
+        if (d.vehicleProfile != null) 'vehicleProfile': d.vehicleProfile,
+        if (d.careRoutine.isNotEmpty) 'careRoutine': d.careRoutine,
         if (washTiersLive && d.coverage != null) 'coverage': d.coverage!.name,
         'useFreeWash': false,
         'useCredit': false,
