@@ -29,7 +29,6 @@ class _WNotificationsScreenState extends State<WNotificationsScreen> {
     final store = context.store;
     showWActions(context, title: store.title(n), cancel: store.t('Cancel', 'रद्द करें', 'రద్దు'), actions: [
       n.read ? AlertAction(store.t('Mark unread', '‘नहीं पढ़ा’ करें', 'చదవనిదిగా'), onTap: () => store.markUnread(n.id)) : AlertAction(store.t('Mark read', 'पढ़ा हुआ करें', 'చదివినట్లు'), onTap: () => store.markRead(n.id)),
-      AlertAction(store.t('Delete', 'हटाएं', 'తొలగించండి'), destructive: true, onTap: () => store.deleteNotification(n.id)),
     ]);
   }
 
@@ -71,7 +70,7 @@ class _WNotificationsScreenState extends State<WNotificationsScreen> {
             ]),
           ),
           const SizedBox(width: 8),
-          // Web: no long-press, so delete / mark unread sit behind a "⋯" button.
+          // Web: no long-press, so read / unread sit behind a "⋯" button.
           if (kIsWeb)
             Pressable(label: store.t('More', 'और', 'మరిన్ని'), onTap: () => _menu(n), child: const SizedBox(width: 28, height: 28, child: Center(child: WIconView(WIcon.more, size: 18, color: WColor.secondary))))
           else
@@ -153,8 +152,6 @@ class _WNotificationsScreenState extends State<WNotificationsScreen> {
             padding: const EdgeInsets.only(top: 12),
             child: Row(children: [
               WText(store.unreadCount == 0 ? store.t('All read', 'सब पढ़ लिया', 'అన్నీ చదివారు') : store.t('${store.unreadCount} new', '${store.unreadCount} नई', '${store.unreadCount} కొత్తవి'), WType.label),
-              const Spacer(),
-              if (store.unreadCount > 0) WLink(store.t('Mark all read', 'सब पढ़ा हुआ करें', 'అన్నీ చదివినట్లు'), k: WType.caption, onTap: store.markAllRead),
             ]),
           ),
           for (final s in sections) ...[
@@ -166,21 +163,16 @@ class _WNotificationsScreenState extends State<WNotificationsScreen> {
             ),
           ],
           const SizedBox(height: 16),
-          WButton(
-            store.t('Clear all', 'सब हटाएं', 'అన్నీ తొలగించండి'),
-            kind: ButtonKind.text,
-            onTap: () => showWActions(context,
-                title: store.t('Clear all messages?', 'सब संदेश हटाएं?', 'అన్ని సందేశాలు తొలగించాలా?'),
-                message: store.t('Your jobs and money are not affected.', 'आपके काम और पैसे पर असर नहीं होगा।', 'మీ పనులు, డబ్బుపై ప్రభావం ఉండదు.'),
-                cancel: store.t('Cancel', 'रद्द करें', 'రద్దు'),
-                actions: [AlertAction(store.t('Clear all', 'सब हटाएं', 'అన్నీ తొలగించండి'), destructive: true, onTap: store.clearNotifications)]),
-          ),
+          // 13 Nov (Aman): messages are never cleared or deleted; only marked as read.
+          if (store.unreadCount > 0)
+            WButton(store.t('Mark all as read', 'सब पढ़ा हुआ करें', 'అన్నీ చదివినట్లు గుర్తించండి'), kind: ButtonKind.outline, icon: WIcon.check, size: ButtonSize.captain, onTap: store.markAllRead),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: WText(
               kIsWeb
-                  ? store.t('Use ⋯ on a message to delete it or mark it unread.', 'संदेश पर ⋯ दबाएं: हटाएं या ‘नहीं पढ़ा’ करें।', 'సందేశంపై ⋯ నొక్కండి: తొలగించండి లేదా చదవనిదిగా మార్చండి.')
-                  : store.t('Press and hold a message to delete it or mark it unread.', 'किसी संदेश को दबाकर रखें: हटाएं या ‘नहीं पढ़ा’ करें।', 'సందేశాన్ని నొక్కి పట్టుకోండి: తొలగించండి లేదా చదవనిదిగా మార్చండి.'),
+                  ? store.t('Use ⋯ on a message to mark it read or unread.', 'संदेश पर ⋯ दबाएं: पढ़ा या ‘नहीं पढ़ा’ करें।', 'సందేశంపై ⋯ నొక్కండి: చదివినట్లు లేదా చదవనిదిగా మార్చండి.')
+                  : store.t('Press and hold a message to mark it read or unread.', 'किसी संदेश को दबाकर रखें: पढ़ा या ‘नहीं पढ़ा’ करें।', 'సందేశాన్ని నొక్కి పట్టుకోండి: చదివినట్లు లేదా చదవనిదిగా మార్చండి.'),
               WType.small,
               color: WColor.muted,
               align: TextAlign.center,

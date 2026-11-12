@@ -30,7 +30,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final store = context.store;
     showWActions(context, title: n.title, actions: [
       n.read ? AlertAction('Mark as unread', onTap: () => store.markUnread(n.id)) : AlertAction('Mark as read', onTap: () => store.markRead(n.id)),
-      AlertAction('Delete', destructive: true, onTap: () => store.deleteNotification(n.id)),
     ]);
   }
 
@@ -129,7 +128,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   padding: const EdgeInsets.only(top: 10),
                   child: Row(children: [
                     Expanded(child: WText(store.unreadCount == 0 ? 'All caught up' : '${store.unreadCount} unread', WType.label)),
-                    if (store.unreadCount > 0) WLink('Mark all as read', k: WType.caption, onTap: store.markAllRead),
                   ]),
                 ),
                 for (final s in sections) ...[
@@ -141,9 +139,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                WButton('Clear all', kind: ButtonKind.text, onTap: () => showWActions(context, title: 'Clear all notifications?', message: 'This only clears the list. Your bookings aren’t affected.', actions: [AlertAction('Clear all', destructive: true, onTap: store.clearNotifications)])),
-                const SizedBox(height: 2),
-                WText(kIsWeb ? 'Use ⋯ on a notification to delete it or mark it unread.' : 'Long-press a notification to delete it or mark it unread.', WType.small, color: WColor.muted, align: TextAlign.center),
+                // 13 Nov (Aman): notifications are never cleared or deleted; only marked as read.
+                if (store.unreadCount > 0) WButton('Mark all as read', kind: ButtonKind.outline, icon: WIcon.check, onTap: store.markAllRead),
+                const SizedBox(height: 12),
+                WText(kIsWeb ? 'Use ⋯ on a notification to mark it read or unread.' : 'Long-press a notification to mark it read or unread.', WType.small, color: WColor.muted, align: TextAlign.center),
               ],
             ],
     );
