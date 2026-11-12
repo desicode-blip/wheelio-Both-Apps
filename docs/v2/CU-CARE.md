@@ -37,6 +37,10 @@ The job's booking card (wash screen) gets **Care for this vehicle**: the vehicle
 
 ## Server work (Ajay)
 
+**13 Nov: done for review** in `backend/firebase/functions/src/vehicle-care.mjs` (tests in
+`backend/firebase/vehicle-care.test.mjs`): the callable, the switch, and storing/copying both
+fields. Still open: consent wording, deploy, keeping the profile on the saved vehicle.
+
 - **`identifyVehicle` callable:** input `{vehicleKind, images: [base64 JPEG, up to 2, ≤ 1.5 MB each]}`
   (front first). Output `{make, model, color, finish: glossy|matte|unknown, confidence 0–1}`. The app
   ignores results under 0.6 confidence and shows the form instead. Same Google AI project as the

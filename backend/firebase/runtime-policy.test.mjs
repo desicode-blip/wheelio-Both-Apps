@@ -13,7 +13,7 @@ test('only three interactive availability/preference methods reserve one instanc
 });
 test('emulators stay on demand and photo runtime limits remain intact',()=>{
   for(const method of ['availability','savePlace','captainPreferences'])assert.deepEqual(callableRuntime(method,true,1),{minInstances:0});
-  for(const method of ['checkWashPhotos','verifyIdentity'])assert.deepEqual(callableRuntime(method,false),{minInstances:0,timeoutSeconds:120,memory:'512MiB'});
+  for(const method of ['checkWashPhotos','verifyIdentity','identifyVehicle'])assert.deepEqual(callableRuntime(method,false),{minInstances:0,timeoutSeconds:120,memory:'512MiB'});
 });
 
 test('account cleanup has time to finish without reserving warm instances',()=>{

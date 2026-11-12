@@ -11,7 +11,7 @@ export function callableRuntime(method, emulator = process.env.FUNCTIONS_EMULATO
   return {
     minInstances: !emulator && warmMethods.has(method) ? minimum : 0,
     ...(['deleteAccount','reviewDeletionRequest'].includes(method) ? {timeoutSeconds: 120} : {}),
-    ...(['checkWashPhotos', 'verifyIdentity'].includes(method)
+    ...(['checkWashPhotos', 'verifyIdentity', 'identifyVehicle'].includes(method)
       ? {timeoutSeconds: 120, memory: '512MiB'} : {}),
   };
 }

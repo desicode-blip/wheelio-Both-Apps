@@ -1,3 +1,5 @@
+**Start with [AJAY-HANDOFF-2026-11-13.md](AJAY-HANDOFF-2026-11-13.md).**
+
 # v2 — what is standard, what is sample data, what the server must do
 
 12 Nov 2026 (Aman): the v2 features are a standard part of both apps, not hidden. Until
@@ -23,7 +25,9 @@ Sample data lives in: `DemoReferralRepository`, `DemoRecoveryRepository` (in-mem
 
 ## For Ajay: server work, smallest first
 
-1. **Copy v2 booking fields onto the job/offer** — in `createBooking` store
+1. **Copy v2 booking fields onto the job/offer** — *partly done 13 Nov (Claude, for review):
+   `minuteWindows`, `vehicleProfile`, `careRoutine` are validated, stored and copied to offers
+   (`vehicle-care.mjs`); `serviceLevel` / `coverage` still open.* In `createBooking` store
    `minuteWindows`, `serviceLevel`, `coverage` and include them in the offer and Captain
    job payloads. The Captain app already reads them (`captain/lib/features/v2_job.dart`).
 2. **Exact time windows** — validate (sorted, no overlap, each ≥ 60 min, inside
@@ -53,8 +57,9 @@ cases can be seen on a live build (items 5, 7, 8) — or set `v2Features: false`
 
 ## CU-CARE — vehicle check and care routine (12 Nov)
 
-See [CU-CARE.md](CU-CARE.md). Server: `identifyVehicle` callable + `config/operations.vehicleAi`,
-and copy `vehicleProfile` / `careRoutine` from `createBooking` onto the order and Captain job.
+See [CU-CARE.md](CU-CARE.md). **Done 13 Nov for review** (`functions/src/vehicle-care.mjs`):
+`identifyVehicle` callable (off until `config/operations.vehicleAi`), and `vehicleProfile` /
+`careRoutine` stored on the order and copied to Captain offers. Open: consent wording, deploy.
 
 ## Referral rule (13 Nov, Aman)
 

@@ -22,6 +22,7 @@ import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
 import {searchPlaces,selectPlace} from './place-search.mjs';
+import {bookingCareFields,offerCareFields,identifyVehicle} from './vehicle-care.mjs';
 import {areaPolicy,hasArea,covers,resolveLocation,saveLocation,nearbyCaptains,saveCaptainArea,areaCapacity,areaLock,touchAreaLock,signal} from './captain-area.mjs';
 import {createWalletTopup,captureWalletTopup,checkWalletTopup} from './wallet-topup.mjs';
 
@@ -52,7 +53,7 @@ export class WashKrewService {
   listWashReports(auth,data){return listWashReports(this,auth,data);}
   reviewWashReport(auth,data){return reviewWashReport(this,auth,data);}
   washReportEvidence(auth,data){return washReportEvidence(this,auth,data);}
-  constructor({ db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, now }); }
+  constructor({ db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, vehicleAi, now = () => Date.now() }) { Object.assign(this, { db, payments, paymentProviders, evidence, accounts, maps, places, photoChecks, vehicleAi, now }); }
   getPayments(mode,merchant='trustkeyper') {
     merchant=merchant??'trustkeyper';
     if(!['trustkeyper','washkrew'].includes(merchant))fail('failed-precondition','This booking merchant is not configured. Contact support.');
@@ -212,6 +213,8 @@ export class WashKrewService {
       return {uid,name:roleName,accountCreated:newRole,needsName:roleName.length<2};
     });
   }
+  /** v2 (13 Nov): "Is this your vehicle?" from the customer's photos (config.vehicleAi). */
+  identifyVehicle(auth, data) { return identifyVehicle(this, auth, data); }
   async createBooking(auth, data) {
     const uid = this.actor(auth), requestId = id(data.requestId, 'booking request');
     // Checkout no longer grants AI permission. Only the paid-booking toggle can.
@@ -319,6 +322,8 @@ export class WashKrewService {
         vehiclePosition: validPosition(data.vehiclePosition) ? {latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude} : null,
         slotStart: Timestamp.fromMillis(start), slotEnd: Timestamp.fromMillis(end), retentionDueAt:Timestamp.fromMillis(end+90*86400000), slotKey,
         requestedWindows: windows, anyTime: data.anyTime === true,
+        // v2 (13 Nov): optional vehicle details, care routine and exact windows from the Customer app.
+        ...bookingCareFields(data, windows),
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
         ...pricing, creditReservedLots:credits.spent, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         ...(couponMode?{paymentBalanceMode:'refundCouponsV1'}:{}),...(coupon?{couponId:coupon.couponId,couponReservedPaise:coupon.amountPaise,couponForfeitPaise:coupon.forfeitPaise,couponReleased:false}:{}),
@@ -565,6 +570,7 @@ export class WashKrewService {
       vehicleKind:o.vehicleKind,vehicleName:o.vehicleName,washKind:o.washKind,captainPayPaise:o.captainPayPaise,
       distanceMetres:metresBetween(d.data().position,o.coverageLocation??cfg.societies?.find(s=>s.id===o.societyId)?.location),
       paymentMode:o.paymentMode,slotStart:o.slotStart,slotEnd:o.slotEnd,requestedWindows:o.requestedWindows??[],anyTime:o.anyTime===true,
+      ...offerCareFields(o),
       status:'pending',expiresAt:Timestamp.fromMillis(this.now()+seconds*1000),createdAt:Timestamp.fromMillis(this.now()),
     }]);
   }

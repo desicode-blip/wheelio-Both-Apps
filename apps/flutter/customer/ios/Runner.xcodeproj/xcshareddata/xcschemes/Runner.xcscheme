@@ -68,7 +68,7 @@
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
             <ActionContent
                title = "Then install the Captain app"
-               scriptText = "# WashKrew (13 Nov, Aman): Play on the Customer app also installs the Captain app afterwards.&#10;# Runs only from Xcode Play (Run), never from flutter build, archive or the phone scripts.&#10;LOCK=/tmp/washkrew-captain-after-play.lock&#10;mkdir &quot;$LOCK&quot; 2&gt;/dev/null || exit 0&#10;nohup bash -c &apos;sleep 60; bash &quot;$HOME/Documents/Wheelio/update-phone.sh&quot; captain; rmdir /tmp/washkrew-captain-after-play.lock&apos; &gt;/dev/null 2&gt;&amp;1 &amp;&#10;">
+               scriptText = "# WashKrew (13 Nov, Aman): Play on the Customer app also installs the Captain app afterwards.&#10;# Runs only from Xcode Play (Run), never from flutter build, archive or the phone scripts.&#10;LOCK=/tmp/washkrew-captain-after-play.lock&#10;mkdir &quot;$LOCK&quot; 2&gt;/dev/null || exit 0&#10;export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8&#10;nohup bash -c &apos;sleep 60; bash &quot;$HOME/Documents/Wheelio/update-phone.sh&quot; captain; rmdir /tmp/washkrew-captain-after-play.lock&apos; &gt;/dev/null 2&gt;&amp;1 &amp;&#10;">
                <EnvironmentBuildable>
                   <BuildableReference
                      BuildableIdentifier = "primary"

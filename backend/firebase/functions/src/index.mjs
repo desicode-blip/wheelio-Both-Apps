@@ -29,6 +29,8 @@ import {pushResultSummary} from './push-results.mjs';
 import {WalletTopupError} from './wallet-topup.mjs';
 import {AiPhotoConsentError} from './ai-photo-consent.mjs';
 import {CouponError} from './coupon-ledger.mjs';
+import {VertexVehicleAi,VehicleCareError} from './vehicle-care.mjs';
+import {GoogleAuth} from 'google-auth-library';
 
 initializeApp();
 // These controllers mostly wait for Firestore, Storage and Razorpay. Fractional
@@ -56,6 +58,7 @@ function service(withPayment = false, withMaps = false) {
     maps:withMaps?new GoogleRoutes(mapsKey.value()):undefined,
     places:withMaps?new GooglePlaces(mapsKey.value()):undefined,
     photoChecks:new PrivatePhotoChecks(db),
+    vehicleAi:new VertexVehicleAi(db,new GoogleAuth()),
   });
 }
 const cors = ['https://wheelio-apps.web.app', 'https://wheelio-apps.firebaseapp.com', /^http:\/\/(localhost|127\.0\.0\.1):\d+$/];
@@ -69,7 +72,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof CouponError || error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError) throw new HttpsError(error.code, error.message);
+      if (error instanceof CouponError || error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError || error instanceof VehicleCareError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -122,6 +125,7 @@ export const submitTrainingQuiz = callable('submitQuiz');
 export const beginCaptainIdentity = callable('beginIdentity');
 export const verifyCaptainIdentity = callable('verifyIdentity');
 export const checkWashPhotos = callable('checkWashPhotos');
+export const identifyVehicle = callable('identifyVehicle');
 export const setBookingPhotoAi = callable('setBookingPhotoAi');
 export const saveCaptainPayout = callable('captainPayout');
 export const claimJob = callable('claim');
