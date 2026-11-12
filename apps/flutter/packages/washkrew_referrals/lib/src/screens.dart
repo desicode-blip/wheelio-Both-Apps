@@ -59,7 +59,7 @@ class ReferralHomeScreen extends StatelessWidget {
                     'वे वॉश करें। आप दोनों कमाएँ।',
                     'వారు వాష్ చేస్తారు. ఇద్దరూ సంపాదిస్తారు.',
                   )
-                : 'Every successful referral earns a Premium wash.',
+                : 'Free Premium washes for you.',
           ),
           ReferralCodeCard(
             code: repository.identity.code,
@@ -91,12 +91,8 @@ class ReferralHomeScreen extends StatelessWidget {
               ),
             ),
           ] else ...[
-            const _MilestoneRule(
-              washes: 5,
-              title: '1 free Premium wash',
-              detail:
-                  'Your friend completes 5 paid washes. Use your reward on any supported vehicle.',
-            ),
+            // v2 (12 Nov, Aman): the rule as three short steps, not a sentence.
+            const _HowItWorks(),
           ],
           if (repository.incoming != null) ...[
             const Gap(18),
@@ -151,7 +147,7 @@ class ReferralHomeScreen extends StatelessWidget {
             WText(
               captain
                   ? 'Your first reward unlocks at 5 completed washes.'
-                  : 'Your first free wash unlocks at 5 completed paid washes.',
+                  : 'None yet',
               WType.body,
             ),
           for (final reward in repository.rewards) ...[
@@ -311,6 +307,36 @@ class ReferralProgressCard extends StatelessWidget {
         captain = p.role == ReferralRole.captain;
     final target = captain && p.completedWashes >= 5 ? 50 : 5;
     final remaining = (target - p.completedWashes).clamp(0, target);
+    final total = captain ? 50 : 5, done = p.completedWashes >= total;
+    if (!captain) {
+      // v2 (12 Nov, Aman): what's left in big type, the rule in one short line.
+      return WCard(
+        outlined: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const WIconBox(WIcon.user, size: 40),
+                const Gap(12),
+                Expanded(child: WText(p.name, WType.title)),
+                WText('${p.completedWashes.clamp(0, 5)}/5', WType.caption, mono: true),
+              ],
+            ),
+            const Gap(14),
+            WText(
+              done ? 'Premium wash won' : '$remaining more ${remaining == 1 ? 'wash' : 'washes'}',
+              WType.section,
+              color: done ? WColor.onSuccess : WColor.heading,
+            ),
+            const Gap(2),
+            WText(done ? 'Added to your rewards' : 'to win a free Premium wash', WType.caption),
+            const Gap(12),
+            _Segments(done: p.completedWashes.clamp(0, 5), total: 5),
+          ],
+        ),
+      );
+    }
     return WCard(
       outlined: true,
       child: Column(
@@ -367,6 +393,67 @@ class ReferralProgressCard extends StatelessWidget {
               reached: p.completedWashes >= 50,
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One block per wash: filled when done, green when all are done.
+class _Segments extends StatelessWidget {
+  const _Segments({required this.done, required this.total});
+  final int done, total;
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      for (var i = 0; i < total; i++) ...[
+        if (i > 0) const Gap(6),
+        Expanded(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 8,
+            decoration: BoxDecoration(
+              color: i < done ? (done >= total ? WColor.success : WColor.primary) : WColor.track,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+      ],
+      const Gap(10),
+      WIconView(WIcon.gift, size: 18, color: done >= total ? WColor.onSuccess : WColor.secondary),
+    ],
+  );
+}
+
+/// Customer rule in three steps: share → 5 washes → free Premium wash.
+class _HowItWorks extends StatelessWidget {
+  const _HowItWorks();
+  @override
+  Widget build(BuildContext context) {
+    Widget step(WIcon icon, String big, String small, {bool reward = false}) => Expanded(
+      child: Column(
+        children: [
+          WIconBox(icon, size: 44, tone: reward ? Tone.ok : Tone.info),
+          const Gap(8),
+          WText(big, WType.title, align: TextAlign.center),
+          const Gap(2),
+          WText(small, WType.caption, align: TextAlign.center),
+        ],
+      ),
+    );
+    const arrow = Padding(
+      padding: EdgeInsets.only(top: 14),
+      child: WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
+    );
+    return WCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          step(WIcon.megaphone, 'Share', 'your code'),
+          arrow,
+          step(WIcon.sparkle, '5 washes', 'by your friend'),
+          arrow,
+          step(WIcon.gift, '1 free', 'Premium wash', reward: true),
         ],
       ),
     );

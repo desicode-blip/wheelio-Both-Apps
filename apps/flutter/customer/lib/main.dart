@@ -39,7 +39,8 @@ class _CustomerAppState extends State<CustomerApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     store.refreshSystemPermission();
-    if(store.isLive)WidgetsBinding.instance.addPostFrameCallback((_) { if(mounted)requestStartupPermissions(); });
+    // v2 (12 Nov, Aman): no permission burst at launch. Notifications are asked on the
+    // "only what matters" screen; camera, microphone and location when first used.
     if(store.isLive)_freshnessTimer=Timer.periodic(const Duration(seconds:30),(_){if(mounted&&Device.appIsActive)store.changed();});
     store.live?.listenPush('customer',(id){if(mounted){store.set(()=>store.currentOrderId=id);router.push(R(N.live,id:id));}});
     // On a laptop there's no phone to call from: say so instead of dialling.

@@ -49,3 +49,14 @@ delete the app's data by reinstalling, open → button says Open Settings.
 ### Status
 
 Built; analyze clean; Customer 85/85, Captain 40/40, shared UI 9/9 tests pass. iPhone test pending.
+
+## 12 Nov 2026 — no permission burst at launch (Customer, Aman)
+
+- The Customer app no longer calls `requestStartupPermissions()` on launch, so iOS no
+  longer shows camera, microphone, location and notification prompts one after another.
+- First open: only the existing "only what matters" notification screen (NotifyFirst).
+- Camera: asked by iOS when the customer first takes a photo or video (image_picker).
+- Microphone: asked when they first record a voice note (`recorder.hasPermission()`).
+- Location: asked when they first tap "Use my location" (Geolocator).
+- The Captain app keeps its start-up sequence for now (it needs camera and location for
+  every job); say if it should change too.
