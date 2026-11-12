@@ -78,7 +78,10 @@ void main() {
       s.draft.slot = null;
     });
     expect(find.text('When is your vehicle free?'), findsOneWidget);
-    expect(find.textContaining('at least 1 hour each'), findsOneWidget);
+    expect(find.textContaining('at least 1 hour'), findsOneWidget);
+    // Tomorrow suggests 8–10 AM; today suggests the next free 2 hours.
+    await tester.tap(find.text('Tomorrow'));
+    await _settle(tester);
     await tester.tap(find.text('Next: check and pay'));
     await _settle(tester);
     expect(store.draft.slot!.minuteWindows, [(480, 600)]);

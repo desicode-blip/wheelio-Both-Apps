@@ -37,3 +37,26 @@ has a checkbox, tapping ticks/unticks it, several can be ticked, full slots look
 ### Status
 
 Built; analyze clean; Customer 85/85, shared UI 9/9 tests pass. iPhone test: pending.
+
+## 12 Nov 2026 — Time windows with a slider and clearer hierarchy (C12)
+
+- **Why (Aman):** picking From/Until needed a livelier control, and the screen needed a
+  clearer order of information.
+- **What changed for the customer:**
+  - Two labelled sections: **Day** (Today / Tomorrow / next day, the date, *Other date*) and **Time**.
+  - Each window is one card: big blue **From** and **Until** times, a duration pill
+    ("2 hours"), and a **range slider** to drag both ends in 15-minute steps. The times roll
+    over as you drag, with a light tap of haptics. The two ends stay at least 1 hour apart.
+    Tapping a time still opens the clock to type an exact minute.
+  - Today the slider starts at the next quarter hour, so a past time can't be picked, and
+    the suggested window is the next free 2 hours (other days: 8–10 AM) — no more
+    "already ended" on arrival.
+  - *Add another window* suggests the next free 2 hours; the delete button shows only when
+    there is more than one window.
+  - Problems show in a red banner with an icon (not colour alone); the rule line moved
+    under the title.
+- **Files:** `packages/washkrew_purchase_ui/lib/src/time_windows.dart` (also used by the
+  monthly plan time step), tests updated.
+- **Backend needed (Ajay):** none beyond exact-minute windows (V2-FEATURES.md).
+- **Status:** built; package 28/28, Customer 119/119.
+

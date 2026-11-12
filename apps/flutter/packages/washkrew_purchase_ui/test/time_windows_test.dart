@@ -150,7 +150,7 @@ void main() {
       await tester.tap(find.text('Add another window'));
       await tester.pumpAndSettle();
       expect(windows.length, 2);
-      expect(windows.last.complete, isFalse);
+      expect(windows.last.complete, isTrue); // v2: a new window comes with a suggested time
       await tester.ensureVisible(find.bySemanticsLabel('Remove window 2'));
       await tester.tap(find.bySemanticsLabel('Remove window 2'));
       await tester.pumpAndSettle();

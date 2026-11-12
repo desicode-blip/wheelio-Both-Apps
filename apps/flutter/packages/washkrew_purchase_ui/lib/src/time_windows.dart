@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:washkrew_ui/washkrew_ui.dart';
 
 /// Minute-precision availability, not a guaranteed arrival appointment.
@@ -75,6 +76,31 @@ String _duration(int minutes) => minutes % 60 == 0
     ? '${minutes ~/ 60} ${minutes == 60 ? 'hour' : 'hours'}'
     : '$minutes minutes';
 
+// v2 CU-TIME (12 Nov 2026, Aman): each window is one card with a big, readable time
+// range and a slider to drag the start and end (15-minute steps, at least 1 hour apart).
+// Tapping a time still opens the clock for an exact minute.
+const _sliderStep = 15;
+
+int _ceilTo(int minute, int step) => ((minute + step - 1) ~/ step) * step;
+
+/// The next free 2-hour window after [after] (and after the existing windows), inside
+/// service hours; null when the day has no room left.
+WashTimeWindow? suggestWashWindow(
+  List<WashTimeWindow> windows, {
+  int? after,
+  int earliest = washDayStartMinute,
+  int latest = washDayEndMinute,
+}) {
+  var start = windows.isEmpty && after == null ? 480 : earliest;
+  if (after != null) start = _ceilTo(after + 30, 30);
+  for (final w in windows) {
+    if (w.complete && w.endMinute! + 60 > start) start = _ceilTo(w.endMinute! + 60, 30);
+  }
+  if (start < earliest) start = earliest;
+  if (start + washMinimumWindowMinutes > latest) return null;
+  return WashTimeWindow(startMinute: start, endMinute: (start + 120).clamp(start, latest));
+}
+
 class CustomTimeWindowEditor extends StatelessWidget {
   const CustomTimeWindowEditor({
     super.key,
@@ -88,6 +114,9 @@ class CustomTimeWindowEditor extends StatelessWidget {
   final ValueChanged<List<WashTimeWindow>> onChanged;
   final int? notEndedBy;
   final int earliest, latest;
+
+  void _set(int index, WashTimeWindow value) => onChanged([...windows]..[index] = value);
+
   Future<void> pick(BuildContext context, int index, bool start) async {
     final current = windows[index],
         minute =
@@ -100,46 +129,16 @@ class CustomTimeWindowEditor extends StatelessWidget {
       helpText: 'Window ${index + 1} · ${start ? 'Start' : 'End'} time',
     );
     if (value == null) return;
-    final next = [...windows], selected = value.hour * 60 + value.minute;
-    // v2: a new start fills a 2-hour end (kept inside service hours), so a window is
+    final selected = value.hour * 60 + value.minute;
+    // A new start fills a 2-hour end (kept inside service hours), so a window is
     // never left half done. An end the customer already chose is not changed.
     final autoEnd = start && current.endMinute == null
         ? (selected + 120).clamp(selected, latest)
         : null;
-    next[index] = WashTimeWindow(
+    _set(index, WashTimeWindow(
       startMinute: start ? selected : current.startMinute,
       endMinute: start ? (autoEnd ?? current.endMinute) : selected,
-    );
-    onChanged(next);
-  }
-
-  Widget field(BuildContext context, int index, bool start) {
-    final minute = start
-        ? windows[index].startMinute
-        : windows[index].endMinute;
-    return Expanded(
-      child: Pressable(
-        label:
-            'Window ${index + 1} ${start ? 'start' : 'end'} time${minute == null ? '' : ', ${formatWashMinute(minute)}'}',
-        onTap: () => pick(context, index, start),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 64),
-          padding: const EdgeInsets.all(12),
-          decoration: outlinedDecoration(radius: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              WText(start ? 'From' : 'Until', WType.caption),
-              const Gap(4),
-              WText(
-                minute == null ? 'Choose time' : formatWashMinute(minute),
-                WType.value,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    ));
   }
 
   @override
@@ -150,65 +149,195 @@ class CustomTimeWindowEditor extends StatelessWidget {
       earliest: earliest,
       latest: latest,
     );
+    final next = suggestWashWindow(windows, after: notEndedBy, earliest: earliest, latest: latest);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < windows.length; i++) ...[
-          WCard(
-            outlined: true,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: WText('Window ${i + 1}', WType.title)),
-                    WIconButton(
-                      WIcon.trash,
-                      size: 48,
-                      label: 'Remove window ${i + 1}',
-                      onTap: () => onChanged([...windows]..removeAt(i)),
-                    ),
-                  ],
-                ),
-                const Gap(8),
-                Row(
-                  children: [
-                    field(context, i, true),
-                    const Gap(12),
-                    field(context, i, false),
-                  ],
-                ),
-              ],
-            ),
+          _WindowCard(
+            key: ValueKey('window-$i-of-${windows.length}'),
+            index: i,
+            window: windows[i],
+            earliest: earliest,
+            latest: latest,
+            // Today: the slider starts at the next quarter hour, so past times can't be picked.
+            floor: notEndedBy == null ? earliest : _ceilTo(notEndedBy!, _sliderStep).clamp(earliest, latest - washMinimumWindowMinutes),
+            removable: windows.length > 1,
+            onChanged: (w) => _set(i, w),
+            onPick: (start) => pick(context, i, start),
+            onRemove: () => onChanged([...windows]..removeAt(i)),
           ),
+          const Gap(12),
+        ],
+        if (error != null && windows.isNotEmpty) ...[
+          Semantics(liveRegion: true, child: WBanner(tone: Tone.error, icon: WIcon.info, text: error)),
           const Gap(12),
         ],
         WButton(
           windows.isEmpty ? 'Add a time window' : 'Add another window',
-          kind: ButtonKind.outline,
+          kind: ButtonKind.text,
           icon: WIcon.plus,
-          onTap: () => onChanged([...windows, const WashTimeWindow()]),
+          enabled: next != null,
+          onTap: () => onChanged([...windows, next!]),
         ),
-        if (error != null) ...[
-          const Gap(12),
-          Semantics(
-            liveRegion: true,
-            child: WText(
-              error,
-              WType.caption,
-              color: windows.any((w) => !w.complete) || windows.isEmpty
-                  ? WColor.secondary
-                  : WColor.destructive,
-            ),
-          ),
-        ],
-        const Gap(12),
-        WText(
-          'Any times from ${formatWashMinute(earliest)} to ${formatWashMinute(latest)}, at least ${_duration(washMinimumWindowMinutes)} each. Your Captain comes within one of your windows.',
+        const Gap(4),
+        const WText(
+          'Your Captain comes within one of your windows.',
           WType.caption,
+          align: TextAlign.center,
         ),
       ],
     );
   }
+}
+
+class _WindowCard extends StatelessWidget {
+  const _WindowCard({
+    super.key,
+    required this.index,
+    required this.window,
+    required this.earliest,
+    required this.latest,
+    required this.floor,
+    required this.removable,
+    required this.onChanged,
+    required this.onPick,
+    required this.onRemove,
+  });
+  final int index, earliest, latest, floor;
+  final WashTimeWindow window;
+  final bool removable;
+  final ValueChanged<WashTimeWindow> onChanged;
+  final void Function(bool start) onPick;
+  final VoidCallback onRemove;
+
+  Widget _time(bool start) {
+    final minute = start ? window.startMinute : window.endMinute;
+    return Pressable(
+      label: 'Window ${index + 1} ${start ? 'start' : 'end'} time${minute == null ? '' : ', ${formatWashMinute(minute)}'}',
+      onTap: () => onPick(start),
+      child: Column(
+        crossAxisAlignment: start ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+        children: [
+          WText(start ? 'From' : 'Until', WType.small),
+          const Gap(2),
+          // The time rolls over as the slider moves.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 140),
+            transitionBuilder: (child, a) => FadeTransition(
+              opacity: a,
+              child: SlideTransition(position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(a), child: child),
+            ),
+            child: WText(
+              minute == null ? 'Choose' : formatWashMinute(minute),
+              WType.section,
+              key: ValueKey(minute),
+              weight: FontWeight.w700,
+              color: WColor.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final low = floor.clamp(earliest, latest - washMinimumWindowMinutes).toDouble(), high = latest.toDouble();
+    final start = (window.startMinute ?? 480).toDouble().clamp(low, high - washMinimumWindowMinutes);
+    final end = (window.endMinute ?? (start + 120)).toDouble().clamp(start + washMinimumWindowMinutes, high);
+    final length = window.complete ? window.endMinute! - window.startMinute! : null;
+    return WCard(
+      outlined: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: WText('Window ${index + 1}', WType.caption)),
+              if (length != null && length > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: const ShapeDecoration(color: WColor.primaryTint, shape: StadiumBorder()),
+                  child: WText(_span(length), WType.small, color: WColor.primary, weight: FontWeight.w600),
+                ),
+              if (removable) ...[
+                const Gap(4),
+                WIconButton(WIcon.trash, size: 40, label: 'Remove window ${index + 1}', onTap: onRemove),
+              ],
+            ],
+          ),
+          const Gap(6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _time(true),
+              const Expanded(child: Padding(padding: EdgeInsets.only(bottom: 6), child: Center(child: WText('to', WType.caption)))),
+              _time(false),
+            ],
+          ),
+          const Gap(4),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 6,
+              activeTrackColor: WColor.primary,
+              inactiveTrackColor: WColor.divider,
+              thumbColor: WColor.primary,
+              overlayColor: WColor.primary.withValues(alpha: 0.12),
+              rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 12, elevation: 2),
+              rangeTrackShape: const RoundedRectRangeSliderTrackShape(),
+              showValueIndicator: ShowValueIndicator.never,
+            ),
+            child: RangeSlider(
+              min: low,
+              max: high,
+              divisions: ((high - low) / _sliderStep).round().clamp(1, 400),
+              values: RangeValues(start, end),
+              semanticFormatterCallback: (v) => formatWashMinute(v.round()),
+              onChanged: (v) {
+                var a = (v.start / _sliderStep).round() * _sliderStep, b = (v.end / _sliderStep).round() * _sliderStep;
+                // Keep at least 1 hour: the thumb being dragged pushes the other one.
+                if (b - a < washMinimumWindowMinutes) {
+                  if (a != window.startMinute) {
+                    b = a + washMinimumWindowMinutes;
+                    if (b > latest) {
+                      b = latest;
+                      a = b - washMinimumWindowMinutes;
+                    }
+                  } else {
+                    a = b - washMinimumWindowMinutes;
+                    if (a < low) {
+                      a = low.round();
+                      b = a + washMinimumWindowMinutes;
+                    }
+                  }
+                }
+                if (a == window.startMinute && b == window.endMinute) return;
+                HapticFeedback.selectionClick();
+                onChanged(WashTimeWindow(startMinute: a, endMinute: b));
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                WText(formatWashMinute(low.round()), WType.small),
+                const Expanded(child: WText('Drag, or tap a time', WType.small, align: TextAlign.center, maxLines: 1)),
+                WText(formatWashMinute(latest), WType.small),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _span(int minutes) {
+  final h = minutes ~/ 60, m = minutes % 60;
+  return [if (h > 0) '$h ${h == 1 ? 'hour' : 'hours'}', if (m > 0) '$m min'].join(' ');
 }
 
 class CustomOneTimeScheduleScreen extends StatefulWidget {
@@ -245,15 +374,31 @@ class _CustomOneTimeScheduleState extends State<CustomOneTimeScheduleScreen> {
     final now = DateTime.now(), today = DateUtils.dateOnly(now);
     // The suggested 8–10 AM window must still fit today, or start on tomorrow.
     final nowMinute = now.hour * 60 + now.minute;
-    final suggestionEnded = widget.initialWindows == null && nowMinute + washMinimumWindowMinutes > 600;
-    return _todayClosed(now) || suggestionEnded ? today.add(const Duration(days: 1)) : today;
+    final noRoomToday = suggestWashWindow(const [], after: nowMinute, earliest: widget.earliest, latest: widget.latest) == null;
+    return _todayClosed(now) || noRoomToday ? today.add(const Duration(days: 1)) : today;
   }
 
   bool _todayClosed(DateTime now) =>
       now.hour * 60 + now.minute + washMinimumWindowMinutes > widget.latest;
   late List<WashTimeWindow> windows =
-      widget.initialWindows ??
-      [const WashTimeWindow(startMinute: 480, endMinute: 600)];
+      widget.initialWindows ?? [_suggested(day)];
+  // Until the customer changes a window, the suggestion follows the chosen day
+  // (today: the next free 2 hours; other days: 8–10 AM), so it is never already over.
+  late bool _touched = widget.initialWindows != null;
+
+  WashTimeWindow _suggested(DateTime d) {
+    final now = DateTime.now();
+    final later = DateUtils.isSameDay(d, now)
+        ? suggestWashWindow(const [], after: now.hour * 60 + now.minute, earliest: widget.earliest, latest: widget.latest)
+        : null;
+    return later ?? const WashTimeWindow(startMinute: 480, endMinute: 600);
+  }
+
+  void _setDay(DateTime d) => setState(() {
+    day = d;
+    if (!_touched) windows = [_suggested(d)];
+  });
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now(), today = DateUtils.dateOnly(now);
@@ -296,43 +441,54 @@ class _CustomOneTimeScheduleState extends State<CustomOneTimeScheduleScreen> {
         ),
       ),
       children: [
-        const WTitleBlock(
+        WTitleBlock(
           'When is your vehicle free?',
-          subtitle: 'Add the times that work for you.',
+          subtitle: 'Any time from ${formatWashMinute(widget.earliest)} to ${formatWashMinute(widget.latest)}, at least 1 hour.',
         ),
+        // 1. The day.
+        const WText('Day', WType.title),
+        const Gap(10),
         WSegmented(
           options: [
             for (var i = 0; i < 3; i++) Fmt.day(today.add(Duration(days: i))),
           ],
           selection: day.difference(today).inDays,
-          onChanged: (i) => setState(() => day = today.add(Duration(days: i))),
+          onChanged: (i) => _setDay(today.add(Duration(days: i))),
         ),
-        const Gap(12),
-        WListRow(
-          icon: WIcon.calendar,
-          title: Fmt.date(day),
-          subtitle: 'Change date',
-          onTap: () async {
-            final d = await showDatePicker(
-              context: context,
-              initialDate: expired ? today : day,
-              firstDate: today,
-              lastDate: DateTime(today.year + 1, today.month, today.day),
-            );
-            if (d != null) setState(() => day = d);
-          },
+        const Gap(10),
+        Row(
+          children: [
+            const WIconView(WIcon.calendar, size: 18, color: WColor.secondary),
+            const Gap(8),
+            Expanded(child: WText(Fmt.date(day), WType.bodyStrong)),
+            WLink(
+              'Other date',
+              onTap: () async {
+                final d = await showDatePicker(
+                  context: context,
+                  initialDate: expired ? today : day,
+                  firstDate: today,
+                  lastDate: DateTime(today.year + 1, today.month, today.day),
+                );
+                if (d != null) _setDay(d);
+              },
+            ),
+          ],
         ),
         if (expired || closedToday) ...[
           const Gap(12),
-          WText(
-            expired
+          WBanner(
+            tone: Tone.error,
+            icon: WIcon.info,
+            text: expired
                 ? 'Choose today or a later date.'
                 : 'It’s too late for a wash today. We wash until ${formatWashMinute(widget.latest)}. Choose tomorrow or later.',
-            WType.caption,
-            color: WColor.destructive,
           ),
         ],
-        const Gap(16),
+        const Gap(22),
+        // 2. The time.
+        const WText('Time', WType.title),
+        const Gap(10),
         CustomTimeWindowEditor(
           windows: windows,
           earliest: widget.earliest,
@@ -340,7 +496,10 @@ class _CustomOneTimeScheduleState extends State<CustomOneTimeScheduleScreen> {
           notEndedBy: DateUtils.isSameDay(day, today)
               ? now.hour * 60 + now.minute
               : null,
-          onChanged: (value) => setState(() => windows = value),
+          onChanged: (value) => setState(() {
+            windows = value;
+            _touched = true;
+          }),
         ),
         if (widget.footnote != null) ...[
           const Gap(16),
