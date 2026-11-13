@@ -61,3 +61,17 @@ Built; analyze clean; Customer 85/85, Captain 40/40, shared UI 9/9 tests pass. i
 - **Captain too (13 Nov, Aman):** no start-up permission burst either. Only the notification
   screen at first open; camera, microphone and location are asked when first used (taking photos,
   recording, going online or arriving).
+
+## 13 Nov 2026 — account basics (Aman)
+
+- **Log out (both apps):** confirmation "Log out?" with one short line → loader ("Logging out…")
+  while the server signs out (the Captain goes offline first) → the app's first screen →
+  "Logged out" toast that fades. Shared `confirmLogOut` in `washkrew_ui/lib/src/toast.dart`. Both
+  stores now wait for Firebase sign-out before clearing, so the app resets once instead of
+  flickering.
+- **OTP auto-continue everywhere:** every code screen continues by itself when the 6th digit is
+  entered:
+  - Customer login, Customer change number, Captain change number and Captain UPI change already
+    did this.
+  - The Captain sign-in/log-in code now does too (`_verify` in `captain/lib/screens/welcome.dart`,
+    the same pattern as the Customer `OtpScreen`).

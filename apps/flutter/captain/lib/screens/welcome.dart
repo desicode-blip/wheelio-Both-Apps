@@ -751,6 +751,33 @@ class _WOtpScreenState extends State<WOtpScreen> {
     );
   }
 
+  /// 13 Nov (Aman): runs by itself as soon as the 6th digit is in, like the Customer
+  /// login; the Next button does the same.
+  Future<void> _verify() async {
+    final store = context.store, router = context.router;
+    if (verifying || code.length != 6) return;
+    if (store.isLive) {
+      setState(() => verifying = true);
+      try {
+          final needsName=await store.liveVerifyOtp(code);
+          if(!mounted)return;
+          if(needsName){router.replace([const R(N.signUp,index:1)]);return;}
+      } catch (_) {
+        if (mounted) setState(() => verifying = false);
+        return;
+      }
+      if (!mounted) return;
+      setState(() => verifying = false);
+      store.finishRegistration();
+      router.home();
+      return;
+    }
+    // Demo: a returning captain has already done KYC.
+    if (widget.login) store.signedUp = true;
+    store.finishRegistration();
+    router.home();
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.store, router = context.router;
@@ -763,28 +790,7 @@ class _WOtpScreenState extends State<WOtpScreen> {
           size: ButtonSize.captain,
           enabled: code.length == 6 && !verifying,
           loading: verifying,
-          onTap: () async {
-            if (store.isLive) {
-              setState(() => verifying = true);
-              try {
-                  final needsName=await store.liveVerifyOtp(code);
-                  if(!mounted)return;
-                  if(needsName){router.replace([const R(N.signUp,index:1)]);return;}
-              } catch (_) {
-                if (mounted) setState(() => verifying = false);
-                return;
-              }
-              if (!mounted) return;
-              setState(() => verifying = false);
-              store.finishRegistration();
-              router.home();
-              return;
-            }
-            // Demo: a returning captain has already done KYC.
-            if (widget.login) store.signedUp = true;
-            store.finishRegistration();
-            router.home();
-          },
+          onTap: _verify,
         ),
       ),
       children: [
@@ -820,7 +826,15 @@ class _WOtpScreenState extends State<WOtpScreen> {
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: WOtpField(code: code, onChanged: (v) => setState(() => code = v), boxSize: 46, autofocus: store.isLive),
+          child: WOtpField(
+            code: code,
+            boxSize: 46,
+            autofocus: store.isLive,
+            onChanged: (v) {
+              setState(() => code = v);
+              if (v.length == 6) _verify();
+            },
+          ),
         ),
         if (reading)
           Container(
