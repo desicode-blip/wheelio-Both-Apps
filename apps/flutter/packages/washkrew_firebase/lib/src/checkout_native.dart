@@ -18,7 +18,7 @@ Future<void> preloadCheckout() async {
 
 Future<Map<String, dynamic>?> openCheckout(
   Map<String, dynamic> options,
-  String phone, {Future<bool> Function()? onReturn}
+  String phone, {Future<bool> Function()? onReturn, void Function()? onReturned}
 ) async {
   if (defaultTargetPlatform != TargetPlatform.iOS &&
       defaultTargetPlatform != TargetPlatform.android) {
@@ -34,7 +34,7 @@ Future<Map<String, dynamic>?> openCheckout(
   final result = Completer<Map<String, dynamic>?>();
   final recovery = onReturn == null ? null : PaymentReturnRecovery(check:onReturn, onCaptured:() {
     if(!result.isCompleted)result.complete({'_serverConfirmed':true});
-  });
+  }, onReturned:onReturned);
   try {
     razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (
       PaymentSuccessResponse response,

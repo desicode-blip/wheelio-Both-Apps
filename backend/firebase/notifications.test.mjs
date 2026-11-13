@@ -29,3 +29,10 @@ test('wallet cancellations describe wallet outcome without a fictional bank refu
  assert.doesNotMatch(notices.find(n=>n.role==='customer').body,/refund/);
  assert.equal(notices.find(n=>n.role==='captain').title,'Booking cancelled');
 });
+
+test('the push at payment capture asks the customer to tap back from the UPI app',()=>{
+  const [paid]=orderNotices({status:'pendingPayment'},{status:'searching',customerId:'c'});
+  assert.equal(paid.title,'Payment received · booking confirmed');assert.match(paid.body,/Tap to go back to WashKrew/);
+  const [later]=orderNotices({status:'onTheWay'},{status:'searching',customerId:'c'});
+  assert.equal(later.title,'Booking confirmed');
+});

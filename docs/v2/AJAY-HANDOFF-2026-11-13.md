@@ -157,6 +157,17 @@ visit shows on Bookings (`scheduled` reads as a booked wash). Captain offers car
 by one on Bookings), giving all visits to one Captain (`claimJob` siblings), the Captain's
 recurring-assignment list (`listRecurringAssignments`, `cancelRecurringAssignment`).
 
+## 4b. Coming back from the UPI app (13 Nov, Aman)
+
+iOS doesn't let an app bring itself back in front of GPay/PhonePe after payment; the UPI app
+stays open. So:
+- **Push (`notifications.mjs`, needs deploy):** when a payment is captured
+  (`pendingPayment` → `searching`) the customer's push now reads "Payment received · booking
+  confirmed — Tap to go back to WashKrew." It appears on top of the UPI app; one tap returns.
+- **App:** the moment the customer is back, Pay shows "Confirming payment" and checks the
+  server every 1.5 s for about 90 s, then opens the next step by itself
+  (`payment_return_recovery.dart`).
+
 ## 5. Server work still open (smallest first)
 
 The full list is in [V2-FEATURES.md](V2-FEATURES.md); each item has its contract in its feature doc.

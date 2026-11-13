@@ -325,7 +325,8 @@ class LiveBackend {
     List<CheckoutUpload> uploads = const [],
     void Function(String)? onBookingReady,
     void Function(CheckoutStage)? onStage,
-  }) => CheckoutFlow(call: (name, data) => call(name, data), open: (options,phone)=>checkout.openCheckout(options,phone,onReturn:() async=>(await call('checkPayment',{'bookingId':options['bookingId']}))['paymentStatus']=='captured'),
+  }) => CheckoutFlow(call: (name, data) => call(name, data), open: (options,phone)=>checkout.openCheckout(options,phone,onReturn:() async=>(await call('checkPayment',{'bookingId':options['bookingId']}))['paymentStatus']=='captured',
+        onReturned:()=>onStage?.call(CheckoutStage.confirming)),
       phone: auth.currentUser?.phoneNumber ?? '').run(
         bookingId: bookingId, booking: booking, uploads: uploads,
         onBookingReady: onBookingReady, onStage: onStage);
