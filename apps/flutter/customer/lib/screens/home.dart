@@ -1208,11 +1208,12 @@ class _ProfileTabState extends State<ProfileTab> {
                 WListRow(
                   icon: WIcon.logout,
                   title: 'Log out',
-                  onTap: () {
-                    // 13 Nov (Aman): after logging out, start again from the Welcome slides.
-                    store.signOut();
-                    router..resetAccountNavigation()..popToRoot();
-                  },
+                  // 13 Nov (Aman): confirm, loader, Welcome slides, "Logged out" toast.
+                  onTap: () => confirmLogOut(
+                    context,
+                    logOut: store.signOut,
+                    then: () => router..resetAccountNavigation()..popToRoot(),
+                  ),
                 ),
                 const WDivider(inset: 54),
                 WListRow(icon: WIcon.trash, title: 'Delete account', tone: Tone.error, onTap: () => setState(() {showDelete = true; deleteAgain = false; deleteError = null; deleteBlocked = false;})),

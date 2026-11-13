@@ -478,10 +478,18 @@ class MeTab extends StatelessWidget {
               WListRow(
                 icon: WIcon.logout,
                 title: store.t('Log out', 'लॉग आउट', 'లాగ్ అవుట్'),
-                onTap: () {
-                  store.logOut();
-                  router.home();
-                },
+                // 13 Nov (Aman): confirm, loader, first screen, "Logged out" toast.
+                onTap: () => confirmLogOut(
+                  context,
+                  logOut: store.logOut,
+                  then: router.home,
+                  title: store.t('Log out?', 'लॉग आउट करें?', 'లాగ్ అవుట్ చేయాలా?'),
+                  message: store.t('You’ll go offline and this session ends on this phone.', 'आप ऑफ़लाइन हो जाएंगे और इस फ़ोन पर सेशन खत्म होगा।', 'మీరు ఆఫ్‌లైన్ అవుతారు, ఈ ఫోన్‌లో సెషన్ ముగుస్తుంది.'),
+                  confirm: store.t('Log out', 'लॉग आउट', 'లాగ్ అవుట్'),
+                  cancel: store.t('Cancel', 'रद्द करें', 'రద్దు'),
+                  busy: store.t('Logging out…', 'लॉग आउट हो रहा है…', 'లాగ్ అవుట్ అవుతోంది…'),
+                  done: store.t('Logged out', 'लॉग आउट हो गया', 'లాగ్ అవుట్ అయింది'),
+                ),
               ),
               const WDivider(inset: 54),
               WListRow(

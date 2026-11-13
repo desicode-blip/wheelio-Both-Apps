@@ -1466,12 +1466,15 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void signOut() {
+  /// 13 Nov (Aman): waits for the server to sign out before clearing the screen, so the
+  /// app resets once (no flicker from a late Firebase sign-out).
+  Future<void> signOut() async {
     if (isLive) {
-      live!.signOut().catchError((Object e) {
-        toast = backendError(e);
-        changed();
-      });
+      try {
+        await live!.signOut();
+      } catch (_) {
+        // Signing out on this phone still completes below.
+      }
     }
     customer = null;
     vehicles = [];

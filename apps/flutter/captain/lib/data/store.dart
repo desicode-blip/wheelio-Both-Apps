@@ -594,8 +594,16 @@ class CaptainStore extends ChangeNotifier {
         waitingToday = 0;
       });
 
-  void logOut() {
-    if (isLive) liveSignOut().catchError((Object e) => set(() => toast = backendError(e)));
+  /// 13 Nov (Aman): goes offline and signs out on the server first, then clears the screen
+  /// once (no flicker from a late Firebase sign-out).
+  Future<void> logOut() async {
+    if (isLive) {
+      try {
+        await liveSignOut();
+      } catch (_) {
+        // Signing out on this phone still completes below.
+      }
+    }
     _logOut();
   }
 

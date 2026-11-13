@@ -10,10 +10,10 @@ import 'tokens.dart';
 
 OverlayEntry? _current;
 
-void showWToast(BuildContext context, String text, {BuildContext? above, WIcon icon = WIcon.checkCircle}) {
-  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+void showWToast(BuildContext context, String text, {BuildContext? above, WIcon icon = WIcon.checkCircle, OverlayState? overlay}) {
+  overlay ??= Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
-  final media = MediaQuery.of(context);
+  final media = MediaQuery.of(overlay.context);
   double? top, bottom;
   final box = above?.findRenderObject();
   if (box is RenderBox && box.attached) {
@@ -158,4 +158,71 @@ class ComingSoonGate extends StatelessWidget {
       ),
     );
   }
+}
+
+// 13 Nov 2026 (Aman): one calm log-out for both apps: a short confirmation, a loader while
+// the server signs out, then the first screen and a "Logged out" toast that fades away.
+
+/// Asks "Log out?", then runs [logOut] behind a loader. Returns false if cancelled.
+/// [then] runs after the loader closes (go to the first screen); the toast shows last.
+Future<bool> confirmLogOut(
+  BuildContext context, {
+  required Future<void> Function() logOut,
+  required VoidCallback then,
+  String title = 'Log out?',
+  String message = 'This ends your session on this phone.',
+  String confirm = 'Log out',
+  String cancel = 'Cancel',
+  String busy = 'Logging out…',
+  String done = 'Logged out',
+}) async {
+  var yes = false;
+  await showWAlert(context, title: title, message: message, actions: [
+    AlertAction(cancel, cancel: true),
+    AlertAction(confirm, destructive: true, onTap: () => yes = true),
+  ]);
+  if (!yes || !context.mounted) return false;
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final overlay = navigator.overlay;
+  unawaitedDialog(navigator, busy);
+  try {
+    await logOut().timeout(const Duration(seconds: 12));
+  } catch (_) {
+    // Signing out still finishes on this phone; nothing private stays on screen.
+  }
+  if (navigator.mounted && navigator.canPop()) navigator.pop();
+  then();
+  if (overlay != null && overlay.mounted) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (overlay.mounted) showWToast(overlay.context, done, overlay: overlay);
+    });
+  }
+  return true;
+}
+
+/// A small blocking loader ("Logging out…") on the root navigator.
+void unawaitedDialog(NavigatorState navigator, String text) {
+  showGeneralDialog<void>(
+    context: navigator.context,
+    barrierDismissible: false,
+    barrierColor: const Color(0x33000000),
+    useRootNavigator: true,
+    pageBuilder: (_, _, _) => PopScope(
+      canPop: false,
+      child: Center(
+        child: Material(
+          color: WColor.white,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5, color: WColor.primary)),
+              const SizedBox(width: 14),
+              WText(text, WType.bodyStrong),
+            ]),
+          ),
+        ),
+      ),
+    ),
+  );
 }
