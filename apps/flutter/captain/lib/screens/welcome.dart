@@ -124,7 +124,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   }
 
   void _enterApp() {
-    context.store.set(() => context.store.exploring = true);
+    context.store.set(() {
+      context.store.exploring = true;
+      context.store.introDone = true;
+    });
     context.router.home();
   }
 
@@ -505,7 +508,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       },
       child: WScreen(
         gutter: WSpace.gutterCaptain,
-        header: WHeader(title: login ? store.t(store.isLive?'Log in or sign up':'Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
+        // Once the number is verified the name can't be skipped (no back).
+        header: WHeader(back: !widget.verified, title: login ? store.t(store.isLive?'Log in or sign up':'Log in', 'लॉग इन', 'లాగిన్') : store.t('Sign up', 'साइन अप', 'సైన్ అప్')),
         footer: WFooter(
           child: WButton(
             widget.verified ? store.t('Continue','आगे बढ़ें','కొనసాగించు') : store.t('Get code', 'कोड भेजें', 'కోడ్ పొందండి'),
@@ -532,7 +536,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   if(widget.verified && store.live!.verifiedPhone == '+91${store.phone}'){
                     await store.completeLiveRegistration(name.trim());
                     if(!mounted)return;
-                    if(widget.fixName){router.pop();return;}
+                    if(widget.fixName){router.home();return;}
                     store.finishRegistration();router.home();return;
                   }
                   await store.liveRequestOtp(store.phone);

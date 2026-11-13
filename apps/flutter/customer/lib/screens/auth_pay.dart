@@ -274,16 +274,22 @@ class NameScreen extends StatefulWidget {
 
 class _NameScreenState extends State<NameScreen> {
   late String name = context.store.customer?.name ?? '';
+  bool tried = false;
   @override
   Widget build(BuildContext context) => WScreen(
-    header: const PlainHeader(),
+    // The number is verified: the name is mandatory, so there's no way back past it.
+    header: PlainHeader(leading: context.store.isLive ? null : WIcon.left),
     footer: WFooterBar(
       showCall: false,
       child: WButton(
         'Continue',
-        enabled: Validators.isValidName(name),
         onTap: () async {
           final router = context.router, store = context.store;
+          // Standard missing-information highlight, on this screen, before moving on.
+          if (!Validators.isValidName(name)) {
+            setState(() => tried = true);
+            return;
+          }
           try {
             await store.updateName(name);
           } catch (e) {
@@ -300,6 +306,7 @@ class _NameScreenState extends State<NameScreen> {
         label: 'Your name',
         value: name,
         placeholder: 'Your name',
+        error: tried && !Validators.isValidName(name) ? 'Add your full name to continue.' : null,
         caps: TextCapitalization.words,
         autofocus: true,
         onChanged: (v) => setState(() => name = v),

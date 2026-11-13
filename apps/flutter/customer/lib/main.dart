@@ -118,6 +118,14 @@ class _RootState extends State<_Root> {
         ],
       );
     }
+    // 13 Nov (Aman): a name is mandatory. A signed-in account without one (the app was
+    // closed on the name step) is sent back to it before anything else.
+    if (store.isLive && store.isLoggedIn && store.customer!.name.trim().length < 2 && !router.isAt(N.name)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final c = store.customer;
+        if (mounted && c != null && c.name.trim().length < 2 && !router.isAt(N.name)) router.go(N.name);
+      });
+    }
     return Material(
       color: WColor.white,
       child: Stack(

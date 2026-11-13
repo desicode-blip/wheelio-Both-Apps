@@ -386,6 +386,14 @@ class CaptainStore extends ChangeNotifier {
 
   /// Past the welcome page: browsing the app as a guest.
   bool exploring = false;
+  /// 13 Nov (Aman): when nobody is logged in, every launch starts with Language, then the
+  /// welcome slides (a guest browsing earlier doesn't skip them). Logged in → Home.
+  bool introDone = false;
+  /// The saved login has been checked once since launch (until then: a blank start screen,
+  /// so Language never flashes before Home).
+  bool sessionKnown = false;
+  bool _launchWaitOver = false;
+  bool get launchDeciding => isLive && !_launchWaitOver && (!sessionKnown || (liveUid.isNotEmpty && !liveLoaded));
 
   /// Name and number verified with a code (light sign-up).
   bool registered = false;
@@ -1183,8 +1191,11 @@ class CaptainStore extends ChangeNotifier {
     phone = '';
     upi = '';
     _liveSubs.add(live!.catalog.listen((s) => set(() {liveConfig = s.data() ?? {};Support.configure(liveConfig);_applySteps();}), onError: (Object e) => set(() => toast = backendError(e))));
+    // Never hold the start screen longer than 8 s (offline): the app then opens as usual.
+    Timer(const Duration(seconds: 8), () { _launchWaitOver = true; changed(); });
     _liveSubs.add(live!.sessions.listen((user) {
       final uid = user?.phoneNumber != null ? user!.uid : '';
+      if (!sessionKnown) { sessionKnown = true; changed(); }
       if (uid != liveUid) _bindLive(uid);
     }));
     _heartbeat = Timer.periodic(const Duration(seconds: 60), (_) {

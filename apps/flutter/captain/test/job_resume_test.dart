@@ -11,7 +11,7 @@ class ResumeFixture extends CaptainStore{
   ResumeFixture(){
     liveUid='captain';queue=[];liveEarnings=[];liveOffers=[];
     signedUp=true;registered=true;exploring=true;online=false;
-    liveCaptain={'paymentMode':'live'};name='Test';
+    liveCaptain={'paymentMode':'live'};name='Test';sessionKnown=true;
   }
   @override bool get isLive=>true;
   @override void refreshSystemPermission(){}

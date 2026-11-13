@@ -130,8 +130,16 @@ class _RootState extends State<_Root>{
       WidgetsBinding.instance.addPostFrameCallback((_){if(mounted){router.home();setState(()=>resetting=false);}});
     }
     if(resetting)return const Material(color:WColor.white,child:LanguageScreen());
+    if(store.launchDeciding)return const Material(color:WColor.white,child:Center(child:WLogo(height:48)));
     if(store.liveUid.isEmpty)restoredAccount=null;
-    if(store.isLive&&store.liveUid.isNotEmpty&&store.liveLoaded&&store.liveOrdersLoaded&&store.signedUp&&restoredAccount!=store.liveUid){
+    // 13 Nov (Aman): a signed-in account with no name is stopped at "Add your name" (it
+    // can't be skipped), before anything else.
+    if(store.isLive&&store.liveUid.isNotEmpty&&store.liveLoaded&&store.registered&&!store.hasProfileName&&!router.isAt(N.signUp)){
+      WidgetsBinding.instance.addPostFrameCallback((_){
+        if(mounted&&!store.hasProfileName&&!router.isAt(N.signUp))router.replace(const [R(N.signUp,index:2)]);
+      });
+    }
+    if(store.isLive&&store.liveUid.isNotEmpty&&store.liveLoaded&&store.liveOrdersLoaded&&store.signedUp&&store.hasProfileName&&restoredAccount!=store.liveUid){
       restoredAccount=store.liveUid;
       final account=store.liveUid;
       WidgetsBinding.instance.addPostFrameCallback((_){
@@ -142,7 +150,7 @@ class _RootState extends State<_Root>{
       color: WColor.white,
       child: Stack(
         children: [
-          WNavStack<R>(router: router, root: store.signedUp || store.exploring ? const CaptainTabs() : const LanguageScreen(), builder: _destination),
+          WNavStack<R>(router: router, root: store.signedUp || (store.exploring && (!store.isLive || store.liveUid.isNotEmpty || store.introDone)) ? const CaptainTabs() : const LanguageScreen(), builder: _destination),
           if (!store.isLive) const _GalleryTab(),
           const Positioned.fill(child: WLiveBanner()),
         ],
