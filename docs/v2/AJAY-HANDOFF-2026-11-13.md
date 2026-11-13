@@ -16,12 +16,15 @@ in `docs/v2/`. **Read this page first, then [V2-FEATURES.md](V2-FEATURES.md) for
   - `createBooking` now accepts and stores `vehicleProfile`, `careRoutine` and `minuteWindows`,
     and copies them onto every Captain `jobOffer`.
   - New callable `identifyVehicle`, off until `config/operations.vehicleAi = true`.
-  - Details in §4.
+  - **Premium / Extra Premium / interior** priced from `washPrices` (switch `washTiers`).
+  - **Monthly plans**: one payment per cycle, each visit its own paid order (switch `monthlyPlans`).
+  - Details in §4. **Aman wants Premium and monthly live now: please review, deploy, and set
+    the switches in §4a.**
 - **Tests at this commit:**
 
 | Suite | Result |
 |---|---|
-| Backend: `npm run firebase:test` (emulators) | 255 / 255 pass (4 new) |
+| Backend: `npm run firebase:test` (emulators) | 261 tests; all pass (wallet top-up race test is timing-sensitive: passes on rerun) |
 | Customer Flutter | all pass, `flutter analyze` 1 info (yours, pre-existing) |
 | Captain Flutter | all pass, 0 issues |
 | Referrals package | all pass |
@@ -31,16 +34,16 @@ in `docs/v2/`. **Read this page first, then [V2-FEATURES.md](V2-FEATURES.md) for
 
 ## 2. Release gate — please read
 
-**13 Nov (Aman's rule): no dead ends.** Unsupported features are now greyed out with "Coming soon"
-at their entry point on live builds, so a customer can't reach payment with something the server
-can't sell. Each feature opens with a `config/operations` switch: see [COMING-SOON.md](COMING-SOON.md).
+**13 Nov (Aman's rule): no dead ends.** Unsupported features are greyed out at their entry
+point on live builds (no "Coming soon" text; a tap shows a coming-soon toast), so a customer
+can't reach payment with something the server can't sell. Each feature opens with a
+`config/operations` switch: see [COMING-SOON.md](COMING-SOON.md).
 
 
-The live server still sells only **Basic, exterior, the fixed windows**. The apps already handle
-this:
-- Premium, interior, monthly plans, exact times that don't match a server slot, and free
-  referral washes all show a short reason at Check and pay, plus **Change wash / Change time**.
-  Nothing can be paid by mistake.
+The **deployed** server still sells only **Basic, exterior, the fixed windows**. This push adds
+Premium, interior and monthly plans to the server code (§4a); until you deploy and switch them
+on, the apps keep those choices greyed at the entry point. Any time window books today (the
+slots inside it are booked). Nothing can be paid by mistake.
 - Referrals, "vehicle not found" and monthly jobs for Captains run on sample data in the apps.
 - **Before an App Store release:** either finish the matching server items below, or set
   `v2Features: false` so no sample data is visible on a live build.
@@ -100,15 +103,67 @@ this:
 2. Deploy `identifyVehicle`.
 3. Run the post-deploy HTTP gateway step, as for the other callables.
 
+## 4a. Wash tiers and monthly plans (13 Nov, Aman: "make them active now")
+
+**Wash tiers** (`vehicle-care.mjs` `washTier`, called from `createBooking`):
+- Basic + exterior is unchanged (today's vehicle-type price).
+- Premium, Extra Premium or interior need `washTiers: true` and a price in
+  `washPrices[kind][level][coverage]` (rupees). Interior needs `washKind: wetOutsideDryInside`
+  and is cars only. The order and offers store `serviceLevel` and `coverage`.
+- Fixed Captain pay scales with the price; percentage policies follow it automatically.
+- Set (Aman's prices), for each car kind (`hatchback`, `sedan`, `suv`):
+  `{basic:{exterior:292,exteriorInterior:372},premium:{exterior:392,exteriorInterior:472},extraPremium:{exterior:492,exteriorInterior:572}}`;
+  `bike`: `{basic:{exterior:149},premium:{exterior:199},extraPremium:{exterior:249}}`.
+  (Basic exterior on the order still uses the vehicle type's own `pricePaise`.)
+
+**Monthly plans** (`monthly-plan.mjs`; tests `backend/firebase/monthly-plan.test.mjs`):
+- App sends `plan: {frequency, weekdays:[1..7], start}` with `day` = first visit. Server
+  recomputes the visit dates exactly like the app (each chosen weekday until the same date
+  next month) and the price (Aman's formula; override with
+  `monthlyPlanPricing.{car|bike}.{base, perDay, levelPerDay, interiorPerDay}`).
+- **One Razorpay payment for the cycle. No AutoPay or renewal** (not built yet). No coupons
+  or wallet on plans.
+- At capture, if visit 1 gets a slot: price and gateway fee are split evenly across visits
+  (remainder on visit 1). Visit 1 keeps its share; every later visit is created as its own
+  order: `status: 'scheduled'`, `paymentStatus: 'captured'`, same `razorpayPaymentId`,
+  `planId`, `planVisit`, `planVisits`, `planPricePaise`.
+  - If visit 1 gets no slot, the whole payment is refunded as today.
+- `maintainBookings` calls `activatePlanVisit` for `scheduled` orders: about 36 h before the
+  first window it reserves capacity and offers the visit to Captains (status `searching`). A
+  visit with no capacity by the end of its last window is refunded its share (`slotExpired`).
+- Every visit is then an ordinary order: cancel (now allowed while `scheduled`), cancellation
+  quote, refunds (partial refunds against the one payment, refund id `wh_<visitId>`),
+  approval, earnings and disputes all work per visit with the existing code.
+- `capturePayment` compares the provider amount with `planPricePaise ?? pricePaise`, so
+  replayed webhooks still match after the split.
+- Account deletion treats `scheduled` visits as open bookings.
+- Plans need a percentage earnings policy (`netGatewayV1` / your policy), or a fixed Captain
+  pay no higher than one visit's share; otherwise createBooking refuses ("Pricing is not
+  configured").
+
+**Apps:** Customer sends `serviceLevel` / `coverage` when `washTiers` is on and `plan` for a
+monthly checkout when `monthlyPlans` is on; after payment it opens "Plan confirmed" and each
+visit shows on Bookings (`scheduled` reads as a booked wash). Captain offers carry
+`planVisit` / `planVisits` (the gold monthly screens still use sample data).
+
+**To switch on (in this order):**
+1. Review and deploy Functions (`createBooking`, `checkout`, `capturePayment` paths,
+   `maintainBookings`). Run the post-deploy HTTP gateway step.
+2. `config/operations`: `washPrices` (above), then `washTiers: true`.
+3. `monthlyPlans: true` (optional `monthlyPlanPricing`). Book one test-mode plan end to end.
+4. No app update needed: the switches open the greyed entry points.
+
+**Not built yet:** AutoPay/renewal, server-side plan cancel/edit (customers cancel visits one
+by one on Bookings), giving all visits to one Captain (`claimJob` siblings), the Captain's
+recurring-assignment list (`listRecurringAssignments`, `cancelRecurringAssignment`).
+
 ## 5. Server work still open (smallest first)
 
 The full list is in [V2-FEATURES.md](V2-FEATURES.md); each item has its contract in its feature doc.
 
-1. **Wash tiers:**
-   - Price from `washPrices`, accept `serviceLevel` / `coverage`, then `washTiers: true`.
-   - Real prices (Aman): car ₹292 / ₹392 / ₹492, +₹80 interior; bike ₹149 / ₹199 / ₹249.
+1. ~~Wash tiers~~: done in code, see §4a.
 2. **Exact time windows for capacity and matching** (`customTimeWindows`, `serviceHours` 240–1380).
-3. **Monthly plans + AutoPay**, then monthly offers to Captains:
+3. **Monthly plans:** one-payment cycle done in code (§4a). Still open: **AutoPay**, then monthly offers to Captains:
    - Ordinary `jobOffers` whose job carries `plan: {totalVisits, dates:[…]}`, plus `visitTerms`
      with the per-visit pay.
    - `claimJob` assigns all visits.
@@ -132,7 +187,7 @@ The full list is in [V2-FEATURES.md](V2-FEATURES.md); each item has its contract
 
 ```sh
 # Backend (emulators)
-npm run firebase:test                       # 255 tests
+npm run firebase:test                       # 261 tests
 # Apps
 cd apps/flutter/customer && flutter analyze && flutter test
 cd apps/flutter/captain  && flutter analyze && flutter test

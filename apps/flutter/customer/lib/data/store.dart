@@ -763,7 +763,7 @@ class AppStore extends ChangeNotifier {
       slot: TimeSlot(DateTime.parse(data['day']), (data['startHour'] as num).toInt(), (data['endHour'] as num).toInt(),
         windows: [for(final w in data['requestedWindows'] as List? ?? []) ((w['startHour'] as num).toInt(), (w['endHour'] as num).toInt())], anyTime: data['anyTime']==true),
       price: (data['pricePaise'] as num) / 100,
-      status: data['dispute']?['outcome']=='rejected'?OrderStatus.disputeRejected:data['status'] == 'approved' && data['approvalSource'] == 'automatic' ? OrderStatus.autoApproved : data['status'] == 'cancelled' && data['cancellationReason'] == 'slotExpired' ? data['captainId'] == null ? OrderStatus.noCaptain : OrderStatus.captainNoShow : OrderStatus.values.byName(data['status']),
+      status: data['dispute']?['outcome']=='rejected'?OrderStatus.disputeRejected:data['status'] == 'approved' && data['approvalSource'] == 'automatic' ? OrderStatus.autoApproved : data['status'] == 'cancelled' && data['cancellationReason'] == 'slotExpired' ? data['captainId'] == null ? OrderStatus.noCaptain : OrderStatus.captainNoShow : data['status'] == 'scheduled' ? OrderStatus.searching : OrderStatus.values.byName(data['status']),
       createdAt: date(data['createdAt']) ?? DateTime.now(),
       captain: captain == null
           ? null
@@ -1042,6 +1042,7 @@ class AppStore extends ChangeNotifier {
   num? purchasePrice(VehicleType t, ServiceLevel level) {
     final p = purchase;
     if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return 0;
+    if (p.monthly && monthlyPlansLive) return monthlyPlanPrice(t, level);
     final real = p.monthly ? null : washPrice(t, level, p.coverage);
     if (real != null) return real;
     // Sample price until the server sends liveConfig.washPrices (see V2-FEATURES.md).
@@ -1051,7 +1052,19 @@ class AppStore extends ChangeNotifier {
   bool purchasePriceIsDraft(VehicleType t, ServiceLevel level) {
     final p = purchase;
     if (p.usingPremiumReward && level == ServiceLevel.premium && !p.monthly) return false;
+    if (p.monthly && monthlyPlansLive) return false;
     return (p.monthly || washPrice(t, level, p.coverage) == null) && v2Features;
+  }
+
+  /// 13 Nov: the monthly price the server charges (rupees): liveConfig.monthlyPlanPricing
+  /// {car|bike: {base, perDay, levelPerDay, interiorPerDay}}, else Aman's tariff in the app.
+  num monthlyPlanPrice(VehicleType t, ServiceLevel level) {
+    final p = purchase, bike = t.kind == VehicleKind.bike;
+    final set = (liveConfig['monthlyPlanPricing'] as Map?)?[bike ? 'bike' : 'car'];
+    if (set is! Map) return p.quotePaiseFor(level) / 100;
+    num v(String k) => (set[k] as num?) ?? 0;
+    final f = p.frequency;
+    return v('base') + v('perDay') * f + v('levelPerDay') * f * level.index + (p.coverage == WashCoverage.exteriorInterior ? v('interiorPerDay') * f : 0);
   }
 
   // v2 phase 2 (monthly plans): the paid plan, saved next-cycle changes and an open edit.
@@ -1059,6 +1072,8 @@ class AppStore extends ChangeNotifier {
   PurchaseSelection? activePlan;
   PurchaseSelection? nextCyclePlan;
   PurchaseSelection? planEditDraft;
+  /// Set when a live monthly plan was just paid: payment opens its confirmation.
+  bool planJustPaid = false;
 
   // v2 phases 3–4: the handoff's in-memory previews, made only when the preview opens
   // (the recovery one checks for changes every second, so never at app start).
@@ -1101,7 +1116,7 @@ class AppStore extends ChangeNotifier {
 
   String? get washChoiceBlockedReason {
     if (!isLive) return null;
-    if (purchase.chosen && purchase.monthly) {
+    if (purchase.chosen && purchase.monthly && !monthlyPlansLive) {
       return 'Monthly plans open for payment soon. A one-time wash can be booked today.';
     }
     if (purchase.usingPremiumReward) {
@@ -1776,6 +1791,7 @@ class AppStore extends ChangeNotifier {
         if(pre!=null&&identical(pre.$1,p)){try{done=await pre.$2;}catch(_){done=null;}}
         p=done??await confirmPlace(p);draft.place=p;
       }
+      final planCheckout = purchase.chosen && purchase.monthly && d.serviceLevel != null;
       final booking = <String,dynamic>{
         'cancellationPolicyVersion':2,
         'refundCouponPolicyVersion':1,
@@ -1807,6 +1823,8 @@ class AppStore extends ChangeNotifier {
         if(d.couponAppliedPaise>0)'expectedCouponPaise':d.couponAppliedPaise,
         if(d.couponAppliedPaise>0)'acceptedCouponForfeitPaise':d.couponForfeitAccepted?d.couponForfeitPaise:0,
         'expectedAmountPaise': d.pricePaise,
+        // 13 Nov (Aman): a monthly plan pays the whole cycle once; the server splits it into visits.
+        if (planCheckout) 'plan': {'frequency': purchase.frequency, 'weekdays': (purchase.weekdays.toList()..sort()), 'start': _isoDay(purchase.start)},
         if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
         if (p.addressKey != null) 'addressKey': p.addressKey,
         'startHour': s.startHour,
@@ -1841,7 +1859,15 @@ class AppStore extends ChangeNotifier {
       }
       try { await _refreshLiveOrder(bookingId); }
       catch (_) { if(paid['paymentStatus']!='captured')rethrow; }
-      return paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled' ? PaymentOutcome.success : PaymentOutcome.pending;
+      final ok = paid['paymentStatus'] == 'captured' && paid['status'] != 'cancelled';
+      if (ok && planCheckout) {
+        // 13 Nov: the paid plan opens its confirmation (visits are on Bookings).
+        purchase.confirmed = true;
+        activePlan = purchase.snapshot();
+        nextCyclePlan = null;
+        planJustPaid = true;
+      }
+      return ok ? PaymentOutcome.success : PaymentOutcome.pending;
     }
     final d = draft;
     final type = d.type, place = d.place, slot = d.slot;
@@ -2625,3 +2651,5 @@ extension AppContext on BuildContext {
   AppStore get store => AppScope.of(this).store;
   AppRouter get router => AppScope.of(this).router;
 }
+
+String _isoDay(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

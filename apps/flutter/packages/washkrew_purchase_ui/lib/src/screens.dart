@@ -675,18 +675,21 @@ class PurchaseConfirmationScreen extends StatelessWidget {
     required this.onHome,
     required this.onDetails,
     required this.onTracking,
+    this.paid = false,
   });
   final PurchaseSelection selection;
   final VoidCallback onHome, onDetails, onTracking;
+  /// 13 Nov: a real, paid plan (live). Otherwise the design preview.
+  final bool paid;
   @override
   Widget build(BuildContext context) {
     final s = selection;
     return WScreen(
-      header: WAppBar(title: 'Design preview', leading: null),
+      header: WAppBar(title: paid ? 'Plan confirmed' : 'Design preview', leading: null),
       footer: WFooterBar(
         showCall: false,
         child: WButton(
-          s.monthly ? 'View your plan' : 'View wash progress',
+          paid ? 'See your visits' : s.monthly ? 'View your plan' : 'View wash progress',
           onTap: s.monthly ? onDetails : onTracking,
         ),
       ),
@@ -696,8 +699,9 @@ class PurchaseConfirmationScreen extends StatelessWidget {
         const Gap(20),
         WTitleBlock(
           s.monthly ? 'Your routine is ready' : 'Your wash is booked',
-          subtitle:
-              'Demo confirmation only. No real booking or payment was made.',
+          subtitle: paid
+              ? 'Paid for this month. Each visit is on Bookings.'
+              : 'Demo confirmation only. No real booking or payment was made.',
         ),
         PurchaseSummaryCard(
           selection: s,
@@ -712,7 +716,9 @@ class PurchaseConfirmationScreen extends StatelessWidget {
               const WText('What happens next?', WType.title),
               const Gap(6),
               WText(
-                s.monthly
+                paid
+                    ? 'Your first visit is ${s.firstVisit == null ? 'soon' : shortDate(s.firstVisit!)}. A Captain is found for each visit about a day before.'
+                    : s.monthly
                     ? 'Your first preview visit is ${s.firstVisit == null ? 'not selected' : shortDate(s.firstVisit!)}. Each wash follows the same selected checklist.'
                     : 'Follow the existing Captain, photo-review and approval screens using sample data.',
                 WType.body,

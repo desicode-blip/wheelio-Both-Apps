@@ -11,6 +11,8 @@ export function checkoutIdentity(data) {
   ...(data.couponCode!==undefined||data.expectedCouponPaise!==undefined?{couponCode:typeof data.couponCode==='string'?data.couponCode.trim().toUpperCase():null,expectedCouponPaise:data.expectedCouponPaise??null,acceptedCouponForfeitPaise:data.acceptedCouponForfeitPaise??0}:{}),
   // 13 Nov: a different wash level or interior is a different checkout (only when sent).
   ...(data.serviceLevel!==undefined||data.coverage!==undefined?{serviceLevel:data.serviceLevel??null,coverage:data.coverage??null}:{}),
+  // 13 Nov: a monthly plan is a different checkout from a one-time wash.
+  ...(data.plan!=null?{plan:{frequency:data.plan.frequency??null,weekdays:Array.isArray(data.plan.weekdays)?[...data.plan.weekdays].sort():null,start:data.plan.start??null}}:{}),
   vehiclePosition:data.vehiclePosition?{latitude:data.vehiclePosition.latitude,longitude:data.vehiclePosition.longitude}:null};
  return createHash('sha256').update(JSON.stringify(fields)).digest('hex');
 }

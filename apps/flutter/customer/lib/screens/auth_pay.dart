@@ -375,6 +375,11 @@ class _PayingScreenState extends State<PayingScreen> {
       router.replace([R(N.live, id: order!.id)]);
       return true;
     }
+    if (outcome == PaymentOutcome.success && store.planJustPaid) {
+      store.planJustPaid = false;
+      router.replace(const [R(N.purchaseConfirmation)]);
+      return true;
+    }
     if (outcome == PaymentOutcome.success) {
       router.replace(const [R(N.booked)]);
       return true;

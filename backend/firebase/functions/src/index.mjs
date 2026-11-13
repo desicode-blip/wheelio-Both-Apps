@@ -30,6 +30,7 @@ import {WalletTopupError} from './wallet-topup.mjs';
 import {AiPhotoConsentError} from './ai-photo-consent.mjs';
 import {CouponError} from './coupon-ledger.mjs';
 import {VertexVehicleAi,VehicleCareError} from './vehicle-care.mjs';
+import {MonthlyPlanError} from './monthly-plan.mjs';
 import {GoogleAuth} from 'google-auth-library';
 
 initializeApp();
@@ -72,7 +73,7 @@ function callable(method, payment = false, maps = false) {
       return await service(payment,maps)[method](request.auth, request.data ?? {},{clientKey:request.rawRequest.ip??'unknown'});
     }
     catch (error) {
-      if (error instanceof CouponError || error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError || error instanceof VehicleCareError) throw new HttpsError(error.code, error.message);
+      if (error instanceof CouponError || error instanceof AiPhotoConsentError || error instanceof WalletTopupError || error instanceof CaptainAreaError || error instanceof ServiceError || error instanceof TrainingError || error instanceof PhotoCheckError || error instanceof CaptainReviewError || error instanceof PlaceSearchError || error instanceof VehicleCareError || error instanceof MonthlyPlanError) throw new HttpsError(error.code, error.message);
       logger.error('WashKrew operation failed', { operation: method, code: error.code ?? 'internal' });
       throw new HttpsError('internal', 'This action could not be completed. Please try again.');
     }
@@ -284,6 +285,12 @@ export const maintainBookings = onSchedule({ schedule: 'every 5 minutes', timeou
   for(const doc of due.docs) {
     try { await backend.reconcilePayment(doc.id); }
     catch(error) { logger.error('Scheduled payment reconciliation failed',{bookingId:doc.id,code:error.code??'provider'}); }
+  }
+  // 13 Nov (monthly plans): paid plan visits start looking for a Captain about a day ahead.
+  const scheduled = await db.collection('orders').where('status', '==', 'scheduled').limit(200).get();
+  for (const doc of scheduled.docs) {
+    try { await backend.activatePlanVisit(doc.id); }
+    catch (error) { logger.error('Plan visit activation failed', { bookingId: doc.id, code: error.code ?? 'internal' }); }
   }
   const searching = await db.collection('orders').where('status', '==', 'searching').limit(200).get();
   const topups=await db.collection('walletTopups').where('nextPaymentCheckAt','<=',new Date(now)).orderBy('nextPaymentCheckAt').limit(20).get();

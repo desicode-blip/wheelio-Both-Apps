@@ -201,13 +201,16 @@ class PlanConfirmationStepScreen extends StatelessWidget {
     final store = context.store, router = context.router;
     return PurchaseConfirmationScreen(
       selection: store.activePlan ?? store.purchase,
+      paid: store.isLive,
       onHome: () {
         router.popToRoot();
         router.tab = 1;
         store.changed();
       },
-      onDetails: () => router.go(N.planDetails),
-      onTracking: () => router.go(N.planDetails),
+      // 13 Nov: on live, each paid visit is a booking on the Bookings tab (cancel or track
+      // it there); plan editing and AutoPay wait for the server's renewal work.
+      onDetails: store.isLive ? () { router.popToRoot(); router.tab = 1; store.changed(); } : () => router.go(N.planDetails),
+      onTracking: store.isLive ? () { router.popToRoot(); router.tab = 1; store.changed(); } : () => router.go(N.planDetails),
     );
   }
 }

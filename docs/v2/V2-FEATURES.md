@@ -12,7 +12,7 @@ the server parts exist they run on sample data. Switch everything off with
 |---|---|---|---|
 | Own time windows | `minuteWindows: [{startMinute,endMinute}]` (+ legacy `windows`) | exact windows on offer, Jobs, Go to vehicle (`JobExtras`) | Only when the windows equal the server's fixed slots (e.g. 8–10 AM); others are blocked at Pay with a plain message |
 | Basic / Premium / Extra Premium, interior | `serviceLevel`, `coverage` (when `washTiers` is on) | "Premium · Water wash + inside" on the booking strip and chip | Basic exterior only; others blocked at Pay |
-| Monthly plan | — (no plan API yet) | "Monthly plan · Visit 3 / 13" (`plan {visitNumber,totalVisits}`), recurring assignment screen | No. Sample only |
+| Monthly plan | `plan {frequency, weekdays, start}` on createBooking (when `monthlyPlans` is on); each visit order/offer carries `planId`, `planVisit`, `planVisits` | Customer: plan confirmation, each visit on Bookings. Captain: visits arrive as ordinary offers (gold monthly UI still reads sample data) | Yes, once deployed + `monthlyPlans: true` (one payment per cycle, no AutoPay) |
 | Gate pass | `uploadGatePass` (stub) → `entryPass.path` | image on Go to vehicle (W27) | No. Needs upload callable + rule |
 | Use last time's photos | `reusePhotosFrom` | customer photos as usual | No. Needs server copy |
 | Vehicle not found / cancel / replacement / make-up | — | both apps have every screen | No. Each app has its own sample case |
@@ -37,14 +37,17 @@ Sample data lives in: `DemoReferralRepository`, `DemoRecoveryRepository` (in-mem
 3. **Gate pass** — callable `uploadGatePass(orderId)` + Storage rule (owner writes, the
    assigned Captain reads); set `entryPass.path`; notify the Captain.
 4. **Photo reuse** — copy `customerPhotos` from `reusePhotosFrom` (same owner) at booking.
-5. **Wash tiers** — price from `washPrices`, accept `serviceLevel`/`coverage`,
-   `washTiers: true`.
+5. **Wash tiers** — DONE in code (13 Nov, `vehicle-care.mjs` `washTier`): deploy, set
+   `washPrices`, then `washTiers: true`.
 6. **Visit pay** — `visitTerms` on offers (net paise, kind, service, coverage, minutes,
    visit n/N).
 7. **Vehicle not found, Captain cancellation, replacement, make-up** — contracts in
    `packages/washkrew_service_recovery/lib/src/contracts.dart`; private video upload,
    human review in admin, ledger entries.
-8. **Monthly plans and AutoPay; referrals** — see CU-WASHCHOICE.md "Backend needed".
+8. **Monthly plans** — DONE in code for one upfront payment per cycle (13 Nov,
+   `monthly-plan.mjs`, see AJAY-HANDOFF §4). Still open: AutoPay/renewal, plan cancel/edit
+   on the server, offering all visits to one Captain (`claimJob` siblings), the Captain's
+   recurring-assignment list. **Referrals** — see CU-WASHCHOICE.md "Backend needed".
 
 **Prices (Aman, 12 Nov): the handoff numbers are the real prices.** One-time car
 ₹292 / ₹392 / ₹492 (Basic / Premium / Extra Premium), +₹80 with interior; bike ₹149 / ₹199 /

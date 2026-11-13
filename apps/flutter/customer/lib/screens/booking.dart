@@ -2375,8 +2375,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           // v2 phase 2: renewal choice for a monthly plan, and its policy.
           if (store.purchase.monthly) ...[
             const SizedBox(height: 14),
-            RenewalPreferencesCard(selection: store.purchase),
-            const SizedBox(height: 16),
+            // Live plans are one payment per month (no AutoPay yet), so there is no renewal choice.
+            if (!store.isLive) ...[RenewalPreferencesCard(selection: store.purchase), const SizedBox(height: 16)],
             Center(child: WLink('Plan policy', onTap: () => showPlanPolicyPreview(context))),
             if (blocked != null) ...[
               const SizedBox(height: 12),
