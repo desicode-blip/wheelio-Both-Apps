@@ -27,9 +27,25 @@ Future<LiveFixture> _open(WidgetTester t, {required bool loggedIn}) async {
 }
 
 void main() {
-  testWidgets('logged out: Log in to pay, even for a choice that opens soon', (t) async {
+  test('any customer window books the server slots inside it (or the one it overlaps most)', () {
+    final s = LiveFixture()..liveWindows = [(4, 6), (6, 8), (8, 10), (10, 12), (12, 14), (14, 16), (16, 18), (18, 20), (20, 22)];
+    final day = DateTime(2026, 11, 13);
+    expect(s.serverWindowsFor(TimeSlot(day, 8, 23, minuteWindows: const [(495, 1380)])), [(10, 12), (12, 14), (14, 16), (16, 18), (18, 20), (20, 22)]);
+    expect(s.serverWindowsFor(TimeSlot(day, 8, 10, minuteWindows: const [(495, 570)])), [(8, 10)]);
+    expect(s.serverWindowsFor(TimeSlot(day, 9, 11, minuteWindows: const [(540, 660)])), [(8, 10)]); // equal overlap: earlier slot
+    s.draft.slot = TimeSlot(day, 8, 23, minuteWindows: const [(495, 1380)]);
+    expect(s.washChoiceBlockedByTime, isFalse);
+    s.dispose();
+  });
+
+
+  testWidgets('logged out: Make payment asks to log in, then carries on to payment', (t) async {
     final s = await _open(t, loggedIn: false);
-    expect(find.text('Log in to pay'), findsOneWidget);
+    expect(find.text('Make payment'), findsOneWidget);
+    s.draft.serviceLevel = ServiceLevel.basic;
+    await t.tap(find.text('Make payment'));
+    await t.pump();
+    expect(s.payAfterLogin, isTrue);
     expect(find.text('Change wash'), findsNothing);
     await t.pumpWidget(const SizedBox());
     s.dispose();

@@ -77,7 +77,7 @@ void main() {
       s.purchase.chosen = true;
       s.draft.slot = null;
     });
-    expect(find.text('When is your vehicle free?'), findsOneWidget);
+    expect(find.text('When should we wash it?'), findsOneWidget);
     expect(find.textContaining('at least 1 hour'), findsOneWidget);
     // Tomorrow suggests 8–10 AM; today suggests the next free 2 hours.
     await tester.tap(find.text('Tomorrow'));
@@ -88,7 +88,7 @@ void main() {
     expect(find.text('One-time wash'), findsOneWidget);
     expect(find.text('Basic · Exterior only'), findsOneWidget);
     expect(find.textContaining('8 AM – 10 AM'), findsOneWidget);
-    expect(find.textContaining('Pay now'), findsOneWidget);
+    expect(find.textContaining('Make payment'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -106,13 +106,14 @@ void main() {
     expect(store.washChoiceV2, isFalse);
   });
 
-  test('own windows that line up with server slots can be booked today', () {
+  test('own windows book the server slots inside them, or the one they overlap most (13 Nov)', () {
     final store = AppStore()..signInAsSample();
     store.liveWindows = [(6, 8), (8, 10), (10, 12), (16, 18)];
     final day = DateTime(2026, 11, 13);
     expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 480, endMinute: 600)])), [(8, 10)]);
     expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 480, endMinute: 720), WashTimeWindow(startMinute: 960, endMinute: 1080)])), [(8, 10), (10, 12), (16, 18)]);
-    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 495, endMinute: 645)])), isNull);
+    expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 495, endMinute: 645)])), [(8, 10)]);
+    // No server slot near 12–2 PM in this list: nothing to book.
     expect(store.serverWindowsFor(customSlot(day, const [WashTimeWindow(startMinute: 720, endMinute: 840)])), isNull);
   });
 
@@ -148,12 +149,12 @@ void main() {
     expect(find.text('Pick your 3 days'), findsOneWidget);
     await tester.tap(find.text('Next: choose time'));
     await _settle(tester);
-    expect(find.text('When is your vehicle free?'), findsOneWidget);
+    expect(find.text('When should we wash it?'), findsOneWidget);
     await tester.tap(find.text('Next: check and pay'));
     await _settle(tester);
     expect(find.text('Monthly plan'), findsOneWidget);
     expect(find.text('Renews monthly'), findsOneWidget);
-    await tester.tap(find.textContaining('Pay now'));
+    await tester.tap(find.textContaining('Make payment'));
     await _settle(tester);
     expect(find.text('Your routine is ready'), findsOneWidget);
     await tester.tap(find.text('View your plan'));

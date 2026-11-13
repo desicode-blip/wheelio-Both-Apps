@@ -974,6 +974,9 @@ class AppStore extends ChangeNotifier {
   final purchase = PurchaseSelection();
   /// "Change" on Check and pay opens the wash choice and comes straight back.
   bool washChoiceFromReview = false;
+
+  /// 13 Nov: Make payment was tapped while logged out; continue to payment after log in.
+  bool payAfterLogin = false;
   /// "Change frequency" on the monthly days screen returns there after the choice.
   bool purchaseReturningToSchedule = false;
   bool previewFeatures = false;
@@ -1051,21 +1054,23 @@ class AppStore extends ChangeNotifier {
   /// v2: the server's fixed slots that exactly make up the customer's own windows
   /// (e.g. 8–10 AM, or 8 AM–12 PM = 8–10 + 10–12), or null when they don't line up.
   /// Lets today's server take the booking until it stores exact minutes.
+  /// 13 Nov (Aman): any window the customer picks can be booked. The server's fixed slots
+  /// that lie inside the customer's windows are booked; a short window inside no slot books
+  /// the slot it overlaps most. The exact minutes go along for the Captain (`minuteWindows`).
   List<(int, int)>? serverWindowsFor(TimeSlot s) {
     if (s.minuteWindows.isEmpty) return null;
-    final out = <(int, int)>[];
+    final out = <(int, int)>{};
     for (final w in s.orderedMinuteWindows) {
-      if (w.$1 % 60 != 0 || w.$2 % 60 != 0) return null;
-      var at = w.$1 ~/ 60;
-      final end = w.$2 ~/ 60;
-      while (at < end) {
-        final next = liveWindows.where((x) => x.$1 == at && x.$2 <= end).firstOrNull;
-        if (next == null) return null;
-        out.add(next);
-        at = next.$2;
+      final inside = [for (final x in liveWindows) if (x.$1 * 60 >= w.$1 && x.$2 * 60 <= w.$2) x];
+      if (inside.isNotEmpty) {
+        out.addAll(inside);
+        continue;
       }
+      int overlap((int, int) x) => (w.$2 < x.$2 * 60 ? w.$2 : x.$2 * 60) - (w.$1 > x.$1 * 60 ? w.$1 : x.$1 * 60);
+      final best = [...liveWindows]..sort((a, b) => overlap(b).compareTo(overlap(a)));
+      if (best.isNotEmpty && overlap(best.first) > 0) out.add(best.first);
     }
-    return out.isEmpty ? null : out;
+    return out.isEmpty ? null : (out.toList()..sort((a, b) => a.$1.compareTo(b.$1)));
   }
 
   /// Why this booking can't be paid yet on the live server, or null. Sample (non-live)

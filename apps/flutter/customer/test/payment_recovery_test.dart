@@ -56,8 +56,8 @@ void main() {
     store.customer!.freeWashes = 0;
     store.customer!.credit = 0;
     await tester.pumpWidget(AppScope(store: store, router: router, child: const MaterialApp(home: ReviewScreen())));
-    await tester.tap(find.text('Pay now · ₹149'));
-    await tester.tap(find.text('Pay now · ₹149'));
+    await tester.tap(find.text('Make payment · ₹149'));
+    await tester.tap(find.text('Make payment · ₹149'));
     expect(router.last?.n, N.paying); expect(router.showPaySheet, false);
     expect(router.path.where((e) => e.route.n == N.paying).length, 1);
     expect(find.byType(PayMethodSheet), findsNothing);

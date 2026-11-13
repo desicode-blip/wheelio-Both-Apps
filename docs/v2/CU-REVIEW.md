@@ -61,3 +61,14 @@ Feature map: [FEATURES.md](FEATURES.md). Screen: C13.
 - **Also fixed:** the "booking works with these times" message now writes each end
   with its own AM/PM ("10 AM–12 PM").
 - **Backend:** none — uses Ajay's existing coupon query and callable.
+
+## 13 Nov 2026 (08:15) — always move forward (Aman)
+
+- **Make payment** is the main button. Logged out, it's labelled **Make payment** too; tapping it
+  logs in (phone → OTP → name for new customers), then goes **straight to payment**, so Check and pay
+  isn't shown again (`AppStore.payAfterLogin`).
+- **Any time window can be booked** (no "Change time" loop). The server's fixed slots inside the
+  customer's windows are booked; a short window inside no slot books the slot it overlaps most. The
+  exact minutes go to the Captain as `minuteWindows` (`serverWindowsFor`). The server accepts a
+  minute window that overlaps a booked slot (`vehicle-care.mjs`).
+- Premium, interior and monthly still show "Change wash" until the server sells them.

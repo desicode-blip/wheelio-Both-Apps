@@ -442,7 +442,7 @@ class _CustomOneTimeScheduleState extends State<CustomOneTimeScheduleScreen> {
       ),
       children: [
         WTitleBlock(
-          'When is your vehicle free?',
+          'When should we wash it?',
           subtitle: 'Any time from ${formatWashMinute(widget.earliest)} to ${formatWashMinute(widget.latest)}, at least 1 hour.',
         ),
         // 1. The day.

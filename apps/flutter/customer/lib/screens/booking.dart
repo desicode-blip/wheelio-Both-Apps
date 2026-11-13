@@ -2067,7 +2067,7 @@ class _TimeSlotScreenState extends State<TimeSlotScreen> with WidgetsBindingObse
       ),
       children: [
         WTitleBlock(
-          'When is your vehicle free?',
+          'When should we wash it?',
           subtitle: noneFree ? null : (_multi ? 'Tick every time slot when it can be washed. Your Captain comes in one of them.' : 'Your Captain comes any time in this time slot.'),
         ),
         WSegmented(options: [for (final d in days) Fmt.day(d)], selection: dayIndex, onChanged: _changeDay),
@@ -2234,7 +2234,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final couponReady = !_couponApplying;
     final policy = store.liveConfig['cancellationPolicy'] is Map ? Map<String, dynamic>.from(store.liveConfig['cancellationPolicy']) : null;
     Future<void> pay() async {
-      if (!store.isLoggedIn) { router.go(N.login); return; }
+      // 13 Nov (Aman): log in (phone → OTP → name if new), then straight on to payment.
+      if (!store.isLoggedIn) { store.payAfterLogin = true; router.go(N.login); return; }
       // v2 CU-VEHICLE (6 Nov): a plate saved long ago that the server can't use is
       // fixed here in one step, then payment carries on. No error after Pay.
       if (plateProblem(d.plate) != null) {
@@ -2264,12 +2265,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final label = v2 && store.purchase.usingPremiumReward
         ? 'Use free Premium wash'
         : v2 && store.purchase.monthly
-        ? 'Pay now · ${Fmt.rupees(d.basePrice)} / month'
+        ? 'Make payment · ${Fmt.rupees(d.basePrice)} / month'
         : couponPays && d.pricePaise == 0
         ? 'Book with coupon'
         : d.useFreeWash
         ? 'Book with free wash'
-        : 'Pay now · ${Fmt.rupees(d.price)}';
+        : 'Make payment · ${Fmt.rupees(d.price)}';
+    // Back from log in: carry on to payment without stopping on this screen.
+    if (store.payAfterLogin && store.isLoggedIn) {
+      store.payAfterLogin = false;
+      if (blocked == null) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) pay(); });
+    }
     Widget row(WIcon icon, String title, String value) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -2322,7 +2328,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 },
               ),
             ] else
-              WButton(store.isLoggedIn ? label : 'Log in to pay', kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: !store.isLoggedIn || couponReady, onTap: pay),
+              WButton(store.isLoggedIn ? label : 'Make payment', kind: d.useFreeWash ? ButtonKind.success : ButtonKind.primary, enabled: !store.isLoggedIn || couponReady, onTap: pay),
           ],
         ),
       ),

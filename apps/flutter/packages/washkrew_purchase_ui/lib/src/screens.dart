@@ -402,7 +402,7 @@ class MonthlyTimeScreen extends StatelessWidget {
         ),
         children: [
           const WTitleBlock(
-            'When is your vehicle free?',
+            'When should we wash it?',
             subtitle: 'Choose the time slots that work on every selected day.',
           ),
           WCard(

@@ -45,7 +45,8 @@ test('vehicle profile, care routine and minute windows are cleaned and validated
   const server=[{startHour:8,endHour:10},{startHour:18,endHour:22}];
   assert.deepEqual(minuteWindows([{startMinute:1140,endMinute:1260},{startMinute:495,endMinute:600}],server),[{startMinute:495,endMinute:600},{startMinute:1140,endMinute:1260}]);
   assert.throws(()=>minuteWindows([{startMinute:495,endMinute:540}],server)); // under 1 hour
-  assert.throws(()=>minuteWindows([{startMinute:420,endMinute:540}],server)); // outside the booked windows
+  assert.deepEqual(minuteWindows([{startMinute:420,endMinute:1380}],server),[{startMinute:420,endMinute:1380}]); // covers booked windows
+  assert.throws(()=>minuteWindows([{startMinute:620,endMinute:1000}],server)); // overlaps none of the booked windows
   assert.throws(()=>minuteWindows([{startMinute:1320,endMinute:1440}],[{startHour:22,endHour:24}])); // after 11 PM
   assert.throws(()=>minuteWindows([{startMinute:480,endMinute:600},{startMinute:540,endMinute:600}],server)); // overlap
   assert.equal(cleanIdentification({make:'',model:''}),null);
@@ -67,7 +68,7 @@ test('createBooking stores the details and every Captain offer carries them',asy
 });
 
 test('bookings without the new fields are unchanged; bad fields are refused',async()=>{
-  await assert.rejects(service.createBooking(customer,{...input('bad'),minuteWindows:[{startMinute:420,endMinute:540}]}),/inside the available windows/);
+  await assert.rejects(service.createBooking(customer,{...input('bad'),minuteWindows:[{startMinute:1080,endMinute:1200}]}),/inside the available windows/);
   await assert.rejects(service.createBooking(customer,{...input('bad2'),careRoutine:'wash gently'}),/care routine/);
   const b=await service.createBooking(customer,input('plain'));
   const order=(await db.doc('orders/'+b.bookingId).get()).data();

@@ -36,7 +36,7 @@ export function careRoutine(raw){
 }
 
 /**
- * The customer's exact windows (minutes from midnight), each inside one of the booked
+ * The customer's exact windows (minutes from midnight), each overlapping one of the booked
  * server windows: 4 AM–11 PM, at least 60 minutes, no overlaps, at most 4.
  */
 export function minuteWindows(raw,serverWindows){
@@ -45,7 +45,8 @@ export function minuteWindows(raw,serverWindows){
   const list=raw.map(w=>{
     const s=w?.startMinute,e=w?.endMinute;
     if(!Number.isInteger(s)||!Number.isInteger(e)||s<240||e>1380||e-s<60)fail('invalid-argument','Each time window must be between 4 AM and 11 PM and at least 1 hour.');
-    if(!serverWindows.some(x=>s>=x.startHour*60&&e<=x.endHour*60))fail('invalid-argument','Choose times inside the available windows.');
+    // The app books the server slots inside (or overlapping) each window; the exact minutes ride along.
+    if(!serverWindows.some(x=>s<x.endHour*60&&e>x.startHour*60))fail('invalid-argument','Choose times inside the available windows.');
     return {startMinute:s,endMinute:e};
   }).sort((a,b)=>a.startMinute-b.startMinute);
   for(let i=1;i<list.length;i++)if(list[i].startMinute<list[i-1].endMinute)fail('invalid-argument','Time windows cannot overlap.');

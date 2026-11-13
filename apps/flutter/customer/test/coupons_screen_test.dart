@@ -35,12 +35,12 @@ void main(){
   await tester.pumpWidget(AppScope(store:store,router:router,child:const MaterialApp(home:ReviewScreen())));await tester.pump();
   expect(store.draft.pricePaise,14900);expect(store.draft.useFreeWash,false);expect(store.draft.creditApplied,0);
   expect(find.textContaining('Pay by wallet'),findsNothing);expect(find.text('Top up'),findsNothing);
-  expect(find.text('Pay now · ₹149'),findsOneWidget);
+  expect(find.text('Make payment · ₹149'),findsOneWidget);
   await tester.pump();expect(find.byType(TextField),findsNothing);expect(find.text('Your coupons'),findsNothing);
   expect(find.text('₹69 off'),findsOneWidget);expect(store.applies,0);
   await tester.ensureVisible(find.text('Apply'));await tester.tap(find.text('Apply'));await tester.pump();await tester.pump(const Duration(milliseconds:400));
   expect(store.applies,1);expect(store.draft.pricePaise,8000);expect(find.text('Applied to this wash'),findsOneWidget);
-  expect(find.text('Pay now · ₹80'),findsOneWidget);
+  expect(find.text('Make payment · ₹80'),findsOneWidget);
   await tester.ensureVisible(find.text('Remove'));await tester.tap(find.text('Remove'));await tester.pump();await tester.pump(const Duration(milliseconds:400));expect(store.draft.pricePaise,14900);expect(find.text('Apply'),findsOneWidget);
  });
  testWidgets('three or more coupons become one Discount coupons button with a sheet',(tester)async{

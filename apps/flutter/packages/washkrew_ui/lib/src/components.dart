@@ -1173,6 +1173,7 @@ class WTextField extends StatefulWidget {
   final String label;
   final String value;
   final ValueChanged<String> onChanged;
+  /// Example shown only once the field is tapped (the label floats up first); 13 Nov.
   final String placeholder;
   final String? helper;
   final String? error;
@@ -1251,7 +1252,7 @@ class _WTextFieldState extends State<WTextField> {
                   widget.onChanged(out);
                 },
                 onSubmitted: (_) => widget.onSubmit?.call(),
-                decoration: InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: widget.placeholder.isEmpty ? widget.label : widget.placeholder, hintStyle: style.copyWith(color: WColor.placeholder)),
+                decoration: InputDecoration(isCollapsed: true, border: InputBorder.none, hintText: widget.label.isEmpty || (focused && widget.placeholder.isNotEmpty) ? widget.placeholder : widget.label, hintStyle: style.copyWith(color: WColor.placeholder)),
               ),
             ),
           ]),

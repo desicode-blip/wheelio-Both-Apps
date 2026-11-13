@@ -23,7 +23,7 @@ void main() {
           ),
         ),
       );
-      expect(find.text('When is your vehicle free?'), findsNothing);
+      expect(find.text('When should we wash it?'), findsNothing);
       expect(tester.widget<WButton>(find.byType(WButton)).enabled, isTrue);
       final days = Set<int>.from(s.weekdays);
       await tester.pumpWidget(

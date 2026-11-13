@@ -48,7 +48,7 @@ this:
 | CU-TIME | Own time windows with a range slider (15-min steps, ≥1 h, 4 AM–11 PM); windows matching server slots book today | CU-TIME.md |
 | CU-VEHICLE | Your vehicle screen: view, edit, delete (blocked while a wash is booked), book again | CU-VEHICLE.md |
 | CU-CARE | After photos: AI "Is this your vehicle?" (make, colour, glossy/matte), optional details form, 2–3 step care routine; Captain sees it on the job | CU-CARE.md |
-| CU-REVIEW | Check and pay: your refund coupons shown up front (Apply / tick / Remove, 3+ in a sheet), no typed code; quiet cancellation-policy line; "Log in to pay" first; blocked choices get Change wash / Change time | CU-REVIEW.md |
+| CU-REVIEW | Check and pay: **Make payment** always moves forward (log in → straight to payment, any time window books today); your refund coupons shown up front (Apply / tick / Remove, 3+ in a sheet), no typed code; quiet cancellation-policy line; "Log in to pay" first; blocked choices get Change wash / Change time | CU-REVIEW.md |
 | CU-REFER | Referral screen simplified (Share → 5 washes → 1 free Premium wash), progress blocks, copy toasts; entry from Coupons; full rules in website terms §9 | V2-FEATURES.md (Referral rule) |
 | CU-START | Logged out → Welcome slides; logged-in launch unchanged | — |
 | SH-NOTIFY | Customer and Captain ask only for notifications at launch; camera/mic/location at first use. Both apps: no Clear all / Delete on notifications, only **Mark all as read** | SH-NOTIFY.md |
@@ -70,8 +70,10 @@ this:
   - if nothing useful is left, the field is dropped.
 - `careRoutine`: up to 3 `{title ≤60, detail ≤160}`.
 - `minuteWindows`: up to 4 `{startMinute, endMinute}`.
-  - Each window must be between 4 AM and 11 PM, at least 60 minutes long, and inside one of the
-    server windows booked for that order. Windows can't overlap.
+  - Each window must be between 4 AM and 11 PM, at least 60 minutes long, and overlap one of the
+    server windows booked for that order. Windows can't overlap each other.
+  - The app books the fixed slots inside the customer's window (or the one it overlaps most), so
+    any window can be paid today.
   - Stored **for the Captain to see**. Capacity and matching still use the fixed windows (your
     item 2 in V2-FEATURES.md is unchanged).
 - All three are stored on the order and copied onto each `jobOffers` doc (`offerCareFields`).
