@@ -210,8 +210,10 @@ export class WashKrewService {
         societyIds:[],rating:0,ratingCount:0,completedWashes:0,activeJobCount:0,
         paymentMode:config.data()?.paymentMode??'test',createdAt:stamp(),updatedAt:stamp(),
       });
-      else if(role==='captain'&&name)tx.update(captainRef,{name,updatedAt:stamp()});
-      return {uid,name:roleName,accountCreated:newRole,needsName:roleName.length<2};
+      // 13 Nov: an account name that never reached the Captain profile is copied there, and a
+      // profile with no name asks for one at sign-in (not at the application's "I agree").
+      else if(role==='captain'&&(name||(roleName.trim().length>=2&&(captain.data()?.name??'').trim().length<2)))tx.update(captainRef,{name:name||roleName,updatedAt:stamp()});
+      return {uid,name:roleName,accountCreated:newRole,needsName:roleName.trim().length<2};
     });
   }
   /** v2 (13 Nov): "Is this your vehicle?" from the customer's photos (config.vehicleAi). */

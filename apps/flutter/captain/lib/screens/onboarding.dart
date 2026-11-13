@@ -113,6 +113,11 @@ class StepsScreen extends StatelessWidget {
         };
 
     void go() {
+      // 13 Nov (Aman): a missing name is fixed here, on the name screen, never at "I agree".
+      if (store.isLive && !store.hasProfileName) {
+        router.push(const R(N.signUp, index: 2));
+        return;
+      }
       if (store.underReview) {
         store.set(() => store.reviewNoticePending = true);
         router.home();
@@ -957,6 +962,10 @@ class _RulesScreenState extends State<RulesScreen> {
             if (!store.kycUploaded.contains('aadhaar') || !store.kycUploaded.contains('selfie')) {
               store.set(() => store.toast = store.t('Upload your Aadhaar and selfie first.', 'पहले आधार और सेल्फ़ी अपलोड करें।', 'ముందు ఆధార్, సెల్ఫీ అప్‌లోడ్ చేయండి.'));
               router.replace(const [R(N.steps)]);
+              return;
+            }
+            if (!store.hasProfileName) {
+              router.push(const R(N.signUp, index: 2));
               return;
             }
             try {

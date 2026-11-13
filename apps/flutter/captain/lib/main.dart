@@ -239,7 +239,7 @@ Widget _destination(R r) => Builder(builder:(context){
   N.recoveryScenarios => const CaptainRecoveryScenariosScreen(),
   N.recoveryOwnerPreview => const RecoveryOwnerPreview(),
   N.recoveryEarnings => const RecoveryEarningsPreview(),
-  N.signUp => SignUpScreen(login: r.flag, verified: r.index == 1),
+  N.signUp => SignUpScreen(login: r.flag, verified: r.index >= 1, fixName: r.index == 2),
   N.otp => WOtpScreen(login: r.flag),
   N.steps => StepsScreen(problem: r.flag),
   N.aadhaar => AadhaarScreen(unclear: r.flag),

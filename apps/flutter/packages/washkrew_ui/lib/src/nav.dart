@@ -24,6 +24,14 @@ class WRouter<R> extends ChangeNotifier {
 
   R? get last => path.isEmpty ? null : path.last.route;
 
+  /// 13 Nov (Aman): a screen change closes the keyboard, so it never stays open on a
+  /// screen with nothing to type. Screens that autofocus a field still open it.
+  @override
+  void notifyListeners() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    super.notifyListeners();
+  }
+
   void push(R r) {
     path = [...path, NavEntry(r)];
     notifyListeners();

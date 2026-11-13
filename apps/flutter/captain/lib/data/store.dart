@@ -1584,8 +1584,16 @@ class CaptainStore extends ChangeNotifier {
     _bindLive(live!.uid!);
     phone=live!.verifiedPhone!.replaceFirst('+91','');
     name=result['name'] as String? ?? enteredName;
-    changed();return result['needsName']==true;
+    // 13 Nov: the application needs the name on the Captain profile itself; if that is
+    // missing (older accounts), ask for it now instead of failing at "I agree".
+    var needsName=result['needsName']==true;
+    if(!needsName){
+      try{name=await live!.captainProfileName();needsName=name.trim().length<2;}catch(_){/* Server still checks. */}
+    }
+    changed();return needsName;
   }
+  /// The Captain profile has a usable name (the application needs it).
+  bool get hasProfileName => name.trim().length >= 2;
 
   Future<void> completeLiveRegistration(String value) async {
     await _call(()=>live!.completeRegistration('captain',value));

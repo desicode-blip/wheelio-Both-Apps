@@ -469,9 +469,11 @@ class _PathPainter extends CustomPainter {
 
 /// Shown when a guest wants to go online, or from the nudge / Me tab.
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key, this.login = false, this.verified = false});
+  const SignUpScreen({super.key, this.login = false, this.verified = false, this.fixName = false});
   final bool login;
   final bool verified;
+  /// 13 Nov: opened from Quick KYC / Rules when the profile has no name; saves and goes back.
+  final bool fixName;
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
 }
@@ -530,6 +532,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   if(widget.verified && store.live!.verifiedPhone == '+91${store.phone}'){
                     await store.completeLiveRegistration(name.trim());
                     if(!mounted)return;
+                    if(widget.fixName){router.pop();return;}
                     store.finishRegistration();router.home();return;
                   }
                   await store.liveRequestOtp(store.phone);
@@ -544,9 +547,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
         children: [
-          WTitle(login ? store.t(store.isLive?'What’s your number?':'Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
+          WTitle(widget.fixName ? store.t('Add your name', 'अपना नाम जोड़ें', 'మీ పేరు జోడించండి') : login ? store.t(store.isLive?'What’s your number?':'Welcome back', 'फिर से स्वागत है', 'మళ్ళీ స్వాగతం') : store.t('Save your spot', 'अपनी जगह पक्की करें', 'మీ స్థానం ఖాయం చేసుకోండి'), top: 10),
           WBody(
-            login
+            widget.fixName
+                ? store.t('Owners see this name on your jobs.', 'मालिक आपके काम पर यही नाम देखते हैं।', 'యజమానులు మీ పనులపై ఈ పేరు చూస్తారు.')
+                : login
                 ? store.t('Enter your number. We send a code by SMS.', 'अपना नंबर डालें। हम SMS से कोड भेजेंगे।', 'మీ నంబర్ ఇవ్వండి. SMS ద్వారా కోడ్ పంపుతాము.')
                 : store.t(
                     'Just your name and number for now. Documents come later, only when you take your first job.',
@@ -562,6 +567,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
               label: store.t('Your name', 'आपका नाम', 'మీ పేరు'),
               value: name,
               placeholder: 'Raju Yadav',
+              // The standard missing-information highlight, until a full name is typed.
+              error: widget.fixName && !Validators.isValidName(name) ? store.t('Your name is missing. Add it to continue.', 'आपका नाम नहीं है। आगे बढ़ने के लिए जोड़ें।', 'మీ పేరు లేదు. కొనసాగడానికి జోడించండి.') : null,
               caps: TextCapitalization.words,
               large: true,
               autofocus: true,

@@ -74,6 +74,10 @@ class LiveBackend {
     } finally { registrationInProgress = false; }
   }
 
+  /// The name saved on the Captain profile (empty when missing).
+  Future<String> captainProfileName() async =>
+      ((await db.doc('captains/$uid').get(const GetOptions(source:Source.server))).data()?['name'] as String?) ?? '';
+
   Future<Map<String,dynamic>> completeRegistration(String role,String name) =>
       call('registerAccount',{'role':role,'name':name});
 
