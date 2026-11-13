@@ -365,10 +365,11 @@ class _HomeTabState extends State<HomeTab> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // 13 Nov (Aman): the price always sits at the right, next to the arrow.
                                 Row(
                                   children: [
-                                    Flexible(child: WPlate(e.order.vehicle.plate)),
-                                    const Spacer(),
+                                    Expanded(child: Align(alignment: Alignment.centerLeft, child: WPlate(e.order.vehicle.plate))),
+                                    const SizedBox(width: 8),
                                     WText(Fmt.rupees(e.order.price), WType.valueStrong, mono: true),
                                   ],
                                 ),
@@ -377,18 +378,19 @@ class _HomeTabState extends State<HomeTab> {
                                   children: [
                                     WText('${e.order.vehicle.type.shortName} ·', WType.caption),
                                     const SizedBox(width: 4),
-                                    Flexible(child: _highlight(e.order.washKind.name(e.order.vehicle.type.kind == VehicleKind.bike), e.washDiffers)),
+                                    Flexible(child: _highlight(e.order.washKind.name(e.order.vehicle.type.kind == VehicleKind.bike), false)),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                _highlight('${e.order.place.title} · ${e.order.place.parkingShort}', e.placeDiffers, icon: WIcon.location),
+                                // 13 Nov (Aman): every card shows the address in the same blue pill.
+                                _highlight('${e.order.place.title} · ${e.order.place.parkingShort}', true, icon: WIcon.location),
                                 const SizedBox(height: 6),
                                 WText('Last booked ${Fmt.day(e.order.slot.date)}', WType.small, color: WColor.muted),
                               ],
                             ),
                           ),
                           const Padding(
-                            padding: EdgeInsets.only(top: 10, left: 8),
+                            padding: EdgeInsets.only(top: 12, left: 10),
                             child: WIconView(WIcon.chevron, size: 13, color: WColor.secondary),
                           ),
                         ],
@@ -1152,14 +1154,14 @@ class _ProfileTabState extends State<ProfileTab> {
                   ComingSoonGate(
                     available: store.referralsLive,
                     feature: 'Referrals',
-                    child: WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: store.referralsLive ? 'Your code: ${store.referrals.identity.code}' : 'Coming soon', onTap: () => router.go(N.referrals)),
+                    child: WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: 'Your code: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
                   ),
                   const WDivider(inset: 54),
                   ComingSoonGate(
                     available: store.referralsLive,
                     feature: 'Referral codes',
                     showTag: false,
-                    child: WListRow(icon: WIcon.star, title: 'Were you referred?', subtitle: store.referralsLive ? 'Add a referral code' : 'Coming soon', onTap: () => router.go(N.referralJoin)),
+                    child: WListRow(icon: WIcon.star, title: 'Were you referred?', subtitle: 'Add a referral code', onTap: () => router.go(N.referralJoin)),
                   ),
                   const WDivider(inset: 54),
                   if (store.activePlan != null) ...[

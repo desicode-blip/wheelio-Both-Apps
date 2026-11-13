@@ -97,7 +97,7 @@ class GatePassCard extends StatelessWidget {
               available: store.gatePassLive,
               feature: 'Gate pass sharing',
               showTag: false,
-              child: WButton(store.gatePassLive ? 'Upload gate pass' : 'Upload gate pass · coming soon', icon: WIcon.camera, kind: ButtonKind.outline, onTap: () => pickGatePass(context, o)),
+              child: WButton('Upload gate pass', icon: WIcon.camera, kind: ButtonKind.outline, onTap: () => pickGatePass(context, o)),
             ),
           ],
         ],

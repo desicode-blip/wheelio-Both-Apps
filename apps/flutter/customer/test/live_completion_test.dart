@@ -25,8 +25,9 @@ void main() {
     // v2 CU-LIVE: the gate pass is uploaded on this screen; no WhatsApp step.
     expect(find.text('Open WhatsApp'), findsNothing);
     expect(find.text('Gate pass'), findsOneWidget);
-    // 13 Nov: sharing isn't on the live server yet, so the upload says "coming soon".
-    expect(find.text('Upload gate pass · coming soon'), findsOneWidget);
+    // 13 Nov: sharing isn't on the live server yet; the button stays, greyed (toast on tap).
+    expect(find.text('Upload gate pass'), findsOneWidget);
+    expect(find.textContaining('oming soon'), findsNothing);
     expect(router.last, isNull);
     store.liveConfig['gatePass'] = true;
     store.changed();

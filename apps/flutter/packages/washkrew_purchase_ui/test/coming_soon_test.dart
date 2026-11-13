@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:washkrew_purchase_ui/washkrew_purchase_ui.dart';
 
-// 13 Nov (Aman): what the server can't sell yet is greyed out and says "coming soon" at
-// the entry point; it can't be chosen, so no journey dead-ends at payment.
+// 13 Nov (Aman): what the server can't sell yet is greyed out at the entry point, with no
+// "coming soon" text; a tap shows the coming-soon toast and nothing is selected.
 final _key = GlobalKey();
 const _dir = String.fromEnvironment('SOON_CAPTURE_DIR');
 
@@ -22,7 +22,7 @@ void main() {
     await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
   });
 
-  testWidgets('Premium, interior and monthly say coming soon and stay unselected', (t) async {
+  testWidgets('Unavailable choices are greyed with no label; a tap shows the toast', (t) async {
     t.view.physicalSize = const Size(780, 1688);
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.resetPhysicalSize);
@@ -45,10 +45,9 @@ void main() {
     ));
     await t.pump();
     expect(s.level, ServiceLevel.basic); // an unavailable choice is reset
-    expect(find.text('Coming soon'), findsNWidgets(2)); // Premium, Extra Premium
-    expect(find.text('Interior · coming soon'), findsOneWidget);
-    expect(find.text('Monthly · soon'), findsOneWidget);
-    await t.tap(find.text('Interior · coming soon'));
+    expect(find.textContaining('oming soon'), findsNothing);
+    expect(find.textContaining('· soon'), findsNothing);
+    await t.tap(find.text('Exterior + interior'));
     await t.pump(const Duration(milliseconds: 300));
     expect(find.text('Interior cleaning is coming soon. We’re working on it.'), findsOneWidget);
     expect(s.coverage, WashCoverage.exterior);
@@ -70,9 +69,10 @@ void main() {
     for (var i = 0; i < 15; i++) {
       await t.pump(const Duration(milliseconds: 200));
     }
-    await t.tap(find.text('Monthly · soon'));
+    await t.tap(find.text('Monthly plan'));
     await t.pump(const Duration(milliseconds: 300));
     expect(s.monthly, isFalse);
+    expect(find.text('Monthly plan is coming soon. We’re working on it.'), findsOneWidget);
     for (var i = 0; i < 15; i++) {
       await t.pump(const Duration(milliseconds: 200));
     }

@@ -124,3 +124,28 @@ export class VertexVehicleAi {
     return JSON.parse(response.data.candidates?.[0]?.content?.parts?.map(p=>p.text??'').join('')??'{}');
   }
 }
+
+// MARK: wash tiers (13 Nov 2026, Aman: Premium and interior bookable)
+
+const LEVELS=['basic','premium','extraPremium'], COVERAGES=['exterior','exteriorInterior'];
+
+/**
+ * The vehicle type priced for the customer's wash: Basic exterior keeps today's price;
+ * other levels and interior need config.washTiers === true and a price in
+ * config.washPrices[kind][level][coverage] (rupees, as the app reads it). The Captain's
+ * fixed pay scales with the price; percentage policies follow the price automatically.
+ */
+export function washTier(config,type,data){
+  const level=data.serviceLevel??'basic', coverage=data.coverage??'exterior';
+  if(!LEVELS.includes(level)||!COVERAGES.includes(coverage))fail('invalid-argument','Choose an available wash.');
+  const interiorKind=data.washKind==='wetOutsideDryInside';
+  if(interiorKind!==(coverage==='exteriorInterior'))fail('invalid-argument','Choose an available wash.');
+  if(level==='basic'&&coverage==='exterior')return {type,tier:{}};
+  if(config.washTiers!==true)fail('failed-precondition','This wash is not available yet.');
+  if(coverage==='exteriorInterior'&&type.kind==='bike')fail('invalid-argument','Interior cleaning is for cars.');
+  const rupees=config.washPrices?.[type.kind]?.[level]?.[coverage];
+  if(typeof rupees!=='number'||!Number.isFinite(rupees)||rupees<1||rupees>100000)fail('failed-precondition','This wash is not priced yet.');
+  const pricePaise=Math.round(rupees*100);
+  const captainPayPaise=Number.isSafeInteger(type.captainPayPaise)&&type.pricePaise>0?Math.round(type.captainPayPaise*pricePaise/type.pricePaise):type.captainPayPaise;
+  return {type:{...type,pricePaise,captainPayPaise},tier:{serviceLevel:level,coverage}};
+}

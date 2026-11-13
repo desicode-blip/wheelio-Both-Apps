@@ -100,10 +100,10 @@ class PurchaseChoiceScreen extends StatelessWidget {
           if (!s.usingPremiumReward && allowMonthly)
             WSegmented(
               height: 52,
-              options: ['One-time', monthlyAvailable ? 'Monthly plan' : 'Monthly · soon'],
+              options: const ['One-time', 'Monthly plan'],
               selection: s.monthly ? 1 : 0,
               onChanged: (i) {
-                if (i == 1 && !monthlyAvailable) return showComingSoon(context, 'Monthly plans');
+                if (i == 1 && !monthlyAvailable) return showComingSoon(context, 'Monthly plan');
                 s.update(() => s.mode = PurchaseMode.values[i]);
               },
             ),
@@ -138,7 +138,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
                 else
                   Opacity(
                     opacity: 0.5,
-                    child: WChip('Interior · coming soon', height: 48, selected: false, onTap: () => showComingSoon(context, 'Interior cleaning')),
+                    child: WChip('Exterior + interior', height: 48, selected: false, onTap: () => showComingSoon(context, 'Interior cleaning')),
                   ),
               ],
             ),
@@ -159,7 +159,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
                     ServiceLevel.premium => 'Extra wheel & trim care',
                     ServiceLevel.extraPremium => 'Added protective finish',
                   },
-                  trailing: price == null ? 'Coming soon' : '${rupees(price)}${isDraftPrice?.call(level) == true ? ' · draft' : ''}',
+                  trailing: price == null ? '' : '${rupees(price)}${isDraftPrice?.call(level) == true ? ' · draft' : ''}',
                   selected: s.level == level,
                   icon: level == ServiceLevel.basic ? WIcon.drop : WIcon.sparkle,
                   onTap: price == null ? () => showComingSoon(context, level.label) : () => s.update(() => s.level = level),

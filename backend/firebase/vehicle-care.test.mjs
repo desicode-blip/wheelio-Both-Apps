@@ -91,3 +91,22 @@ test('identifyVehicle is off until config.vehicleAi, then validates photos and r
   clock+=3600000;
   await service.identifyVehicle(customer,{vehicleKind:'bike',images:[jpeg]}); // a new hour
 });
+
+test('Premium and interior are priced from config.washPrices once washTiers is on',async()=>{
+  const premium={...input('tier-1'),serviceLevel:'premium',coverage:'exterior'};
+  await assert.rejects(service.createBooking(customer,premium),/not available yet/);
+  const kind=input().vehicleKind;
+  await db.doc('config/operations').update({washTiers:true,washPrices:{[kind]:{premium:{exterior:392,exteriorInterior:472}}}});
+  const b=await service.createBooking(customer,premium);
+  const order=(await db.doc('orders/'+b.bookingId).get()).data();
+  assert.equal(order.basePricePaise,39200);assert.equal(order.serviceLevel,'premium');assert.equal(order.coverage,'exterior');
+  await service.abandonCheckout(customer,{bookingId:b.bookingId});
+  await assert.rejects(service.createBooking(customer,{...input('tier-2'),serviceLevel:'premium',coverage:'exteriorInterior'}),/available wash/); // washKind must say inside
+  const inside=await service.createBooking(customer,{...input('tier-3'),serviceLevel:'premium',coverage:'exteriorInterior',washKind:'wetOutsideDryInside'});
+  const o2=(await db.doc('orders/'+inside.bookingId).get()).data();
+  assert.equal(o2.basePricePaise,47200);assert.equal(o2.washKind,'wetOutsideDryInside');
+  await service.abandonCheckout(customer,{bookingId:inside.bookingId});
+  await assert.rejects(service.createBooking(customer,{...input('tier-4'),serviceLevel:'extraPremium',coverage:'exterior'}),/not priced yet/);
+  const basic=await service.createBooking(customer,input('tier-5')); // Basic exterior unchanged
+  assert.equal((await db.doc('orders/'+basic.bookingId).get()).data().serviceLevel,undefined);
+});

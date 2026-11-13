@@ -22,7 +22,7 @@ import {photoModeEnabled} from './photo-policy.mjs';
 import {listCaptainApplications,getCaptainApplication,reviewCaptainApplication,captainReviewEvidence} from './captain-review.mjs';
 import { walletPrice, cancellationPolicy, cancellationBenefit, requiresCancellationQuote, serviceFailureBenefit, worksWindow, normalizeWorkingSlots, windowTimes, normalizedAddress } from './booking-policy.mjs';
 import {searchPlaces,selectPlace} from './place-search.mjs';
-import {bookingCareFields,offerCareFields,identifyVehicle} from './vehicle-care.mjs';
+import {bookingCareFields,offerCareFields,identifyVehicle,washTier} from './vehicle-care.mjs';
 import {areaPolicy,hasArea,covers,resolveLocation,saveLocation,nearbyCaptains,saveCaptainArea,areaCapacity,areaLock,touchAreaLock,signal} from './captain-area.mjs';
 import {createWalletTopup,captureWalletTopup,checkWalletTopup} from './wallet-topup.mjs';
 
@@ -225,7 +225,8 @@ export class WashKrewService {
     const societyId = id(data.societyId, 'society'), vehicleKind = id(data.vehicleKind, 'vehicle type');
     const tower = text(data.tower ?? '', 0, 100, 'tower'), floor = text(data.floor, 1, 30, 'parking floor');
     const parking = text(data.parking ?? '', 0, 80, 'parking slot'), note = text(data.note ?? '', 0, 500, 'notes');
-    if (!['dryDusting', 'wetOutside'].includes(data.washKind)) fail('invalid-argument', 'Choose an available wash.');
+    // 13 Nov: interior (wetOutsideDryInside) only with coverage exteriorInterior; checked in washTier.
+    if (!['dryDusting', 'wetOutside', 'wetOutsideDryInside'].includes(data.washKind)) fail('invalid-argument', 'Choose an available wash.');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.day ?? '')) fail('invalid-argument', 'Choose a date.');
     if(data.replaceUnpaidCheckout===true){
       const pending=(await this.db.doc(`customerState/${uid}`).get()).data()?.pendingBookingId;
@@ -248,7 +249,9 @@ export class WashKrewService {
       if (!config?.bookingsEnabled) fail('failed-precondition', 'Bookings are not open yet. Please try again once service starts.');
       const customerName=profile.data()?.customerName??profile.data()?.name;
       if (!profile.exists || !customerName) fail('failed-precondition', 'Save your name first.');
-      const type = config.vehicleTypes?.find(v => v.kind === vehicleKind && v.active !== false);
+      const baseType = config.vehicleTypes?.find(v => v.kind === vehicleKind && v.active !== false);
+      // 13 Nov: Premium / Extra Premium / interior priced from config.washPrices (washTiers).
+      const {type,tier} = baseType ? washTier(config,baseType,data) : {type:baseType,tier:{}};
       const society = await resolveLocation(this,config,societyId,tx);
       if(areaPolicy(config)&&(!validPosition(society?.location)||!validPosition(data.vehiclePosition)||metresBetween(data.vehiclePosition,society.location)>250))fail('failed-precondition','Confirm the parking location on the map again.');
       if (!type || !society) fail('failed-precondition', 'This vehicle or society is not currently available.');
@@ -324,6 +327,7 @@ export class WashKrewService {
         requestedWindows: windows, anyTime: data.anyTime === true,
         // v2 (13 Nov): optional vehicle details, care routine and exact windows from the Customer app.
         ...bookingCareFields(data, windows),
+        ...tier,
         lastSlotEnd: Timestamp.fromMillis(windowTimes(data.day, windows.at(-1)).end),
         ...pricing, creditReservedLots:credits.spent, basePricePaise: type.pricePaise, cancellationPolicy: policy,
         ...(couponMode?{paymentBalanceMode:'refundCouponsV1'}:{}),...(coupon?{couponId:coupon.couponId,couponReservedPaise:coupon.amountPaise,couponForfeitPaise:coupon.forfeitPaise,couponReleased:false}:{}),
@@ -571,6 +575,7 @@ export class WashKrewService {
       distanceMetres:metresBetween(d.data().position,o.coverageLocation??cfg.societies?.find(s=>s.id===o.societyId)?.location),
       paymentMode:o.paymentMode,slotStart:o.slotStart,slotEnd:o.slotEnd,requestedWindows:o.requestedWindows??[],anyTime:o.anyTime===true,
       ...offerCareFields(o),
+      ...(o.serviceLevel?{serviceLevel:o.serviceLevel,coverage:o.coverage}:{}),
       status:'pending',expiresAt:Timestamp.fromMillis(this.now()+seconds*1000),createdAt:Timestamp.fromMillis(this.now()),
     }]);
   }

@@ -537,7 +537,7 @@ class MeTab extends StatelessWidget {
               ComingSoonGate(
                 available: store.referralsLive,
                 feature: store.t('Referrals', 'रेफ़रल', 'రెఫరల్స్'),
-                child: WListRow(icon: WIcon.gift, title: store.t('Refer a Captain', 'कैप्टन को बुलाएँ', 'కెప్టెన్‌ను ఆహ్వానించండి'), subtitle: store.referralsLive ? '${store.t('Your code', 'आपका कोड', 'మీ కోడ్')}: ${store.referrals.identity.code}' : store.t('Coming soon', 'जल्द आ रहा है', 'త్వరలో'), onTap: () => router.go(N.referrals)),
+                child: WListRow(icon: WIcon.gift, title: store.t('Refer a Captain', 'कैप्टन को बुलाएँ', 'కెప్టెన్‌ను ఆహ్వానించండి'), subtitle: '${store.t('Your code', 'आपका कोड', 'మీ కోడ్')}: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
               ),
               const WDivider(inset: 54),
               WListRow(icon: WIcon.rupee, title: store.t('Understand your pay', 'अपनी कमाई समझें', 'మీ ఆదాయాన్ని తెలుసుకోండి'), onTap: () => router.go(N.payGuide)),

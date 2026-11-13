@@ -121,7 +121,8 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
 void showComingSoon(BuildContext context, [String feature = 'This']) =>
     showWToast(context, '$feature is coming soon. We’re working on it.', icon: WIcon.clock);
 
-/// A small grey "Coming soon" pill.
+/// A small grey "Coming soon" pill (13 Nov: not used on screens; inactive entry points
+/// just look greyed out and explain on tap).
 class ComingSoonTag extends StatelessWidget {
   const ComingSoonTag({super.key});
   @override
@@ -135,7 +136,7 @@ class ComingSoonTag extends StatelessWidget {
 /// Wraps an entry point. When [available] is false it is greyed out, can't be used, and a
 /// tap says "[feature] is coming soon" instead of opening a journey that would dead-end.
 class ComingSoonGate extends StatelessWidget {
-  const ComingSoonGate({super.key, required this.available, required this.feature, required this.child, this.showTag = true});
+  const ComingSoonGate({super.key, required this.available, required this.feature, required this.child, this.showTag = false});
   final bool available;
   final String feature;
   final Widget child;
