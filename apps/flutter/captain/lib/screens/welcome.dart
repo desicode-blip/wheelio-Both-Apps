@@ -513,7 +513,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             onTap: () async {
               final router = context.router;
               // v2 (handoff, preview): an optional referral code is checked before the OTP.
-              if (!login && store.v2Features) {
+              if (!login && store.v2Features && store.referralsLive) {
                 final error = store.referrals.validateCode(store.pendingReferralCode);
                 if (error != null) {
                   setState(() => referralError = error);
@@ -572,7 +572,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
             const SizedBox(height: 16),
           ],
           WPhoneField(number: number, large: true, autofocus: login, focusTrigger: focusNumber, onChanged: (v) => setState(() => number = v)),
-          if (!login && store.v2Features) ...[
+          // 13 Nov: the optional code field shows only when the server links referrals.
+          if (!login && store.v2Features && store.referralsLive) ...[
             const SizedBox(height: 20),
             ReferralCodeField(
               value: store.pendingReferralCode,

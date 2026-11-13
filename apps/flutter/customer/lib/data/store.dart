@@ -1002,10 +1002,28 @@ class AppStore extends ChangeNotifier {
   /// Monthly plans (phase 2) stay hidden until their server work is live.
   bool get monthlyPlansLive => liveConfig['monthlyPlans'] == true;
 
+  /// 13 Nov (Aman): features the live server can't do yet are "Coming soon" at their entry
+  /// point. Sample builds keep everything open for review.
+  bool get referralsLive => !isLive || liveConfig['referrals'] == true;
+  bool get gatePassLive => !isLive || liveConfig['gatePass'] == true;
+
   /// Service hours for custom windows: liveConfig.serviceHours {startMinute, endMinute},
   /// else 4 AM – 11 PM (Aman, 8 Nov).
-  int get washDayStart => ((liveConfig['serviceHours'] as Map?)?['startMinute'] as num?)?.toInt() ?? washDayStartMinute;
-  int get washDayEnd => ((liveConfig['serviceHours'] as Map?)?['endMinute'] as num?)?.toInt() ?? washDayEndMinute;
+  /// 13 Nov (Aman): on live, before exact times are switched on, the picker covers only the
+  /// hours the server's slots serve (e.g. 4 AM–10 PM), so every window can be booked.
+  int get washDayStart {
+    final set = ((liveConfig['serviceHours'] as Map?)?['startMinute'] as num?)?.toInt();
+    if (set != null) return set;
+    if (isLive && !customTimesLive && liveWindows.isNotEmpty) return liveWindows.map((w) => w.$1 * 60).reduce((a, b) => a < b ? a : b).clamp(washDayStartMinute, washDayEndMinute);
+    return washDayStartMinute;
+  }
+
+  int get washDayEnd {
+    final set = ((liveConfig['serviceHours'] as Map?)?['endMinute'] as num?)?.toInt();
+    if (set != null) return set;
+    if (isLive && !customTimesLive && liveWindows.isNotEmpty) return liveWindows.map((w) => w.$2 * 60).reduce((a, b) => a > b ? a : b).clamp(washDayStartMinute, washDayEndMinute);
+    return washDayEndMinute;
+  }
 
   /// Server price in rupees for a service: liveConfig.washPrices[kind][level][coverage],
   /// else today's vehicle price for Basic exterior. Null = no approved price yet.

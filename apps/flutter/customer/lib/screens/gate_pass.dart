@@ -92,7 +92,13 @@ class GatePassCard extends StatelessWidget {
           else ...[
             const WText('Upload your MyGate or society entry pass, so your Captain can get in.', WType.body),
             const SizedBox(height: 14),
-            WButton('Upload gate pass', icon: WIcon.camera, kind: ButtonKind.outline, onTap: () => pickGatePass(context, o)),
+            // 13 Nov (Aman): sharing with the Captain isn't connected on the live server yet.
+            ComingSoonGate(
+              available: store.gatePassLive,
+              feature: 'Gate pass sharing',
+              showTag: false,
+              child: WButton(store.gatePassLive ? 'Upload gate pass' : 'Upload gate pass · coming soon', icon: WIcon.camera, kind: ButtonKind.outline, onTap: () => pickGatePass(context, o)),
+            ),
           ],
         ],
       ),

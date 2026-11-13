@@ -25,8 +25,13 @@ void main() {
     // v2 CU-LIVE: the gate pass is uploaded on this screen; no WhatsApp step.
     expect(find.text('Open WhatsApp'), findsNothing);
     expect(find.text('Gate pass'), findsOneWidget);
-    expect(find.text('Upload gate pass'), findsOneWidget);
+    // 13 Nov: sharing isn't on the live server yet, so the upload says "coming soon".
+    expect(find.text('Upload gate pass · coming soon'), findsOneWidget);
     expect(router.last, isNull);
+    store.liveConfig['gatePass'] = true;
+    store.changed();
+    await tester.pump();
+    expect(find.text('Upload gate pass'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     store.dispose();
     router.dispose();

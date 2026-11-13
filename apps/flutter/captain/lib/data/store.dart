@@ -341,6 +341,9 @@ class CaptainStore extends ChangeNotifier {
   /// v2 (12 Nov, Aman): the handoff features are standard. `previewFeatures` (7 taps on
   /// Me) now only shows the review tools.
   bool get v2Features => liveConfig['v2Features'] != false;
+
+  /// 13 Nov (Aman): referrals are "Coming soon" on live until the server runs them.
+  bool get referralsLive => !isLive || liveConfig['referrals'] == true;
   bool previewFeatures = false;
   Future<void> loadPreviewFeatures() async {
     final on = await LocalFlags.get('previewFeatures');

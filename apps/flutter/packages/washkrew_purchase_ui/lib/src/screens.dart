@@ -16,7 +16,16 @@ class PurchaseChoiceScreen extends StatelessWidget {
     this.allowMonthly = true,
     this.header,
     this.continueLabel = 'Next',
+    this.levelAvailable,
+    this.interiorAvailable = true,
+    this.monthlyAvailable = true,
   });
+
+  /// 13 Nov (Aman): options the live server can't sell yet stay visible, greyed out,
+  /// and say "coming soon" when tapped, instead of dead-ending at payment.
+  final bool Function(ServiceLevel level)? levelAvailable;
+  final bool interiorAvailable;
+  final bool monthlyAvailable;
   final PurchaseSelection selection;
   final VoidCallback onBack, onContinue;
 
@@ -41,7 +50,9 @@ class PurchaseChoiceScreen extends StatelessWidget {
     listenable: selection,
     builder: (context, _) {
       final s = selection;
-      if (!allowMonthly && s.monthly) s.mode = PurchaseMode.once;
+      if ((!allowMonthly || !monthlyAvailable) && s.monthly) s.mode = PurchaseMode.once;
+      if (!interiorAvailable && s.coverage == WashCoverage.exteriorInterior) s.coverage = WashCoverage.exterior;
+      if (levelAvailable?.call(s.level) == false && !s.usingPremiumReward) s.level = ServiceLevel.basic;
       final selectedPrice = _price(s, s.level);
       String rupees(num v) => v == v.roundToDouble() ? '₹${v.round()}' : '₹${v.toStringAsFixed(2)}';
       return WScreen(
@@ -89,9 +100,12 @@ class PurchaseChoiceScreen extends StatelessWidget {
           if (!s.usingPremiumReward && allowMonthly)
             WSegmented(
               height: 52,
-              options: const ['One-time', 'Monthly plan'],
+              options: ['One-time', monthlyAvailable ? 'Monthly plan' : 'Monthly · soon'],
               selection: s.monthly ? 1 : 0,
-              onChanged: (i) => s.update(() => s.mode = PurchaseMode.values[i]),
+              onChanged: (i) {
+                if (i == 1 && !monthlyAvailable) return showComingSoon(context, 'Monthly plans');
+                s.update(() => s.mode = PurchaseMode.values[i]);
+              },
             ),
           if (s.monthly) ...[
             const Gap(16),
@@ -111,15 +125,21 @@ class PurchaseChoiceScreen extends StatelessWidget {
                   onTap: () =>
                       s.update(() => s.coverage = WashCoverage.exterior),
                 ),
-                WChip(
-                  'Exterior + interior',
-                  height: 48,
-                  selected: s.coverage == WashCoverage.exteriorInterior,
-                  onTap: () => s.update(() {
-                    s.coverage = WashCoverage.exteriorInterior;
-                    s.interiorPreview = true;
-                  }),
-                ),
+                if (interiorAvailable)
+                  WChip(
+                    'Exterior + interior',
+                    height: 48,
+                    selected: s.coverage == WashCoverage.exteriorInterior,
+                    onTap: () => s.update(() {
+                      s.coverage = WashCoverage.exteriorInterior;
+                      s.interiorPreview = true;
+                    }),
+                  )
+                else
+                  Opacity(
+                    opacity: 0.5,
+                    child: WChip('Interior · coming soon', height: 48, selected: false, onTap: () => showComingSoon(context, 'Interior cleaning')),
+                  ),
               ],
             ),
           ],
@@ -129,7 +149,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
           )) ...[
             // v2: an option without an approved price stays visible but can't be picked.
             Builder(builder: (context) {
-              final price = _price(s, level);
+              final price = levelAvailable?.call(level) == false ? null : _price(s, level);
               return Opacity(
                 opacity: price == null ? 0.55 : 1,
                 child: WSelectionTile(
@@ -142,7 +162,7 @@ class PurchaseChoiceScreen extends StatelessWidget {
                   trailing: price == null ? 'Coming soon' : '${rupees(price)}${isDraftPrice?.call(level) == true ? ' · draft' : ''}',
                   selected: s.level == level,
                   icon: level == ServiceLevel.basic ? WIcon.drop : WIcon.sparkle,
-                  onTap: price == null ? null : () => s.update(() => s.level = level),
+                  onTap: price == null ? () => showComingSoon(context, level.label) : () => s.update(() => s.level = level),
                 ),
               );
             }),

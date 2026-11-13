@@ -31,6 +31,11 @@ in `docs/v2/`. **Read this page first, then [V2-FEATURES.md](V2-FEATURES.md) for
 
 ## 2. Release gate — please read
 
+**13 Nov (Aman's rule): no dead ends.** Unsupported features are now greyed out with "Coming soon"
+at their entry point on live builds, so a customer can't reach payment with something the server
+can't sell. Each feature opens with a `config/operations` switch: see [COMING-SOON.md](COMING-SOON.md).
+
+
 The live server still sells only **Basic, exterior, the fixed windows**. The apps already handle
 this:
 - Premium, interior, monthly plans, exact times that don't match a server slot, and free

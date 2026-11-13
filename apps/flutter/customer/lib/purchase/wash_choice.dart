@@ -28,6 +28,10 @@ class WashStepScreen extends StatelessWidget {
       selection: p,
       allowMonthly: true,
       priceFor: (level, coverage) => store.purchasePrice(t, level),
+      // 13 Nov (Aman): what the server can't sell yet says "coming soon" here, not at Pay.
+      levelAvailable: (l) => l == ServiceLevel.basic || store.washTiersLive || p.usingPremiumReward,
+      interiorAvailable: store.washTiersLive,
+      monthlyAvailable: !store.isLive || store.monthlyPlansLive,
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
       continueLabel: editing ? 'Done' : 'Next',
       onBack: router.pop,

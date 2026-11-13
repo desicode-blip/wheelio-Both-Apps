@@ -63,11 +63,11 @@ class _CouponsScreenState extends State<CouponsScreen>{
    // v2 (12 Nov, Aman): after the coupons, a small way to earn more by referring.
    if(store.v2Features)...[
     const SizedBox(height:24),
-    WCard(radius:16,outlined:true,onTap:()=>router.go(N.referrals),child:const Row(children:[
+    ComingSoonGate(available:store.referralsLive,feature:'Referrals',child:WCard(radius:16,outlined:true,onTap:()=>router.go(N.referrals),child:const Row(children:[
      WIconBox(WIcon.gift,size:40,tone:Tone.ok),SizedBox(width:12),
      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[WText('Want more?',WType.title),WText('Refer friends · free Premium washes',WType.caption)])),
      WIconView(WIcon.chevron,size:13,color:WColor.secondary),
-    ])),
+    ]))),
    ],
   ]);
  }

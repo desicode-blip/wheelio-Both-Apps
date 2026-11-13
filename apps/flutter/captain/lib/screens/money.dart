@@ -53,7 +53,8 @@ class _MoneyTabState extends State<MoneyTab> {
         // kept apart from wash earnings.
         if (store.v2Features) ...[
           if (store.recoveryStarted) RecoveryCaseCard(repository: store.recovery, captain: true, onOpen: () => router.go(N.recoveryEarnings)),
-          ReferralEarningsCard(repository: store.referrals, onOpen: () => router.go(N.referrals)),
+          // 13 Nov: no sample referral earnings on a live build.
+          if (store.referralsLive) ReferralEarningsCard(repository: store.referrals, onOpen: () => router.go(N.referrals)),
           const SizedBox(height: 14),
         ],
         WSegmented(options: [store.t('Today', 'आज', 'ఈరోజు'), store.t('This week', 'इस हफ़्ते', 'ఈ వారం')], selection: range, onChanged: (i) => setState(() => range = i), height: 50),
@@ -525,7 +526,11 @@ class MeTab extends StatelessWidget {
           WCard(
             padding: 14,
             child: Column(children: [
-              WListRow(icon: WIcon.gift, title: store.t('Refer a Captain', 'कैप्टन को बुलाएँ', 'కెప్టెన్‌ను ఆహ్వానించండి'), subtitle: '${store.t('Your code', 'आपका कोड', 'మీ కోడ్')}: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
+              ComingSoonGate(
+                available: store.referralsLive,
+                feature: store.t('Referrals', 'रेफ़रल', 'రెఫరల్స్'),
+                child: WListRow(icon: WIcon.gift, title: store.t('Refer a Captain', 'कैप्टन को बुलाएँ', 'కెప్టెన్‌ను ఆహ్వానించండి'), subtitle: store.referralsLive ? '${store.t('Your code', 'आपका कोड', 'మీ కోడ్')}: ${store.referrals.identity.code}' : store.t('Coming soon', 'जल्द आ रहा है', 'త్వరలో'), onTap: () => router.go(N.referrals)),
+              ),
               const WDivider(inset: 54),
               WListRow(icon: WIcon.rupee, title: store.t('Understand your pay', 'अपनी कमाई समझें', 'మీ ఆదాయాన్ని తెలుసుకోండి'), onTap: () => router.go(N.payGuide)),
               const WDivider(inset: 54),

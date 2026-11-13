@@ -113,3 +113,49 @@ class _ToastState extends State<_Toast> with SingleTickerProviderStateMixin {
     );
   }
 }
+
+// 13 Nov 2026 (Aman): never let a customer or Captain walk into a dead end. Anything the
+// live server can't do yet is greyed out at its entry point and says "Coming soon".
+
+/// The "coming soon" message, as a toast at the top.
+void showComingSoon(BuildContext context, [String feature = 'This']) =>
+    showWToast(context, '$feature is coming soon. We’re working on it.', icon: WIcon.clock);
+
+/// A small grey "Coming soon" pill.
+class ComingSoonTag extends StatelessWidget {
+  const ComingSoonTag({super.key});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(color: WColor.canvas, borderRadius: BorderRadius.circular(8), border: Border.all(color: WColor.border)),
+    child: const WText('Coming soon', WType.small, color: WColor.secondary, weight: FontWeight.w600),
+  );
+}
+
+/// Wraps an entry point. When [available] is false it is greyed out, can't be used, and a
+/// tap says "[feature] is coming soon" instead of opening a journey that would dead-end.
+class ComingSoonGate extends StatelessWidget {
+  const ComingSoonGate({super.key, required this.available, required this.feature, required this.child, this.showTag = true});
+  final bool available;
+  final String feature;
+  final Widget child;
+  final bool showTag;
+  @override
+  Widget build(BuildContext context) {
+    if (available) return child;
+    return Semantics(
+      button: true,
+      label: '$feature, coming soon',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => showComingSoon(context, feature),
+        child: Stack(
+          children: [
+            Opacity(opacity: 0.45, child: IgnorePointer(child: ExcludeSemantics(child: child))),
+            if (showTag) const Positioned(top: 8, right: 8, child: ComingSoonTag()),
+          ],
+        ),
+      ),
+    );
+  }
+}

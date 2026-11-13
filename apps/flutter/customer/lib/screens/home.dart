@@ -1149,9 +1149,18 @@ class _ProfileTabState extends State<ProfileTab> {
               const SizedBox(height: 14),
               group([
                 if (store.v2Features) ...[
-                  WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: 'Your code: ${store.referrals.identity.code}', onTap: () => router.go(N.referrals)),
+                  ComingSoonGate(
+                    available: store.referralsLive,
+                    feature: 'Referrals',
+                    child: WListRow(icon: WIcon.gift, title: 'Refer & earn Premium washes', subtitle: store.referralsLive ? 'Your code: ${store.referrals.identity.code}' : 'Coming soon', onTap: () => router.go(N.referrals)),
+                  ),
                   const WDivider(inset: 54),
-                  WListRow(icon: WIcon.star, title: 'Were you referred?', subtitle: 'Add a referral code', onTap: () => router.go(N.referralJoin)),
+                  ComingSoonGate(
+                    available: store.referralsLive,
+                    feature: 'Referral codes',
+                    showTag: false,
+                    child: WListRow(icon: WIcon.star, title: 'Were you referred?', subtitle: store.referralsLive ? 'Add a referral code' : 'Coming soon', onTap: () => router.go(N.referralJoin)),
+                  ),
                   const WDivider(inset: 54),
                   if (store.activePlan != null) ...[
                     WListRow(icon: WIcon.calendar, title: 'Monthly plan', subtitle: 'Manage, edit next cycle, cancel', onTap: () => router.go(N.planDetails)),
