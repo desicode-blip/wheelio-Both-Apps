@@ -350,7 +350,7 @@ class _CaptainHomeState extends State<CaptainHome> {
                       WCard(
                         onTap: () {
                           store.set(() => store.kycFromJob = false);
-                          if(store.captainAreaEnabled&&!store.hasServiceArea){router.go(N.workArea);}else if(store.isLive&&store.underReview){showReviewNotice(context);}else{router.push(const R(N.steps));}
+                          if(store.captainAreaEnabled&&!store.hasServiceArea){router.go(N.workSetup);}else if(store.isLive&&store.underReview){showReviewNotice(context);}else{router.push(const R(N.steps));}
                         },
                         child: Row(
                           children: [

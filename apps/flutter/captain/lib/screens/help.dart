@@ -649,7 +649,7 @@ class _SlotCard extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         // The sky: sun or moon at each end rides an arc as the handles move.
-        _SkyArc(slot: slot, inset: _inset),
+        _SkyArc(slot: slot, inset: _inset, onChanged: onChanged),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 6,
@@ -709,14 +709,42 @@ Color _skyFor(int minutes) {
   return const Color(0xFFEAF4FF);
 }
 
-class _SkyArc extends StatelessWidget {
-  const _SkyArc({required this.slot, required this.inset});
+/// 14 Nov (Aman): the sky is a control too. Drag (or tap) near the sun or moon and the
+/// nearer end follows the finger, in half-hour steps, keeping at least one hour.
+class _SkyArc extends StatefulWidget {
+  const _SkyArc({required this.slot, required this.inset, required this.onChanged});
   final WorkSlot slot;
   final double inset;
+  final ValueChanged<WorkSlot> onChanged;
   static const height = 64.0, glyph = 26.0;
+  @override
+  State<_SkyArc> createState() => _SkyArcState();
+}
+
+class _SkyArcState extends State<_SkyArc> {
+  bool? _movingStart;
+
+  int _minuteAt(double x, double w) {
+    final t = ((x - widget.inset) / (w - 2 * widget.inset)).clamp(0.0, 1.0);
+    final m = workDayStart + t * (workDayEnd - workDayStart);
+    return ((m / 30).round() * 30).clamp(workDayStart, workDayEnd);
+  }
+
+  void _move(double x, double w) {
+    final m = _minuteAt(x, w), slot = widget.slot;
+    final start = _movingStart ??= (m - slot.$1).abs() <= (m - slot.$2).abs();
+    final next = start ? (m.clamp(workDayStart, slot.$2 - 60), slot.$2) : (slot.$1, m.clamp(slot.$1 + 60, workDayEnd));
+    if (next != slot) {
+      HapticFeedback.selectionClick();
+      widget.onChanged(next);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+  Widget build(BuildContext context) {
+    final slot = widget.slot, inset = widget.inset;
+    const height = _SkyArc.height, glyph = _SkyArc.glyph;
+    return LayoutBuilder(builder: (context, c) {
         final w = c.maxWidth;
         Offset at(int minutes) {
           final t = ((minutes - workDayStart) / (workDayEnd - workDayStart)).clamp(0.0, 1.0);
@@ -747,17 +775,28 @@ class _SkyArc extends StatelessWidget {
           );
         }
 
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 400),
-          height: height,
-          decoration: BoxDecoration(color: _skyFor((slot.$1 + slot.$2) ~/ 2), borderRadius: BorderRadius.circular(12)),
-          child: Stack(clipBehavior: Clip.none, children: [
-            Positioned.fill(child: CustomPaint(painter: _ArcPainter(at: at, slot: slot))),
-            body(slot.$1),
-            body(slot.$2),
-          ]),
+        return Semantics(
+          label: 'Working time ${fmtClock(slot.$1)} to ${fmtClock(slot.$2)}. Drag the sun or moon to change it.',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (d) { _movingStart = null; _move(d.localPosition.dx, w); },
+            onHorizontalDragUpdate: (d) => _move(d.localPosition.dx, w),
+            onHorizontalDragEnd: (_) => _movingStart = null,
+            onTapUp: (d) { _movingStart = null; _move(d.localPosition.dx, w); _movingStart = null; },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              height: height,
+              decoration: BoxDecoration(color: _skyFor((slot.$1 + slot.$2) ~/ 2), borderRadius: BorderRadius.circular(12)),
+              child: Stack(clipBehavior: Clip.none, children: [
+                Positioned.fill(child: CustomPaint(painter: _ArcPainter(at: at, slot: slot))),
+                body(slot.$1),
+                body(slot.$2),
+              ]),
+            ),
+          ),
         );
       });
+  }
 }
 
 /// Dotted path for the whole day, solid colour for the chosen time.

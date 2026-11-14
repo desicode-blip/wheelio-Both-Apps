@@ -511,8 +511,9 @@ class CaptainStore extends ChangeNotifier {
   bool get hasServiceArea=>liveCaptain['serviceArea']?['center']?['latitude'] is num;
   bool get trainingEnabled => liveConfig['training']?['enabled'] == true ||
       (liveConfig['training']?['enabled'] != false && liveConfig['training']?['required'] == true);
-  List<KycStep> get onboardingSteps => [KycStep.aadhaar, KycStep.photo, KycStep.bank,
-      if(captainAreaEnabled) KycStep.area,
+  // 14 Nov (Aman): the serving area comes first (Go online starts with it), then KYC.
+  List<KycStep> get onboardingSteps => [if(captainAreaEnabled) KycStep.area,
+      KycStep.aadhaar, KycStep.photo, KycStep.bank,
       if(trainingEnabled) ...[KycStep.training, KycStep.quiz]];
   KycStep? get nextStep => onboardingSteps.where((s) => steps[s] != KycState.done).firstOrNull;
   int get stepsDone => onboardingSteps.where((s) => steps[s] == KycState.done).length;

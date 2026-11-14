@@ -80,7 +80,7 @@ class StepsScreen extends StatelessWidget {
           _Stage.aadhaar => (WIcon.idCard, store.t('Aadhaar', 'आधार', 'ఆధార్'), store.t('Photo of the front and back', 'आगे और पीछे की फ़ोटो', 'ముందు, వెనుక ఫోటో')),
           _Stage.photo => (WIcon.face, store.t('Your photo', 'आपकी फ़ोटो', 'మీ ఫోటో'), store.t('A quick selfie to match your Aadhaar', 'आधार से मिलाने के लिए एक सेल्फ़ी', 'ఆధార్‌తో సరిపోల్చడానికి ఒక సెల్ఫీ')),
           _Stage.bank => (WIcon.bank, store.t('Bank or UPI', 'बैंक या UPI', 'బ్యాంక్ లేదా UPI'), store.t('Where your money comes every night', 'जहाँ हर रात आपके पैसे आएंगे', 'ప్రతి రాత్రి మీ డబ్బు వచ్చే చోటు')),
-          _Stage.area => (WIcon.location,'Serving area','Choose your work area and travel radius'),
+          _Stage.area => (WIcon.location, store.t('Serving area', 'काम का इलाका', 'పని ప్రాంతం'), store.t('Your work area, travel radius and hours', 'आपका इलाका, दूरी और समय', 'మీ ప్రాంతం, దూరం, సమయం')),
           _Stage.onboarding => (WIcon.play, store.t('Onboarding', 'ऑनबोर्डिंग', 'ఆన్‌బోర్డింగ్'), store.t('Short training videos and a quiz', 'छोटे ट्रेनिंग वीडियो और एक क्विज़', 'చిన్న శిక్షణ వీడియోలు, ఒక క్విజ్')),
         };
     KycState state(_Stage s) {
@@ -94,9 +94,12 @@ class StepsScreen extends StatelessWidget {
       };
     }
 
-    final list = [_Stage.aadhaar, _Stage.photo, _Stage.bank,
-      if(store.captainAreaEnabled) _Stage.area,
-      if(!problem && store.trainingEnabled) _Stage.onboarding];
+    // 14 Nov (Aman): two groups — where you work (done first), then your KYC.
+    final groups = <(String, List<_Stage>)>[
+      if (store.captainAreaEnabled) (store.t('Where you work', 'आप कहाँ काम करेंगे', 'మీరు ఎక్కడ పని చేస్తారు'), [_Stage.area]),
+      (store.t('Your KYC', 'आपका KYC', 'మీ KYC'), [_Stage.aadhaar, _Stage.photo, _Stage.bank, if (!problem && store.trainingEnabled) _Stage.onboarding]),
+    ];
+    final list = [for (final g in groups) ...g.$2];
     final current = list.indexWhere((s) => state(s) != KycState.done);
 
     /// Round marker on the left: done = green tick, now = filled blue, later = soft grey.
@@ -168,12 +171,18 @@ class StepsScreen extends StatelessWidget {
           WTitle(store.t('${store.kycStageCount} steps to take jobs', 'काम लेने के ${store.kycStageCount} कदम', 'పనులు తీసుకోవడానికి ${store.kycStageCount} దశలు'), top: 14),
           WBody(store.t('Here’s what comes next. We’ll take you through each one.', 'आगे यह होगा। हम हर कदम में आपकी मदद करेंगे।', 'తర్వాత ఇవి ఉంటాయి. ప్రతి దశలో మేము మీకు సహాయం చేస్తాము.'), top: 6, bottom: 26),
         ],
-        for (final (i, s) in list.indexed)
+        for (final (i, s) in list.indexed) ...[
+          if (groups.length > 1 && groups.any((g) => g.$2.first == s))
+            Padding(
+              padding: EdgeInsets.only(bottom: 12, top: i == 0 ? 0 : 4),
+              child: WText(groups.firstWhere((g) => g.$2.first == s).$1.toUpperCase(), WType.label, color: WColor.secondary, weight: semibold),
+            ),
           IntrinsicHeight(
             child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Column(children: [
                 marker(info(s).$1, state(s), i == current),
-                if (i < list.length - 1) Expanded(child: Container(width: 2, constraints: const BoxConstraints(minHeight: 34), color: state(s) == KycState.done ? WColor.success : WColor.border)),
+                // The line joins steps of the same group only.
+                if (i < list.length - 1 && !groups.any((g) => g.$2.first == list[i + 1])) Expanded(child: Container(width: 2, constraints: const BoxConstraints(minHeight: 34), color: state(s) == KycState.done ? WColor.success : WColor.border)),
               ]),
               const SizedBox(width: 16),
               Expanded(
@@ -190,6 +199,7 @@ class StepsScreen extends StatelessWidget {
               ),
             ]),
           ),
+        ],
         if (!problem) const TestSkipButton(top: 4),
       ],
     );
