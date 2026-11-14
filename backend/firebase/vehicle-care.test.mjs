@@ -102,6 +102,9 @@ test('Premium and interior are priced from config.washPrices once washTiers is o
   assert.equal(order.basePricePaise,39200);assert.equal(order.serviceLevel,'premium');assert.equal(order.coverage,'exterior');
   await service.abandonCheckout(customer,{bookingId:b.bookingId});
   await assert.rejects(service.createBooking(customer,{...input('tier-2'),serviceLevel:'premium',coverage:'exteriorInterior'}),/available wash/); // washKind must say inside
+  // Interior has its own switch (14 Nov): closed until config.interior.
+  await assert.rejects(service.createBooking(customer,{...input('tier-3a'),serviceLevel:'premium',coverage:'exteriorInterior',washKind:'wetOutsideDryInside'}),/Interior cleaning is not available yet/);
+  await db.doc('config/operations').update({interior:true});
   const inside=await service.createBooking(customer,{...input('tier-3'),serviceLevel:'premium',coverage:'exteriorInterior',washKind:'wetOutsideDryInside'});
   const o2=(await db.doc('orders/'+inside.bookingId).get()).data();
   assert.equal(o2.basePricePaise,47200);assert.equal(o2.washKind,'wetOutsideDryInside');

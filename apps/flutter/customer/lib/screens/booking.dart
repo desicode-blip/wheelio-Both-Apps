@@ -2247,6 +2247,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       if (store.previewCheckout) {
         // 14 Nov (Aman): say plainly that no money moves, once, before booking.
         var go = false;
+        if (!context.mounted) return;
         await showWAlert(context,
           title: 'Book as a test?',
           message: '${store.purchase.monthly ? 'Monthly plans' : 'Premium washes'} aren’t sold yet, so no payment is taken. A nearby Captain gets the request as usual. If the test server isn’t on yet, you’ll see a preview on this phone only.',

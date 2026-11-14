@@ -18,7 +18,7 @@
 | Entry point | Switch that opens it (`config/operations`) | Until then |
 |---|---|---|
 | Premium / Extra Premium | `washTiers: true` (+ `washPrices`) | greyed, no price; tap → toast; Basic stays selected. **Server done in this push; Ajay to deploy and switch on.** |
-| Interior cleaning | `washTiers: true` (+ `washPrices`) | "Exterior + interior" chip greyed; tap → toast. **Server done; deploy and switch on.** |
+| Interior cleaning | `washTiers: true` **and `interior: true`** (+ `washPrices`) | "Exterior + interior" chip greyed; tap → toast. **Server done; deploy and switch on.** |
 | Monthly plan | `monthlyPlans: true` | "Monthly plan" segment greyed; tap → toast. **Server done (one payment per month); deploy and switch on.** |
 | Referrals (Profile, Coupons "Want more?", Captain Me, Captain money card, sign-up code) | `referrals: true` | rows greyed; tap → toast; sample earnings card and sign-up code field hidden |
 | Gate pass upload | `gatePass: true` | "Upload gate pass" greyed; tap → toast |

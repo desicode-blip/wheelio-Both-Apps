@@ -1,5 +1,9 @@
 # WashKrew v2 — handoff to Ajay (13 Nov 2026)
 
+> **14 Nov update:** start with [STAGING-RELEASE-2026-11-14.md](STAGING-RELEASE-2026-11-14.md):
+> what changed since this page, and your full to-do list. Sections §4–§4c below stay the
+> server contracts.
+
 **From:** Aman (product decisions) and Claude (code). **Branch pushed to:** `staging`, which fast-forwards
 from your `6ee74a4` (no rewrite). Everything is bucketed by feature ID; each ID has its own doc
 in `docs/v2/`. **Read this page first, then [V2-FEATURES.md](V2-FEATURES.md) for the server list.**

@@ -1000,8 +1000,9 @@ class AppStore extends ChangeNotifier {
   bool get customTimesLive => !isLive || liveConfig['customTimeWindows'] == true;
   /// The server prices and records Basic/Premium/Extra Premium and interior (liveConfig.washTiers).
   bool get washTiersLive => !isLive || liveConfig['washTiers'] == true || previewUnlock;
-  /// Interior cleaning stays closed until the server sells it (also on preview installs).
-  bool get interiorLive => !isLive || liveConfig['washTiers'] == true;
+  /// Interior cleaning has its own switch (config.interior, with washTiers) and stays
+  /// closed on preview installs too (14 Nov, Aman).
+  bool get interiorLive => !isLive || (liveConfig['washTiers'] == true && liveConfig['interior'] == true);
   /// Monthly plans: open once the server sells them (or on a preview install).
   bool get monthlyPlansLive => liveConfig['monthlyPlans'] == true || previewUnlock;
 

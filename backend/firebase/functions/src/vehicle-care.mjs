@@ -147,6 +147,8 @@ export function washTier(config,type,data){
   if(level==='basic'&&coverage==='exterior')return {type,tier:{}};
   if(config.washTiers!==true)fail('failed-precondition','This wash is not available yet.');
   if(coverage==='exteriorInterior'&&type.kind==='bike')fail('invalid-argument','Interior cleaning is for cars.');
+  // 14 Nov (Aman): interior stays closed, even for team tests, until config.interior === true.
+  if(coverage==='exteriorInterior'&&config.interior!==true)fail('failed-precondition','Interior cleaning is not available yet.');
   const rupees=config.washPrices?.[type.kind]?.[level]?.[coverage];
   if(typeof rupees!=='number'||!Number.isFinite(rupees)||rupees<1||rupees>100000)fail('failed-precondition','This wash is not priced yet.');
   const pricePaise=Math.round(rupees*100);
