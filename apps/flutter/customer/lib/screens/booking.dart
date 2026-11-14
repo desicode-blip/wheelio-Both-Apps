@@ -2244,6 +2244,17 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
       // v2: sample (non-live) builds finish a monthly plan with sample data.
       if (!store.isLive && store.washChoiceV2 && store.purchase.monthly && d.serviceLevel != null) { previewMonthlyPlan(store, router); return; }
+      if (store.previewCheckout) {
+        // 14 Nov (Aman): say plainly that no money moves, once, before booking.
+        var go = false;
+        await showWAlert(context,
+          title: 'Book as a test?',
+          message: '${store.purchase.monthly ? 'Monthly plans' : 'Premium washes'} aren’t sold yet, so no payment is taken. A nearby Captain gets the request as usual. If the test server isn’t on yet, you’ll see a preview on this phone only.',
+          actions: [const AlertAction('Not now', cancel: true), AlertAction('Book test', onTap: () => go = true)]);
+        if (!mounted || !go) return;
+        if (!router.isAt(N.paying)) router.push(const R(N.paying));
+        return;
+      }
       if (store.isLive) {
         // Ajay, 11 Nov: a coupon worth more than the wash loses the rest; confirm once.
         if(d.couponForfeitPaise>0&&!d.couponForfeitAccepted){
@@ -2262,7 +2273,10 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
     final v2 = store.washChoiceV2 && d.serviceLevel != null;
     final blocked = store.washChoiceBlockedReason;
-    final label = v2 && store.purchase.usingPremiumReward
+    // 14 Nov: Premium and monthly aren't sold yet; on the owner's phone they book as a test.
+    final label = store.previewCheckout
+        ? (v2 && store.purchase.monthly ? 'Book test plan · no payment' : 'Book test wash · no payment')
+        : v2 && store.purchase.usingPremiumReward
         ? 'Use free Premium wash'
         : v2 && store.purchase.monthly
         ? 'Make payment · ${Fmt.rupees(d.basePrice)} / month'

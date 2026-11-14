@@ -119,3 +119,29 @@ test('a visit that never finds a Captain slot is refunded its share',async()=>{
   assert.equal(o.status,'cancelled');assert.equal(o.cancellationReason,'slotExpired');
   assert.equal(refund.amount,6100);
 });
+
+test('team test bookings skip payment but reach Captains like real ones',async()=>{
+  // Premium and plans are off for customers here; the test booker can still use them.
+  await db.doc('config/operations').set({...config,monthlyPlans:false});
+  await assert.rejects(service.createBooking(customer,input('t0',{testBooking:true,serviceLevel:'premium',coverage:'exterior'})),/WashKrew team/);
+  await db.doc('privateConfig/testBookings').set({uids:['customer']});
+  const b=await service.createBooking(customer,input('t1',{testBooking:true,serviceLevel:'premium',coverage:'exterior'}));
+  assert.equal(b.amount,39200); // Aman's Premium price, shown but not charged
+  const paid=await service.checkout(customer,b);
+  assert.equal(paid.paid,true);assert.equal(counter,0); // no Razorpay order
+  const o=(await db.doc('orders/'+b.bookingId).get()).data();
+  assert.equal(o.status,'searching');assert.equal(o.paymentSource,'test');assert.equal(o.captainPayPaise,0);assert.equal(o.serviceLevel,'premium');
+  const offers=await db.collection('jobOffers').where('orderId','==',b.bookingId).get();
+  assert.equal(offers.size,2);assert.equal(offers.docs[0].data().testBooking,true);
+  // Cancelling refunds nothing (nothing was paid).
+  assert.equal((await service.getCancellationQuote(customer,{orderId:b.bookingId})).quote,null);
+  await service.cancel(customer,{orderId:b.bookingId});
+  assert.equal((await db.doc('orders/'+b.bookingId).get()).data().refundAmountPaise,0);
+  assert.equal((await db.doc('refunds/'+b.bookingId).get()).exists,false);
+  // A test monthly plan splits into visits the same way, still unpaid.
+  const p=await service.createBooking(customer,input('t2',{testBooking:true,plan}));
+  await service.checkout(customer,p);
+  const visits=await db.collection('orders').where('planId','==',p.bookingId).get();
+  assert.equal(visits.size,5);
+  for(const v of visits.docs){assert.equal(v.data().captainPayPaise,0);assert.equal(v.data().testBooking,true);}
+});

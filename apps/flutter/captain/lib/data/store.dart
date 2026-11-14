@@ -343,7 +343,11 @@ class CaptainStore extends ChangeNotifier {
   bool get v2Features => liveConfig['v2Features'] != false;
 
   /// 13 Nov (Aman): referrals are "Coming soon" on live until the server runs them.
-  bool get referralsLive => !isLive || liveConfig['referrals'] == true;
+  bool get referralsLive => !isLive || liveConfig['referrals'] == true || previewUnlock;
+  /// 14 Nov (Aman): installs on the owner's phone (WASHKREW_PREVIEW_UNLOCK, device builds
+  /// only; App Store archives set it false) open features the server can't run yet, on
+  /// sample data.
+  bool get previewUnlock => isLive && const bool.fromEnvironment('WASHKREW_PREVIEW_UNLOCK');
   bool previewFeatures = false;
   Future<void> loadPreviewFeatures() async {
     final on = await LocalFlags.get('previewFeatures');

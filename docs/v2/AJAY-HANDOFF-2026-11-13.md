@@ -168,6 +168,32 @@ stays open. So:
   server every 1.5 s for about 90 s, then opens the next step by itself
   (`payment_return_recovery.dart`).
 
+## 4c. Team test bookings (14 Nov, Aman: "use Premium and monthly on my phone now")
+
+Aman wants to run the real two-app journey (customer request → Captain alert → accept →
+wash → photos → approve) for Premium and monthly plans before they're sold. Payments are
+live, so these bookings **skip payment**:
+
+- **Server (needs deploy):** `createBooking({..., testBooking: true})` is allowed only for
+  uids in **`privateConfig/testBookings.uids`** (server-only doc; `enabled: false` turns it
+  off). A test booking may use Premium / Extra Premium and monthly plans even while
+  `washTiers` / `monthlyPlans` are off (prices from `washPrices`, else Aman's built-in ones).
+  `checkout` settles it at once (`paymentSource: 'test'`, no Razorpay order), then it is an
+  ordinary order: capacity, Captain alerts/offers (`testBooking: true` on the offer), accept,
+  photos, approval. **No money moves:** `captainPayPaise` is 0 (also on plan visits), the
+  cancellation quote is null, cancelling refunds nothing. No coupons/wallet on test bookings.
+  Test: `backend/firebase/monthly-plan.test.mjs` ("team test bookings…").
+- **To switch on:** deploy Functions, then create `privateConfig/testBookings`
+  `{uids: [<Aman's customer uid>, …]}` (uids from Firebase Auth; not in Git).
+- **Apps:** only installs built for Aman's iPhone (`run-ios.sh` / Desktop shortcut) open
+  Premium, monthly plans, referrals (sample data) and gate pass on live; interior stays closed.
+  `tool/ios.dart` sets `WASHKREW_PREVIEW_UNLOCK=true` for device builds and **`false` for
+  App Store archives**. Check and pay says "Book test wash · no payment" and confirms first.
+  Until the server above is deployed, such a booking stays on the phone as a labelled
+  preview (`PREVIEW-…`, sample Captain updates), never reaching Razorpay
+  (`TestBookingUnavailable` guard in `checkout_flow.dart`). The Captain app shows
+  "Test job, no pay" and treats plan visits (`planVisit`/`planVisits`) as gold monthly jobs.
+
 ## 5. Server work still open (smallest first)
 
 The full list is in [V2-FEATURES.md](V2-FEATURES.md); each item has its contract in its feature doc.

@@ -30,7 +30,7 @@ class WashStepScreen extends StatelessWidget {
       priceFor: (level, coverage) => store.purchasePrice(t, level),
       // 13 Nov (Aman): what the server can't sell yet says "coming soon" here, not at Pay.
       levelAvailable: (l) => l == ServiceLevel.basic || store.washTiersLive || p.usingPremiumReward,
-      interiorAvailable: store.washTiersLive,
+      interiorAvailable: store.interiorLive,
       monthlyAvailable: !store.isLive || store.monthlyPlansLive,
       header: const BookingHeader(step: 1, label: 'Vehicle', fraction: 0.2),
       continueLabel: editing ? 'Done' : 'Next',
@@ -202,6 +202,9 @@ class PlanConfirmationStepScreen extends StatelessWidget {
     return PurchaseConfirmationScreen(
       selection: store.activePlan ?? store.purchase,
       paid: store.isLive,
+      testNote: !store.isLive || !store.lastCheckoutTest ? null : store.lastCheckoutLocal
+          ? 'Test plan · no payment taken. A preview on this phone only.'
+          : 'Test plan · no payment taken. Each visit is on Bookings.',
       onHome: () {
         router.popToRoot();
         router.tab = 1;

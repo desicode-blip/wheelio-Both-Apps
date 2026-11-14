@@ -5,6 +5,6 @@ export 'src/portal.dart';
 export 'src/live_backend.dart';
 export 'src/live_widgets.dart';
 export 'src/live_map.dart';
-export 'src/checkout_flow.dart' show CheckoutStage, CheckoutUpload;
+export 'src/checkout_flow.dart' show CheckoutStage, CheckoutUpload, TestBookingUnavailable;
 export 'src/account_role.dart';
 export 'src/startup_permissions.dart';

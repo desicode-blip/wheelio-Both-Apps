@@ -19,7 +19,10 @@ String _clock(int minute) {
 }
 
 class JobExtras {
-  const JobExtras({this.exactWindows = const [], this.serviceLevel, this.planVisit, this.planVisits, this.vehicleName, this.care = const [], this.planDates = const []});
+  const JobExtras({this.exactWindows = const [], this.serviceLevel, this.planVisit, this.planVisits, this.vehicleName, this.care = const [], this.planDates = const [], this.test = false});
+
+  /// 14 Nov: a WashKrew team test booking: real job, but no payment and no pay.
+  final bool test;
 
   /// Every planned visit date of a monthly plan (sent with a monthly job offer).
   final List<DateTime> planDates;
@@ -72,8 +75,10 @@ class JobExtras {
       ],
       exactWindows: [for (final w in windows) exactWindowLabel(w.$1, w.$2)],
       serviceLevel: switch (o['serviceLevel']) { 'basic' => 'Basic', 'premium' => 'Premium', 'extraPremium' => 'Extra Premium', _ => null },
-      planVisit: plan is Map ? (plan['visitNumber'] as num?)?.toInt() : null,
-      planVisits: plan is Map ? (plan['totalVisits'] as num?)?.toInt() : null,
+      // The server sends planVisit / planVisits on each visit; older docs used plan.{visitNumber,totalVisits}.
+      planVisit: (o['planVisit'] as num?)?.toInt() ?? (plan is Map ? (plan['visitNumber'] as num?)?.toInt() : null),
+      planVisits: (o['planVisits'] as num?)?.toInt() ?? (plan is Map ? (plan['totalVisits'] as num?)?.toInt() : null),
+      test: o['testBooking'] == true,
     );
   }
 }

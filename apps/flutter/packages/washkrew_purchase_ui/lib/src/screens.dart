@@ -676,16 +676,19 @@ class PurchaseConfirmationScreen extends StatelessWidget {
     required this.onDetails,
     required this.onTracking,
     this.paid = false,
+    this.testNote,
   });
   final PurchaseSelection selection;
   final VoidCallback onHome, onDetails, onTracking;
   /// 13 Nov: a real, paid plan (live). Otherwise the design preview.
   final bool paid;
+  /// 14 Nov: a team test plan (no payment); replaces the "Paid" line.
+  final String? testNote;
   @override
   Widget build(BuildContext context) {
     final s = selection;
     return WScreen(
-      header: WAppBar(title: paid ? 'Plan confirmed' : 'Design preview', leading: null),
+      header: WAppBar(title: testNote != null ? 'Test plan booked' : paid ? 'Plan confirmed' : 'Design preview', leading: null),
       footer: WFooterBar(
         showCall: false,
         child: WButton(
@@ -699,9 +702,9 @@ class PurchaseConfirmationScreen extends StatelessWidget {
         const Gap(20),
         WTitleBlock(
           s.monthly ? 'Your routine is ready' : 'Your wash is booked',
-          subtitle: paid
+          subtitle: testNote ?? (paid
               ? 'Paid for this month. Each visit is on Bookings.'
-              : 'Demo confirmation only. No real booking or payment was made.',
+              : 'Demo confirmation only. No real booking or payment was made.'),
         ),
         PurchaseSummaryCard(
           selection: s,

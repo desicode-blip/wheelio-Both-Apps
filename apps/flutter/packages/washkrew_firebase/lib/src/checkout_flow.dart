@@ -69,6 +69,11 @@ class CheckoutFlow {
         (existingId != null && id != existingId)) {
       throw StateError('Reopen this booking to prepare payment again.');
     }
+    // 14 Nov: a team test booking is never sent to Razorpay. A server without test
+    // bookings (not deployed yet) returns a normal payment order; stop before it opens.
+    if (booking?['testBooking'] == true && options['paid'] != true) {
+      throw const TestBookingUnavailable();
+    }
     onBookingReady?.call(id);
     if (options['paid'] == true) {
       onStage?.call(CheckoutStage.confirming);
@@ -104,4 +109,11 @@ class CheckoutFlow {
       'signature': result['razorpay_signature'],
     });
   }
+}
+
+/// The server can't take team test bookings yet (it would ask for a real payment).
+class TestBookingUnavailable implements Exception {
+  const TestBookingUnavailable();
+  @override
+  String toString() => 'Test bookings need the updated server.';
 }

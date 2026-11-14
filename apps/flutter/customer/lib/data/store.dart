@@ -623,6 +623,7 @@ class AppStore extends ChangeNotifier {
     _readIds.clear(); _unreadIds.clear(); _deletedIds.clear();
     _prepareCoupons();
     orders = [];
+    previewOrders.clear();
     vehicles = [];
     notifications = [];
     _inbox = [];
@@ -698,7 +699,7 @@ class AppStore extends ChangeNotifier {
           .listen(
             (snapshot) {
               if (_liveUid != uid || generation != _accountGeneration || !_accountActive || snapshot.metadata.isFromCache) return;
-              orders = [for (final doc in snapshot.docs) _liveOrder(doc.id, doc.data())];
+              orders = [for (final doc in snapshot.docs) _liveOrder(doc.id, doc.data()), ...previewOrders];
               vehicles = [];
               for (final o in orders) {
                 if (!vehicles.any((v) => v.plate == o.vehicle.plate)) vehicles.add(o.vehicle);
@@ -998,14 +999,41 @@ class AppStore extends ChangeNotifier {
   /// The server stores exact-minute windows (liveConfig.customTimeWindows).
   bool get customTimesLive => !isLive || liveConfig['customTimeWindows'] == true;
   /// The server prices and records Basic/Premium/Extra Premium and interior (liveConfig.washTiers).
-  bool get washTiersLive => !isLive || liveConfig['washTiers'] == true;
-  /// Monthly plans (phase 2) stay hidden until their server work is live.
-  bool get monthlyPlansLive => liveConfig['monthlyPlans'] == true;
+  bool get washTiersLive => !isLive || liveConfig['washTiers'] == true || previewUnlock;
+  /// Interior cleaning stays closed until the server sells it (also on preview installs).
+  bool get interiorLive => !isLive || liveConfig['washTiers'] == true;
+  /// Monthly plans: open once the server sells them (or on a preview install).
+  bool get monthlyPlansLive => liveConfig['monthlyPlans'] == true || previewUnlock;
+
+  /// 14 Nov (Aman): installs on the owner's phone (WASHKREW_PREVIEW_UNLOCK, set only by
+  /// device builds; App Store archives set it false) open every feature the live server
+  /// can't sell yet, except interior. Such a booking runs on sample data with a clearly
+  /// labelled preview payment: no money is taken and no Captain is sent.
+  bool? previewUnlockOverride;
+  bool get previewUnlock => isLive && (previewUnlockOverride ?? const bool.fromEnvironment('WASHKREW_PREVIEW_UNLOCK'));
+  /// The current checkout uses something the live server can't sell yet.
+  bool get previewCheckout {
+    if (!previewUnlock) return false;
+    final p = purchase, d = draft;
+    if (p.chosen && p.monthly && liveConfig['monthlyPlans'] != true) return true;
+    if ((d.serviceLevel ?? ServiceLevel.basic) != ServiceLevel.basic && liveConfig['washTiers'] != true) return true;
+    if (p.usingPremiumReward && liveConfig['referrals'] != true) return true;
+    return false;
+  }
+  /// Preview bookings live only on this phone; they never reach the server.
+  final List<Order> previewOrders = [];
+  /// The server answered that it can't take test bookings yet (until Ajay deploys).
+  bool _testBookingsMissing = false;
+  /// The last checkout skipped payment (team test or on-phone preview).
+  bool lastCheckoutTest = false;
+  /// True when the last test booking stayed on this phone (no Captain gets it).
+  bool get lastCheckoutLocal => lastCheckoutTest && _testBookingsMissing;
+  bool _serverOrder(String? id) => isLive && !previewOrders.any((o) => o.id == id);
 
   /// 13 Nov (Aman): features the live server can't do yet are "Coming soon" at their entry
   /// point. Sample builds keep everything open for review.
-  bool get referralsLive => !isLive || liveConfig['referrals'] == true;
-  bool get gatePassLive => !isLive || liveConfig['gatePass'] == true;
+  bool get referralsLive => !isLive || liveConfig['referrals'] == true || previewUnlock;
+  bool get gatePassLive => !isLive || liveConfig['gatePass'] == true || previewUnlock;
 
   /// Service hours for custom windows: liveConfig.serviceHours {startMinute, endMinute},
   /// else 4 AM – 11 PM (Aman, 8 Nov).
@@ -1119,7 +1147,7 @@ class AppStore extends ChangeNotifier {
     if (purchase.chosen && purchase.monthly && !monthlyPlansLive) {
       return 'Monthly plans open for payment soon. A one-time wash can be booked today.';
     }
-    if (purchase.usingPremiumReward) {
+    if (purchase.usingPremiumReward && liveConfig['referrals'] != true && !previewUnlock) {
       return 'Free Premium washes open soon. You can book a paid wash today.';
     }
     final s = draft.slot;
@@ -1131,6 +1159,9 @@ class AppStore extends ChangeNotifier {
       return 'Exact times open soon. For now, pick one of these: $slots.';
     }
     final level = draft.serviceLevel, coverage = draft.coverage;
+    if (coverage == WashCoverage.exteriorInterior && !interiorLive) {
+      return 'Interior cleaning opens for booking soon. Choose outside only to book today.';
+    }
     if (level != null && coverage != null && (level != ServiceLevel.basic || coverage != WashCoverage.exterior) && !washTiersLive) {
       return '${level.label}${coverage == WashCoverage.exteriorInterior ? ' with interior' : ''} opens for booking soon. Basic, outside only, can be booked today.';
     }
@@ -1557,6 +1588,7 @@ class AppStore extends ChangeNotifier {
     customer = null;
     vehicles = [];
     orders = [];
+    previewOrders.clear();
     notifications = [];
     notificationPrefs = NotificationPrefs();
     notifyListeners();
@@ -1766,7 +1798,8 @@ class AppStore extends ChangeNotifier {
       _createOrderAndPay().whenComplete(() => _checkoutFuture = null);
 
   Future<PaymentOutcome> _createOrderAndPay() async {
-    if (isLive) {
+    final preview = previewCheckout;
+    if (isLive && (!preview || !_testBookingsMissing)) {
       checkoutCancelled = false;
       _checkoutStage(CheckoutStage.preparing);
       final d=draft,s=d.slot;
@@ -1811,11 +1844,11 @@ class AppStore extends ChangeNotifier {
         // v2 CU-WASHCHOICE: exact windows and the chosen service, only once the server
         // accepts them (liveConfig switches set by Ajay).
         if (s.minuteWindows.isNotEmpty) 'minuteWindows': [for (final w in s.orderedMinuteWindows) {'startMinute': w.$1, 'endMinute': w.$2}],
-        if (washTiersLive && d.serviceLevel != null) 'serviceLevel': d.serviceLevel!.name,
+        if ((liveConfig['washTiers'] == true || preview) && d.serviceLevel != null) 'serviceLevel': d.serviceLevel!.name,
         // v2 CU-CARE: the Captain's job shows these (server copies them onto the job).
         if (d.vehicleProfile != null) 'vehicleProfile': d.vehicleProfile,
         if (d.careRoutine.isNotEmpty) 'careRoutine': d.careRoutine,
-        if (washTiersLive && d.coverage != null) 'coverage': d.coverage!.name,
+        if ((liveConfig['washTiers'] == true || preview) && d.coverage != null) 'coverage': d.coverage!.name,
         'useFreeWash': false,
         'useCredit': false,
         'paymentChoice':d.couponAppliedPaise>0?'coupon':'razorpay',
@@ -1823,6 +1856,8 @@ class AppStore extends ChangeNotifier {
         if(d.couponAppliedPaise>0)'expectedCouponPaise':d.couponAppliedPaise,
         if(d.couponAppliedPaise>0)'acceptedCouponForfeitPaise':d.couponForfeitAccepted?d.couponForfeitPaise:0,
         'expectedAmountPaise': d.pricePaise,
+        // 14 Nov (Aman): a team test booking skips payment; Captains still get it for real.
+        if (preview) 'testBooking': true,
         // 13 Nov (Aman): a monthly plan pays the whole cycle once; the server splits it into visits.
         if (planCheckout) 'plan': {'frequency': purchase.frequency, 'weekdays': (purchase.weekdays.toList()..sort()), 'start': _isoDay(purchase.start)},
         if (usesCancellationQuote(liveConfig['cancellationPolicy'] is Map ? Map<String,dynamic>.from(liveConfig['cancellationPolicy']) : null)) 'acceptedCancellationPolicy': Map<String, dynamic>.from(liveConfig['cancellationPolicy']),
@@ -1838,7 +1873,9 @@ class AppStore extends ChangeNotifier {
       }
       booking['requestId'] = draftRequestId;
       unawaited(_restoreVehicle(d.plate)); // v2 CU-VEHICLE: a deleted vehicle that is booked again comes back
-      final paid = await live!.startCheckout(
+      final Map<String, dynamic> paid;
+      try {
+      paid = await live!.startCheckout(
         booking: booking,
         uploads: [
           for (final entry in draftMedia.entries.toList())
@@ -1849,6 +1886,17 @@ class AppStore extends ChangeNotifier {
         onBookingReady: (id) { draftBookingId = id; currentOrderId = id; },
         onStage: _checkoutStage,
       );
+      } catch (e) {
+        // The deployed server can't take test bookings yet: show the preview on this phone.
+        final text = '$e';
+        if (preview && (e is TestBookingUnavailable || ['WashKrew team', 'price or balance changed', 'not available yet', 'not priced', 'Choose an available wash', 'Monthly plans'].any(text.contains))) {
+          _testBookingsMissing = true;
+          _checkoutIdentity = null; draftBookingId = null;
+          return _createOrderAndPay();
+        }
+        rethrow;
+      }
+      lastCheckoutTest = preview;
       final bookingId = draftBookingId!;
       if (paid['checkoutCancelled'] == true) {
         checkoutCancelled = true;
@@ -1881,7 +1929,7 @@ class AppStore extends ChangeNotifier {
     final method = paymentMethods.where((m) => m.id == payMethodId).firstOrNull ?? gpay;
     final o = Order(
       id: newId('ord'),
-      ref: _nextRef(),
+      ref: preview ? 'PREVIEW-${_refCounter++}' : _nextRef(),
       vehicle: vehicle,
       place: place,
       slot: slot,
@@ -1895,8 +1943,17 @@ class AppStore extends ChangeNotifier {
       wash: d.wash,
     );
     orders.add(o);
+    if (preview) {
+      previewOrders.add(o);
+      lastCheckoutTest = true;
+      if (purchase.chosen && purchase.monthly) {
+        purchase.confirmed = true;
+        activePlan = purchase.snapshot();
+        planJustPaid = true;
+      }
+    }
     currentOrderId = o.id;
-    switch (demo.payment) {
+    switch (preview ? PaymentOutcome.success : demo.payment) {
       case PaymentOutcome.failed:
         orders.removeWhere((x) => x.id == o.id);
         notifyListeners();
@@ -1943,7 +2000,7 @@ class AppStore extends ChangeNotifier {
   }
 
   void _startLifecycle(String id) {
-    if (isLive) return;
+    if (_serverOrder(id)) return;
     _update(id, (o) => o.status = OrderStatus.searching);
     // Booked for later: it stays "Booked" until the slot; no captain, wash or photos yet.
     if (orders.where((o) => o.id == id).firstOrNull?.slotAhead ?? false) return;
@@ -2006,7 +2063,7 @@ class AppStore extends ChangeNotifier {
   void answerCantFind(String answer) {
     final id = currentOrderId;
     if (id == null) return;
-    if (isLive) {
+    if (_serverOrder(id)) {
       live!.call('updateVehicleHelp', {'orderId':id,'action':'answer','value':answer}).catchError((Object e) { set(()=>toast=backendError(e)); return <String,dynamic>{}; });
       return;
     }
@@ -2063,12 +2120,12 @@ class AppStore extends ChangeNotifier {
   /// Live cancellation uses the saved server policy and a confirmed quote.
   /// The disconnected design reference retains its original free-wash rule.
   Future<Map<String, dynamic>?> cancellationQuote(String id) async {
-    if (!isLive) return null;
+    if (!_serverOrder(id)) return null;
     final result = await live!.call('getCancellationQuote', {'orderId': id});
     return result['quote'] is Map ? Map<String, dynamic>.from(result['quote']) : null;
   }
   Future<void> cancel(String id, {String? confirmation}) async {
-    if (isLive) {
+    if (_serverOrder(id)) {
       final data = {'orderId': id};
       if (confirmation != null) data['confirmation'] = confirmation;
       await live!.call('cancelBooking', data);
@@ -2098,7 +2155,7 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc approve_order (releases the held money to the captain).
   Future<void> approve(String id) async {
-    if (isLive) {
+    if (_serverOrder(id)) {
       await live!.call('approveWash', {'orderId': id});
       await _refreshLiveOrder(id);
       return;
@@ -2109,7 +2166,7 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> rate(String id, int stars, [Set<String> tags = const {}]) async {
-    if (isLive) {
+    if (_serverOrder(id)) {
       await live!.call('rateWash', {'orderId': id, 'stars': stars, 'tags':tags.toList()});
       await _refreshLiveOrder(id);
       return;
@@ -2120,7 +2177,7 @@ class AppStore extends ChangeNotifier {
 
   /// BACKEND: rpc report_problem.
   Future<void> reportProblem(String id, ProblemKind kind, String note, [List<Uint8List> photos = const []]) async {
-    if (isLive) {
+    if (_serverOrder(id)) {
       final account=live!.uid;
       if(account==null)throw StateError('Log in to report a problem.');
       await submitProblemReport(orderId:id,ownerId:account,kind:kind.name,note:note,photos:photos,

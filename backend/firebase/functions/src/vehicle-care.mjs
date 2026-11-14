@@ -129,6 +129,10 @@ export class VertexVehicleAi {
 
 const LEVELS=['basic','premium','extraPremium'], COVERAGES=['exterior','exteriorInterior'];
 
+/** Aman's prices (rupees), used by team test bookings when config.washPrices isn't set. */
+const car={basic:{exterior:292,exteriorInterior:372},premium:{exterior:392,exteriorInterior:472},extraPremium:{exterior:492,exteriorInterior:572}};
+export const DEFAULT_WASH_PRICES={hatchback:car,sedan:car,suv:car,bike:{basic:{exterior:149},premium:{exterior:199},extraPremium:{exterior:249}}};
+
 /**
  * The vehicle type priced for the customer's wash: Basic exterior keeps today's price;
  * other levels and interior need config.washTiers === true and a price in

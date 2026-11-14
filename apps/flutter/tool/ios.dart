@@ -428,6 +428,8 @@ Future<void> main(List<String> arguments) async {
           '--export-options-plist=${root.path}/apps/flutter/tool/AppStoreExportOptions.plist',
           '--dart-define=WHEELIO_DEMO=false',
           '--dart-define=FIREBASE_USE_EMULATORS=false',
+          // App Store builds never open the owner's preview features.
+          '--dart-define=WASHKREW_PREVIEW_UNLOCK=false',
           ...buildFlags,
         ], cwd);
         await store.verifyAndCollect(root, app);
@@ -457,6 +459,9 @@ Future<void> main(List<String> arguments) async {
           '--release',
           '--no-pub',
           if (args.noCodesign) '--no-codesign',
+          // 14 Nov (Aman): installs on the owner's iPhone open Premium, monthly plans and
+          // referrals as team tests (no payment). Never set for App Store archives.
+          if (!args.demo) '--dart-define=WASHKREW_PREVIEW_UNLOCK=true',
           ...buildFlags,
         ], cwd);
         if (!args.noCodesign)

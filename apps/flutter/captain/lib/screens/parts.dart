@@ -198,7 +198,7 @@ class BookingChip extends StatelessWidget {
             child: WIconView(_washIcon(job.wash), size: 15, color: WColor.white, weight: semibold),
           ),
           const SizedBox(width: 10),
-          Flexible(child: WText(job.extras.serviceLevel == null ? washName(job.wash, context.store) : '${job.extras.serviceLevel} · ${washName(job.wash, context.store)}', WType.title, size: 16, maxLines: 1)),
+          Flexible(child: WText('${job.extras.serviceLevel == null ? washName(job.wash, context.store) : '${job.extras.serviceLevel} · ${washName(job.wash, context.store)}'}${job.extras.test ? ' · Test job, no pay' : ''}', WType.title, size: 16, maxLines: 1)),
           if (job.wash.inside) ...[const SizedBox(width: 10), const WIconView(WIcon.seat, size: 15, color: WColor.primaryStrong)],
         ]),
       );
