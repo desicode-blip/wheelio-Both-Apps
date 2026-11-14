@@ -1002,6 +1002,51 @@ class _RulesScreenState extends State<RulesScreen> {
   }
 }
 
+// MARK: Account approved (pop-up on Home, first open after approval)
+
+Future<void> showApprovedNotice(BuildContext context) {
+  final store = context.store;
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: 'Close',
+    barrierColor: WColor.scrim,
+    transitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (dialog, _, _) => Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: WSpace.gutter),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: WColor.white, borderRadius: BorderRadius.circular(28)),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const WIconBox(WIcon.check, size: 52, tone: Tone.ok, radius: 26),
+            const SizedBox(height: 12),
+            WText(store.t('Your account is approved', 'आपका अकाउंट मंज़ूर हो गया', 'మీ ఖాతా ఆమోదించబడింది'), WType.section, weight: semibold),
+            const SizedBox(height: 12),
+            WText(
+              store.online
+                  ? store.t('Welcome to the crew, ${store.firstName}! You’re online, so new jobs near you will ring here.', 'क्रू में स्वागत है, ${store.firstName}! आप ऑनलाइन हैं, पास के नए काम यहाँ आएंगे।', 'క్రూకి స్వాగతం, ${store.firstName}! మీరు ఆన్‌లైన్‌లో ఉన్నారు, దగ్గరి కొత్త పనులు ఇక్కడ వస్తాయి.')
+                  : store.t('Welcome to the crew, ${store.firstName}! Go online to start getting jobs near you.', 'क्रू में स्वागत है, ${store.firstName}! पास के काम पाने के लिए ऑनलाइन जाएं।', 'క్రూకి స్వాగతం, ${store.firstName}! దగ్గరి పనులు పొందడానికి ఆన్‌లైన్‌కి వెళ్ళండి.'),
+              WType.body,
+            ),
+            const SizedBox(height: 18),
+            if (!store.online)
+              WButton(store.t('Go online', 'ऑनलाइन जाएं', 'ఆన్‌లైన్‌కి వెళ్ళండి'), icon: WIcon.power, kind: ButtonKind.success, size: ButtonSize.captain, onTap: () { Navigator.of(dialog).pop(); store.goOnlineAfterApproval(); })
+            else
+              WButton(store.t('Start', 'शुरू करें', 'ప్రారంభించండి'), kind: ButtonKind.success, size: ButtonSize.captain, onTap: () => Navigator.of(dialog).pop()),
+            if (!store.online) ...[
+              const SizedBox(height: 12),
+              WButton(store.t('Later', 'बाद में', 'తర్వాత'), kind: ButtonKind.text, size: ButtonSize.captain, onTap: () => Navigator.of(dialog).pop()),
+            ],
+          ]),
+        ),
+      ),
+    ),
+    transitionBuilder: (_, animation, _, child) => FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(animation), child: child)),
+  );
+}
+
 // MARK: Profile under review (pop-up on Home)
 // Replaces the W13 review-call screen (removed 27 Oct). Shown on Home while the profile is
 // not approved. The call option appears once the 30-minute automatic review time is over.

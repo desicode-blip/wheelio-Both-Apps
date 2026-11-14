@@ -545,12 +545,14 @@ class WNotificationBell extends StatelessWidget {
       child: SizedBox(
         width: 48,
         height: 48,
-        child: Stack(children: [
-          Center(child: WIconView(store.notificationsOn ? WIcon.bell : WIcon.bellSlash, size: 22)),
+        // 14 Nov (Aman): the bell lines up with the right edge of the cards below; the
+        // 48-px tap area extends to its left.
+        child: Stack(clipBehavior: Clip.none, children: [
+          Align(alignment: Alignment.centerRight, child: WIconView(store.notificationsOn ? WIcon.bell : WIcon.bellSlash, size: 22)),
           if (n > 0)
             Positioned(
               top: 6,
-              right: 4,
+              right: -8,
               child: Container(
                 constraints: const BoxConstraints(minWidth: 19, minHeight: 19),
                 padding: const EdgeInsets.symmetric(horizontal: 5),

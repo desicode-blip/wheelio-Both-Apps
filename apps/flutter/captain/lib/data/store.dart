@@ -580,6 +580,24 @@ class CaptainStore extends ChangeNotifier {
       });
 
   /// Approved: go online without the captain having to tap anything.
+  /// 14 Nov (Aman): "Your account is approved" shows on Home the first time the app is
+  /// opened after approval (once per account on this phone).
+  bool approvalNoticePending = false;
+  String? _approvalChecked;
+  String get _approvalKey => 'approvalSeen_$liveUid';
+  void _checkApprovalSeen() {
+    final account = liveUid;
+    if (account.isEmpty || _approvalChecked == account) return;
+    _approvalChecked = account;
+    LocalFlags.get(_approvalKey).then((seen) {
+      if (!seen && liveUid == account && signedUp) { approvalNoticePending = true; changed(); }
+    });
+  }
+  void markApprovalSeen() {
+    approvalNoticePending = false;
+    if (liveUid.isNotEmpty) LocalFlags.set(_approvalKey, true);
+  }
+
   void goOnlineAfterApproval() {
     if (isLive && liveCaptain['approved'] != true) return;
     awaitingApproval = false;
@@ -1317,6 +1335,7 @@ class CaptainStore extends ChangeNotifier {
         exploring = true;
         final wasApproved = signedUp;
         signedUp = d['approved'] == true;
+        if (signedUp) _checkApprovalSeen();
         // Approved while waiting after 'I agree': go online by itself.
         if (!wasApproved && signedUp && awaitingApproval) Future.microtask(goOnlineAfterApproval);
         levelDay = (d['levelDay'] as num? ?? levelDay).toInt();

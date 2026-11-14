@@ -214,6 +214,11 @@ class _CaptainHomeState extends State<CaptainHome> {
     final hasPlan = store.signedUp && store.todayJobs.isNotEmpty;
     // Jobs wait until the first-time work-profile animation has landed.
     _scheduleRing(store.online && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0 && !limitReached);
+    // 14 Nov (Aman): first open after approval: the success message.
+    if (store.approvalNoticePending && !store.reviewNoticePending && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0) {
+      store.markApprovalSeen();
+      WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) showApprovedNotice(context); });
+    }
     // After the first-time work profile while not approved yet (once the chip has glowed).
     if (store.reviewNoticePending && !store.workSetupLanding && !store.chipGlow && isTopScreen(context) && router.tab == 0) {
       store.reviewNoticePending = false;
